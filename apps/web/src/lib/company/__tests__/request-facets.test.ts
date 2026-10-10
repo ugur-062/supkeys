@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import { EMPTY_REQUEST_FILTERS, type RequestFilterState } from "../request-filter-params";
-import { matchedItemName, passes, requestFacets, sortRequests } from "../request-facets";
+import { matchedItemName, passes, requestFacets, rowSegments, sortRequests } from "../request-facets";
 
 const NOW = Date.parse("2026-09-05T10:00:00Z");
 const DAY = 86_400_000;
@@ -146,6 +146,27 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     const fx = requestFacets(rows, F({ status: "tumu" }), NAMES, NOW);
     expect(fx.categories).toEqual([{ key: "39000000", label: "Elektrik", count: 1 }]);
     expect(fx.categories.some((c) => c.label === "10000000")).toBe(false);
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür,
+  // silah / kolluk dalları gizli. Sektör adı listede VAR; gizli daldaki talep
+  // yine de o sektöre sayılmaz ve o sektörün süzgecinden geçmez — kod segmente
+  // yuvarlanmadan ÖNCE sınanır (ada bakan eski süzgeç bunu yakalayamazdı).
+  it("görünür sektörün gizli dalındaki talep o sektöre sayılmaz ve süzgecinden geçmez; görünür dalındaki sayılır", () => {
+    const names = new Map([...NAMES, ["46000000", "İş Güvenliği ve Yangın Ekipmanları"]]);
+    const weapon = row({ categories: [{ code: "46101500", name: "Ateşli silahlar" }] });
+    const spray = row({ categories: [{ code: "46182501", name: "Biber gazı" }] });
+    const glove = row({ categories: [{ code: "46181500", name: "Koruyucu giysi" }] });
+    const mixed = row({ categories: [{ code: "46151600", name: "Kalabalık kontrol" }, { code: "46191600", name: "Yangın söndürücüler" }] });
+    expect(rowSegments(weapon)).toEqual([]);
+    expect(rowSegments(spray)).toEqual([]);
+    expect(rowSegments(glove)).toEqual(["46000000"]);
+    expect(rowSegments(mixed)).toEqual(["46000000"]);
+
+    const fx = requestFacets([weapon, spray, glove, mixed], F(), names, NOW);
+    expect(fx.categories).toEqual([{ key: "46000000", label: "İş Güvenliği ve Yangın Ekipmanları", count: 2 }]);
+    const only46 = F({ categories: ["46000000"] });
+    expect([weapon, spray, glove, mixed].filter((r) => passes(r, only46, NOW)).map((r) => r.id)).toEqual([glove.id, mixed.id]);
   });
 });
 

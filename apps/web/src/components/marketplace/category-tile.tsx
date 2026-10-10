@@ -50,15 +50,23 @@ const TILE_LABEL_WRAP = "break-words [hyphenate-limit-chars:14_4_4] [&:lang(ru)]
  *
  * `variant`:
  *  · `wide` (varsayılan) — 16:10 fotoğraf, solda ad + sayı, sağda ok.
- *  · `square` — KARE fotoğraf, altında ORTALANMIŞ ad (2 satır) ve parantezli
- *    sayı. Satınalma anasayfasının vitrin ızgarası için (2026-09-07,
- *    kullanıcı ekran görüntüsü): 5 sütunlu sıkı ızgarada geniş kart adı tek
- *    satıra kırpıyor, kare kart iki satır veriyor ve göz sütunları tarayabiliyor.
+ *  · `square` — KARE kart, altında ORTALANMIŞ ad (2 satır) ve parantezli
+ *    sayı. Kategori vitrininin ızgarası için (2026-09-07, kullanıcı ekran
+ *    görüntüsü): sıkı ızgarada geniş kart adı tek satıra kırpıyor, kare kart
+ *    iki satır veriyor ve göz sütunları tarayabiliyor.
  *
  * `visual` (2026-09-21, kullanıcı kararı "herkese açık anasayfada
  * kategorilerde fotoğraf olmasın, çizgisel ikonlar"): `"photo"` (varsayılan)
  * fotoğraf varsa onu basar; `"icon"` fotoğrafı HİÇ basmaz, segmentin çizgisel
  * ikonunu (`category-visual.ts`, lucide, ince çizgi) tam opaklıkla çizer.
+ *
+ * KİM NEYİ ÇİZİYOR (2026-10-10): kategori vitrini iki sayfada da İKONLU —
+ * `CategoryShowcaseRows` bu kartı `square` + `"icon"` ile çağırır (herkese açık
+ * anasayfa 2026-09-21; satınalma paneli `/company/satinalma` 2026-10-10, sahip
+ * kararı — panel o güne dek `square` + `"photo"` çiziyordu). Fotoğraflı kartı
+ * bugün yalnız `CategoryGrid` (`wide` + varsayılan `"photo"`) çağırır ve onu
+ * hiçbir sayfa içe aktarmıyor; `square` + `"photo"` yalnız sınamalarda çizilir.
+ * Fotoğraf kodu silinmedi.
  */
 export function CategoryTile({
   category: c,
@@ -106,8 +114,9 @@ export function CategoryTile({
             üst sınır da o kadar: METİN kutusu aynı genişlikte — satırlar, metnin
             yeri ve kart boyu değişmez (çalışan derlemede CSS'i değiştirerek
             ölçüldü: üç dil × 201 genişlik, 14 472 ölçüm, 0 fark). Üçü birlikte
-            durur. Fotoğraflı kare kartta (panel) UYGULANMADI: aynı deneme 320
-            px'te metni 1 px kaydırdı. */}
+            durur. Fotoğraflı kare kartta (o gün panel vitrini; 2026-10-10'dan
+            beri hiçbir sayfa çizmiyor) UYGULANMADI: aynı deneme 320 px'te metni
+            1 px kaydırdı. */}
         <span
           className={`-mx-2 mt-4 line-clamp-2 max-w-[calc(100%+1rem)] px-2 text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}
         >

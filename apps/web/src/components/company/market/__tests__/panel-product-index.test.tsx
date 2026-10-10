@@ -175,13 +175,32 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
   // 2026-10-09 (sahip kararı; arayüz denetimi W-12): gizli segment kodu süzgeç
   // değildir — panel dizini de adını ya da ham kodunu aktif çip olarak basmaz.
   it("?kategori=<gizli segment> süzgeç sayılmaz: ne ad ne ham kod çip olur", () => {
-    h.search = "kategori=46000000";
-    h.selectedCategory = { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları", level: 1 };
+    h.search = "kategori=92000000";
+    h.selectedCategory = { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri", level: 1 };
     render(<PanelProductIndex />);
-    expect(screen.queryByText("Kolluk ve Emniyet Ekipmanları")).toBeNull();
-    expect(screen.queryByText("46000000")).toBeNull();
+    expect(screen.queryByText("Kamu Düzeni ve Güvenlik Hizmetleri")).toBeNull();
+    expect(screen.queryByText("92000000")).toBeNull();
     const aside = screen.getByRole("complementary", { name: "Süzgeçler" });
     expect(within(aside).getByRole("button", { name: /Tüm filtreleri sıfırla/ })).toBeDisabled();
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür;
+  // silah / kolluk dalları gizli. Gizli ailenin kodu süzgeç sayılmaz, sektörün
+  // kodu sıradan bir süzgeçtir.
+  it("?kategori=<46'nın gizli ailesi> süzgeç sayılmaz; ?kategori=46000000 adıyla çip olur", () => {
+    h.search = "kategori=46100000";
+    h.selectedCategory = { id: "46100000", name: "Hafif silahlar ve mühimmat", level: 2 };
+    const hidden = render(<PanelProductIndex />);
+    expect(screen.queryByText("Hafif silahlar ve mühimmat")).toBeNull();
+    expect(screen.queryByText("46100000")).toBeNull();
+    expect(within(screen.getByRole("complementary", { name: "Süzgeçler" })).getByRole("button", { name: /Tüm filtreleri sıfırla/ })).toBeDisabled();
+    hidden.unmount();
+
+    h.search = "kategori=46000000";
+    h.selectedCategory = { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", level: 1 };
+    render(<PanelProductIndex />);
+    expect(screen.getAllByText("İş Güvenliği ve Yangın Ekipmanları").length).toBeGreaterThan(0);
+    expect(within(screen.getByRole("complementary", { name: "Süzgeçler" })).getByRole("button", { name: /Tüm filtreleri sıfırla/ })).toBeEnabled();
   });
 
   it("kenar süzgeci + sayaç + sıralama; uygunluk rozeti ve özellik maddesi yalnız verilende", () => {

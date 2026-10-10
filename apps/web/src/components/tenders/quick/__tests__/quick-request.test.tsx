@@ -890,7 +890,8 @@ describe("QuickRequest", () => {
 
     /**
      * GİZLİ SEGMENT (2026-10-09, sahip kararı; arayüz denetimi W-11): eski
-     * talebin gizli kategorisi (46 = kolluk/emniyet) forma hiç girmez — çip
+     * talebin gizli kategorisi (fikstür: görünür 46 sektörünün gizli ailesi
+     * 4610, hafif silahlar — 2026-10-10) forma hiç girmez — çip
      * olarak çizilmez, kayda/yayına gönderilmez. Görünür kategorisi kalmayan
      * talepte formun kendi "kategori zorunlu" kuralı güncel bir kategori ister.
      */
@@ -900,7 +901,7 @@ describe("QuickRequest", () => {
           mode="edit"
           listingId="e1"
           listingStatus="DRAFT"
-          initialValues={{ ...listing(), categoryIds: ["46181500", "39121600"] }}
+          initialValues={{ ...listing(), categoryIds: ["46101500", "39121600"] }}
         />,
       );
       expect(await screen.findByRole("button", { name: "Kategori: 39121600" })).toBeInTheDocument();
@@ -908,7 +909,7 @@ describe("QuickRequest", () => {
       await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
       expect(h.update.mock.calls[0][0].categoryIds).toEqual(["39121600"]);
       // Kategori adları da yalnız görünür kimlikle istenir (AI açıklama isteğine gizli ad sızmaz).
-      expect(h.byIds.mock.calls.every((c) => !(c[0] as string[]).includes("46181500"))).toBe(true);
+      expect(h.byIds.mock.calls.every((c) => !(c[0] as string[]).includes("46101500"))).toBe(true);
     }, 30_000);
 
     it("düzenleme: yalnız gizli kategorisi olan talep kategorisiz açılır; yayın 'kategori zorunlu' ile durur", async () => {
@@ -917,7 +918,7 @@ describe("QuickRequest", () => {
           mode="edit"
           listingId="e1"
           listingStatus="DRAFT"
-          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+          initialValues={{ ...listing(), categoryIds: ["46101500"] }}
         />,
       );
       expect(await screen.findByRole("button", { name: "Kategori seç" })).toBeInTheDocument();
@@ -941,7 +942,7 @@ describe("QuickRequest", () => {
           mode="edit"
           listingId="e1"
           listingStatus="OPEN"
-          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+          initialValues={{ ...listing(), categoryIds: ["46101500"] }}
         />,
       );
       const field = await screen.findByRole("button", { name: "Kategori seç" });
@@ -991,7 +992,7 @@ describe("QuickRequest", () => {
           mode="edit"
           listingId="e1"
           listingStatus="OPEN"
-          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+          initialValues={{ ...listing(), categoryIds: ["46101500"] }}
         />,
       );
       fireEvent.click(await screen.findByRole("button", { name: "Kategori seç" }));
@@ -1022,7 +1023,7 @@ describe("QuickRequest", () => {
           mode="edit"
           listingId="e1"
           listingStatus="DRAFT"
-          initialValues={{ ...listing(), categoryIds: ["46181500"] }}
+          initialValues={{ ...listing(), categoryIds: ["46101500"] }}
         />,
       );
       const field = await screen.findByRole("button", { name: "Kategori seç" });
@@ -1168,7 +1169,7 @@ describe("QuickRequest", () => {
     it("oturum taslağındaki gizli kategori geri yüklenmez (taslak eşleyiciden geçmez)", async () => {
       sessionStorage.setItem(
         "quick-request-draft",
-        JSON.stringify({ title: "Eski taslak", description: "", items: [{ ...DEFAULT_FORM_VALUES.items[0]!, name: "eldiven" }], categoryIds: ["46181500"], keywords: [], deliveryAddressId: "", visibility: "PUBLIC", invitedSupplierIds: [], bidsCloseAt: "" }),
+        JSON.stringify({ title: "Eski taslak", description: "", items: [{ ...DEFAULT_FORM_VALUES.items[0]!, name: "eldiven" }], categoryIds: ["46101500"], keywords: [], deliveryAddressId: "", visibility: "PUBLIC", invitedSupplierIds: [], bidsCloseAt: "" }),
       );
       wrap(<QuickRequest />);
       expect(await screen.findByText("Kaldığınız taslak geri yüklendi.")).toBeInTheDocument();

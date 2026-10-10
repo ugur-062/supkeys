@@ -24,10 +24,14 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+// 2026-10-10: 46 görünür sektör (koruyucu giysi listede kalır); silah /
+// kolluk dalları gizli — gizli aile (4610) ve gizli sınıf (461825) düşer.
 const ROWS = [
-  { id: "46181500", name: "Koruyucu giysi", count: 40 },
+  { id: "46101500", name: "Ateşli silahlar", count: 40 },
   { id: "39121000", name: "Panolar", count: 12 },
   { id: "77101500", name: "Çevre danışmanlığı", count: 3 },
+  { id: "46181500", name: "Koruyucu giysi", count: 9 },
+  { id: "46182500", name: "Kişisel güvenlik cihazları veya silahları", count: 2 },
 ];
 
 describe("fetchStats — popularCategories", () => {
@@ -37,7 +41,10 @@ describe("fetchStats — popularCategories", () => {
       json: async () => ({ products: 5, companies: 2, categories: 1, openDemands: 0, productsThisWeek: 0, bidsLast24h: 0, verifiedCompanies: 1, popularCategories: ROWS }),
     });
     const stats = await fetchStats();
-    expect(stats.popularCategories).toEqual([{ id: "39121000", name: "Panolar", count: 12 }]);
+    expect(stats.popularCategories).toEqual([
+      { id: "39121000", name: "Panolar", count: 12 },
+      { id: "46181500", name: "Koruyucu giysi", count: 9 },
+    ]);
     expect(stats.products).toBe(5);
   });
 
@@ -51,7 +58,7 @@ describe("fetchDirectorySummary — topCategories", () => {
   it("gizli segment 'en çok firma olan kategoriler'e girmez", async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ verifiedCompanies: 7, topCategories: ROWS }) });
     const summary = await fetchDirectorySummary();
-    expect(summary.topCategories.map((c) => c.id)).toEqual(["39121000"]);
+    expect(summary.topCategories.map((c) => c.id)).toEqual(["39121000", "46181500"]);
     expect(summary.verifiedCompanies).toBe(7);
   });
 });

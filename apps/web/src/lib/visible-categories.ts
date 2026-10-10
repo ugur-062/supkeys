@@ -1,13 +1,20 @@
 import { isHiddenCategory, visibleCategoryIds } from "@rothern/shared";
 
 /**
- * GİZLİ SEGMENT KURALI — web'in TEK süzgeci (2026-10-09, sahip kararı:
+ * GİZLİ KATEGORİ KURALI — web'in TEK süzgeci (2026-10-09, sahip kararı:
  * "anasayfada olmayan kategori talepte, üründe ya da başka yerde de
- * gösterilmesin"). Kaynak `@rothern/shared` `HIDDEN_SEGMENTS`; buradaki
- * yardımcılar yalnız API'den gelen `{ id, name }` / `{ code, name }`
- * nesnelerini aynı kurala indirir.
+ * gösterilmesin"). Kaynak `@rothern/shared` `HIDDEN_CATEGORY_PREFIXES`
+ * (`isHiddenCategory`); buradaki yardımcılar yalnız API'den gelen
+ * `{ id, name }` / `{ code, name }` nesnelerini aynı kurala indirir.
  *
- * Eski kayıt (gizli segmentte saklanmış ürün, talep, firma beyanı) DURUR;
+ * KURALIN BİRİMİ KOD ÖNEKİDİR (2026-10-10): tümüyle gizli segment (2 hane),
+ * görünür segmentin gizli ailesi (4 hane) ya da görünür ailenin gizli sınıfı
+ * (6 hane). "Gizli mi" sorusu kodun TAMAMIYLA sorulur; kod önce segmente
+ * yuvarlanıp sonra sınanmaz (`46101500` gizli, segmenti `46000000` görünür).
+ * Ata zinciri saklayan firma beyanı ayrıca `visibleCompanyCategorySelection`
+ * ister (gizli seçimin görünür atası geride kalmasın).
+ *
+ * Eski kayıt (gizli dalda saklanmış ürün, talep, firma beyanı) DURUR;
  * yalnız gizli kategorisi hiçbir okumada görünmez: ad, çip, kırıntı, bağlantı,
  * süzgeç seçeneği, sayı, meta açıklaması, JSON-LD, OG kartı. API aynı süzgeci
  * uygular; web İKİNCİ kattır (eski API yanıtı, önbellekteki sayfa, kendi
@@ -23,7 +30,7 @@ function codeOf(ref: CategoryRefLike): string {
   return "id" in ref ? ref.id : ref.code;
 }
 
-/** Gizli segmentin altındaki kategori nesneleri düşer; sıra korunur. */
+/** Gizli bir önekin altındaki kategori nesneleri düşer; sıra korunur. */
 export function visibleCategoryRefs<T extends CategoryRefLike>(refs: readonly T[] | null | undefined): T[] {
   return (refs ?? []).filter((ref) => !!ref && !isHiddenCategory(codeOf(ref)));
 }

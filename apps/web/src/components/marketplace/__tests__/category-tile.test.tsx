@@ -28,7 +28,9 @@ const classes = () => label().className.split(/\s+/);
 const HYPHENATE_LIMIT = "[hyphenate-limit-chars:14_4_4]";
 
 describe("CategoryTile — kare kart etiketi", () => {
-  it("ikonlu kart (herkese açık anasayfa): etiket kutudan geniş olamaz, sığmayan sözcük bölünür", () => {
+  // İkonlu kart kategori vitrininin kartıdır: herkese açık anasayfa (2026-09-21)
+  // ve satınalma paneli (2026-10-10, sahip kararı — o güne dek fotoğraflıydı).
+  it("ikonlu kart (kategori vitrini — anasayfa ve satınalma paneli): etiket kutudan geniş olamaz, sığmayan sözcük bölünür", () => {
     render(<CategoryTile category={category} href="/k" variant="square" visual="icon" />);
     // Sütun düzeninde ortalanan etiket içeriği kadar genişler: üst sınır şart
     // (metin kutusu kartın iç genişliğini aşamaz — aşağıdaki CL-02 testi).
@@ -42,7 +44,9 @@ describe("CategoryTile — kare kart etiketi", () => {
     expect(classes()).toEqual(expect.arrayContaining(["line-clamp-2", "text-[13px]/5"]));
   });
 
-  it("fotoğraflı kart (panel vitrini): aynı kural", () => {
+  // Fotoğraflı kare kart 2026-10-10'a dek panel vitriniydi; bugün hiçbir sayfa
+  // çizmiyor (kod silinmedi), kuralı kilitli kalır.
+  it("fotoğraflı kare kart (bugün çağıranı yok): aynı kural", () => {
     render(<CategoryTile category={category} href="/k" variant="square" />);
     expect(classes()).toEqual(
       expect.arrayContaining(["break-words", "[&:lang(ru)]:hyphens-auto", HYPHENATE_LIMIT, "line-clamp-2"]),

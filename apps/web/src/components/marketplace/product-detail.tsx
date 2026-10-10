@@ -70,11 +70,16 @@ export function ProductDetail({
   const price = productPrice(product, priceLabels);
   const locale = useLocale();
   const seoT = useSeoT();
-  // Gizli segment (2026-10-09): kırıntı adımı 404 veren bir kategori sayfasına
+  // Gizli kategori (2026-10-09): kırıntı adımı 404 veren bir kategori sayfasına
   // bağlanmaz, "… kategorisinde yeni" başlığı gizli adı taşımaz. API `segment`i
   // ve `category`yi zaten boş döner; burası ikinci kat.
-  const segment = visibleCategoryRef(product.segment);
+  //
+  // Segment halkası yalnız ürünün KENDİ kategorisi görünürse çizilir
+  // (2026-10-10): gizleme aile / sınıf düzeyinde de var, yani gizli kategorinin
+  // segmenti görünür olabilir (`46101500` → `46000000`). Yalnız segmentin
+  // koduna bakmak gizli dalda saklanmış ürünü görünür sektörün altında gösterirdi.
   const category = visibleCategoryRef(product.category);
+  const segment = category ? visibleCategoryRef(product.segment) : null;
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `lib/seo/entities.ts` `productSeo` hem `generateMetadata`yı hem buradaki

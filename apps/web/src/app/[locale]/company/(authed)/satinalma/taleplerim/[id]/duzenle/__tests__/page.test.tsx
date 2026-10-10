@@ -90,7 +90,7 @@ describe("EditTenderPage", () => {
   // Gözden geçirme R-WEB-01: eşleyici gizli kategoriyi forma vermez → alanın
   // neden boş olduğunu form sayfadan öğrenir (kategorinin adı anılmadan).
   it("saklanan kodlarında gizli kategori olan talepte forma 'kullanımdan kalkan kategori' işareti ve durum gider", () => {
-    h.detail = { data: listing({ status: "OPEN", categoryIds: ["46181500"] }), isLoading: false };
+    h.detail = { data: listing({ status: "OPEN", categoryIds: ["46101500"] }), isLoading: false };
     render(<EditTenderPage />);
     expect(screen.getByTestId("quick-request")).toHaveAttribute("data-retired-category", "true");
     expect(screen.getByTestId("quick-request")).toHaveAttribute("data-status", "OPEN");

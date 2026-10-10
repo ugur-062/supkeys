@@ -41,17 +41,25 @@ describe("publicProfileViewData (arayüz testi O-018)", () => {
     const view = publicProfileViewData(
       profile({
         categories: [
-          { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları" },
+          { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri" },
           { id: "31000000", name: "Üretim Bileşenleri" },
           { id: "77000000", name: "Çevre Hizmetleri" },
           { id: "39000000", name: "Elektrik Sistemleri" },
+          { id: "46100000", name: "Hafif silahlar ve mühimmat" },
         ] as PublicProfile["categories"],
       }),
       "tr",
     );
     expect(view.categories?.map((c) => c.id)).toEqual(["31000000", "39000000"]);
-    expect(JSON.stringify(view)).not.toMatch(/Kolluk|Çevre Hizmetleri|46000000|77000000/);
-    expect(publicProfileViewData(profile({ categories: [{ id: "46000000", name: "Kolluk" }] as PublicProfile["categories"] }), "tr").categories).toEqual([]);
+    expect(JSON.stringify(view)).not.toMatch(/Kamu Düzeni|Çevre Hizmetleri|silah|92000000|77000000|46100000/);
+    expect(publicProfileViewData(profile({ categories: [{ id: "92000000", name: "Kamu Düzeni" }] as PublicProfile["categories"] }), "tr").categories).toEqual([]);
+  });
+
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" görünür sektördür —
+  // beyanı herkese açık profile iner.
+  it("46 beyanı görünüm verisine girer (geri açılan sektör)", () => {
+    const declared = [{ id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları" }] as PublicProfile["categories"];
+    expect(publicProfileViewData(profile({ categories: declared }), "tr").categories).toEqual(declared);
   });
 
   it("çevrilmemiş profilde not yok; kapılı alanlar (Rothern ID, web sitesi) anahtar olarak bile yazılmaz", () => {

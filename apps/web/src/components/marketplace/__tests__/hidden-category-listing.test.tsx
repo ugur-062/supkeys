@@ -4,8 +4,9 @@
  * (2026-10-09, sahip kararı: "anasayfada olmayan kategori talepte, üründe ya
  * da başka yerde de gösterilmesin"; arayüz denetimi W-01, W-02, W-19).
  *
- * Eski talep (gizlenmeden önce 46 = kolluk/emniyet ya da 10 = canlı bitki
- * segmentinde açılmış) YAYINDA KALIR; yalnız gizli kategorisi hiçbir okumada
+ * Eski talep (gizlenmeden önce 4610 = hafif silahlar ailesinde — görünür 46
+ * sektörünün gizli dalı, 2026-10-10 — ya da 10 = canlı bitki segmentinde
+ * açılmış) YAYINDA KALIR; yalnız gizli kategorisi hiçbir okumada
  * çizilmez: çip, süzgeç bağlantısı, "Kategori" sütunu, ipucu, "+N kategori".
  * API aynı süzgeci uygular — bu sınamalar web'in İKİNCİ katını kilitler: API
  * gizli kategoriyi gönderse bile ekrana çıkmaz, ve görünür kategorisi kalmayan
@@ -31,7 +32,7 @@ import { ListingDetail } from "../listing-detail";
 
 const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
 
-const HIDDEN = { id: "46181500", name: "Koruyucu giysi", level: 3 };
+const HIDDEN = { id: "46101500", name: "Ateşli silahlar", level: 3 };
 const HIDDEN_SEG = { id: "10000000", name: "Canlı Bitki ve Hayvanlar", level: 1 };
 const VISIBLE = { id: "40141700", name: "Borular", level: 3 };
 const VISIBLE_2 = { id: "31161500", name: "Vidalar", level: 3 };
@@ -84,7 +85,7 @@ function detail(categories: PublicListingCard["categories"]): PublicListingDetai
   } as unknown as PublicListingDetail;
 }
 
-const HIDDEN_TEXT = /Koruyucu giysi|Canlı Bitki|46181500|10000000/;
+const HIDDEN_TEXT = /Ateşli silahlar|Canlı Bitki|46101500|10000000/;
 
 describe("herkese açık talep sayfası (ListingDetail) — W-01", () => {
   it("gizli kategori çip olmaz, süzgeç bağlantısı üretilmez; görünür kategori kalır", () => {
@@ -113,7 +114,7 @@ describe("talep satırı (ListingTeaserRow) — anasayfa tedarikçi yüzü, dizi
     expect(container.textContent).not.toMatch(HIDDEN_TEXT);
     // İpucu (title) yalnız görünür adları taşır.
     expect(screen.getByText("Borular").parentElement).toHaveAttribute("title", "Borular, Vidalar");
-    expect(container.querySelector(`[title*="Koruyucu"]`)).toBeNull();
+    expect(container.querySelector(`[title*="Ateşli"]`)).toBeNull();
     // Dört kategoriden ikisi görünür → "+1 kategori" (gizliler sayılmaz).
     expect(screen.getByText("+1 kategori")).toBeInTheDocument();
     expect(screen.queryByText("+3 kategori")).toBeNull();

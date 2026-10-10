@@ -730,51 +730,106 @@ describe("CompanyCategoryPicker — adlar: gizli sektör ve yükleme hatası", (
     expect(h.rootsArgs.at(-1)?.[0]).toEqual({ inlineError: true });
   });
 
-  // GİZLİ SEKTÖR (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+  // GİZLİ KATEGORİ (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
   // yerde de gösterilmesin"). 2026-10-08'e dek gizli sektörün kayıtlı kodu
   // `by-ids` yedeğinden adıyla kart olarak çiziliyordu; artık firmanın KENDİ
   // ekranında da çizilmez, adı sorulmaz, tavana sayılmaz.
+  //
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // GÖRÜNÜR; yalnız silah ve kolluk dalları gizli. Beyan seçimi ata zinciriyle
+  // saklar: hafif silah (46101500) seçmiş firmanın kaydında 46000000 +
+  // 46100000 + 46101500 durur. Yalnız gizli kodları düşürmek geride sektör
+  // kodunu bırakır ve altı boş sektör "sektörün tamamı" diye çizilirdi.
   const GIZLI_AD = (ids: string[]) => ({
     // Eski API gizli kodun adını hâlâ döndürse bile ekrana çıkmamalı.
     data: ids.map((id) => ({
       id,
-      nameTr: id === "46000000" ? "Kolluk ve Emniyet Ekipmanları" : id === "46181500" ? "Koruyucu giysi" : `Yaprak ${id}`,
+      nameTr:
+        id === "46000000"
+          ? "İş Güvenliği ve Yangın Ekipmanları"
+          : id === "46101500"
+            ? "Ateşli silahlar"
+            : id === "46181500"
+              ? "Koruyucu giysi"
+              : `Yaprak ${id}`,
     })),
   });
 
-  it("gizli sektördeki eski beyan çizilmez: kart yok, ad yok, ham kod yok; adı da sorulmaz", () => {
+  it("gizli daldaki eski beyan çizilmez: görünür atası (sektör) da kart olmaz; ad yok, ham kod yok; adı da sorulmaz", () => {
     h.byIds = GIZLI_AD;
     render(
       <Harness
         mainIds={["46000000", "39000000"]}
-        subIds={["46180000", "46181500", "39120000", "39121600"]}
+        subIds={["46100000", "46101500", "39120000", "39121600"]}
       />,
     );
     // Yalnız görünür sektörün kartı ve seçimi çizilir.
     expect(screen.getByText("Elektrik Malzemeleri")).toBeInTheDocument();
     expect(screen.getByText("Yaprak 39121600")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.queryByText(/Kolluk|Koruyucu giysi/)).toBeNull();
-    expect(screen.queryByText(/46000000|46181500|46180000/)).toBeNull();
-    // Ad isteği gizli kodu hiç içermez.
+    expect(screen.queryByText(/İş Güvenliği|Ateşli silahlar|Sektörün tamamı —/)).toBeNull();
+    expect(screen.queryByText(/46000000|46101500|46100000/)).toBeNull();
+    // Ad isteği gizli kodu da yalnız onun atası olan sektörü de içermez.
     expect(h.byIdsArgs.at(-1)?.[0]).toEqual(["39121600", "39000000"]);
   });
 
-  it("yalnız gizli sektör kodu olan beyan BOŞ durumla açılır (güncel kategori seçtirir)", () => {
+  it("yalnız gizli seçim (ve ata zinciri) olan beyan BOŞ durumla açılır (güncel kategori seçtirir)", () => {
     h.byIds = GIZLI_AD;
-    render(<Harness mainIds={["46000000"]} subIds={["46180000", "46181500"]} />);
+    render(<Harness mainIds={["46000000"]} subIds={["46100000", "46101500"]} />);
     expect(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ })).toBeInTheDocument();
     expect(screen.queryByRole("listitem")).toBeNull();
-    expect(screen.queryByText(/Kolluk|Koruyucu giysi|4618|4600/)).toBeNull();
+    expect(screen.queryByText(/İş Güvenliği|Ateşli silahlar|4610|4600/)).toBeNull();
   });
 
-  it("eksen değişince gizli kodlar dönen değerden düşer; dokunulmadıkça onChange çağrılmaz", async () => {
+  it("gizli SINIF seçimi (461825): görünür ailesi ve sektörü yalnız onun atasıysa çizilmez", () => {
+    h.byIds = GIZLI_AD;
+    render(<Harness mainIds={["46000000"]} subIds={["46180000", "46182500", "46182501"]} />);
+    expect(screen.getByRole("button", { name: /Ürün \/ hizmet seçin/ })).toBeInTheDocument();
+    expect(screen.queryByRole("listitem")).toBeNull();
+  });
+
+  it("46 görünür sektör: 'sektörün tamamı' beyanı kart olarak çizilir ve pencereye sektör kodu gider", async () => {
+    const user = userEvent.setup();
+    h.byIds = GIZLI_AD;
+    render(<Harness mainIds={["46000000"]} />);
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.getByText(/^Sektörün tamamı —/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
+    await screen.findByTestId("alt-modal");
+    expect(h.modalProps?.value).toEqual(["46000000"]);
+  });
+
+  it("46'da görünür ve gizli seçim birlikte: kart yalnız görünür seçimi çizer, sayar ve pencereye yollar", async () => {
+    const user = userEvent.setup();
+    h.byIds = GIZLI_AD;
+    render(
+      <Harness
+        mainIds={["46000000"]}
+        subIds={["46100000", "46101500", "46180000", "46181500", "46182500", "46182501"]}
+      />,
+    );
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.getByText("Koruyucu giysi")).toBeInTheDocument();
+    // Sektörün altında bir görünür seçim var → "sektörün tamamı" DEĞİL.
+    expect(screen.queryByText(/^Sektörün tamamı —/)).toBeNull();
+    expect(screen.queryByText(/Ateşli silahlar|46101500|46182501/)).toBeNull();
+    expect(screen.getAllByRole("button", { name: /seçimini kaldır/ })).toHaveLength(1);
+    expect(h.byIdsArgs.at(-1)?.[0]).toEqual(["46181500", "46000000"]);
+    await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
+    await screen.findByTestId("alt-modal");
+    expect(h.modalProps?.value).toEqual(["46181500"]);
+    // Görünür seçim kaldırılınca sektör de düşer: gizli seçim onu "tamamı" beyanına çevirmez.
+    await user.click(screen.getByRole("button", { name: "Koruyucu giysi seçimini kaldır" }));
+    expect(h.sonDeger).toEqual({ mainIds: [], subIds: [] });
+  });
+
+  it("eksen değişince gizli kodlar ve yalnız onların atası olan sektör dönen değerden düşer; dokunulmadıkça onChange çağrılmaz", async () => {
     const user = userEvent.setup();
     h.byIds = GIZLI_AD;
     render(
       <Harness
         mainIds={["46000000", "39000000"]}
-        subIds={["46180000", "46181500", "39120000", "39121600"]}
+        subIds={["46100000", "46101500", "39120000", "39121600"]}
       />,
     );
     // Pencereye yalnız görünür seçim gider; aynı kümeyle onaylamak kayıt üretmez
@@ -794,11 +849,17 @@ describe("CompanyCategoryPicker — adlar: gizli sektör ve yükleme hatası", (
     });
   });
 
-  it("gizli sektör 5'lik sektör tavanına sayılmaz", async () => {
+  it("gizli sektör ve yalnız gizli seçimin atası olan sektör 5'lik sektör tavanına sayılmaz", async () => {
     const user = userEvent.setup();
-    // Kayıtta 1 gizli + 4 görünür sektör; beşinci GÖRÜNÜR sektör eklenebilmeli.
+    // Kayıtta 1 gizli sektör + gizli seçimin atası olan 46 + 4 görünür sektör;
+    // beşinci GÖRÜNÜR sektör eklenebilmeli.
     h.secim = ["39000000", "40000000", "41000000", "22000000", "23000000"];
-    render(<Harness mainIds={["46000000", "39000000", "40000000", "41000000", "22000000"]} />);
+    render(
+      <Harness
+        mainIds={["77000000", "46000000", "39000000", "40000000", "41000000", "22000000"]}
+        subIds={["46100000", "46101500"]}
+      />,
+    );
     await user.click(screen.getByRole("button", { name: /Ürün \/ hizmet ekle/ }));
     await screen.findByTestId("alt-modal");
     await user.click(screen.getByRole("button", { name: "alt-onayla" }));

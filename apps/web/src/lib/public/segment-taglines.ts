@@ -25,7 +25,11 @@ export const TAGLINE_SEGMENTS = [
 
 export type TaglineKey = `s${(typeof TAGLINE_SEGMENTS)[number]}` | "fallback";
 
-/** Kategori kodunun (herhangi seviye) slogan anahtarı; gizli segment (2026-10-09) nötr cümleye düşer. */
+/**
+ * Kategori kodunun (herhangi seviye) slogan anahtarı; gizli kategori (2026-10-09)
+ * nötr cümleye düşer. Kod segmente inmeden ÖNCE sınanır: görünür segmentin gizli
+ * dalındaki kod (`46101500`) segmentin sloganını almaz (2026-10-10).
+ */
 export function segmentTaglineKey(code: string | undefined): TaglineKey {
   if (!code || !/^\d{8}$/.test(code) || isHiddenCategory(code)) return "fallback";
   const seg = code.slice(0, 2);

@@ -31,6 +31,8 @@ describe("resolveSegmentLanding", () => {
       name: "Manufacturing components",
       slug: "uretim-bilesenleri",
       count: 12_345,
+      // Liste ucunun sayfa boyu aynı yanıttan: meta son sayfayı bununla hesaplar.
+      pageSize: 24,
     });
     expect(api.fetchProducts).toHaveBeenCalledWith({ category: "31000000" });
     expect(api.fetchProductFacets).not.toHaveBeenCalled();
@@ -40,5 +42,31 @@ describe("resolveSegmentLanding", () => {
     await expect(resolveSegmentLanding("40000000")).resolves.toBeNull();
     await expect(resolveSegmentLanding("31161500")).resolves.toBeNull();
     await expect(resolveSegmentLanding("10000000")).resolves.toBeNull();
+    await expect(resolveSegmentLanding("77000000")).resolves.toBeNull();
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // geri açıldı — açılış sayfası vardır. Silah / kolluk dalları gizli kalır:
+  // sayı liste ucunun `total`ıdır (API gizli dallardaki ürünü saymaz), yani
+  // yalnız gizli dalda ürünü olan sektör `total: 0` ile yine 404'tür. Gizli
+  // ailenin / sınıfın kodu segment kodu olmadığından hiçbir zaman sayfa değildir.
+  it("46 çözülür (ad, slug, sayı); ürünü görünür dalda yoksa ve gizli dalın kodunda 404", async () => {
+    api.fetchSegments.mockResolvedValue([
+      { id: "46000000", nameTr: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari" },
+    ]);
+    api.fetchProducts.mockResolvedValueOnce({ items: [], total: 7, page: 1, pageSize: 24 });
+    await expect(resolveSegmentLanding("46000000")).resolves.toEqual({
+      id: "46000000",
+      name: "İş Güvenliği ve Yangın Ekipmanları",
+      slug: "is-guvenligi-ve-yangin-ekipmanlari",
+      count: 7,
+      pageSize: 24,
+    });
+    expect(api.fetchProducts).toHaveBeenLastCalledWith({ category: "46000000" });
+    api.fetchProducts.mockResolvedValueOnce({ items: [], total: 0, page: 1, pageSize: 24 });
+    await expect(resolveSegmentLanding("46000000")).resolves.toBeNull();
+    api.fetchProducts.mockClear();
+    for (const hidden of ["46100000", "46101500", "46182500"]) await expect(resolveSegmentLanding(hidden)).resolves.toBeNull();
+    expect(api.fetchProducts).not.toHaveBeenCalled();
   });
 });

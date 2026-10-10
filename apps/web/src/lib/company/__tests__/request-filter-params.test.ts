@@ -67,15 +67,30 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
   });
 
   // 2026-10-09 (W-12): gizli segment kodu süzgeç yokmuş gibi okunur — Açık
-  // Talepler ham kodu ("46000000") aktif çip olarak basıyor, listeyi gizli
+  // Talepler ham kodu ("77000000") aktif çip olarak basıyor, listeyi gizli
   // sektöre süzüyordu.
   it("gizli segment kodu süzgeç olarak YOK sayılır (tam kod da segment kodu da)", () => {
-    const s = parseRequestFilters(new URLSearchParams("kategori=46000000,39121501,46181500,77000000"));
+    const s = parseRequestFilters(new URLSearchParams("kategori=92000000,39121501,92101500,77000000"));
     expect(s.categories).toEqual(["39000000"]);
-    const only = parseRequestFilters(new URLSearchParams("kategori=46000000"));
+    const only = parseRequestFilters(new URLSearchParams("kategori=77000000"));
     expect(only).toEqual(parseRequestFilters(new URLSearchParams()));
     expect(activeRequestFilterCount(only)).toBe(0);
     expect(buildRequestFilterQuery(only)).toBe("");
+  });
+
+  // 2026-10-10: 46 görünür sektör, silah / kolluk dalları gizli. Kod segmente
+  // indirgenmeden ÖNCE sınanır — gizli dalın kodu görünür sektörün süzgecine
+  // DÖNÜŞMEZ (önce yuvarlamak `46101500`ı `46000000` yapıp listeyi süzerdi).
+  it("görünür sektörün gizli dalı süzgeç olmaz; görünür dalı sektöre iner", () => {
+    for (const hidden of ["46101500", "46100000", "46151600", "46182500", "46182501", "46220000"]) {
+      const s = parseRequestFilters(new URLSearchParams(`kategori=${hidden}`));
+      expect(s.categories, hidden).toEqual([]);
+      expect(buildRequestFilterQuery(s), hidden).toBe("");
+    }
+    for (const visible of ["46000000", "46181500", "46180000", "46191600"]) {
+      expect(parseRequestFilters(new URLSearchParams(`kategori=${visible}`)).categories, visible).toEqual(["46000000"]);
+    }
+    expect(parseRequestFilters(new URLSearchParams("kategori=46101500,46181500,39121501")).categories).toEqual(["46000000", "39000000"]);
   });
 
   it("temizle: arama DAHİL sıfırlar, sıralama kalır", () => {

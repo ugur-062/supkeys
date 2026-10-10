@@ -76,13 +76,23 @@ describe("resolveListingPage", () => {
 describe("similarListingsSegment", () => {
   it("ilk GÖRÜNÜR kategori kodunun segmenti", () => {
     expect(similarListingsSegment(["39121600"])).toBe("39000000");
-    expect(similarListingsSegment(["46181500", "31161500", "39121600"])).toBe("31000000");
+    expect(similarListingsSegment(["46101500", "31161500", "39121600"])).toBe("31000000");
     expect(similarListingsSegment(["bozuk", "40141700"])).toBe("40000000");
   });
 
+  // 2026-10-10: 46 görünür sektör; silah / kolluk dalları gizli. Kod segmente
+  // inmeden ÖNCE sınanır: gizli dal atlanır, görünür dalın sektörü 46'dır.
+  it("46: görünür kategorili talep sektöre iner; gizli dalın kodu tek başına ölçüt olmaz", () => {
+    expect(similarListingsSegment(["46181500"])).toBe("46000000");
+    expect(similarListingsSegment(["46101500", "46181500"])).toBe("46000000");
+    expect(similarListingsSegment(["46101500", "31161500"])).toBe("31000000");
+  });
+
   it("görünür kategorisi olmayan talepte null — blok çizilmez, gizli kod sorguya girmez", () => {
-    expect(similarListingsSegment(["46181500"])).toBeNull();
-    expect(similarListingsSegment(["46181500", "77101500", "10000000"])).toBeNull();
+    expect(similarListingsSegment(["46101500"])).toBeNull();
+    expect(similarListingsSegment(["46101500", "77101500", "10000000"])).toBeNull();
+    // Gizli SINIF (görünür 4618 ailesinin 461825'i) da ölçüt olmaz.
+    expect(similarListingsSegment(["46182500", "46182501"])).toBeNull();
     expect(similarListingsSegment([])).toBeNull();
     expect(similarListingsSegment(undefined)).toBeNull();
   });

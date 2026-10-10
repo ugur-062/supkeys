@@ -92,27 +92,30 @@ describe("Satış müşteri sekmesi — kategori kazanma oranında gizli segment
         analytics={{
           ...analytics,
           categoryWinRate: [
-            { id: "46000000", label: "Kolluk ve Emniyet Ekipmanları", winPct: 80, decided: 5 },
-            { label: "46000000", winPct: 10, decided: 2 },
+            { id: "92000000", label: "Kamu Düzeni ve Güvenlik Hizmetleri", winPct: 80, decided: 5 },
+            { label: "92000000", winPct: 10, decided: 2 },
             { id: "39000000", label: "Elektrik Sistemleri", winPct: 50, decided: 4 },
+            // 2026-10-10: 46 görünür sektör — satırı çizilir.
+            { id: "46000000", label: "İş Güvenliği ve Yangın Ekipmanları", winPct: 30, decided: 3 },
           ],
         } as SatisAnalytics}
         loading={false}
       />,
     );
     expect(screen.getByText("Elektrik Sistemleri")).toBeInTheDocument();
-    expect(screen.queryByText(/Kolluk/)).toBeNull();
-    expect(screen.queryByText("46000000")).toBeNull();
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.queryByText(/Kamu Düzeni/)).toBeNull();
+    expect(screen.queryByText("92000000")).toBeNull();
   });
 
   it("yalnız gizli segment satırı varsa grafik boş durumunu gösterir (boş liste değil)", () => {
     render(
       <SatisMusteriTab
-        analytics={{ ...analytics, categoryWinRate: [{ id: "46000000", label: "Kolluk", winPct: 80, decided: 5 }] } as SatisAnalytics}
+        analytics={{ ...analytics, categoryWinRate: [{ id: "92000000", label: "Kamu Düzeni", winPct: 80, decided: 5 }] } as SatisAnalytics}
         loading={false}
       />,
     );
-    expect(screen.queryByText(/Kolluk/)).toBeNull();
+    expect(screen.queryByText(/Kamu Düzeni/)).toBeNull();
     expect(screen.getByText("Henüz karar verisi yok")).toBeInTheDocument();
   });
 });

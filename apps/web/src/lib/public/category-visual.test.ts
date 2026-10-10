@@ -1,3 +1,4 @@
+import { Shield } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import {
   MAPPED_SEGMENTS,
@@ -38,14 +39,33 @@ describe("kategori görseli", () => {
     expect(categoryVisual(["abc", "", "47000000"]).tone).toBe("rose");
   });
 
-  // 2026-10-09: görselsiz eski ürün gizli segmentin ikonuyla (kalkan, fide…)
-  // çizilirse gizlediğimiz kategoriyi resimle söylemiş oluruz.
+  // 2026-10-09: görselsiz eski ürün gizli segmentin ikonuyla (geri dönüşüm,
+  // fide…) çizilirse gizlediğimiz kategoriyi resimle söylemiş oluruz.
   it("gizli segment kodu YOK sayılır: nötr yedek; listede görünür kod varsa o kazanır", () => {
     const neutral = categoryVisual([]);
-    for (const hidden of ["46181500", "46000000", "10151500", "77101500", "50000000"]) {
+    for (const hidden of ["92101500", "92000000", "10151500", "77101500", "50000000"]) {
       expect(categoryVisual([hidden]), hidden).toEqual(neutral);
     }
-    expect(categoryVisual(["46181500", "39122200"])).toEqual(categoryVisual(["39122200"]));
+    expect(categoryVisual(["77101500", "39122200"])).toEqual(categoryVisual(["39122200"]));
+  });
+
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" görünür sektördür ve
+  // kendi ikonunu (kalkan) taşır. Silah / kolluk dalları gizli: kod segmente
+  // inmeden ÖNCE sınanır — gizli daldaki eski ürün kalkanla çizilmez.
+  it("46 görünür: segment ve görünür dalları kalkan ikonunu alır; gizli ailesi ve gizli sınıfı nötr yedeğe düşer", () => {
+    const neutral = categoryVisual([]);
+    const sector = categoryVisual(["46000000"]);
+    expect(sector.icon).toBe(Shield);
+    expect(sector).not.toEqual(neutral);
+    for (const visible of ["46181500", "46180000", "46191600", "46211500"]) {
+      expect(categoryVisual([visible]), visible).toEqual(sector);
+    }
+    for (const hidden of ["46101500", "46100000", "46151600", "46201000", "46220000", "46182500", "46182501"]) {
+      expect(categoryVisual([hidden]), hidden).toEqual(neutral);
+    }
+    // Gizli dal atlanır; sıradaki görünür kod kazanır.
+    expect(categoryVisual(["46101500", "39122200"])).toEqual(categoryVisual(["39122200"]));
+    expect(categoryVisual(["46182501", "46181500"])).toEqual(sector);
   });
 
   it("tablo 58 segmentin tamamını tutmaya devam eder (gizleme tabloyu küçültmez)", () => {

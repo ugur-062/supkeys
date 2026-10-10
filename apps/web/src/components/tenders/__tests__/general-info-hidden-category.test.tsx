@@ -2,7 +2,8 @@
 /**
  * TALEP DETAYI › GENEL BİLGİ — GİZLİ SEGMENT (2026-10-09, sahip kararı:
  * "anasayfada olmayan kategori talepte de gösterilmesin"; arayüz denetimi
- * W-08). Eski talebin (46 = kolluk/emniyet) gizli kategorisi talebin SAHİBİNE
+ * W-08). Eski talebin gizli kategorisi (fikstür: görünür 46 sektörünün gizli
+ * ailesi 4610, hafif silahlar — 2026-10-10) talebin SAHİBİNE
  * ve teklif verene de yazılmaz. Görünür kategorisi kalmayan talepte "Kategori"
  * satırı HİÇ çizilmez — başlıksız boş satır ya da bitmeyen yükleme olmaz.
  */
@@ -24,7 +25,7 @@ const NAMES: Record<string, string> = {
   "39121600": "Devre kesiciler",
   "31161500": "Vidalar",
   // Eski API gizli kodun adını da çözerdi.
-  "46181500": "Koruyucu giysi",
+  "46101500": "Ateşli silahlar",
 };
 
 function listing(categoryIds: string[]): ListingDetail {
@@ -63,9 +64,9 @@ beforeEach(() => {
 
 describe("GeneralInfoTab — kategori satırı", () => {
   it("gizli kategori yazılmaz ve adı sorulmaz; görünür kategori tekil etiketle yazılır", async () => {
-    render(<GeneralInfoTab l={listing(["46181500", "39121600"])} />);
+    render(<GeneralInfoTab l={listing(["46101500", "39121600"])} />);
     expect(await screen.findByText("Devre kesiciler")).toBeInTheDocument();
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
     expect(h.get).toHaveBeenCalledWith("/categories/by-ids", { params: { ids: "39121600" } });
     // Tek görünür kategori → "Kategori" (çoğul "Kategoriler" değil: gizli sayılmaz).
     expect(screen.getByText("Kategori")).toBeInTheDocument();
@@ -73,12 +74,12 @@ describe("GeneralInfoTab — kategori satırı", () => {
   });
 
   it("yalnız gizli kategorisi olan talep: 'Kategori' satırı HİÇ çizilmez, istek atılmaz", async () => {
-    render(<GeneralInfoTab l={listing(["46181500"])} />);
+    render(<GeneralInfoTab l={listing(["46101500"])} />);
     // Sekmenin geri kalanı çizilir.
     expect(await screen.findByText("Alıcı A.Ş.")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText(/^Kategori(ler)?$/)).toBeNull());
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
-    expect(screen.queryByText("46181500")).toBeNull();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
+    expect(screen.queryByText("46101500")).toBeNull();
     expect(h.get).not.toHaveBeenCalled();
   });
 });

@@ -52,9 +52,27 @@ describe("profileCompleteness", () => {
 
 describe("profileCompleteness — gizli segment beyanı (2026-10-09)", () => {
   it("tek beyanı gizli segmentte olan firma 'Faaliyet kategorileri' maddesini tamamlamış sayılmaz", () => {
-    const hiddenOnly = profileCompleteness({ sellerCategoryIds: ["46000000"], buyerCategoryIds: ["77000000"] });
+    const hiddenOnly = profileCompleteness({ sellerCategoryIds: ["92000000"], buyerCategoryIds: ["77000000"] });
     expect(hiddenOnly.missingKeys).toContain("categories");
-    const mixed = profileCompleteness({ sellerCategoryIds: ["46000000", "39000000"] });
+    const mixed = profileCompleteness({ sellerCategoryIds: ["92000000", "39000000"] });
     expect(mixed.missingKeys).not.toContain("categories");
+  });
+
+  // 2026-10-10: 46 görünür sektör, silah / kolluk dalları gizli. Beyan seçimi
+  // ata zinciriyle saklar; gizli seçimin görünür atası (46000000) tek başına
+  // "kategori var" SAYILMAZ — alt eksen verildiğinde hesap bunu görür.
+  it("görünür sektör yalnız gizli bir seçimin atası olarak saklanmışsa madde eksik kalır", () => {
+    const orphan = profileCompleteness({
+      sellerCategoryIds: ["46000000"],
+      sellerSubCategoryIds: ["46100000", "46101500"],
+    });
+    expect(orphan.missingKeys).toContain("categories");
+    // Aynı sektörde görünür bir seçim de varsa (ya da sektörün tamamı beyan edildiyse) tamamdır.
+    const withVisiblePick = profileCompleteness({
+      sellerCategoryIds: ["46000000"],
+      sellerSubCategoryIds: ["46100000", "46101500", "46180000", "46181500"],
+    });
+    expect(withVisiblePick.missingKeys).not.toContain("categories");
+    expect(profileCompleteness({ buyerCategoryIds: ["46000000"], buyerSubCategoryIds: [] }).missingKeys).not.toContain("categories");
   });
 });

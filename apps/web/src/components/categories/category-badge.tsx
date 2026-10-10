@@ -14,8 +14,8 @@ interface Props {
 /**
  * V2-6 — Tek bir kategori chip'i. Liste/detay/badge tüm yerlerde tutarlı görünüm.
  *
- * Segment harfi ("B.", "AN.") GÖSTERİLMEZ: Ariba'nın iç segment kodudur, 29
- * segment gizli olduğu için aralıklı görünür ve kullanıcıya bir şey söylemez
+ * Segment harfi ("B.", "AN.") GÖSTERİLMEZ: Ariba'nın iç segment kodudur, bir
+ * bölümü gizli olduğu için aralıklı görünür ve kullanıcıya bir şey söylemez
  * (2026-10 kayıt denetimi). Yol metninin başındaki harf de aynı nedenle atılır.
  */
 export function CategoryBadge({ category, size = "md" }: Props) {

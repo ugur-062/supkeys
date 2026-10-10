@@ -50,19 +50,45 @@ export interface ShowcaseRow {
  * dağıtılır: iki blok arasındaki fark en çok bir karttır, fazlalık baştaki
  * bloklara gider. Örnek: aynı liste üç blok × (1 promo + 8 kart) olur.
  *
+ * EŞİT BLOK TERCİH EDİLİR (2026-10-10). Gereken en az blok listeyi eşit
+ * bölmüyorsa ve BİR blok fazlası eşit bölüyorsa (blok tavanı aşılmadan) bir
+ * blok fazlası seçilir. 28 görünür sektör üç blokta 10 + 9 + 9 bölünüyordu:
+ * ilk blokta beş sütunda dokuz kart (bir boş yuva, dar kartlar — Rusça adlar
+ * 1024–1072 px'te sözcük ortasından bölünüyordu), öteki ikisi 4 × 2. Artık
+ * dört blok × (1 promo + 6 kart), her biri 3 × 2. Bir blok fazlası da eşit
+ * bölmüyorsa en az blokta kalınır (26 → 9 + 9 + 8, 29 → 10 + 10 + 9); zaten
+ * eşit bölünen sayı değişmez (27 → 3 × 9, 30 → 3 × 10). Kural yalnız BİR blok
+ * ileri bakar: 25 sektör beş blokta eşit bölünür (5 × 5) ama iki blok ileride
+ * olduğu için 9 + 8 + 8 kalır — vitrin küçük bloklara ufalanmaz.
+ *
+ * TEK SATIRA DÜŞÜRMEZ: eşit bloklar ızgarayı tek satıra indirecekse (blokta 4
+ * kart ve altı — `showcaseGridShape` o satırı tanıtım kartının boyuna germez)
+ * blok eklenmez. 15 sektör üç eşit blokta 1 promo + 4 kart olurdu: 312–368
+ * px'lik tanıtım kartının yanında 156 px'lik tek satır, altı boş (Chromium'da
+ * ölçüldü, 1366 px). 15 iki blokta kalır (7 + 6 kart, ikisi de iki satır).
+ * Çağıranların verdiği tavanla (6 blok, blokta 10 kart) kuralın blok eklediği
+ * sayılar: 21, 28, 32, 35, 48, 54 (`category-showcase-rows.test`).
+ *
  * HİÇBİR SEGMENT DÜŞMEZ (2026-09-08, kullanıcı sorusu "tüm ana kategoriler var
  * mı?"; 2026-10-09 sahip kararı "anasayfada olmayan kategori başka yerde de
  * gösterilmesin" bu listeye dayanır):
  *  - blok tavanı (`rows`) dolduysa kartlar yine eşit dağıtılır, blok başına
  *    kart sayısı `perRow`u aşar — kategori atılmaz;
  *  - tek segmentli vitrin promo kartı olarak tek başına çizilir;
- *  - gizli segment (`HIDDEN_SEGMENTS`) girdide gelse bile blok ya da kart olmaz
- *    (`buildShowcase` de süzer; burası çizimden önceki son kat).
+ *  - gizli kategori (`isHiddenCategory`: gizli segment ya da görünür segmentin
+ *    gizli dalı) girdide gelse bile blok ya da kart olmaz (`buildShowcase` de
+ *    süzer; burası çizimden önceki son kat).
  */
 export function toShowcaseRows(input: ShowcaseCategory[], rows = 3, perRow = 10): ShowcaseRow[] {
   const all = input.filter((c) => !isHiddenCategory(c.id));
   if (all.length === 0 || rows < 1) return [];
-  const blockCount = Math.min(rows, Math.ceil(all.length / (Math.max(1, perRow) + 1)));
+  const minBlocks = Math.min(rows, Math.ceil(all.length / (Math.max(1, perRow) + 1)));
+  // Eşit blok tercihi: en az blok eşit bölmüyor, bir fazlası (tavanın içinde)
+  // bölüyorsa — ve o eşit bloklar (1 promo düşülür) iki satırlık ızgarayı
+  // koruyorsa (`stretch`: kartlar tek satıra sığmıyor).
+  const oneMoreIsEqual = minBlocks < rows && all.length % minBlocks !== 0 && all.length % (minBlocks + 1) === 0;
+  const addBlock = oneMoreIsEqual && showcaseGridShape(all.length / (minBlocks + 1) - 1).stretch;
+  const blockCount = addBlock ? minBlocks + 1 : minBlocks;
   const base = Math.floor(all.length / blockCount);
   const extra = all.length % blockCount;
   const out: ShowcaseRow[] = [];
@@ -125,16 +151,24 @@ export function CategoryShowcaseRows({
   rows,
   hrefFor,
   ctaLabel,
-  visual = "photo",
+  visual = "icon",
 }: {
   rows: ShowcaseRow[];
   hrefFor: (c: ShowcaseCategory) => string;
   /** Promo kartın düğmesi — "Şimdi tedarikçi bulun". */
   ctaLabel: string;
   /**
-   * `"photo"` (varsayılan, panel) segment fotoğrafı; `"icon"` (herkese açık
-   * anasayfa, 2026-09-21 kullanıcı kararı) fotoğraf YOK, çizgisel segment
-   * ikonu — kartta tonlu zeminde, promo kartta mavi zeminde beyaz.
+   * `"icon"` (varsayılan): fotoğraf YOK, çizgisel segment ikonu — kartta tonlu
+   * zeminde, promo kartta mavi zeminde beyaz. İKİ vitrin de böyle çizilir:
+   * herkese açık anasayfa (2026-09-21, kullanıcı kararı) ve satınalma paneli
+   * `/company/satinalma` (2026-10-10, sahip: "satınalma sayfasında
+   * kategorilerde fotoğraflar var, halbuki değiştirmiştik, fotoğraf değil
+   * ikonlar vardı"). 2026-09-21 değişikliği yalnız herkese açık anasayfaya
+   * uygulanmış, panel varsayılanla fotoğraf çizmeyi sürdürmüştü; varsayılan bu
+   * yüzden "icon"a çevrildi — `visual` vermeyi unutan çağıran fotoğrafa dönmez.
+   *
+   * `"photo"`: segment fotoğrafı. 2026-10-10'dan beri hiçbir sayfa istemiyor
+   * (yalnız sınamalar çizer); kod silinmedi.
    */
   visual?: "photo" | "icon";
 }) {
@@ -204,7 +238,12 @@ function ShowcaseGrid({
    yüksekliği de (ölçüldü: 388 px, önce ve sonra). */
 const PROMO_TITLE_WRAP = "break-words [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto";
 
-/** Sol tanıtım kartı: büyük fotoğraf (ya da çizgisel ikon) üstte, altta koyu blokta sayı + ad + eylem. */
+/**
+ * Sol tanıtım kartı. İki vitrin de (herkese açık anasayfa, satınalma paneli)
+ * İKONLU kartı çizer: mavi gradyan, büyük çizgisel ikon, sayı + ad + slogan +
+ * eylem. Fotoğraflı kart (`visual="photo"`: büyük fotoğraf üstte, altta koyu
+ * blokta sayı + ad + eylem) 2026-10-10'dan beri hiçbir sayfada çizilmiyor.
+ */
 function PromoCard({
   category: c,
   href,

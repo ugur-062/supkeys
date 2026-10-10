@@ -18,6 +18,13 @@ export interface BreadcrumbItem {
  * referansı — kaynak kalıp): eğik çizgi ayraç metinle karışıyordu ("Ürün Ara
  * / Marmara Gıda" bir yol gibi değil bir cümle gibi okunuyordu). Ev ikonu
  * yalnız `home` verilirse çizilir; ikon dekoratif, adı `sr-only` metinde.
+ *
+ * KISALAN ETİKETİN TAM ADI `title`DA (2026-10-10). Halkalar genişlik tavanıyla
+ * "…" ile kesilir (bağlantı 192 px, bulunulan sayfa 224 / 320 px); ürün
+ * sayfasında sektör halkası "İş Güvenliği ve Yangın Ekip…" kalıyor, tam ad
+ * hiçbir yerden okunamıyordu. Tavanı olan iki öğe de tam etiketi `title` olarak
+ * taşır (`Chip` ile aynı kalıp). Erişilebilir ad zaten tam metindir (kesme
+ * yalnız CSS); `title` gören kullanıcı içindir.
  */
 export function Breadcrumb({
   items,
@@ -63,6 +70,7 @@ export function Breadcrumb({
                 {isLast || !it.href ? (
                   <span
                     aria-current={isLast ? "page" : undefined}
+                    title={it.label}
                     className={cn(
                       "block max-w-[14rem] truncate sm:max-w-xs",
                       isLast && accent === "blue" ? "font-semibold text-blue-700" : "text-zinc-900",
@@ -71,7 +79,7 @@ export function Breadcrumb({
                     {it.label}
                   </span>
                 ) : (
-                  <Link href={it.href} className="block max-w-[12rem] truncate hover:text-zinc-900">
+                  <Link href={it.href} title={it.label} className="block max-w-[12rem] truncate hover:text-zinc-900">
                     {it.label}
                   </Link>
                 )}

@@ -299,3 +299,36 @@ describe("ürün formu — kategori kaldırılamaz, yalnız değiştirilir (CL-P
     expect(screen.getByText("Vidalar")).toBeInTheDocument();
   });
 });
+
+/**
+ * GÖRÜNÜR SEKTÖRÜN GİZLİ DALI (2026-10-10, sahip kararı). 46 "İş Güvenliği ve
+ * Yangın Ekipmanları" adıyla geri açıldı; yalnız silah ve kolluk dalları gizli
+ * (aile 4610…4615, 4620, 4622 ve görünür 4618 ailesinin 461825 sınıfı). Kural
+ * kodun TAMAMIYLA sorulur: aynı sektörün gizli dalındaki eski ürün yukarıdaki
+ * kurallara girer, görünür dalındaki ürün (koruyucu giysi) sıradan bir üründür.
+ */
+describe("ürün formu — 46: gizli dal eski kategoridir, görünür dal sıradan kategoridir", () => {
+  it.each([
+    ["gizli aile (4610, hafif silahlar)", "46101500"],
+    ["gizli sınıf (461825, kişisel güvenlik cihazları)", "46182501"],
+  ])("%s: nitelik seti istenmez, taslakta kategori eksik sayılır, alan nedenini söyler", async (_ad, code) => {
+    renderForm({ ...COMPLETE, categoryId: code } as ProductShowcase);
+    expect(await screen.findByText(ATTRIBUTE_HINT)).toBeInTheDocument();
+    expect(screen.getByText(/Önceki kategori artık kullanılmıyor/)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(attributeRequests()).toEqual([]);
+    expect(within(rail()).getByRole("button", { name: NOT_CURRENT })).toBeInTheDocument();
+  });
+
+  it("46181500 (koruyucu giysi): nitelik seti istenir, kategori eksiği ve 'önceki kategori' notu yok", async () => {
+    h.publicGet.mockResolvedValue({ data: [{ id: "46181500", code: "46181500", nameTr: "Koruyucu giysi", level: 3, breadcrumb: "" }] });
+    renderForm({ ...COMPLETE, categoryId: "46181500", attributes: { urun_grubu: "Tohum" } } as ProductShowcase);
+    expect(await screen.findByText("Ürün grubu")).toBeInTheDocument();
+    expect(attributeRequests()).toEqual(["/company/items/attributes/46181500"]);
+    const r = within(rail());
+    expect(r.queryByRole("button", { name: NOT_CURRENT })).toBeNull();
+    expect(r.queryByRole("button", { name: "Kategori seçilmeli" })).toBeNull();
+    expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
+    await waitFor(() => expect(r.getByText("%100")).toBeInTheDocument());
+  });
+});

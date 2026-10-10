@@ -34,7 +34,7 @@ import {
   isTurkey,
   maskNationalId,
   taxIdLabelKey,
-  visibleCategoryIds,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -133,6 +133,8 @@ function fieldChanged<K extends keyof FormState>(k: K, now: FormState, base: For
 
 /** Profil → form; aynı fonksiyon "kirli mi" karşılaştırmasının tabanıdır. */
 function toForm(p: CompanyProfile): FormState {
+  const buyer = visibleCompanyCategorySelection(p.buyerCategoryIds, p.buyerSubCategoryIds);
+  const seller = visibleCompanyCategorySelection(p.sellerCategoryIds, p.sellerSubCategoryIds);
   return {
     name: p.name ?? "",
     legalName: p.legalName ?? "",
@@ -146,18 +148,23 @@ function toForm(p: CompanyProfile): FormState {
     // Ana kategori yalnız segment (XX000000); eski hatalı UI alt seviye
     // yazabiliyordu, backend exactLevel:1 doğruladığından temizle.
     //
-    // GİZLİ SEKTÖR (2026-10-09): gizli segmentteki eski beyan forma HİÇ girmez
-    // (`visibleCategoryIds`). Form yalnız değişen ekseni gönderdiği için
+    // GİZLİ KATEGORİ (2026-10-09): gizli bir dalın altındaki eski beyan forma
+    // HİÇ girmez. Form yalnız değişen ekseni gönderdiği için
     // dokunulmayan eksen depoda aynen kalır (eşleştirme kayıtlı kodları
     // kullanmayı sürdürür); dokunulan eksen görünür kodlarla yazılır, gizliler
     // o kayıtta düşer. Taban da süzülü olduğundan gizli kod "kaydedilmemiş
     // değişiklik" üretmez ve "iki liste birlikte boş olamaz" kuralı yalnız
     // GÖRÜNEN beyanı sayar.
-    buyerCategoryIds: visibleCategoryIds(p.buyerCategoryIds).filter((id) => SEGMENT_RE.test(id)),
-    sellerCategoryIds: visibleCategoryIds(p.sellerCategoryIds).filter((id) => SEGMENT_RE.test(id)),
+    //
+    // Eksenin iki dizisi BİRLİKTE süzülür (2026-10-10, gizleme aile / sınıf
+    // düzeyinde de var — `visibleCompanyCategorySelection`): yalnız gizli bir
+    // seçimin atası olarak saklanmış görünür sektör de forma girmez; girseydi
+    // seçici onu "sektörün tamamı" diye çizer, kayıt da öyle yazardı.
+    buyerCategoryIds: buyer.mainIds.filter((id) => SEGMENT_RE.test(id)),
+    sellerCategoryIds: seller.mainIds.filter((id) => SEGMENT_RE.test(id)),
     // Alt kategori: segment DIŞI her seviye — ana kategorinin tam tersi eksen.
-    buyerSubCategoryIds: visibleCategoryIds(p.buyerSubCategoryIds).filter((id) => !SEGMENT_RE.test(id)),
-    sellerSubCategoryIds: visibleCategoryIds(p.sellerSubCategoryIds).filter((id) => !SEGMENT_RE.test(id)),
+    buyerSubCategoryIds: buyer.subIds.filter((id) => !SEGMENT_RE.test(id)),
+    sellerSubCategoryIds: seller.subIds.filter((id) => !SEGMENT_RE.test(id)),
     activities: p.activities ?? [],
   };
 }

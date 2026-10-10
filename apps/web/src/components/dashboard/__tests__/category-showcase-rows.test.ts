@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
+import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
 import { isHiddenCategory } from "@rothern/shared";
 import { showcaseGridShape, toShowcaseRows } from "../category-showcase-rows";
 
@@ -17,25 +18,140 @@ const idsOf = (rows: ReturnType<typeof toShowcaseRows>) => rows.flatMap((r) => [
 
 describe("toShowcaseRows", () => {
   // Canlı doğrulama PUB-01: 27 segment 11 + 11 + 5 bölünüyordu — son blokta beş
-  // sütunlu ızgarada dört kart, bir boş yuva ve gerilmiş kartlar.
-  it("27 görünür segment: üç DENGELİ blok (1 promo + 8 kart), hepsi çizilir", () => {
+  // sütunlu ızgarada dört kart, bir boş yuva ve gerilmiş kartlar. (27, o günkü
+  // görünür sektör sayısıydı; bugünkü sayı bir alttaki sınamada.)
+  it("27 segment (2026-10-09'daki sayı): üç DENGELİ blok (1 promo + 8 kart), hepsi çizilir", () => {
     const rows = toShowcaseRows(segs(27), 6);
     expect(rows).toHaveLength(3);
     expect(rows.map((r) => r.items.length)).toEqual([8, 8, 8]);
     expect(new Set(idsOf(rows)).size).toBe(27);
   });
 
+  // 2026-10-10 (sahip kararı): 46 geri açıldı → bugünkü görünür sektör sayısı 28.
+  // Üç blokta 10 + 9 + 9 bölünüyordu: ilk blokta beş sütunda dokuz kart (bir boş
+  // yuva, dar kartlar — Rusça adlar 1024–1072 px'te sözcük ortasından
+  // bölünüyordu), öteki iki blok 4 × 2. Eşit blok tercihiyle dört blok ×
+  // (1 promo + 6 kart): her blok 3 × 2, boş yuva yok, bloklar birbirinin aynı.
+  it("28 görünür segment: dört EŞİT blok (1 promo + 6 kart), hepsi çizilir, her blok 3 × 2", () => {
+    const rows = toShowcaseRows(segs(28), 6);
+    expect(rows).toHaveLength(4);
+    expect(rows.map((r) => r.items.length)).toEqual([6, 6, 6, 6]);
+    expect(new Set(idsOf(rows)).size).toBe(28);
+    // Üç sütun `sm` kırılımından itibaren (640 px+); iki satır tanıtım kartının boyunu paylaşır.
+    for (const r of rows) expect(showcaseGridShape(r.items.length)).toEqual({ sm: 3, lg: 3, stretch: true });
+  });
+
+  // EŞİT BLOK TERCİHİ (2026-10-10) — görünür sektör sayısı gizleme / geri açma
+  // kararlarıyla 26–30 arasında oynar. Kart sayıları blok blok (promo hariç).
+  it.each([
+    // En az blok (3) eşit bölmüyor, dört blok da bölmüyor → bugünkü hâli.
+    [26, [8, 8, 7]],
+    // Üç blok zaten eşit.
+    [27, [8, 8, 8]],
+    // Üç blok eşit değil (10 + 9 + 9), dört blok eşit → bir blok fazla.
+    [28, [6, 6, 6, 6]],
+    // 29 asal: hiçbir blok sayısı eşit bölmez → bugünkü hâli.
+    [29, [9, 9, 8]],
+    // Üç blok zaten eşit (3 × 10).
+    [30, [9, 9, 9]],
+  ])("%d görünür sektör: bloklardaki kart sayıları %j", (count, tiles) => {
+    const all = segs(count);
+    const rows = toShowcaseRows(all, 6);
+    expect(rows.map((r) => r.items.length)).toEqual(tiles);
+    // Görünür her sektör bir kez çizilir, sıra korunur.
+    expect(idsOf(rows)).toEqual(all.map((c) => c.id));
+  });
+
+  // Kural yalnız BİR blok ileri bakar ve blok tavanını aşmaz.
+  it("eşit blok tercihi: yalnız bir blok fazlası denenir, tavan aşılmaz", () => {
+    // 25 = 5 × 5 eşit bölünür ama iki blok ileride: üç blok (9 + 8 + 8) kalır.
+    expect(toShowcaseRows(segs(25), 6).map((r) => r.items.length)).toEqual([8, 7, 7]);
+    // Tavan üç blokken 28 dörde çıkamaz: 10 + 9 + 9 (kategori düşmez).
+    const capped = toShowcaseRows(segs(28), 3);
+    expect(capped.map((r) => r.items.length)).toEqual([9, 8, 8]);
+    expect(new Set(idsOf(capped)).size).toBe(28);
+    // Varsayılan tavan da üçtür.
+    expect(toShowcaseRows(segs(28)).map((r) => r.items.length)).toEqual([9, 8, 8]);
+    // Tek blok her zaman "eşit"tir: 11 sektöre kadar blok eklenmez.
+    for (let count = 1; count <= 11; count++) expect(toShowcaseRows(segs(count), 6), `${count} segment`).toHaveLength(1);
+  });
+
+  // Gerçek sayı paylaşılan kuraldan okunur (elle yazılmaz): eşleme tablosundaki
+  // 58 segmentten gizli olmayanlar. Bugünkü katalogda 28'dir ve 46 (İş Güvenliği
+  // ve Yangın Ekipmanları) aralarındadır → vitrin dört eşit blok çizer.
+  it("gerçek katalog: 58 segmentin 28'i görünür; 46 vitrine girer, gizli dalı (4610) girdide gelse de kart olmaz; dört eşit blok", () => {
+    const catalog = MAPPED_SEGMENTS.map((code) => ({ id: `${code}000000`, name: code, count: 0, imageSrc: null }) as ShowcaseCategory);
+    expect(catalog).toHaveLength(58);
+    const visible = catalog.filter((c) => !isHiddenCategory(c.id));
+    const rows = toShowcaseRows([...catalog, { id: "46100000", name: "Hafif silahlar", count: 3, imageSrc: null } as ShowcaseCategory], 6);
+    const ids = idsOf(rows);
+    expect(ids).toEqual(visible.map((c) => c.id));
+    expect(ids).toHaveLength(28);
+    expect(ids).toContain("46000000");
+    expect(ids).not.toContain("46100000");
+    expect(ids).not.toContain("77000000");
+    expect(rows.map((r) => r.items.length)).toEqual([6, 6, 6, 6]);
+    // İki çağıran da (herkese açık anasayfa, satınalma paneli) bu çağrıyı yapar.
+    expect(rows.every((r) => showcaseGridShape(r.items.length).lg === 3)).toBe(true);
+  });
+
   it("her sayıda: sıra korunur, hiçbir segment düşmez / yinelenmez, bloklar en çok bir kart farklıdır", () => {
+    const extraBlock: number[] = [];
     for (let count = 1; count <= VISIBLE_POOL.length; count++) {
       const all = segs(count);
       const rows = toShowcaseRows(all, 6);
       expect(idsOf(rows), `${count} segment`).toEqual(all.map((c) => c.id));
       const sizes = rows.map((r) => r.items.length);
       expect(Math.max(...sizes) - Math.min(...sizes), `${count} segment`).toBeLessThanOrEqual(1);
-      // Gereken en az blok: tavan dolmadıkça blok 1 promo + 10 kartı aşmaz.
-      expect(rows.length, `${count} segment`).toBe(Math.min(6, Math.ceil(count / 11)));
-      expect(Math.max(...sizes), `${count} segment`).toBeLessThanOrEqual(10);
+      // Gereken en az blok ya da (eşit bölüyorsa) bir fazlası; tavan altı blok.
+      const minBlocks = Math.min(6, Math.ceil(count / 11));
+      expect([minBlocks, minBlocks + 1], `${count} segment`).toContain(rows.length);
+      expect(rows.length, `${count} segment`).toBeLessThanOrEqual(6);
+      if (rows.length > minBlocks) {
+        extraBlock.push(count);
+        // Bir blok fazlası YALNIZ eşit bölüyorsa ve en az blok bölmüyorsa…
+        expect(new Set(sizes).size, `${count} segment`).toBe(1);
+        expect(count % minBlocks, `${count} segment`).not.toBe(0);
+        // …ve bloklar iki satırlık ızgarayı koruyorsa (tek satıra düşen blok yok).
+        expect(showcaseGridShape(sizes[0]!).stretch, `${count} segment`).toBe(true);
+      } else if (minBlocks < 6 && count % minBlocks !== 0 && count % (minBlocks + 1) === 0) {
+        // Eşit bölen bir blok fazlası REDDEDİLDİYSE tek nedeni tek satıra düşmesidir.
+        expect(showcaseGridShape(count / (minBlocks + 1) - 1).stretch, `${count} segment`).toBe(false);
+      }
+      // Tavan dolmadıkça blok 1 promo + 10 kartı aşmaz.
+      if (count <= 66) expect(Math.max(...sizes), `${count} segment`).toBeLessThanOrEqual(10);
     }
+    // Kuralın blok eklediği sayıların tamamı (6 blok tavanı, blokta 10 kart).
+    expect(extraBlock).toEqual([21, 28, 32, 35, 48, 54]);
+  });
+
+  // Blok eklenen her sayıda bloklar eşit ve ızgara derli toplu: iki satır, en çok
+  // bir boş yuva.
+  it.each([
+    [21, 3, 6],
+    [28, 4, 6],
+    [32, 4, 7],
+    [35, 5, 6],
+    [48, 6, 7],
+    [54, 6, 8],
+  ])("%d sektör: %d eşit blok × (1 promo + %d kart), iki satır", (count, blocks, tiles) => {
+    const rows = toShowcaseRows(segs(count), 6);
+    expect(rows.map((r) => r.items.length)).toEqual(Array.from({ length: blocks }, () => tiles));
+    const { sm, lg, stretch } = showcaseGridShape(tiles);
+    expect(stretch).toBe(true);
+    for (const cols of [sm, lg]) expect((cols - (tiles % cols)) % cols).toBeLessThanOrEqual(1);
+  });
+
+  // TEK SATIRA DÜŞÜRMEZ. 15 sektör üç blokta eşit bölünür (3 × (1 promo + 4 kart))
+  // ama dört kart tek satırdır: tanıtım kartının (312–368 px) yanında 156 px'lik
+  // bir satır kalır, altı boş (Chromium'da ölçüldü, 1366 px). Blok eklenmez.
+  it("15 sektör: üç eşit blok kartları tek satıra düşürürdü → iki blok kalır (7 + 6 kart, ikisi de iki satır)", () => {
+    const rows = toShowcaseRows(segs(15), 6);
+    expect(rows.map((r) => r.items.length)).toEqual([7, 6]);
+    expect(new Set(idsOf(rows)).size).toBe(15);
+    for (const r of rows) expect(showcaseGridShape(r.items.length).stretch).toBe(true);
+    // Reddedilen bölünme: blokta 4 kart tek satıra sığar, satır gerilmez.
+    expect(showcaseGridShape(4)).toEqual({ sm: 4, lg: 4, stretch: false });
   });
 
   // Sayı 11'in katından bir fazlaysa son segment promo olarak alınıp ızgarası
@@ -62,8 +178,8 @@ describe("toShowcaseRows", () => {
     expect(new Set(idsOf(rows)).size).toBe(27);
   });
 
-  it("gizli segment girdide gelse bile blok/kart olmaz (46, 77, 10)", () => {
-    const hidden = ["46000000", "77000000", "10000000"].map((id) => ({ id, name: id, count: 9, imageSrc: null }) as ShowcaseCategory);
+  it("gizli segment girdide gelse bile blok/kart olmaz (92, 77, 10)", () => {
+    const hidden = ["92000000", "77000000", "10000000"].map((id) => ({ id, name: id, count: 9, imageSrc: null }) as ShowcaseCategory);
     const rows = toShowcaseRows([hidden[0]!, ...segs(5), hidden[1]!, hidden[2]!], 6);
     expect(idsOf(rows)).toEqual(segs(5).map((c) => c.id));
     // Gizli segment promo kartı da olamaz (listenin başında gelse bile).
@@ -164,7 +280,9 @@ describe("vitrin ızgarası — 1..40 görünür sektör, tablet ve geniş ekran
         expect(lastRow(tiles, shape.lg).rows, `${count} sektör, blok ${index + 1}`).toBeLessThanOrEqual(2);
       }
     }
-    // Yürüyüş kusurun görüldüğü sayıları gerçekten kapsıyor.
-    expect(tenTileBlocks).toEqual([11, 21, 22, 31, 32, 33]);
+    // Yürüyüş kusurun görüldüğü blok boyutunu (10 kart) gerçekten kapsıyor.
+    // 21 ve 32 artık listede yok: eşit blok tercihiyle (2026-10-10) 21 sektör
+    // 3 × (1 + 6), 32 sektör 4 × (1 + 7) bölünür — 10 kartlı blok oluşmaz.
+    expect(tenTileBlocks).toEqual([11, 22, 31, 33]);
   });
 });

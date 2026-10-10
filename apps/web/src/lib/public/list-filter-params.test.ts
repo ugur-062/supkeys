@@ -126,23 +126,37 @@ describe("virgüllü liste süzgeçleri API tavanını aşmaz", () => {
 });
 
 /**
- * GİZLİ SEGMENT KODU SÜZGEÇ DEĞİLDİR (2026-10-09, arayüz denetimi W-12).
- * `?kategori=46000000` (elle yazılmış ya da eski bağlantı) listeyi gizli
+ * GİZLİ KATEGORİ KODU SÜZGEÇ DEĞİLDİR (2026-10-09, arayüz denetimi W-12).
+ * `?kategori=77000000` (elle yazılmış ya da eski bağlantı) listeyi gizli
  * segmente daraltıp adını/ham kodunu aktif süzgeç çipi olarak basıyordu.
  * Herkese açık ve panel dizinleri AYNI ayrıştırıcıları okur — dört şema da
  * kodu hiç verilmemiş sayar: süzülmez, çip çizilmez, API'ye gitmez.
+ *
+ * 2026-10-10: kuralın birimi kod ÖNEKİDİR. 46 görünür segmenttir; gizli olan
+ * silah / kolluk aileleri (`4610…`, `4615…`, `4620…`, `4622…`) ve görünür 4618
+ * ailesinin `461825` sınıfıdır (ailenin, sınıfın ve yaprağın kodu).
  */
-describe("gizli segment kodu ?kategori= süzgeci olarak YOK sayılır", () => {
-  const HIDDEN = ["46000000", "46181500", "77101500", "10000000", "50202300"];
+describe("gizli kategori kodu ?kategori= süzgeci olarak YOK sayılır", () => {
+  const HIDDEN = ["46100000", "46101500", "46151600", "46182500", "46182501", "46220000", "77101500", "10000000", "50202300"];
+  /** Görünür 46 kodları: segment, görünür aile, görünür sınıf ve yaprak. */
+  const VISIBLE_46 = ["46000000", "46180000", "46181500", "46181504", "46191600", "46210000"];
 
-  it("ortak sınama: 8 hane VE görünür segment", () => {
+  it("ortak sınama: 8 hane VE görünür kategori", () => {
     expect(isVisibleCategoryCode("39121600")).toBe(true);
     expect(categoryParam("39121600")).toBe("39121600");
     for (const code of HIDDEN) {
       expect(isVisibleCategoryCode(code), code).toBe(false);
       expect(categoryParam(code), code).toBeUndefined();
     }
-    for (const bad of [undefined, "", "3912", "abc", "391216000"]) expect(categoryParam(bad)).toBeUndefined();
+    for (const bad of [undefined, "", "3912", "4610", "abc", "391216000"]) expect(categoryParam(bad)).toBeUndefined();
+  });
+
+  it.each(VISIBLE_46)("46 geri açıldı: ?kategori=%s dört şemada da SÜZGEÇTİR", (code) => {
+    expect(categoryParam(code)).toBe(code);
+    expect(toProductListParams(parseProductFilters({ kategori: code })).category).toBe(code);
+    expect(toListingListParams(parseListingFilters({ kategori: code })).category).toBe(code);
+    expect(parseCompanyFilters({ kategori: code }).categories).toEqual([code]);
+    expect(parseProductFilters({}, code).category).toBe(code);
   });
 
   it.each(HIDDEN)("ürün dizini: ?kategori=%s süzgeçsiz listeyle AYNI", (code) => {
@@ -153,8 +167,9 @@ describe("gizli segment kodu ?kategori= süzgeci olarak YOK sayılır", () => {
   });
 
   it("ürün dizini: yoldan gelen sabit kategori gizliyse o da düşer", () => {
-    expect(parseProductFilters({}, "46000000").category).toBeUndefined();
-    expect(parseProductFilters({ kategori: "46000000" }, "39000000").category).toBe("39000000");
+    expect(parseProductFilters({}, "77000000").category).toBeUndefined();
+    expect(parseProductFilters({}, "46100000").category).toBeUndefined();
+    expect(parseProductFilters({ kategori: "46101500" }, "39000000").category).toBe("39000000");
   });
 
   it.each(HIDDEN)("alım talebi dizini: ?kategori=%s süzgeçsiz listeyle AYNI, adrese geri yazılmaz", (code) => {
@@ -166,10 +181,10 @@ describe("gizli segment kodu ?kategori= süzgeci olarak YOK sayılır", () => {
   });
 
   it("firma dizini: listedeki gizli kodlar düşer, görünürler kalır", () => {
-    const f = parseCompanyFilters({ kategori: "46000000,39000000,77000000,23000000" });
-    expect(f.categories).toEqual(["39000000", "23000000"]);
-    expect(toDirectoryParams(f).category).toBe("39000000,23000000");
-    const only = parseCompanyFilters({ kategori: "46000000" });
+    const f = parseCompanyFilters({ kategori: "46100000,39000000,77000000,23000000,46182500,46000000" });
+    expect(f.categories).toEqual(["39000000", "23000000", "46000000"]);
+    expect(toDirectoryParams(f).category).toBe("39000000,23000000,46000000");
+    const only = parseCompanyFilters({ kategori: "46100000" });
     expect(only).toEqual(parseCompanyFilters({}));
     expect(activeCompanyFilterCount(only)).toBe(0);
     expect(buildCompanyFilterQuery(only)).toBe("");

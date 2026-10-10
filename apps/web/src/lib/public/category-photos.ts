@@ -36,6 +36,8 @@ export const CATEGORY_PHOTOS: ReadonlySet<string> = new Set<string>([
  * verilmez (`null` → çağıran nötr yedeğe düşer). Görselsiz eski bir ürünün
  * kartında o segmentin fotoğrafı, adını yazmadan kategoriyi göstermek olurdu.
  * Manifest ve dosyalar 58 segmentin tamamını tutar (katalog birebir).
+ * `46000000` (İş Güvenliği ve Yangın Ekipmanları, 2026-10-10'da geri açıldı)
+ * görünür bir segmentin fotoğrafıdır: yangın söndürücü.
  */
 export function categoryPhotoSrc(code: string): string | null {
   return CATEGORY_PHOTOS.has(code) && !isHiddenCategory(code) ? `/categories/${code}.webp` : null;
@@ -45,10 +47,15 @@ export function categoryPhotoSrc(code: string): string | null {
  * Herhangi seviyedeki kategori kodlarından SEGMENT fotoğrafı: ilk iki hane +
  * altı sıfır. Listedeki ilk eşleşen kazanır (talep/ilan birden çok kategori
  * taşıyabilir). Bilinmeyen/boş → null (üretilmiş görsel devreye girer).
+ *
+ * GİZLİ DAL (2026-10-10): gizleme aile / sınıf düzeyinde de var. Kod segmente
+ * yuvarlanmadan ÖNCE sınanır — görünür segmentin gizli dalındaki kod
+ * (`46101500`) segmentin fotoğrafını ALMAZ; yuvarlandıktan sonra bakmak onu
+ * görünür `46000000` sayardı.
  */
 export function segmentPhotoSrc(categoryIds: readonly string[] | undefined): string | null {
   for (const id of categoryIds ?? []) {
-    if (!/^\d{8}$/.test(id)) continue;
+    if (!/^\d{8}$/.test(id) || isHiddenCategory(id)) continue;
     const seg = `${id.slice(0, 2)}000000`;
     const src = categoryPhotoSrc(seg);
     if (src) return src;

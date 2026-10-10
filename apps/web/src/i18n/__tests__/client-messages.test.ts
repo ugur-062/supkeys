@@ -156,6 +156,23 @@ describe("gizli segment sloganları istemci mesajlarına girmez", () => {
     expect(panel.fallback).toEqual(expect.any(String));
   });
 
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" geri
+  // açıldı → cümlesi yeniden istemciye gider; 77 gizli kalır. Liste SEGMENT
+  // düzeyindedir: 46'nın gizli ailesi (`4610…`) cümleyi sözlükten düşürmez,
+  // yalnız o KODUN anahtarı yedeğe iner.
+  it.each(LOCALES)("%s: 46'nın cümlesi istemci sözlüğünde; gizli ailesi yedek anahtarı okur", (locale) => {
+    const all = messagesFor(locale, WEB_NAMESPACES) as unknown as AbstractIntlMessages;
+    const client = taglinesOf(clientMessages(all));
+    expect(HIDDEN_TAGLINE_PATHS).not.toContain("web.marketing.taglines.s46");
+    expect(HIDDEN_TAGLINE_PATHS).toContain("web.marketing.taglines.s77");
+    expect(client.s46).toBe(taglinesOf(all).s46);
+    expect(client.s46).toEqual(expect.any(String));
+    expect(client.s77).toBeUndefined();
+    expect(segmentTaglineKey("46181500")).toBe("s46");
+    expect(segmentTaglineKey("46101500")).toBe("fallback");
+    expect(segmentTaglineKey("46182501")).toBe("fallback");
+  });
+
   it("istemcinin okuyabildiği her anahtar sözlükte durur: gizli kod yedeğe düşer, görünür kod kendi anahtarına", () => {
     const client = taglinesOf(clientMessages(messagesFor("tr", WEB_NAMESPACES) as unknown as AbstractIntlMessages));
     for (const segment of TAGLINE_SEGMENTS) {

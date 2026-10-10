@@ -167,9 +167,13 @@ export function useChildren(
 
   // L1 parent → aileler in-memory. Katalog süzgeci GEREKMEZ: aileler (L2) iki
   // katalogda birebir aynı; ayrışma yalnız L4'te.
+  //
+  // GİZLİ DAL (2026-10-10): görünür bir sektörün gizli ailesi / görünür bir
+  // ailenin gizli sınıfı listeye HİÇ girmez (satırı yok → işaretlenemez). API
+  // aynı süzgeci uygular; burası ikinci kat (`visibleRows`).
   const memoryChildren = useMemo(() => {
     if (!tree || !parentId || lazyNeeded) return undefined;
-    return tree.filter((c) => c.parentId === parentId).map(withCount);
+    return visibleRows(tree.filter((c) => c.parentId === parentId)).map(withCount);
   }, [tree, parentId, lazyNeeded]);
 
   // L2/L3 parent → sınıf/emtia lazy. `catalog` query anahtarında ŞART: aksi
@@ -192,7 +196,7 @@ export function useChildren(
     ...inlineErrorQuery(true),
   });
   const lazyChildren = useMemo(
-    () => lazy.data?.map(withCount),
+    () => (lazy.data ? visibleRows(lazy.data).map(withCount) : undefined),
     [lazy.data],
   );
 
@@ -284,8 +288,49 @@ export function useCategorySearchTree(
         .then((r) => r.data),
     enabled: trimmed.length >= 2,
     staleTime: FIVE_MIN_MS,
+    select: visibleSearchTree,
     ...inlineErrorQuery(options.inlineError),
   });
+}
+
+type SearchTreeResult = { segments: SearchTreeSegment[]; truncated?: boolean };
+
+/**
+ * Arama ağacından gizli dalları budar (2026-10-10): gizli sektör, görünür
+ * sektörün gizli ailesi, görünür ailenin gizli sınıfı ve altındaki emtialar.
+ * API aynı süzgeci uygular; burası ikinci kat — pencere ve kalem adından öneri
+ * (`CategorySuggest`) aynı kancayı okur. Gizli satır yoksa AYNI nesne döner.
+ *
+ * BUDAMANIN BOŞALTTIĞI ATA DA DÜŞER: sonuçta yalnız gizli torunu eşleştiği
+ * için bulunan görünür aile / sektör ("silah" → 4618 → 461825) altı boş bir
+ * satır olarak kalmaz — sektörün de işaretlenebildiği firma penceresinde
+ * "silah" araması "İş Güvenliği ve Yangın Ekipmanları"nı sonuç diye çizerdi.
+ * KENDİ adı eşleşen (`isMatch`) ata kalır; altı baştan boş gelen satıra
+ * dokunulmaz (onu budama boşaltmadı).
+ */
+function visibleSearchTree(res: SearchTreeResult): SearchTreeResult {
+  const anyHidden = (res.segments ?? []).some(
+    (s) =>
+      isHiddenCategory(s.id) ||
+      s.families.some(
+        (f) =>
+          isHiddenCategory(f.id) ||
+          f.classes.some((c) => isHiddenCategory(c.id) || c.commodities.some((m) => isHiddenCategory(m.id))),
+      ),
+  );
+  if (!anyHidden) return res;
+  const segments: SearchTreeSegment[] = [];
+  for (const s of visibleRows(res.segments)) {
+    const families: SearchTreeFamily[] = [];
+    for (const f of visibleRows(s.families)) {
+      const classes = visibleRows(f.classes).map((c) => ({ ...c, commodities: visibleRows(c.commodities) }));
+      if (classes.length === 0 && f.classes.length > 0 && !f.isMatch) continue;
+      families.push({ ...f, classes });
+    }
+    if (families.length === 0 && s.families.length > 0 && !s.isMatch) continue;
+    segments.push({ ...s, families });
+  }
+  return { ...res, segments };
 }
 
 /**
@@ -296,8 +341,10 @@ export function useCategorySearchTree(
  *   - placeholderData: önceki cevap korunur, yeni fetch arka planda
  *   - gcTime: HOUR_MS — cache entry'leri çabuk düşmesin
  *
- * GİZLİ SEGMENT (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
- * yerde de gösterilmesin"): gizli segmentin altındaki kod bu kancadan AD
+ * GİZLİ KATEGORİ (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"; 2026-10-10: kuralın birimi kod ÖNEKİ — gizli sektör,
+ * görünür sektörün gizli ailesi, görünür ailenin gizli sınıfı): gizli bir
+ * önekin altındaki kod bu kancadan AD
  * ALAMAZ — istek ona hiç sorulmaz (`visibleCategoryIds`) ve cevapta gelse de
  * düşer (`select`; eski API ya da önbellekteki cevap). Yani eski bir kayıttaki
  * gizli kod için DÖNEN SATIR YOKTUR; satırı olmayan kimliği çizen tüketici
@@ -326,13 +373,17 @@ export function useCategoriesByIds(
     staleTime: FIVE_MIN_MS,
     gcTime: HOUR_MS,
     placeholderData: (prev) => prev,
-    select: dropHiddenRows,
+    select: visibleRows,
     ...inlineErrorQuery(options.inlineError),
   });
 }
 
-/** `select` kimliği sabit kalsın diye modül düzeyinde (her çizimde yeni işlev = her çizimde yeniden seçim). */
-function dropHiddenRows(rows: CategoryWithBreadcrumb[]): CategoryWithBreadcrumb[] {
+/**
+ * Gizli bir önekin (sektör, aile ya da sınıf) altındaki satırlar düşer; gizli
+ * satır yoksa AYNI dizi döner. `select` kimliği sabit kalsın diye modül
+ * düzeyinde (her çizimde yeni işlev = her çizimde yeniden seçim).
+ */
+function visibleRows<T extends { id: string }>(rows: T[]): T[] {
   return rows.some((r) => isHiddenCategory(r.id)) ? rows.filter((r) => !isHiddenCategory(r.id)) : rows;
 }
 

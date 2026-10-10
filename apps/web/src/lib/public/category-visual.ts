@@ -134,7 +134,7 @@ const SEGMENTS: Record<string, SegmentVisual> = {
   "43": { icon: Laptop, tone: "violet" }, // Bilgisayar, yazılım, telekom
   "44": { icon: Printer, tone: "violet" }, // Ofis ekipmanı
   "45": { icon: Palette, tone: "violet" }, // Baskı, fotoğraf, ses-video
-  "46": { icon: Shield, tone: "violet" }, // Kolluk, güvenlik ekipmanı
+  "46": { icon: Shield, tone: "violet" }, // İş güvenliği ve yangın ekipmanları (silah / kolluk dalları gizli)
   "55": { icon: Book, tone: "violet" }, // Yayınlanmış ürünler
   "60": { icon: Music, tone: "violet" }, // Eğitim gereçleri, müzik, oyuncak
 
@@ -180,11 +180,13 @@ const FALLBACK: SegmentVisual = { icon: Package, tone: "zinc" };
  * En SPESİFİK koda değil, ilk kodun SEGMENTİNE bakar: bir ilan birden çok
  * kategori taşıyabilir ama görseli tek; ilk kod sahibin birincil seçimidir.
  *
- * GİZLİ SEGMENT (2026-10-09): gizli segmentin altındaki kod YOK sayılır —
- * görselsiz eski ürün o segmentin ikonuyla (kalkan, geri dönüşüm…) çizilirse
+ * GİZLİ KATEGORİ (2026-10-09): gizli bir önekin altındaki kod YOK sayılır —
+ * görselsiz eski ürün o segmentin ikonuyla (geri dönüşüm, fide…) çizilirse
  * gizlediğimiz kategoriyi resimle söylemiş oluruz. İlk GÖRÜNÜR kod kazanır;
  * hiç yoksa nötr yedek. Eşleme tablosu 58 segmentin tamamını tutmaya devam
  * eder (katalog birebir; gizleme `HIDDEN_SEGMENTS`ten çıkarılınca geri gelir).
+ * Kod segmente inmeden ÖNCE sınanır (2026-10-10): görünür segmentin gizli
+ * dalındaki kod (`46101500`) segmentin ikonunu (kalkan) almaz, `46181500` alır.
  */
 export function categoryVisual(codes: string[] | undefined): SegmentVisual {
   const first = visibleCategoryIds(codes).find((c) => /^\d{8}$/.test(c));
@@ -202,9 +204,10 @@ export const TONE_CLASS: Record<
   { surface: string; icon: string; iconStrong: string; tile: string; badge: string }
 > = {
   /* `icon` yedek görselde (silik, fotoğraf yerine); `iconStrong` ikonun
-     GÖRSELİN KENDİSİ olduğu yerde (herkese açık anasayfa kategori vitrini,
-     2026-09-21 — çizgisel ikon, tam opaklık). `tile` + `badge` ikonlu kartın
-     tonlu zemini ve yuvarlak ikon rozeti (kullanıcı mockup'ı, aynı gün). */
+     GÖRSELİN KENDİSİ olduğu yerde (kategori vitrini — herkese açık anasayfa
+     2026-09-21, satınalma paneli 2026-10-10 — çizgisel ikon, tam opaklık).
+     `tile` + `badge` ikonlu kartın tonlu zemini ve yuvarlak ikon rozeti
+     (kullanıcı mockup'ı, 2026-09-21). */
   amber: { surface: "bg-amber-50", icon: "text-amber-600/40", iconStrong: "text-amber-700", tile: "bg-amber-50/70 ring-amber-200/60", badge: "bg-amber-100" },
   zinc: { surface: "bg-zinc-100", icon: "text-zinc-500/40", iconStrong: "text-zinc-700", tile: "bg-zinc-100/70 ring-zinc-200/70", badge: "bg-zinc-200/80" },
   sky: { surface: "bg-sky-50", icon: "text-sky-600/40", iconStrong: "text-sky-700", tile: "bg-sky-50/70 ring-sky-200/60", badge: "bg-sky-100" },

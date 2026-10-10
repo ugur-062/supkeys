@@ -36,9 +36,16 @@ function draft(over: Partial<AiTenderDraft> = {}): AiTenderDraft {
 describe("mapAiDraftToForm — gizli segment önerisi (2026-10-09, W-11)", () => {
   it("gizli segment kodu ön-seçime girmez; tavan (3) görünürlerden sayılır", () => {
     const form = mapAiDraftToForm(
-      draft({ suggestedCategoryIds: ["46181500", "39121600", "31161500", "77101500", "40141700", "23151800"] }),
+      draft({ suggestedCategoryIds: ["46101500", "39121600", "31161500", "77101500", "40141700", "23151800"] }),
     );
     expect(form.categoryIds).toEqual(["39121600", "31161500", "40141700"]);
+  });
+
+  // 2026-10-10: 46 görünür sektör; önerilen koruyucu giysi sınıfı ön-seçilir,
+  // gizli ailesi (4610) ve gizli sınıfı (461825) ön-seçime girmez.
+  it("46'nın görünür sınıfı ön-seçilir; gizli ailesi ve gizli sınıfı düşer", () => {
+    const form = mapAiDraftToForm(draft({ suggestedCategoryIds: ["46182501", "46181500", "46101500", "46191600"] }));
+    expect(form.categoryIds).toEqual(["46181500", "46191600"]);
   });
 });
 

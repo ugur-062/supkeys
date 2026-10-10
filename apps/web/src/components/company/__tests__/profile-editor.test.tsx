@@ -488,35 +488,64 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText("Faaliyet kategorileri (2)")).toBeInTheDocument();
   });
 
-  // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli segmentteki eski
+  // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli kategorideki eski
   // beyan firmanın KENDİ Profilim ekranında da çizilmez ve "(n)" sayısına girmez.
-  it("gizli segmentteki eski beyan çip ve sayı olarak görünmez; adı da sorulmaz", async () => {
+  //
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" görünür, silah / kolluk
+  // dalları gizli. Gizli seçimin (46101500) zinciri kayıtta sektör koduyla
+  // birlikte durur; sektör yalnız onun atasıysa "Sektör geneli" çipi OLMAZ.
+  const byIdsNames = (names: Record<string, string>) =>
     h.get.mockImplementation((url: string, opts?: { params?: { ids?: string } }) =>
       url.includes("/categories/by-ids")
         ? Promise.resolve({
             data: (opts?.params?.ids ?? "")
               .split(",")
               .filter(Boolean)
-              .map((id) => ({ id, code: id, nameTr: id === "46181500" ? "Koruyucu giysi" : id === "46000000" ? "Kolluk ve Emniyet" : `Ad ${id}`, level: 3, breadcrumb: "" })),
+              .map((id) => ({ id, code: id, nameTr: names[id] ?? `Ad ${id}`, level: 3, breadcrumb: "" })),
           })
         : Promise.resolve({ data: { items: [], total: 0, truncated: false, counts: { published: 0, draft: 0 } } }),
     );
+  const askedIds = () =>
+    h.get.mock.calls.filter((c) => String(c[0]).includes("/categories/by-ids")).map((c) => (c[1] as { params: { ids: string } }).params.ids);
+
+  it("gizli daldaki eski beyan ve yalnız onun atası olan sektör çip ve sayı olarak görünmez; adı da sorulmaz", async () => {
+    byIdsNames({ "46101500": "Ateşli silahlar", "46000000": "İş Güvenliği ve Yangın Ekipmanları" });
     const profile = {
       ...PROFILE,
-      // 46: yaprağıyla; 77: yalnız sektör ("sektörün tamamı"); 39: görünür.
+      // 46: gizli ailede yaprağıyla; 77: yalnız sektör ("sektörün tamamı"); 39: görünür.
       sellerCategoryIds: ["46000000", "77000000", "39000000"],
-      sellerSubCategoryIds: ["46180000", "46181500", "39120000", "39121600"],
+      sellerSubCategoryIds: ["46100000", "46101500", "39120000", "39121600"],
     };
     render(<ProfileEditor profile={profile} canEdit />);
     expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
     expect(await screen.findByText("Ad 39121600")).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/Koruyucu giysi|Kolluk|46181500|77000000/);
-    const asked = h.get.mock.calls.filter((c) => String(c[0]).includes("/categories/by-ids")).map((c) => (c[1] as { params: { ids: string } }).params.ids);
-    expect(asked.every((ids) => !/\b(46|77)\d{6}\b/.test(ids))).toBe(true);
+    expect(document.body.textContent).not.toMatch(/Ateşli silahlar|İş Güvenliği ve Yangın|46101500|77000000/);
+    expect(askedIds().every((ids) => !/\b(46|77)\d{6}\b/.test(ids))).toBe(true);
   });
 
-  it("yalnız gizli segment beyanı olan firma: 'seçilmedi' görür, durum kartı kategoriyi tamam saymaz", () => {
-    const profile = { ...PROFILE, sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46180000", "46181500"], buyerCategoryIds: [], buyerSubCategoryIds: [] };
+  it("46 görünür sektör: tamamı beyanı ve görünür seçimi çip olur ve sayılır; aynı sektördeki gizli seçim sayılmaz", async () => {
+    byIdsNames({ "46181500": "Koruyucu giysi", "46000000": "İş Güvenliği ve Yangın Ekipmanları", "46101500": "Ateşli silahlar" });
+    const whole = { ...PROFILE, sellerCategoryIds: ["46000000"], sellerSubCategoryIds: [] };
+    const view = render(<ProfileEditor profile={whole} canEdit />);
+    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
+    expect(await screen.findByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    view.unmount();
+
+    const mixed = {
+      ...PROFILE,
+      sellerCategoryIds: ["46000000"],
+      sellerSubCategoryIds: ["46100000", "46101500", "46180000", "46181500", "46182500", "46182501"],
+    };
+    render(<ProfileEditor profile={mixed} canEdit />);
+    // Yalnız koruyucu giysi: gizli aile (4610) ve gizli sınıf (461825) seçimleri sayıya girmez.
+    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
+    expect(await screen.findByText("Koruyucu giysi")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Ateşli silahlar|46101500|46182501/);
+    expect(askedIds().every((ids) => !/4610|461825/.test(ids))).toBe(true);
+  });
+
+  it("yalnız gizli seçim beyanı olan firma: 'seçilmedi' görür, durum kartı kategoriyi tamam saymaz", () => {
+    const profile = { ...PROFILE, sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46100000", "46101500"], buyerCategoryIds: [], buyerSubCategoryIds: [] };
     render(<ProfileEditor profile={profile} canEdit />);
     // Özet etiketi sayısız + "Eksik" listesinde aynı ad: tamamlanma hesabı da
     // gizli beyanı saymaz (özet "seçilmedi" derken kart "tamam" demez).

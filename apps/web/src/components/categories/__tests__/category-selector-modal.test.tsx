@@ -133,25 +133,72 @@ describe("CategorySelectorModal — seçim bilgisi yüklenirken", () => {
 });
 
 /**
- * GİZLİ SEGMENT (2026-10-09): pencere kataloğu SUNAN yüzeydir — eski kayıttaki
+ * GİZLİ KATEGORİ (2026-10-09): pencere kataloğu SUNAN yüzeydir — eski kayıttaki
  * gizli kod seçim şeridine çip, sayaca sayı, onaya değer olarak GİRMEZ.
+ * 2026-10-10: 46 görünür sektördür; gizli olan silah / kolluk aileleri ve
+ * görünür 4618 ailesinin 461825 sınıfıdır.
  */
-describe("CategorySelectorModal — gizli segment kodu taslağa girmez", () => {
+describe("CategorySelectorModal — gizli kategori kodu taslağa girmez", () => {
+  it("46: görünür kod taslakta kalır; gizli ailenin ve gizli sınıfın kodu çip, sayı ve onay değeri olmaz", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    const glove = { id: "46181500", nameTr: "Koruyucu giysi", breadcrumb: "İş Güvenliği ve Yangın Ekipmanları › Kişisel koruyucu donanım › Koruyucu giysi" };
+    h.byIds = { data: [glove], isPlaceholderData: false };
+    render(
+      <CategorySelectorModal isOpen onClose={() => {}} value={["46101500", glove.id, "46182501", "46182500"]} onConfirm={onConfirm} />,
+    );
+    expect(screen.getByText("Koruyucu giysi")).toBeInTheDocument();
+    expect(screen.queryByText("(silinmiş kategori)")).toBeNull();
+    expect(screen.queryByText(/4610|461825/)).toBeNull();
+    expect(h.byIdsArgs.at(-1)?.[0]).toEqual([glove.id]);
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([glove.id]);
+  });
+
   it("değerdeki gizli kod çip olmaz ('silinmiş' de değil), adı sorulmaz, onayda dönmez", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
     h.byIds = { data: [A], isPlaceholderData: false };
     render(
-      <CategorySelectorModal isOpen onClose={() => {}} value={["46181500", A.id]} onConfirm={onConfirm} />,
+      <CategorySelectorModal isOpen onClose={() => {}} value={["46101500", A.id]} onConfirm={onConfirm} />,
     );
     expect(screen.getByText("Kablo")).toBeInTheDocument();
     expect(screen.queryByText("(silinmiş kategori)")).toBeNull();
-    expect(screen.queryByText(/46181500/)).toBeNull();
+    expect(screen.queryByText(/46101500/)).toBeNull();
     // Ad isteği yalnız görünür kimlikle çıkar.
     expect(h.byIdsArgs.at(-1)?.[0]).toEqual([A.id]);
     // Sayaç ve onay yalnız görünür seçimi sayar/döndürür.
     await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
     expect(onConfirm).toHaveBeenCalledWith([A.id]);
+  });
+
+  // Firma beyanı penceresi (sektör de işaretlenir, iki tavan): 46 sektörünün
+  // satırındaki "bu dalda n seçim" rozeti ve iki sayaç yalnız GÖRÜNÜR seçimi
+  // sayar — aynı sektörün gizli ailesindeki / gizli sınıfındaki eski kodlar
+  // taslağa girmediği için sayıya da girmez.
+  it("46 sektör satırı: 'bu dalda n seçim' rozeti ve sayaçlar gizli dalın kodlarını saymaz", () => {
+    const sector: Node = { id: "46000000", code: "46000000", nameTr: "İş Güvenliği ve Yangın Ekipmanları", level: 1 };
+    h.roots = { data: [sector, SEG], isLoading: false };
+    h.byIds = { data: [{ id: "46181500", nameTr: "Koruyucu giysi", breadcrumb: "" }], isPlaceholderData: false };
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={["46101500", "46181500", "46182501", "46150000"]}
+        onConfirm={() => {}}
+        minSelectableLevel={1}
+        singlePickPerBranch
+        maxSelection={50}
+        maxSectors={5}
+      />,
+    );
+    expect(screen.getByTitle("Bu dalda 1 seçim")).toHaveTextContent("1");
+    expect(screen.queryByTitle(/Bu dalda [2-9] seçim/)).toBeNull();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    expect(screen.getByText("Ürün / hizmet 1/50")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Onayla (1)" })).toBeInTheDocument();
+    // Sektörün tamamı işaretli DEĞİL: gizli seçim onu "tamamı" beyanına çevirmez.
+    expect(screen.getByRole("checkbox", { name: "İş Güvenliği ve Yangın Ekipmanları · sektörün tamamı" })).not.toBeChecked();
   });
 
   it("yalnız gizli kod taşıyan değer boş seçimle açılır", () => {

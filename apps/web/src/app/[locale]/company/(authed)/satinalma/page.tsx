@@ -33,8 +33,15 @@ import { useEffect, useMemo, useState } from "react";
  * paylaşılamıyordu.
  *
  * SAYFA (2026-09-07, kullanıcı kararı — Europages ekran görüntüsü):
- * hero arama → ÜRÜN TAVSİYESİ şeridi → KATEGORİ VİTRİNİ (3 satır) →
- * ikinci tavsiye şeridi. Başka blok yok.
+ * hero arama → ÜRÜN TAVSİYESİ şeridi → KATEGORİ VİTRİNİ → ikinci tavsiye
+ * şeridi. Başka blok yok.
+ *
+ * KATEGORİ VİTRİNİ FOTOĞRAFSIZ (2026-10-10, sahip: "satınalma sayfasında
+ * kategorilerde fotoğraflar var, halbuki değiştirmiştik, fotoğraf değil
+ * ikonlar vardı"): `visual="icon"` — çizgisel segment ikonu, mavi ikonlu
+ * tanıtım kartı; herkese açık anasayfanın alıcı yüzüyle AYNI vitrin. İkon
+ * kararı 2026-09-21'de yalnız herkese açık anasayfaya uygulanmış, bu sayfa
+ * fotoğraflı kalmıştı. Fotoğraf geri gelirse `page-showcase.test` kırmızı olur.
  *
  * Kaldırılanlar: "size uygun ürünler" şeridi, doğrulanmış tedarikçiler,
  * "talep aç" şeridi, profil sağlığı kartı ve Raporlar bağlantısı. Hepsi
@@ -79,26 +86,27 @@ export default function SatinalmaDashboardPage() {
     router.push(`${PANEL_MARKET.products}${intentToProductQuery(r)}`);
   };
 
-  // Kategori vitrini + çipler: ürün dizini facet'i (L1 sayaçları) + 58 segment.
+  // Kategori vitrini + çipler: ürün dizini facet'i (L1 sayaçları) + görünür
+  // sektörler (`categories/segments`; gizli segmentler API'de süzülür).
   const facets = useDiscoverProductFacets();
   const segments = useCategorySegments();
-  // 3 satır × (1 promo + 10 kart) = 33 segment. `buildShowcase` sırası:
-  // ürünü OLAN dallar önce (sayıya göre), sonra küratörlü sıra — promo
-  // kartlara envanteri en dolu üç dal düşer.
+  // `buildShowcase` sırası: ürünü OLAN dallar önce (sayıya göre), sonra
+  // küratörlü sıra — her bloğun tanıtım kartına o bloğun ilk dalı düşer.
   const showcase = useMemo(
     () =>
       buildShowcase({
         segments: (segments.data ?? []).map((s) => ({ id: s.id, name: s.nameTr, slug: s.slug })),
         counts: (facets.data?.categories ?? []).map((c) => ({ id: c.id, count: c.count })),
         productCovers: [],
-        // TÜM ana kategoriler (58 segment) — kullanıcı kararı 2026-09-08.
-        // Sıra `buildShowcase`ten: ürünü olan dallar önce, sonra küratörlü sıra.
+        // GÖRÜNÜR ana kategorilerin TAMAMI (kullanıcı kararı 2026-09-08; bugün
+        // 28 sektör) — tavan yalnız güvenlik payı.
         limit: 100,
       }),
     [segments.data, facets.data],
   );
-  // 6 blok × (1 promo + 10 kategori) = 66 yuva; artan segmentler son bloğun
-  // ızgarasına eklenir (`toShowcaseRows`), hiçbiri düşmez.
+  // En çok 6 blok, blokta 1 promo + en çok 10 kategori; bloklar DENGELİ ve
+  // mümkünse EŞİT bölünür (`toShowcaseRows`: 28 sektör = 4 × (1 + 6)), hiçbir
+  // sektör düşmez. Herkese açık anasayfa (`HomeBuyer`) aynı çağrıyı yapar.
   const rows = useMemo(() => toShowcaseRows(showcase, 6), [showcase]);
   // Vitrin SEKTÖR listesinden kurulur; sayaçlar (facet) yalnız sırayı etkiler.
   // Liste okunamadıysa (kesinti) boş satırlarla "hiçbir şey" çizmek yerine tek
@@ -211,6 +219,9 @@ export default function SatinalmaDashboardPage() {
               rows={rows}
               hrefFor={(c) => panelCategoryPath(c.id, c.name)}
               ctaLabel={t("simdiTedarikciBulun")}
+              /* Fotoğraf YOK, çizgisel ikon (2026-10-10, sahip kararı) —
+                 herkese açık anasayfayla aynı. */
+              visual="icon"
             />
           )}
 

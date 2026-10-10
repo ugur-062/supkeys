@@ -81,13 +81,16 @@ export function cityListParam(v?: string): string[] {
 
 /**
  * `?kategori=` KODU — DÖRT şemanın (ürün, talep, firma dizini, Açık Talepler)
- * ortak sınaması: 8 haneli kod VE görünür segment.
+ * ortak sınaması: 8 haneli kod VE görünür kategori.
  *
- * GİZLİ segmentin kodu (2026-10-09, sahip kararı: "anasayfada olmayan kategori
- * başka yerde de gösterilmesin") HİÇ VERİLMEMİŞ sayılır: liste süzülmez, aktif
+ * GİZLİ bir önekin (segment, aile ya da sınıf — `isHiddenCategory`) altındaki
+ * kod (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka yerde de
+ * gösterilmesin") HİÇ VERİLMEMİŞ sayılır: liste süzülmez, aktif
  * çip / işaretli seçenek çizilmez, kod API'ye gitmez. Aksi hâlde elle yazılan
- * ya da eski bir bağlantıdan gelen `?kategori=46000000` listeyi gizli
+ * ya da eski bir bağlantıdan gelen `?kategori=77000000` listeyi gizli
  * segmente daraltıp adını (ya da ham kodunu) aktif süzgeç olarak basıyordu.
+ * Görünür segmentin gizli dalı da aynıdır: `?kategori=46101500` süzgeç değil,
+ * `?kategori=46000000` / `46181500` süzgeçtir (2026-10-10).
  * Herkese açık ve panel yüzeyleri aynı ayrıştırıcıları okuduğu için tek geçiş
  * noktası burasıdır; API de aynı kodu süzgeç yokmuş gibi yanıtlar.
  */

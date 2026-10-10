@@ -154,14 +154,14 @@ describe("hızlı kart açılış değerleri (initialRequestFormValues)", () => 
  */
 describe("hızlı kart açılış değerleri — gizli segment kodu forma girmez", () => {
   const now = new Date("2026-09-29T10:00:00+03:00");
-  const seed = { ...DEFAULT_FORM_VALUES, title: "Eski şablon", categoryIds: ["46181500", "39121600", "10151500"] };
+  const seed = { ...DEFAULT_FORM_VALUES, title: "Eski şablon", categoryIds: ["46101500", "39121600", "10151500"] };
 
   it.each(["edit", "seed", "blank"] as const)("%s: yalnız görünür kategoriler kalır", (kind) => {
     expect(initialRequestFormValues(kind, seed, SAVED, now).categoryIds).toEqual(["39121600"]);
   });
 
   it("yalnız gizli kategorili şablon kategorisiz açılır (form güncel kategori ister)", () => {
-    expect(initialRequestFormValues("seed", { ...seed, categoryIds: ["46181500"] }, SAVED, now).categoryIds).toEqual([]);
+    expect(initialRequestFormValues("seed", { ...seed, categoryIds: ["46101500"] }, SAVED, now).categoryIds).toEqual([]);
   });
 
   it("withVisibleCategories: gizli kod yoksa AYNI nesne (gereksiz kopya yok); eksik alan dokunulmaz", () => {
@@ -169,7 +169,14 @@ describe("hızlı kart açılış değerleri — gizli segment kodu forma girmez
     expect(withVisibleCategories(clean)).toBe(clean);
     const none = { title: "x" } as { title: string; categoryIds?: string[] };
     expect(withVisibleCategories(none)).toBe(none);
-    expect(withVisibleCategories({ categoryIds: ["46000000", "31161500"] })).toEqual({ categoryIds: ["31161500"] });
+    expect(withVisibleCategories({ categoryIds: ["46100000", "31161500"] })).toEqual({ categoryIds: ["31161500"] });
+  });
+
+  // 2026-10-10: 46 görünür sektör; şablondaki koruyucu giysi kodu yerinde kalır.
+  it("46'nın görünür kodu forma girer; gizli sınıfın yaprağı girmez", () => {
+    const visible = { categoryIds: ["46181500", "46191600"] };
+    expect(withVisibleCategories(visible)).toBe(visible);
+    expect(initialRequestFormValues("seed", { ...seed, categoryIds: ["46181500", "46182501"] }, SAVED, now).categoryIds).toEqual(["46181500"]);
   });
 });
 

@@ -85,4 +85,38 @@ describe("panel kategori sayfası", () => {
     render(<PanelCategoryPage />);
     expect(h.notFound).not.toHaveBeenCalled();
   });
+
+  /**
+   * GİZLİ KATEGORİNİN SAYFASI YOKTUR (2026-10-09); 2026-10-10 (sahip kararı): 46
+   * "İş Güvenliği ve Yangın Ekipmanları" adıyla geri açıldı, yalnız silah ve
+   * kolluk dalları gizli. Sektörün ve görünür dallarının sayfası açılır; gizli
+   * ailenin, gizli sınıfın ve onların yapraklarının adresi 404'tür — sunucu
+   * adını döndürse bile (eski yanıt) başlığa basılmaz.
+   */
+  it.each([
+    ["46000000-is-guvenligi-ve-yangin-ekipmanlari", "İş Güvenliği ve Yangın Ekipmanları", 1],
+    ["46180000-kisisel-koruyucu-donanim", "Kişisel koruyucu donanım", 2],
+    ["46181500-koruyucu-giysi", "Koruyucu giysi", 3],
+  ] as const)("46 geri açıldı: %s sayfası açılır, başlık kategori adıdır", (slug, name, level) => {
+    h.slug = slug;
+    h.selectedCategory = { id: slug.slice(0, 8), name, level };
+    render(<PanelCategoryPage />);
+    expect(h.notFound).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { level: 1, name })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["46100000-hafif-silahlar", "Hafif silahlar ve mühimmat", 2],
+    ["46101500-atesli-silahlar", "Ateşli silahlar", 3],
+    ["46150000-kolluk-ekipmanlari", "Kolluk ekipmanları", 2],
+    ["46182500-kisisel-guvenlik-cihazlari", "Kişisel güvenlik cihazları veya silahları", 3],
+    ["46182501-biber-gazi", "Biber gazı", 4],
+    ["77000000-cevre-hizmetleri", "Çevre Hizmetleri", 1],
+  ] as const)("gizli dalın adresi 404: %s", (slug, name, level) => {
+    h.slug = slug;
+    h.selectedCategory = { id: slug.slice(0, 8), name, level };
+    expect(() => render(<PanelCategoryPage />)).toThrow("NEXT_NOT_FOUND");
+    expect(h.notFound).toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain(name);
+  });
 });

@@ -82,13 +82,13 @@ describe("mapDetailToForm", () => {
   // 2026-10-09 (W-11): gizli segmentteki kod forma taşınmaz — düzenlemede çip
   // olarak görünmez, kopyada yeni talebe ön-seçili gelmez.
   it("gizli segmentteki kategori forma taşınmaz (düzenleme ve kopya); görünürler sırayla kalır", () => {
-    const legacy = { ...detail, categoryIds: ["46181500", "39121600", "10151500", "31161500"] } as unknown as ListingDetail;
+    const legacy = { ...detail, categoryIds: ["46101500", "39121600", "10151500", "31161500"] } as unknown as ListingDetail;
     expect(mapDetailToForm(legacy).categoryIds).toEqual(["39121600", "31161500"]);
     expect(mapDetailToForm(legacy, { forCopy: true }).categoryIds).toEqual(["39121600", "31161500"]);
   });
 
   it("yalnız gizli kategorisi olan eski talep kategorisiz açılır → formun 'kategori zorunlu' kuralı güncel kategori ister", () => {
-    const legacy = { ...detail, categoryIds: ["46181500"] } as unknown as ListingDetail;
+    const legacy = { ...detail, categoryIds: ["46101500"] } as unknown as ListingDetail;
     const form = mapDetailToForm(legacy);
     expect(form.categoryIds).toEqual([]);
     const schema = makeTenderFormSchema((key) => key);
@@ -102,7 +102,7 @@ describe("mapDetailToForm", () => {
   // Gözden geçirme R-WEB-01: YAYINDAKİ talebin düzenlemesinde kategori zorunlu
   // değildir — aynı form, `categoryRequired: false` şemasından geçer.
   it("yalnız gizli kategorisi olan YAYINDAKİ talep: kategorisiz form canlı düzenleme şemasından geçer", () => {
-    const legacy = { ...detail, categoryIds: ["46181500"] } as unknown as ListingDetail;
+    const legacy = { ...detail, categoryIds: ["46101500"] } as unknown as ListingDetail;
     const form = { ...mapDetailToForm(legacy), deliveryAddressId: "addr-1", deliveryTerm: "DOMESTIC_DELIVERED", bidsCloseAt: new Date(Date.now() + 7 * 86_400_000).toISOString() };
     const liveEdit = makeTenderFormSchema((key) => key, { categoryRequired: false }).safeParse(form);
     expect(liveEdit.error?.issues ?? []).toEqual([]);
@@ -110,8 +110,18 @@ describe("mapDetailToForm", () => {
     expect(publish.error?.issues.map((i) => i.message)).toEqual(["formSchema.categoryMin"]);
   });
 
+  // 2026-10-10: 46 görünür sektör. Koruyucu giysi (46181500) sıradan bir
+  // kategoridir: forma taşınır, "kullanımdan kalktı" işareti doğurmaz. Gizli
+  // sınıfın yaprağı (46182501) gizli ailenin kodu gibi düşer ve işaretlenir.
+  it("46'nın görünür kategorisi forma taşınır; gizli sınıfı taşınmaz ve işaret doğurur", () => {
+    const mixed = { ...detail, categoryIds: ["46181500", "46182501", "46191600"] } as unknown as ListingDetail;
+    expect(mapDetailToForm(mixed).categoryIds).toEqual(["46181500", "46191600"]);
+    expect(hasRetiredCategory({ categoryIds: ["46181500", "46191600"] })).toBe(false);
+    expect(hasRetiredCategory({ categoryIds: ["46181500", "46182501"] })).toBe(true);
+  });
+
   it("hasRetiredCategory: saklanan kodlarda gizli segment varsa true; görünür / boş listede false", () => {
-    expect(hasRetiredCategory({ categoryIds: ["46181500"] })).toBe(true);
+    expect(hasRetiredCategory({ categoryIds: ["46101500"] })).toBe(true);
     expect(hasRetiredCategory({ categoryIds: ["39121600", "10151500"] })).toBe(true);
     expect(hasRetiredCategory({ categoryIds: ["39121600", "31161500"] })).toBe(false);
     // Güncel API sahibine görünür kodları verir: tek kategorisi gizli talep boş liste gelir.
@@ -164,7 +174,7 @@ describe("seedHasRetiredCategory — tohum eski kategorili talepten mi", () => {
   });
 
   it("saklanan kodları taşıyan yanıt (eski API): gizli kod düşer, tohum işaretlenir; görünür kod kalır", () => {
-    const seed = mapDetailToForm({ ...detail, categoryIds: ["46181500", "31161500"] } as unknown as ListingDetail, { forCopy: true });
+    const seed = mapDetailToForm({ ...detail, categoryIds: ["46101500", "31161500"] } as unknown as ListingDetail, { forCopy: true });
     expect(seed.categoryIds).toEqual(["31161500"]);
     expect(seedHasRetiredCategory(seed)).toBe(true);
   });

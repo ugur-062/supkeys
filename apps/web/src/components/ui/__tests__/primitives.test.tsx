@@ -64,6 +64,48 @@ describe("Badge / Breadcrumb", () => {
     expect(screen.getByText("Pano").getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Ürünler" }).getAttribute("href")).toBe("/urunler");
   });
+
+  /* 2026-10-10: halkalar genişlik tavanıyla "…" ile kesilir (bağlantı 192 px,
+     bulunulan sayfa 224 / 320 px). Ürün sayfasında sektör halkası "İş Güvenliği
+     ve Yangın Ekip…" kalıyor, tam ad hiçbir yerden okunamıyordu. jsdom yerleşim
+     hesaplamaz; kilitlenen şey tavanı olan öğenin tam etiketi `title` olarak
+     taşımasıdır (kesilip kesilmediği tarayıcıda görülür). */
+  it("kısalan kırıntının tam adı `title`da: tavanlı bağlantı ve bulunulan sayfa", () => {
+    const sector = "İş Güvenliği ve Yangın Ekipmanları";
+    const product = "Kesilmeye dayanıklı, nitril kaplı, EN 388 belgeli iş eldiveni (12 çift)";
+    render(
+      <Breadcrumb
+        home={{ href: "/" }}
+        items={[
+          { label: sector, href: "/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari" },
+          { label: "Acme İş Güvenliği A.Ş.", href: "/firma/acme" },
+          { label: product },
+        ]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: sector });
+    // Tavan + kesme yerinde; tam ad `title`da.
+    expect(link.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-w-[12rem]", "truncate"]));
+    expect(link).toHaveAttribute("title", sector);
+    expect(screen.getByRole("link", { name: "Acme İş Güvenliği A.Ş." })).toHaveAttribute("title", "Acme İş Güvenliği A.Ş.");
+    const current = screen.getByText(product);
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current.className.split(/\s+/)).toContain("truncate");
+    expect(current).toHaveAttribute("title", product);
+    // Kesilen HER öğe (tavanı olan) title taşır — biri unutulursa burada görünür.
+    const crumb = screen.getByRole("navigation", { name: "Yol" });
+    for (const el of crumb.querySelectorAll(".truncate")) expect(el.getAttribute("title")).toBe(el.textContent);
+    expect(crumb.querySelectorAll(".truncate")).toHaveLength(3);
+    // Ev ikonu kesilmez (adı `sr-only` metinde) — ona `title` yazılmaz.
+    expect(screen.getByRole("link", { name: "Anasayfa" })).not.toHaveAttribute("title");
+  });
+
+  it("bağlantısız ara halka (href yok) da tavanlıdır ve tam adını `title`da taşır", () => {
+    render(<Breadcrumb items={[{ label: "Makine ve Ekipman Kiralama Hizmetleri" }, { label: "Pano" }]} />);
+    const mid = screen.getByText("Makine ve Ekipman Kiralama Hizmetleri");
+    expect(mid).not.toHaveAttribute("aria-current");
+    expect(mid).toHaveAttribute("title", "Makine ve Ekipman Kiralama Hizmetleri");
+  });
 });
 
 describe("Chip — dar ekranda uzun etiket (arayüz testi O-114)", () => {

@@ -56,7 +56,10 @@ export const PANEL_NAMESPACES = ["web.panel"] as const;
  * hizmetleri." …) her herkese açık sayfanın kaynağında duruyordu. Ekranda hiç
  * görünmezler: `segmentTaglineKey` gizli kod için `fallback` döner, yani bu
  * anahtarları istemcide OKUYAN yok. Liste `HIDDEN_SEGMENTS`ten türer; bir
- * segment geri açılınca cümlesi kendiliğinden yeniden gider.
+ * segment geri açılınca cümlesi kendiliğinden yeniden gider (46, 2026-10-10).
+ * Cümle SEGMENT düzeyindedir: görünür segmentin gizli ailesi / sınıfı kendi
+ * cümlesini taşımaz, o yüzden liste bilerek yalnız tümüyle gizli segmentleri
+ * okur (`HIDDEN_CATEGORY_PREFIXES` değil).
  */
 export const HIDDEN_TAGLINE_PATHS: readonly string[] = HIDDEN_SEGMENTS.map(
   (segment) => `web.marketing.taglines.s${segment}`,

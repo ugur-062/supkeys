@@ -58,7 +58,9 @@ export function buildShowcase(input: {
   const countById = new Map(input.counts.map((c) => [c.id, c.count]));
   const coverBySeg = new Map<string, string>();
   for (const p of input.productCovers) {
-    if (!p.categoryId || !p.image || !/^\d{8}$/.test(p.categoryId)) continue;
+    // Gizli dal segmente yuvarlanmadan ÖNCE düşer (2026-10-10): görünür
+    // segmentin gizli ailesindeki ürünün kapağı o segmentin kartına çıkmaz.
+    if (!p.categoryId || !p.image || !/^\d{8}$/.test(p.categoryId) || isHiddenCategory(p.categoryId)) continue;
     const seg = `${p.categoryId.slice(0, 2)}000000`;
     if (!coverBySeg.has(seg)) coverBySeg.set(seg, p.image);
   }

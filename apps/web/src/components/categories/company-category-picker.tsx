@@ -9,7 +9,7 @@ import {
   deepestCategoryPicks,
   expandCompanyCategorySelection,
   removeCategoryBranch,
-  visibleCategoryIds,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { Layers, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -132,15 +132,24 @@ function kayitliSirayla(
  * `MAX_COMPANY_SUB_PICKS` seçim. Pencere ikisini ayrı sayaçla gösterir ve
  * aşacak işareti reddeder; `dogrula` onay anındaki son denetimdir.
  *
- * GİZLİ SEKTÖR (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
- * yerde de gösterilmesin"): sektör gizlenmeden önce kaydedilmiş beyan kodu
- * (`HIDDEN_SEGMENTS`) bu bileşende YOK SAYILIR — kartı çizilmez, pencereye
+ * GİZLİ KATEGORİ (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"): gizlenmeden önce kaydedilmiş beyan kodu bu
+ * bileşende YOK SAYILIR — kartı çizilmez, pencereye
  * gitmez, sektör/seçim tavanına sayılmaz, adı sorulmaz. Seçici dokunulan
  * ekseni gördüğünden yeniden kurduğu için o eksen kaydedilince gizli kodlar
  * depodan da düşer (API aynı kuralı uygular). Dokunulmayan eksen gönderilmez;
  * eşleştirme o zamana dek kayıtlı kodları kullanmayı sürdürür. Yalnız gizli
  * kodu olan beyan boş durumla açılır. (2026-10-08'e dek gizli sektörün adı
  * `by-ids` yedeğinden okunup kart olarak çiziliyordu.)
+ *
+ * GİZLİ DAL, GÖRÜNÜR SEKTÖR (2026-10-10): gizleme aile / sınıf düzeyinde de var
+ * (46 "İş Güvenliği ve Yangın Ekipmanları" açık, silah ve kolluk dalları
+ * gizli). Beyan seçimi ata zinciriyle saklar; yalnız gizli kodları düşürmek
+ * geride sektör kodunu bırakır ve altı boş sektör "sektörün tamamı" diye
+ * çizilir — firmanın beyan ETMEDİĞİ bir şey gösterilir, kayıtta da yazılırdı.
+ * Görünür kısım bu yüzden iki dizi BİRLİKTE okunarak çıkar
+ * (`visibleCompanyCategorySelection`): yalnız gizli bir seçimin atası olarak
+ * saklanmış sektör / aile de düşer; bilinçli "sektörün tamamı" beyanı kalır.
  */
 export function CompanyCategoryPicker({
   value,
@@ -161,8 +170,10 @@ export function CompanyCategoryPicker({
   // hatayı kendi içinde çizer → genel toast ve 429'da otomatik tekrar yok.
   const { data: segments } = useRoots({ inlineError: true });
   /** Beyanın GÖRÜNÜR kısmı — bileşenin geri kalanı yalnız bunu okur (bkz. başlık notu). */
-  const mainIds = useMemo(() => visibleCategoryIds(value.mainIds), [value.mainIds]);
-  const subIds = useMemo(() => visibleCategoryIds(value.subIds), [value.subIds]);
+  const { mainIds, subIds } = useMemo(
+    () => visibleCompanyCategorySelection(value.mainIds, value.subIds),
+    [value.mainIds, value.subIds],
+  );
   /**
    * Depoda ata zinciri de duruyor (L2+L3+L4). Ekranda yalnız KULLANICININ
    * seçtikleri çizilir — türetilmiş üst seviyeler ayrı çip olsaydı tek seçim
@@ -243,7 +254,7 @@ export function CompanyCategoryPicker({
     [gruplar],
   );
 
-  // Yalnız gizli sektör kodu taşıyan eski beyan da BOŞ durumdur.
+  // Yalnız gizli kod (ve onun ata zinciri) taşıyan eski beyan da BOŞ durumdur.
   const bos = mainIds.length === 0 && subIds.length === 0;
 
   /**

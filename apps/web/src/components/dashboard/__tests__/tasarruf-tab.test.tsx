@@ -72,9 +72,11 @@ describe("TasarrufTab — kategori kırılımında gizli segment satırı çizil
         data={{
           ...data,
           categoryYear: [
-            { id: "46000000", label: "Kolluk ve Emniyet Ekipmanları", percent: 40, amount: 9000 },
+            { id: "92000000", label: "Kamu Düzeni ve Güvenlik Hizmetleri", percent: 40, amount: 9000 },
             { label: "77000000", percent: 12, amount: 300 },
             { id: "39000000", label: "Elektrik Malzemeleri", percent: 25, amount: 1234 },
+            // 2026-10-10: 46 görünür sektör — satırı çizilir.
+            { id: "46000000", label: "İş Güvenliği ve Yangın Ekipmanları", percent: 18, amount: 777 },
             { label: "Kategorisiz", percent: 5, amount: 50 },
           ],
         }}
@@ -83,8 +85,9 @@ describe("TasarrufTab — kategori kırılımında gizli segment satırı çizil
       />,
     );
     expect(screen.getByText("Elektrik Malzemeleri")).toBeInTheDocument();
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
     expect(screen.getByText("Kategorisiz")).toBeInTheDocument();
-    expect(screen.queryByText(/Kolluk/)).toBeNull();
+    expect(screen.queryByText(/Kamu Düzeni/)).toBeNull();
     expect(screen.queryByText("77000000")).toBeNull();
     expect(document.body.textContent).not.toMatch(/9\.000/);
   });

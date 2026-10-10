@@ -106,10 +106,12 @@ describe("ai-search — yorum → URL süzgeci", () => {
   });
 });
 
-// 2026-10-09 (sahip kararı): AI yorumu gizli segmentte bir kategori döndürse
-// bile (eski API) süzgeç adresine yazılmaz ve bantta adı çip olmaz.
-describe("ai-search — gizli segmentteki kategori YOK sayılır", () => {
-  const hidden = { ...base, category: { id: "46181500", name: "Koruyucu giysi" } };
+// 2026-10-09 (sahip kararı): AI yorumu gizli bir kategori döndürse bile (eski
+// API) süzgeç adresine yazılmaz ve bantta adı çip olmaz. Fikstür görünür 46
+// sektörünün GİZLİ ailesindedir (2026-10-10): satışta kod segmente inmeden önce
+// sınanmazsa `?kategori=46000000` yazılır, gizli dal görünür sektöre dönüşürdü.
+describe("ai-search — gizli kategori YOK sayılır", () => {
+  const hidden = { ...base, category: { id: "46101500", name: "Ateşli silahlar" } };
 
   it("satınalma: ürün süzgecine kategori yazılmaz; diğer parçalar yerinde", () => {
     const sp = new URLSearchParams(intentToProductQuery(hidden));
@@ -124,10 +126,16 @@ describe("ai-search — gizli segmentteki kategori YOK sayılır", () => {
   });
 
   it("adreste elle duran ?kategori= olsa bile gizli kategori adı çip olmaz", () => {
-    const sp = new URLSearchParams("q=x&kategori=46181500");
+    const sp = new URLSearchParams("q=x&kategori=46101500");
     const chips = intentChips(hidden, sp, fmt());
     expect(chips.find((c) => c.param === "kategori")).toBeUndefined();
-    expect(JSON.stringify(chips)).not.toContain("Koruyucu giysi");
+    expect(JSON.stringify(chips)).not.toContain("Ateşli silahlar");
+  });
+
+  it("görünür 46 kategorisi (koruyucu giysi) süzgece yazılır: satınalmada kod, satışta sektör", () => {
+    const visible = { ...base, category: { id: "46181500", name: "Koruyucu giysi" } };
+    expect(new URLSearchParams(intentToProductQuery(visible)).get("kategori")).toBe("46181500");
+    expect(new URLSearchParams(intentToRequestQuery({ ...visible, portal: "satis" })).get("kategori")).toBe("46000000");
   });
 });
 

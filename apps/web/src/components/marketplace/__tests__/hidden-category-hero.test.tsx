@@ -23,21 +23,37 @@ describe("MarketplaceHero — popüler kategori çipleri", () => {
     const { container } = render(
       <MarketplaceHero
         popular={[
-          { id: "46181500", name: "Koruyucu giysi", count: 40 },
+          { id: "46101500", name: "Ateşli silahlar", count: 40 },
           { id: "39121000", name: "Panolar", count: 12 },
           { id: "10151500", name: "Tohumlar", count: 9 },
         ]}
       />,
     );
     expect(screen.getByRole("link", { name: "Panolar" })).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/Koruyucu giysi|Tohumlar/);
+    expect(container.textContent).not.toMatch(/Ateşli silahlar|Tohumlar/);
     expect(container.querySelector('a[href*="kategori=46"]')).toBeNull();
     expect(container.querySelector('a[href*="kategori=10"]')).toBeNull();
   });
 
+  // 2026-10-10: 46 görünür sektör — koruyucu giysi sıradan bir popüler kategoridir;
+  // aynı ailenin gizli sınıfı (461825) çip olmaz.
+  it("46'nın görünür kategorisi çip olur; gizli sınıfı olmaz", () => {
+    const { container } = render(
+      <MarketplaceHero
+        popular={[
+          { id: "46182500", name: "Kişisel güvenlik cihazları veya silahları", count: 5 },
+          { id: "46181500", name: "Koruyucu giysi", count: 4 },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Koruyucu giysi" }).getAttribute("href")).toContain("kategori=46181500");
+    expect(container.textContent).not.toMatch(/silah/);
+    expect(container.querySelector('a[href*="kategori=461825"]')).toBeNull();
+  });
+
   it("yalnız gizli kategoriler geldiyse çip şeridi hiç çizilmez (boş etiket kalmaz)", () => {
-    const { container } = render(<MarketplaceHero popular={[{ id: "46181500", name: "Koruyucu giysi", count: 40 }]} />);
+    const { container } = render(<MarketplaceHero popular={[{ id: "46101500", name: "Ateşli silahlar", count: 40 }]} />);
     expect(container.querySelector("nav")).toBeNull();
-    expect(container.textContent).not.toContain("Koruyucu giysi");
+    expect(container.textContent).not.toContain("Ateşli silahlar");
   });
 });

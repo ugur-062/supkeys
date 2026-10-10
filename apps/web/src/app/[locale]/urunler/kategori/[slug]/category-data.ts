@@ -10,6 +10,12 @@ export interface SegmentLanding {
   slug?: string;
   /** Segmentteki yayında ürün SAYISI — liste ucunun `total`ı. */
   count: number;
+  /**
+   * Liste ucunun sayfa boyu (aynı yanıttan). Sayfanın metası son sayfayı
+   * bununla hesaplar: `?sayfa=N` son sayfanın ötesindeyse `noindex`
+   * (`listPagePastEnd`, 2026-10-10).
+   */
+  pageSize: number;
 }
 
 /**
@@ -22,12 +28,17 @@ export interface SegmentLanding {
  * listesinden (gizli segmentler zaten yok), sayı ürün liste ucunun `total`ından
  * (şehir/ülke sayfasıyla aynı kural; `ProductIndex`in ilk sayfa isteğiyle aynı
  * adres → veri önbelleği paylaşılır). Ürünü olmayan segment → null (sayfa 404;
- * 27 görünür segmentin boşu için sayfa üretmek ince içerik).
+ * görünür segmentin boşu için sayfa üretmek ince içerik).
+ *
+ * Görünür segmentin gizli dalları (2026-10-10; 46'nın silah / kolluk aileleri)
+ * sayfayı gizlemez; o dallardaki ürünler liste ucunda segmentin altında
+ * sayılmaz ve listelenmez (API `categorySubtreeWhere`), yani yalnız gizli
+ * dalda ürünü olan segment de `total === 0` ile 404'tür.
  */
 export async function resolveSegmentLanding(code: string): Promise<SegmentLanding | null> {
   if (!isSegmentCode(code) || isHiddenCategory(code)) return null;
   const [segments, page] = await Promise.all([fetchSegments(), fetchProducts({ category: code })]);
   const seg = segments.find((s) => s.id === code);
   if (!seg || page.total === 0) return null;
-  return { id: seg.id, name: seg.nameTr, slug: seg.slug, count: page.total };
+  return { id: seg.id, name: seg.nameTr, slug: seg.slug, count: page.total, pageSize: page.pageSize };
 }

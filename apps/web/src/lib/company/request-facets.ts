@@ -1,5 +1,5 @@
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
-import { foldSearchText, stemPrefix } from "@rothern/shared";
+import { foldSearchText, isHiddenCategory, stemPrefix } from "@rothern/shared";
 import {
   CLOSING_WINDOWS,
   PERIOD_WINDOWS,
@@ -49,9 +49,16 @@ export function rowFits(row: SellerTenderRow, fit: RequestFit): boolean {
   }
 }
 
-/** Satırın segmentleri (tekil) — kategori sayacı satırı segment başına bir kez sayar. */
+/**
+ * Satırın segmentleri (tekil) — kategori sayacı satırı segment başına bir kez sayar.
+ *
+ * Gizli kod segmente yuvarlanmadan ÖNCE düşer (2026-10-10): gizleme aile / sınıf
+ * düzeyinde de var, yani gizli bir kodun segmenti GÖRÜNÜR olabilir — yuvarlandıktan
+ * sonra süzmek o talebi görünür sektörün sayacına ve `?kategori=` süzgecine
+ * sokardı. Satırlar kancadan süzülü gelir (`withVisibleRowCategories`); ikinci kat.
+ */
 export function rowSegments(row: SellerTenderRow): string[] {
-  return [...new Set(row.categories.map((c) => segmentOf(c.code)))];
+  return [...new Set(row.categories.filter((c) => !isHiddenCategory(c.code)).map((c) => segmentOf(c.code)))];
 }
 
 /**
@@ -301,6 +308,8 @@ export function requestFacets(
     // Yalnız GÖRÜNÜR segmentler sayılır (arayüz testi D-009): gizli segment
     // (`HIDDEN_SEGMENTS`) `categories/segments` listesinde yok → adı bulunamayıp
     // ham kod ("10000000 — 16") basılıyordu. Ürün facet'iyle aynı kural.
+    // Görünür segmentin gizli dalı (2026-10-10) ada bakılarak yakalanamaz —
+    // segmentin adı listede VAR; onu `rowSegments` yuvarlamadan önce düşürür.
     categories: tally(
       rowsFor("categories"),
       (r) =>

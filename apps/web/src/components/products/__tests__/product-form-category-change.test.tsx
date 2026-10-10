@@ -65,7 +65,7 @@ import type { ProductShowcase } from "@/hooks/use-company-items";
 const SAVED = "31161500";
 const SIBLING = "31161600";
 /** Eski kaydın gizli segmentteki kategorisi. */
-const HIDDEN = "46181500";
+const HIDDEN = "46101500";
 
 const def = (key: string, nameTr: string, type = "TEXT") => ({
   key,

@@ -113,25 +113,25 @@ describe("MaskedRequestView (doğrulanmamış firmanın alıcı gizli talep gör
     h.get.mockResolvedValue({
       data: {
         ...DETAIL,
-        categoryIds: ["46181500", "31000000"],
+        categoryIds: ["46101500", "31000000"],
         categories: [
-          { id: "46181500", name: "Koruyucu giysi", level: 3 },
+          { id: "46101500", name: "Ateşli silahlar", level: 3 },
           { id: "31000000", name: "Üretim Bileşenleri", level: 1 },
         ],
       },
     });
     const first = render(<MaskedRequestView number="ROT-000042" />);
     expect(await screen.findByText("Üretim Bileşenleri")).toBeInTheDocument();
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
     expect(screen.getByRole("list", { name: "Kategori" }).querySelectorAll("li")).toHaveLength(1);
     first.unmount();
 
     h.get.mockResolvedValue({
-      data: { ...DETAIL, categoryIds: ["46181500"], categories: [{ id: "46181500", name: "Koruyucu giysi", level: 3 }] },
+      data: { ...DETAIL, categoryIds: ["46101500"], categories: [{ id: "46101500", name: "Ateşli silahlar", level: 3 }] },
     });
     render(<MaskedRequestView number="ROT-000042" />);
     expect(await screen.findByRole("heading", { level: 1, name: "Dikişsiz çelik boru alımı" })).toBeInTheDocument();
-    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
+    expect(screen.queryByText("Ateşli silahlar")).toBeNull();
     expect(screen.queryByRole("list", { name: "Kategori" })).toBeNull();
   });
 

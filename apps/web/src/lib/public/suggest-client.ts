@@ -1,6 +1,7 @@
 import { foldSearchText } from "@rothern/shared";
 import type { CategoryMenuNode, SuggestResult } from "./marketplace-api";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * ÖNERİ VE MENÜ — İSTEMCİ tarafı tek kaynak (PROMPT 6).
@@ -49,6 +50,10 @@ export async function fetchSuggest(q: string, scope?: SuggestScope, locale?: str
  * her herkese açık sayfada çiziliyor, ağacı sunucuda beklemek her sayfayı
  * bir tur yavaşlatırdı. Kategori bağlantıları SEO için zaten footer'da,
  * sitemap'te ve kategori sayfalarında var.
+ *
+ * GİZLİ DAL (2026-10-10): gizli sektör düğümü ve görünür sektörün gizli ailesi
+ * (46'nın silah / kolluk aileleri) ağaca girmez. API aynı süzgeci uygular;
+ * burası ikinci kat (eski yanıt, kenar önbelleği).
  */
 // Dil başına: istemci tarafı dil değişiminden sonra eski dilin ağacı kalmasın.
 const menuCache = new Map<string, Promise<CategoryMenuNode[]>>();
@@ -63,7 +68,9 @@ export function fetchCategoryMenu(locale?: string): Promise<CategoryMenuNode[]> 
     try {
       const res = await fetch(`${base}/public/categories/menu`, { headers: langHeaders(locale) });
       if (!res.ok) return [];
-      return (await res.json()) as CategoryMenuNode[];
+      const nodes = (await res.json()) as CategoryMenuNode[];
+      if (!Array.isArray(nodes)) return [];
+      return visibleCategoryRefs(nodes).map((node) => ({ ...node, children: visibleCategoryRefs(node.children) }));
     } catch {
       return [];
     }

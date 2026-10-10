@@ -34,7 +34,9 @@ import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
  * altındaki firma bölümü kaldırıldı; ziyaretçi anasayfadan firma aramaz.
  * KATEGORİ VİTRİNİ FOTOĞRAFSIZ (aynı gün, kullanıcı: "kategorilerde fotoğraf
  * olmasın, çizgisel ikonlar"): `visual="icon"` — segment ikonu
- * (`category-visual.ts`), panel vitrini fotoğraflı kalır.
+ * (`category-visual.ts`). Panel vitrini (`/company/satinalma`) o gün
+ * fotoğraflı bırakılmıştı; 2026-10-10'da (sahip kararı) o da ikona geçti —
+ * iki vitrin AYNI çizilir.
  */
 export function HomeBuyer({
   newest,
@@ -43,7 +45,9 @@ export function HomeBuyer({
   newest: ProductIndexCard[];
   showcase: ShowcaseCategory[];
 }) {
-  // 6 blok × (1 promo + 10 kategori); artan segmentler son ızgaraya eklenir.
+  // En çok 6 blok, blokta 1 promo + en çok 10 kategori; bloklar dengeli ve
+  // mümkünse eşit bölünür (28 sektör = 4 × (1 + 6)). Satınalma paneli aynı
+  // çağrıyı yapar.
   const rows = toShowcaseRows(showcase, 6);
   const t = useTranslations("web.marketing.home");
   const locale = useLocale();

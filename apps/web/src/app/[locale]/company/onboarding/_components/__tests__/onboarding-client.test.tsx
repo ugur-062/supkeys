@@ -2132,29 +2132,48 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
 
     // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli sektör seçicide
     // çizilmediği gibi özete de girmez.
-    it("categoryDeclarationGroups: gizli sektör kodu ve altındaki seçimler özete GİRMEZ", () => {
+    //
+    // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür,
+    // silah / kolluk dalları gizli. Beyan seçimi ata zinciriyle saklar: gizli
+    // seçimin (46101500) görünür atası (46000000) özete "sektörün tamamı" diye
+    // GİRMEZ; aynı sektörde görünür seçim varsa sektör yalnız onunla okunur.
+    it("categoryDeclarationGroups: gizli kod, altındaki seçimler ve yalnız gizli seçimin atası olan sektör özete GİRMEZ", () => {
       expect(
         categoryDeclarationGroups(
           ["46000000", "31000000", "77000000"],
-          ["46180000", "46181500", "31160000", "10151500"],
+          ["46100000", "46101500", "31160000", "10151500"],
         ),
       ).toEqual([{ sector: "31000000", picks: ["31160000"] }]);
-      expect(categoryDeclarationGroups(["46000000"], ["46181500"])).toEqual([]);
+      expect(categoryDeclarationGroups(["46000000"], ["46101500"])).toEqual([]);
+      expect(categoryDeclarationGroups(["46000000"], ["46180000", "46182500", "46182501"])).toEqual([]);
+      expect(categoryDeclarationGroups(["77000000"], ["77101500"])).toEqual([]);
     });
 
-    it("eski taslaktaki gizli sektör kodu forma geri gelmez: seçici yalnız görünür beyanı alır", () => {
-      // Sektör gizlenmeden ÖNCE saklanmış taslak (adım 2 = faaliyet alanı).
+    it("categoryDeclarationGroups: 46 görünür sektördür — tamamı ya da görünür seçimiyle özete girer", () => {
+      expect(categoryDeclarationGroups(["46000000"], [])).toEqual([{ sector: "46000000", picks: [] }]);
+      expect(
+        categoryDeclarationGroups(["46000000"], ["46100000", "46101500", "46180000", "46181500"]),
+      ).toEqual([{ sector: "46000000", picks: ["46181500"] }]);
+    });
+
+    it("eski taslaktaki gizli kod ve yalnız onun atası olan sektör forma geri gelmez: seçici yalnız görünür beyanı alır", () => {
+      // Dal gizlenmeden ÖNCE saklanmış taslak (adım 2 = faaliyet alanı).
       open(1, {
         mainCategoryIds: ["46000000", "31000000"],
-        subCategoryIds: ["46180000", "46181500", "31160000"],
+        subCategoryIds: ["46100000", "46101500", "31160000"],
       });
       const props = h.pickerProps.mock.calls.at(-1)![0];
       expect(props.value).toEqual({ mainIds: ["31000000"], subIds: ["31160000"] });
     });
 
-    it("yalnız gizli sektör taşıyan taslak kategorisiz açılır (kayıt 'kategori zorunlu' ile güncel seçim ister)", () => {
-      open(1, { mainCategoryIds: ["46000000"], subCategoryIds: ["46180000", "46181500"] });
+    it("yalnız gizli seçim taşıyan taslak kategorisiz açılır (kayıt 'kategori zorunlu' ile güncel seçim ister)", () => {
+      open(1, { mainCategoryIds: ["46000000"], subCategoryIds: ["46100000", "46101500"] });
       expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: [], subIds: [] });
+    });
+
+    it("taslaktaki görünür 46 beyanı (koruyucu giysi) forma geri gelir", () => {
+      open(1, { mainCategoryIds: ["46000000"], subCategoryIds: ["46180000", "46181500"] });
+      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: ["46000000"], subIds: ["46180000", "46181500"] });
     });
   });
 

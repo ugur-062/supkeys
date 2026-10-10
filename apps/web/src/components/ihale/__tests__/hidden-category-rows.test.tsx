@@ -3,7 +3,8 @@
  * PANEL TALEP SATIRLARI — GİZLİ SEGMENT (2026-10-09, sahip kararı: "anasayfada
  * olmayan kategori talepte de gösterilmesin"; arayüz denetimi W-07).
  *
- * Eski talep (46 = kolluk/emniyet segmentinde açılmış) listede KALIR; gizli
+ * Eski talep (gizli bir dalda açılmış; fikstür görünür 46 sektörünün GİZLİ
+ * ailesindedir — 4610, hafif silahlar, 2026-10-10) listede KALIR; gizli
  * kategorisi Açık Talepler satırında (maskeli satır dahil) ve Taleplerim
  * satırında — yani talebin SAHİBİNE de — çizilmez: Kategori sütunu, ipucu,
  * "+N kategori", genişletilmiş çipler, açılır özet. Görünür kategorisi
@@ -39,9 +40,9 @@ const render = (ui: ReactElement) =>
   rtlRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
 
 const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
-const HIDDEN = { code: "46181500", name: "Koruyucu giysi" };
+const HIDDEN = { code: "46101500", name: "Ateşli silahlar" };
 const VISIBLE = { code: "31161500", name: "Vidalar" };
-const HIDDEN_TEXT = /Koruyucu giysi|46181500/;
+const HIDDEN_TEXT = /Ateşli silahlar|46101500/;
 
 function sellerRow(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
   return {
@@ -88,7 +89,7 @@ describe("Açık Talepler satırı (BrowseTenderRow)", () => {
     const cell = categoryCell(container);
     expect(cell.textContent).toBe("Vidalar");
     expect(container.textContent).not.toMatch(HIDDEN_TEXT);
-    expect(container.querySelector('[title*="Koruyucu"]')).toBeNull();
+    expect(container.querySelector('[title*="Ateşli"]')).toBeNull();
     // Sayaç ham listeden sayılmıştı (gizliler dahil olabilir) → gösterilmez.
     expect(container.textContent).not.toMatch(/\+\d+ kategori/);
   });
@@ -114,6 +115,24 @@ describe("Açık Talepler satırı (BrowseTenderRow)", () => {
     const { container } = render(<BrowseTenderRow t={sellerRow({ categories: [VISIBLE], extraCategoryCount: 2 })} />);
     expect(categoryCell(container).textContent).toContain("+2 kategori");
   });
+
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" görünür sektör —
+  // koruyucu giysi sıradan bir kategoridir; aynı ailenin gizli sınıfı (461825) düşer.
+  it("46'nın görünür kategorisi sütuna yazılır; gizli sınıfı yazılmaz", () => {
+    const { container } = render(
+      <BrowseTenderRow
+        t={sellerRow({
+          categories: [
+            { code: "46182501", name: "Biber gazı" },
+            { code: "46181500", name: "Koruyucu giysi" },
+          ],
+          extraCategoryCount: 0,
+        })}
+      />,
+    );
+    expect(categoryCell(container).textContent).toBe("Koruyucu giysi");
+    expect(container.textContent).not.toMatch(/Biber gazı|46182501/);
+  });
 });
 
 describe("Taleplerim satırı (IhaleListRow) — talebin sahibine de gösterilmez", () => {
@@ -125,7 +144,7 @@ describe("Taleplerim satırı (IhaleListRow) — talebin sahibine de gösterilme
     format: null,
     status: "OPEN",
     isInternational: false,
-    categoryIds: ["46181500", "31161500"],
+    categoryIds: ["46101500", "31161500"],
     categories: [HIDDEN, VISIBLE],
     extraCategoryCount: 0,
     createdById: "u1",
@@ -149,7 +168,7 @@ describe("Taleplerim satırı (IhaleListRow) — talebin sahibine de gösterilme
     const user = userEvent.setup();
     const { container } = render(
       <IhaleListRow
-        t={{ ...ROW, categoryIds: ["46181500"], categories: [HIDDEN], extraCategoryCount: 0 } as TenderListItem}
+        t={{ ...ROW, categoryIds: ["46101500"], categories: [HIDDEN], extraCategoryCount: 0 } as TenderListItem}
         favorite={false}
         onToggleFavorite={vi.fn()}
       />,
@@ -163,14 +182,20 @@ describe("Taleplerim satırı (IhaleListRow) — talebin sahibine de gösterilme
 describe("satır kaynağı (use-seller-tenders) — tek geçiş noktası", () => {
   it("withVisibleRowCategories: gizli kategori düşer; satırı okuyan arama ve sektör sayacı da görmez", () => {
     const raw = sellerRow({ categories: [HIDDEN, VISIBLE], extraCategoryCount: 1 });
-    // Süzülmemiş satırda gizli ad aranabilir ve gizli sektör sayılırdı.
-    expect(searchHaystack(raw)).toContain("koruyucu giysi");
-    expect(rowSegments(raw)).toContain("46000000");
+    // Süzülmemiş satırda gizli ad aranabilirdi. Sektör sayacı ise gizli kodu
+    // segmente yuvarlamadan ÖNCE düşürür (2026-10-10, ikinci kat): gizli dalın
+    // segmenti GÖRÜNÜR olduğundan (46) yuvarladıktan sonra süzmek talebi "İş
+    // Güvenliği ve Yangın Ekipmanları" sektörüne sayardı.
+    expect(searchHaystack(raw)).toContain("atesli silahlar");
+    expect(rowSegments(raw)).toEqual(["31000000"]);
+    // Aynı sektörün görünür dalı (koruyucu giysi) sektörüne sayılır; gizli sınıfı sayılmaz.
+    expect(rowSegments(sellerRow({ categories: [{ code: "46181500", name: "Koruyucu giysi" }] }))).toEqual(["46000000"]);
+    expect(rowSegments(sellerRow({ categories: [{ code: "46182501", name: "Biber gazı" }] }))).toEqual([]);
 
     const row = withVisibleRowCategories(raw);
     expect(row.categories).toEqual([VISIBLE]);
     expect(row.extraCategoryCount).toBe(0);
-    expect(searchHaystack(row)).not.toContain("koruyucu");
+    expect(searchHaystack(row)).not.toContain("atesli");
     expect(rowSegments(row)).toEqual(["31000000"]);
     // Eşleşme bayrağı sunucudan geldiği gibi kalır.
     expect(row.categoryMatch).toBe(true);
@@ -201,7 +226,7 @@ describe("satır kaynağı (use-seller-tenders) — tek geçiş noktası", () =>
       productMatch: false,
       matchedProduct: null,
       categories: [
-        { id: "46181500", name: "Koruyucu giysi", level: 3 },
+        { id: "46101500", name: "Ateşli silahlar", level: 3 },
         { id: "31161500", name: "Vidalar", level: 3 },
         { id: "10151500", name: "Tohumlar", level: 3 },
         { id: "39121600", name: "Devre kesiciler", level: 3 },

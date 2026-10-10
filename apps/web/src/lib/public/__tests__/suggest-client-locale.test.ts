@@ -54,3 +54,39 @@ describe("mega menü önbelleği — geçici hata kalıcı değil (derin denetim
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });
+
+/**
+ * GİZLİ DAL MENÜYE GİRMEZ (2026-10-10, sahip kararı). 46 "İş Güvenliği ve
+ * Yangın Ekipmanları" görünür sektördür; silah ve kolluk aileleri gizli. Menü
+ * ağacı sektörün ALT listesini çizer — gizli aile orada satır olmaz. API aynı
+ * süzgeci uygular; istemci ikinci kattır (eski yanıt, kenar önbelleği).
+ */
+describe("mega menü — gizli sektör ve görünür sektörün gizli ailesi", () => {
+  it("gizli sektör düğümü ve gizli aile düşer; görünür sektör ve aileleri sırasıyla kalır", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          id: "46000000",
+          slug: "is-guvenligi-ve-yangin-ekipmanlari",
+          name: "İş Güvenliği ve Yangın Ekipmanları",
+          count: 12,
+          children: [
+            { id: "46100000", name: "Hafif silahlar ve mühimmat", count: 3 },
+            { id: "46180000", name: "Kişisel koruyucu donanım", count: 7 },
+            { id: "46150000", name: "Kolluk ekipmanları", count: 1 },
+            { id: "46190000", name: "Yangından korunma", count: 5 },
+          ],
+        },
+        { id: "77000000", slug: "cevre-hizmetleri", name: "Çevre Hizmetleri", count: 2, children: [] },
+        { id: "39000000", slug: "elektrik", name: "Elektrik", count: 4, children: [{ id: "39120000", name: "Panolar", count: 4 }] },
+      ],
+    });
+    const menu = await fetchCategoryMenu("de");
+    expect(menu.map((n) => n.id)).toEqual(["46000000", "39000000"]);
+    expect(menu[0]!.children.map((c) => c.id)).toEqual(["46180000", "46190000"]);
+    expect(menu[1]!.children).toEqual([{ id: "39120000", name: "Panolar", count: 4 }]);
+    expect(JSON.stringify(menu)).not.toMatch(/silah|Kolluk|Çevre/);
+  });
+});

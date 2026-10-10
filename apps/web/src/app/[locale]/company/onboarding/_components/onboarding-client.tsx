@@ -45,7 +45,7 @@ import {
   provinceDisplayName,
   registrationCountries,
   taxIdLabelKey,
-  visibleCategoryIds,
+  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
@@ -333,16 +333,19 @@ export function settleTypedLegalForm<F extends LegalFormFields>(f: F): F {
  * değişirse diğeri de. Eskiden özet sektörleri katalog sırasıyla ve işaretsiz
  * yazıyor, tamamı beyan edilen sektör "Ürün ve Hizmetler: —" olarak görünüyordu.
  *
- * Gizli segment kodu (2026-10-09; eski taslaktan kalmış olabilir) seçicide
- * çizilmediği gibi özete de GİRMEZ — aynı süzgeç (`visibleCategoryIds`).
+ * Gizli kategori kodu (2026-10-09; eski taslaktan kalmış olabilir) seçicide
+ * çizilmediği gibi özete de GİRMEZ — aynı süzgeç
+ * (`visibleCompanyCategorySelection`: yalnız gizli bir seçimin atası olarak
+ * saklanmış sektör de düşer, "sektörün tamamı" diye okunmaz).
  */
 export function categoryDeclarationGroups(
   mainIds: readonly string[],
   subIds: readonly string[],
 ): { sector: string; picks: string[] }[] {
   const groups = new Map<string, string[]>();
-  for (const id of visibleCategoryIds(mainIds)) groups.set(id, []);
-  for (const id of deepestCategoryPicks(visibleCategoryIds(subIds))) {
+  const visible = visibleCompanyCategorySelection(mainIds, subIds);
+  for (const id of visible.mainIds) groups.set(id, []);
+  for (const id of deepestCategoryPicks(visible.subIds)) {
     const sector = categorySegment(id);
     if (!sector) continue;
     if (!groups.has(sector)) groups.set(sector, []);
@@ -629,6 +632,7 @@ export function OnboardingClient() {
     if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), LAST_STEP));
     setF((prev) => {
       const s = draft ? mergeDraft(prev, draft.f) : prev;
+      const restoredDeclaration = visibleCompanyCategorySelection(s.mainCategoryIds, s.subCategoryIds);
       const country = s.country || inviteCountry || initial;
       // TR'de şehir il listesinden seçilir: ön doldurulan ad listeye eşlenir,
       // eşleşmezse boş kalır (D-344).
@@ -638,11 +642,13 @@ export function OnboardingClient() {
       return sanitizeLegalForm({
         ...s,
         country,
-        // Taslak, sektör gizlenmeden ÖNCE saklanmış olabilir (2026-10-09):
-        // gizli segment kodu forma geri gelmez — seçici onu çizmez, kayıt da
-        // kabul etmez; görünür seçim kalmadıysa "kategori zorunlu" kuralı sorar.
-        mainCategoryIds: visibleCategoryIds(s.mainCategoryIds),
-        subCategoryIds: visibleCategoryIds(s.subCategoryIds),
+        // Taslak, kategori gizlenmeden ÖNCE saklanmış olabilir (2026-10-09):
+        // gizli kod forma geri gelmez — seçici onu çizmez, kayıt da kabul
+        // etmez; görünür seçim kalmadıysa "kategori zorunlu" kuralı sorar.
+        // İki dizi birlikte süzülür: gizli seçimin görünür atası (sektör) da
+        // gelmez, yoksa form "sektörün tamamı" beyanıyla açılırdı.
+        mainCategoryIds: restoredDeclaration.mainIds,
+        subCategoryIds: restoredDeclaration.subIds,
         legalName: s.legalName || invite?.companyName || "",
         website: s.website || invite?.website || "",
         city: s.city || prefillCity,
@@ -783,7 +789,11 @@ export function OnboardingClient() {
   );
   // Kullanıcının seçtiği ürün/hizmetler (ata zinciri değil) — ad isteğinin
   // anahtarı; özetteki sıra için bkz. `categoryGroups`.
-  const pickedIds = useMemo(() => deepestCategoryPicks(visibleCategoryIds(f.subCategoryIds)), [f.subCategoryIds]);
+  const visibleDeclaration = useMemo(
+    () => visibleCompanyCategorySelection(f.mainCategoryIds, f.subCategoryIds),
+    [f.mainCategoryIds, f.subCategoryIds],
+  );
+  const pickedIds = useMemo(() => deepestCategoryPicks(visibleDeclaration.subIds), [visibleDeclaration]);
   // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
   // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
   // ortaktır ve ek istek gitmez. Eskiden yalnız seçimler soruluyordu — anahtar
@@ -791,8 +801,8 @@ export function OnboardingClient() {
   // varsayılan seçeneklerle çıkıyordu (429'da üç otomatik tekrar, 5xx'te genel
   // toast; kayıt denetimi 2026-10 webcat-5).
   const categoryNameIds = useMemo(
-    () => [...new Set([...pickedIds, ...visibleCategoryIds(f.mainCategoryIds)])],
-    [pickedIds, f.mainCategoryIds],
+    () => [...new Set([...pickedIds, ...visibleDeclaration.mainIds])],
+    [pickedIds, visibleDeclaration],
   );
   const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
   // Özet beyanı 2. adımdaki kartların gruplarıyla ve sırasıyla yazar (CAT-D2).

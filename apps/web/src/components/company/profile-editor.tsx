@@ -4,7 +4,7 @@ import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
 import { useShowcaseItems } from "@/hooks/use-company-items";
-import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks, visibleCategoryIds } from "@rothern/shared";
+import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks, visibleCompanyCategorySelection } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness, type ProfileCompletenessKey } from "@/lib/company/profile-completeness";
 import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
@@ -380,13 +380,17 @@ export function ProfileEditor({
   const canSeeSales = accessiblePortals(user).includes("satis");
   // Alıcının sizi BULMASI için gerekenler — kapı değil, rehber (backend'de
   // içerik kapısı yok; yayın anahtarı her pakete açık — 2026-09-06).
+  // Beyanın GÖRÜNÜR kısmı, eksen başına iki dizi BİRLİKTE (2026-10-10): gizli
+  // kodlar ve yalnız gizli bir seçimin atası olarak saklanmış sektör / aile
+  // düşer — özet kartı, sayılar ve "kategori var mı" aynı kümeyi okur.
+  const sellerDeclared = visibleCompanyCategorySelection(profile.sellerCategoryIds, profile.sellerSubCategoryIds);
+  const buyerDeclared = visibleCompanyCategorySelection(profile.buyerCategoryIds, profile.buyerSubCategoryIds);
   const findability = {
     about: !!draft.aboutText.trim(),
     industry: !!draft.industry.trim(),
-    // Yalnız GÖRÜNÜR beyan sayılır (2026-10-09): gizli segmentteki eski kod
-    // özet kartında çizilmez; "en az 1 kategori" de onu tamam saymaz.
-    category:
-      visibleCategoryIds(profile.sellerCategoryIds).length + visibleCategoryIds(profile.sellerSubCategoryIds).length > 0,
+    // Yalnız GÖRÜNÜR beyan sayılır (2026-10-09): gizli bir dalın altındaki eski
+    // kod özet kartında çizilmez; "en az 1 kategori" de onu tamam saymaz.
+    category: sellerDeclared.mainIds.length + sellerDeclared.subIds.length > 0,
   };
 
   if (!canEdit) {
@@ -603,10 +607,10 @@ export function ProfileEditor({
               services: draft.services,
               certifications: draft.certifications,
               categoryCount:
-                visibleCategoryIds(profile.buyerCategoryIds).length +
-                visibleCategoryIds(profile.sellerCategoryIds).length +
-                visibleCategoryIds(profile.buyerSubCategoryIds).length +
-                visibleCategoryIds(profile.sellerSubCategoryIds).length,
+                buyerDeclared.mainIds.length +
+                sellerDeclared.mainIds.length +
+                buyerDeclared.subIds.length +
+                sellerDeclared.subIds.length,
             })}
             snippet={snippetFromMetadata(
               companySeo({
@@ -1540,11 +1544,15 @@ function GalleryEditor({
  * yerde (`lib/company/profile-completeness.ts`).
  */
 function completenessOf(d: Draft, p: CompanyProfile) {
+  // Dört dizi HAM verilir: görünürlük kuralı (gizli kod + yalnız gizli seçimin
+  // atası olan sektör sayılmaz) hesabın kendisindedir.
   return profileCompleteness({
     ...d,
     city: p.city,
-    buyerCategoryIds: visibleCategoryIds(p.buyerCategoryIds),
-    sellerCategoryIds: visibleCategoryIds(p.sellerCategoryIds),
+    buyerCategoryIds: p.buyerCategoryIds,
+    sellerCategoryIds: p.sellerCategoryIds,
+    buyerSubCategoryIds: p.buyerSubCategoryIds,
+    sellerSubCategoryIds: p.sellerSubCategoryIds,
   });
 }
 
@@ -1614,13 +1622,16 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   // depoda ata zinciri de duruyor (segment + L2/L3); hepsi çip olsaydı tek
   // yaprak "(4)" ve dört çip görünürdü. Altında yaprağı olmayan ("Sektör
   // geneli") segmentler ayrıca eklenir.
-  // Gizli segmentteki eski beyan (2026-10-09) ne çip ne de "(n)" sayısına
-  // girer — sahibine de gösterilmez; yalnız gizli kodu olan firma "seçilmedi"
-  // görür ve Firma Bilgileri'nden güncel bir kategori seçer.
+  // Gizli bir dalın altındaki eski beyan (2026-10-09) ne çip ne de "(n)"
+  // sayısına girer — sahibine de gösterilmez; yalnız gizli kodu olan firma
+  // "seçilmedi" görür ve Firma Bilgileri'nden güncel bir kategori seçer.
+  // Yalnız gizli bir seçimin atası olarak saklanmış sektör de "Sektör geneli"
+  // çipi OLMAZ (2026-10-10, `visibleCompanyCategorySelection`).
   const ids = useMemo(() => {
-    const leaves = deepestCategoryPicks(visibleCategoryIds(profile.sellerSubCategoryIds));
+    const declared = visibleCompanyCategorySelection(profile.sellerCategoryIds, profile.sellerSubCategoryIds);
+    const leaves = deepestCategoryPicks(declared.subIds);
     const covered = new Set(leaves.map((id) => categorySegment(id)));
-    const bareSegments = visibleCategoryIds(profile.sellerCategoryIds).filter((id) => !covered.has(id));
+    const bareSegments = declared.mainIds.filter((id) => !covered.has(id));
     return [...bareSegments, ...leaves];
   }, [profile.sellerCategoryIds, profile.sellerSubCategoryIds]);
   const cats = useCategoriesByIds(ids);

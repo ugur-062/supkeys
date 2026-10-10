@@ -12,8 +12,9 @@ import {
 } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { segmentPhotoSrc } from "@/lib/public/category-photos";
+import { PAGE_LIMIT } from "@/lib/public/product-filter-params";
 import { clampTitle } from "@/lib/seo/entities";
-import { canonicalProductListPage, queryStringOf } from "@/lib/seo/landing";
+import { canonicalProductListPage, listPagePastEnd, queryStringOf } from "@/lib/seo/landing";
 import { buildMetadata, titleRoom } from "@/lib/seo/meta";
 import { resolveSegmentLanding } from "./category-data";
 import type { Metadata } from "next";
@@ -78,6 +79,10 @@ export async function generateMetadata({
     page,
     // 2+ sayfa kendi başlık/açıklamasını taşır (arayüz testi D-084).
     pageLabel,
+    // SON SAYFANIN ÖTESİ (2026-10-10): `?sayfa=N` son sayfadan büyükse gövde
+    // "Bu sayfada sonuç yok" çizer (200) — o adres indekse girmez. Gerçek
+    // `?sayfa=N` sayfası kendi kanoniğiyle indekslenmeyi sürdürür.
+    noindex: listPagePastEnd(page, { total: count, pageSize: cat.pageSize }, PAGE_LIMIT),
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
     locale,
   });

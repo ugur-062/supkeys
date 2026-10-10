@@ -116,18 +116,40 @@ describe("CategorySelectorButton — kaldırılamayan seçim (`clearable={false}
 });
 
 /**
- * GİZLİ SEGMENT + ÇÖZÜLEMEYEN KİMLİK (2026-10-09, arayüz denetimi W-09/W-11).
- * Eski kayıttaki gizli kategori (46 = kolluk/emniyet, 10 = canlı bitki) alanın
+ * GİZLİ KATEGORİ + ÇÖZÜLEMEYEN KİMLİK (2026-10-09, arayüz denetimi W-09/W-11).
+ * Eski kayıttaki gizli kategori (4610 = hafif silahlar, 10 = canlı bitki) alanın
  * değerinde durabilir; alan onu ne adıyla ne koduyla ne de "…" çipiyle çizer.
+ * 2026-10-10: 46 görünür sektördür; gizli olan silah / kolluk dallarıdır.
  */
-describe("CategorySelectorButton — gizli segment kodu ve satırı olmayan kimlik", () => {
+describe("CategorySelectorButton — gizli kategori kodu ve satırı olmayan kimlik", () => {
+  it("46'nın görünür kategorisi (koruyucu giysi) sıradan çiptir: 'önceki kategori' notu çıkmaz", () => {
+    h.byIds = { data: [{ id: "46181500", nameTr: "Koruyucu giysi", breadcrumb: "" }] };
+    render(<CategorySelectorButton value={["46181500"]} onChange={() => {}} mode="single" />);
+    expect(screen.getByText("Koruyucu giysi")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Koruyucu giysi kategorisini kaldır" })).toBeInTheDocument();
+    expect(screen.queryByText(/Önceki kategori artık kullanılmıyor/)).toBeNull();
+  });
+
+  it("gizli SINIFIN kodu (461825) da çizilmez ve nedeni söylenir; yanındaki görünür 46 kodu kalır", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    h.byIds = { data: [{ id: "46181500", nameTr: "Koruyucu giysi", breadcrumb: "" }] };
+    render(<CategorySelectorButton value={["46182501", "46181500"]} onChange={onChange} />);
+    expect(screen.getAllByRole("button", { name: /kategorisini kaldır/ })).toHaveLength(1);
+    expect(screen.queryByText(/46182501/)).toBeNull();
+    expect(screen.getByText(/Önceki kategori artık kullanılmıyor/)).toBeInTheDocument();
+    // Çip kaldırılınca değer çizilenlerden kurulur: gizli kod dönen değerde kalmaz.
+    await user.click(screen.getByRole("button", { name: "Koruyucu giysi kategorisini kaldır" }));
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
+
   it("yalnız gizli kod taşıyan değer BOŞ durumla açılır; çip, kod ve '…' yok; nedeni söylenir", () => {
     // Güncel API gizli kodu hiç döndürmez (kanca da sormaz) → cevap yok.
     h.byIds = { data: undefined };
-    render(<CategorySelectorButton value={["46181500"]} onChange={() => {}} mode="single" placeholder="Ürün kategorisini seçin" />);
+    render(<CategorySelectorButton value={["46101500"]} onChange={() => {}} mode="single" placeholder="Ürün kategorisini seçin" />);
     expect(screen.getByRole("button", { name: /Ürün kategorisini seçin/ })).toBeInTheDocument();
     expect(screen.queryByText("…")).toBeNull();
-    expect(screen.queryByText(/46181500/)).toBeNull();
+    expect(screen.queryByText(/46101500/)).toBeNull();
     expect(screen.queryByRole("button", { name: /kategorisini kaldır/ })).toBeNull();
     // Alan neden boş: kategorinin adını anmadan.
     expect(screen.getByText("Önceki kategori artık kullanılmıyor. Lütfen güncel bir kategori seçin.")).toBeInTheDocument();
@@ -155,7 +177,7 @@ describe("CategorySelectorButton — gizli segment kodu ve satırı olmayan kiml
         { id: "39121600", nameTr: "Devre kesiciler", breadcrumb: "" },
       ],
     };
-    render(<CategorySelectorButton value={["46181500", "39121300", "39121600"]} onChange={onChange} />);
+    render(<CategorySelectorButton value={["46101500", "39121300", "39121600"]} onChange={onChange} />);
     await user.click(screen.getByRole("button", { name: "Devre kesiciler kategorisini kaldır" }));
     expect(onChange).toHaveBeenCalledWith(["39121300"]);
   });

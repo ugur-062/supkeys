@@ -62,8 +62,10 @@ export function SatisDashboardView() {
       for (const seg of rowSegments(row)) {
         // Gizli sektör ÖNERİLMEZ (2026-10-09; kenar süzgecindeki sayaçla aynı
         // kural — `request-facets`): adı sektör listesinde olmadığından ham
-        // kodla ("46000000 · 2 açık talep") öneriliyor, bağlantısı da listeyi
+        // kodla ("77000000 · 2 açık talep") öneriliyor, bağlantısı da listeyi
         // gizli sektöre süzüyordu. Satırlar kancadan süzülü gelir; ikinci kat.
+        // Görünür sektörün gizli dalı (2026-10-10; `46101500`) buraya hiç
+        // ulaşmaz: `rowSegments` kodu sektöre yuvarlamadan ÖNCE düşürür.
         if (isHiddenCategory(seg)) continue;
         m.set(seg, (m.get(seg) ?? 0) + 1);
       }

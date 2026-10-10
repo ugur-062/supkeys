@@ -136,14 +136,40 @@ describe("ListingFilters — facet'in saymadığı seçili kategori (D-336, göz
   // değildir — eski API adını `selectedCategory` ile döndürse de işaretli
   // seçenek / ad çizilmez (kod hiç verilmemiş gibi).
   it("?kategori=<gizli segment> işaretli seçenek ve ad çizmez", () => {
-    nav.search = "kategori=46000000";
+    nav.search = "kategori=92000000";
     const { container } = render(
       <ListingFilterShell total={3} drawer={null}>
-        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları", level: 1 } }} idPrefix="t" />
+        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri", level: 1 } }} idPrefix="t" />
       </ListingFilterShell>,
     );
-    expect(screen.queryByRole("checkbox", { name: /Kolluk/ })).toBeNull();
-    expect(container.textContent).not.toMatch(/Kolluk|46000000/);
+    expect(screen.queryByRole("checkbox", { name: /Kamu Düzeni/ })).toBeNull();
+    expect(container.textContent).not.toMatch(/Kamu Düzeni|92000000/);
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür;
+  // silah / kolluk dalları gizli. Gizli AİLENİN kodu da süzgeç değildir.
+  it("?kategori=<görünür sektörün gizli ailesi> işaretli seçenek ve ad çizmez", () => {
+    nav.search = "kategori=46100000";
+    const { container } = render(
+      <ListingFilterShell total={3} drawer={null}>
+        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "46100000", name: "Hafif silahlar ve mühimmat", level: 2 } }} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    expect(screen.queryByRole("checkbox", { name: /silah/ })).toBeNull();
+    expect(container.textContent).not.toMatch(/silah|46100000/);
+  });
+
+  it("?kategori=46000000 sıradan bir sektör süzgecidir: adıyla işaretli seçenek çizilir", () => {
+    nav.search = "kategori=46000000";
+    render(
+      <ListingFilterShell total={0} drawer={null}>
+        <ListingFilters
+          facets={{ ...listingFacets, selectedCategory: { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", level: 1 } }}
+          idPrefix="t"
+        />
+      </ListingFilterShell>,
+    );
+    expect(screen.getByRole("checkbox", { name: /İş Güvenliği ve Yangın Ekipmanları/ })).toBeChecked();
   });
 });
 

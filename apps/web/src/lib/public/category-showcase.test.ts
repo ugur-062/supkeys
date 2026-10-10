@@ -60,24 +60,45 @@ describe("anasayfa kategori seçkisi", () => {
     });
     expect(out.map((c) => c.id)).toEqual(["23000000", "31000000", "39000000", "30000000"]);
   });
-  // 2026-10-09 (sahip kararı): 46 ve 77 anasayfadan kalktı. Bu sınama paylaşılan
+  // 2026-10-09 (sahip kararı): 77 anasayfadan kalktı. Bu sınama paylaşılan
   // paketin DERLENMİŞ hâlini okur — eski derlemede kural boşa geçerdi (W-20).
-  it("46 (kolluk/emniyet) ve 77 (çevre hizmetleri) gizlidir: vitrine ve küratörlü sıraya girmez", () => {
-    expect(isHiddenCategory("46000000")).toBe(true);
-    expect(isHiddenCategory("46181500")).toBe(true);
+  it("77 (çevre hizmetleri) gizlidir: vitrine ve küratörlü sıraya girmez", () => {
     expect(isHiddenCategory("77000000")).toBe(true);
-    expect(SHOWCASE_ORDER).not.toContain("46000000");
     expect(SHOWCASE_ORDER).not.toContain("77000000");
     const out = buildShowcase({
-      segments: [...segments, { id: "46000000", name: "Kolluk ve Emniyet" }, { id: "77000000", name: "Çevre Hizmetleri" }],
-      counts: [{ id: "46000000", count: 40 }, { id: "77000000", count: 7 }],
-      productCovers: [{ categoryId: "46181500", image: "k.webp" }],
+      segments: [...segments, { id: "77000000", name: "Çevre Hizmetleri" }],
+      counts: [{ id: "77000000", count: 7 }],
+      productCovers: [{ categoryId: "77101500", image: "k.webp" }],
     });
     expect(out.map((c) => c.id)).toEqual(["23000000", "31000000", "39000000", "30000000"]);
   });
-  it("görünür segment sayısı 27'dir (58 − 31 gizli) — anasayfa hepsini çizer", () => {
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // GERİ AÇILDI; yalnız silah ve kolluk dalları gizli. Derlenmiş paketi okur.
+  it("46 görünür sektördür: vitrine adıyla, sayısıyla ve kendi fotoğrafıyla girer", () => {
+    expect(isHiddenCategory("46000000")).toBe(false);
+    expect(isHiddenCategory("46181500")).toBe(false);
+    expect(isHiddenCategory("46101500")).toBe(true);
+    expect(isHiddenCategory("46182501")).toBe(true);
+    const out = buildShowcase({
+      segments: [...segments, { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari" }],
+      counts: [{ id: "46000000", count: 40 }],
+      productCovers: [],
+    });
+    expect(out[0]).toEqual({
+      id: "46000000",
+      name: "İş Güvenliği ve Yangın Ekipmanları",
+      slug: "is-guvenligi-ve-yangin-ekipmanlari",
+      count: 40,
+      imageSrc: "/categories/46000000.webp",
+    });
+    expect(out).toHaveLength(5);
+  });
+  it("görünür segment sayısı 28'dir (58 − 30 gizli) — anasayfa hepsini çizer", () => {
     const all = Array.from({ length: 100 }, (_, i) => `${String(i).padStart(2, "0")}000000`).filter((code) => MAPPED_SEGMENTS.includes(code.slice(0, 2)));
     expect(all).toHaveLength(58);
-    expect(all.filter((code) => !isHiddenCategory(code))).toHaveLength(27);
+    const visible = all.filter((code) => !isHiddenCategory(code));
+    expect(visible).toHaveLength(28);
+    expect(visible).toContain("46000000");
+    expect(visible).not.toContain("77000000");
   });
 });

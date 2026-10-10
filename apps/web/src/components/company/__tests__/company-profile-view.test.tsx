@@ -64,22 +64,30 @@ describe("CompanyProfileView — gizli segmentteki kategori beyanı", () => {
         profile={{
           ...base,
           categories: [
-            { id: "46000000", name: "Kolluk ve Emniyet Ekipmanları" },
+            { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri" },
             { id: "31000000", name: "Üretim Bileşenleri" },
             { id: "10000000", name: "Canlı Bitki ve Hayvanlar" },
+            { id: "46100000", name: "Hafif silahlar ve mühimmat" },
           ],
         }}
       />,
     );
     expect(screen.getByText("Üretim Bileşenleri")).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/Kolluk|Canlı Bitki/);
+    expect(container.textContent).not.toMatch(/Kamu Düzeni|Canlı Bitki|silah/);
+  });
+
+  // 2026-10-10: 46 geri açıldı — beyanı sıradan bir çiptir.
+  it("46 (İş Güvenliği ve Yangın Ekipmanları) çipi çizilir", () => {
+    render(<CompanyProfileView profile={{ ...bare, categories: [{ id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları" }] }} />);
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Şirket Bilgileri" })).toBeInTheDocument();
   });
 
   it("yalnız gizli segment beyanı olan firmada 'Şirket Bilgileri' kartı boş açılmaz", () => {
     const hiddenOnly = render(
-      <CompanyProfileView profile={{ ...bare, categories: [{ id: "46000000", name: "Kolluk ve Emniyet Ekipmanları" }] }} />,
+      <CompanyProfileView profile={{ ...bare, categories: [{ id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri" }] }} />,
     );
-    expect(hiddenOnly.container.textContent).not.toMatch(/Kolluk/);
+    expect(hiddenOnly.container.textContent).not.toMatch(/Kamu Düzeni/);
     expect(screen.queryByRole("heading", { name: "Şirket Bilgileri" })).toBeNull();
     hiddenOnly.unmount();
     // Karşılaştırma: görünür beyan aynı kartı açar.

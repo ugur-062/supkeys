@@ -7,7 +7,10 @@ const seed = { productName: "Bakır kablo", unit: "metre", categoryId: null, key
 describe("mapProductToForm — kategori ön-seçimi", () => {
   it("görünür kategori ön-seçilir; gizli segmentteki kod taşınmaz (talep kategorisiz açılır)", () => {
     expect(mapProductToForm({ ...seed, categoryId: "39121600" }).categoryIds).toEqual(["39121600"]);
-    expect(mapProductToForm({ ...seed, categoryId: "46181500" }).categoryIds).toEqual([]);
+    expect(mapProductToForm({ ...seed, categoryId: "46101500" }).categoryIds).toEqual([]);
+    // 2026-10-10: 46 görünür sektör — koruyucu giysi ön-seçilir, gizli sınıfın yaprağı taşınmaz.
+    expect(mapProductToForm({ ...seed, categoryId: "46181500" }).categoryIds).toEqual(["46181500"]);
+    expect(mapProductToForm({ ...seed, categoryId: "46182501" }).categoryIds).toEqual([]);
     expect(mapProductToForm({ ...seed, categoryId: "10151500" }).categoryIds).toEqual([]);
     expect(mapProductToForm(seed).categoryIds).toEqual([]);
   });

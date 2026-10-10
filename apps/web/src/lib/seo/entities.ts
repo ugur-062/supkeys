@@ -211,12 +211,16 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   const locale = opts.locale ?? DEFAULT_LOCALE;
   const ts = opts.t;
   const { product: pr, company: co, companySlug } = input;
-  // Gizli segmentteki kategori (2026-10-09) tanım cümlesine, `Product.category`
+  // Gizli kategori (2026-10-09) tanım cümlesine, `Product.category`
   // alanına ve kırıntıya YAZILMAZ: sayfada göstermediğimiz adı tarayıcıya ve
   // yapay zekâ modeline makine-okunur biçimde vermek kuralı delerdi. Ürün
   // sayfası durur; cümle kategorisiz kurulur (`joinParts` boşu atar).
+  //
+  // Segment halkası yalnız ürünün KENDİ kategorisi görünürse yazılır
+  // (2026-10-10): gizli kategorinin segmenti görünür olabilir (`46101500` →
+  // `46000000`); o ürün görünür sektörün kırıntısına bağlanmaz.
   const category = visibleCategoryRef(pr.category);
-  const segment = visibleCategoryRef(pr.segment);
+  const segment = category ? visibleCategoryRef(pr.segment) : null;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
   const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));

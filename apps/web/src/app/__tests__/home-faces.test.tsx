@@ -17,6 +17,8 @@ import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
+import { isHiddenCategory } from "@rothern/shared";
 
 const product = (i: number) => ({
   slug: `urun-${i}`,
@@ -280,16 +282,16 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(container.textContent).toContain("Elektrik");
   });
 
-  // 2026-10-09 (sahip kararı): 46 ve 77 anasayfadan kalktı. Vitrin verisi
+  // 2026-10-09 (sahip kararı): 77 anasayfadan kalktı. Vitrin verisi
   // süzülü gelir (`buildShowcase`); kart çizimi son kattır — gizli segment
   // girdide olsa bile anasayfada kartı, adı ve bağlantısı çıkmaz.
-  it("kategori vitrini: gizli segment (46, 77, 10) kart olarak çizilmez", () => {
+  it("kategori vitrini: gizli segment (92, 77, 10) kart olarak çizilmez", () => {
     const { container } = render(
       <HomeBuyer
         newest={[] as any}
         showcase={[
           { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
-          { id: "46000000", name: "Kolluk ve Emniyet", count: 9, imageSrc: null },
+          { id: "92000000", name: "Kamu Düzeni", count: 9, imageSrc: null },
           { id: "23000000", name: "Makine", count: 2, imageSrc: null },
           { id: "77000000", name: "Çevre Hizmetleri", count: 0, imageSrc: null },
           { id: "10000000", name: "Canlı Bitki", count: 0, imageSrc: null },
@@ -298,8 +300,57 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     );
     expect(screen.getAllByRole("link", { name: /Elektrik/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: /Makine/ }).length).toBeGreaterThan(0);
-    expect(container.textContent).not.toMatch(/Kolluk|Çevre Hizmetleri|Canlı Bitki/);
-    expect(container.querySelector('a[href*="46000000"], a[href*="77000000"], a[href*="10000000"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/Kamu Düzeni|Çevre Hizmetleri|Canlı Bitki/);
+    expect(container.querySelector('a[href*="92000000"], a[href*="77000000"], a[href*="10000000"]')).toBeNull();
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // anasayfaya döndü — kartı, adı ve açılış sayfası bağlantısı çizilir.
+  it("kategori vitrini: 46 (İş Güvenliği ve Yangın Ekipmanları) kart olarak çizilir", () => {
+    const { container } = render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={[
+          { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
+          { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari", count: 3, imageSrc: null },
+          { id: "23000000", name: "Makine", count: 2, imageSrc: null },
+        ] as any}
+      />,
+    );
+    const link = screen.getByRole("link", { name: /İş Güvenliği ve Yangın Ekipmanları/ });
+    expect(link.getAttribute("href")).toContain("/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari");
+    expect(container.querySelectorAll('a[href*="/urunler/kategori/"]')).toHaveLength(3);
+  });
+
+  // EŞİT BLOK TERCİHİ (2026-10-10): 28 görünür sektör üç blokta 10 + 9 + 9
+  // bölünüyordu — ilk blok beş sütunda dokuz dar kart, öteki ikisi 4 × 2.
+  // Artık dört blok × (1 tanıtım + 6 kart), her biri 3 × 2. Sayı elle yazılmaz:
+  // eşleme tablosundaki segmentlerden gizli olmayanlar (satınalma paneli aynı
+  // `toShowcaseRows` çağrısını yapar — `page-showcase.test`).
+  it("kategori vitrini: görünür sektörlerin tamamı dört EŞİT blokta (1 tanıtım + 6 kart, 3 sütun)", () => {
+    const visible = MAPPED_SEGMENTS.map((code) => `${code}000000`).filter((id) => !isHiddenCategory(id));
+    expect(visible).toHaveLength(28);
+    render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={visible.map((id) => ({ id, name: `Sektör ${id.slice(0, 2)}`, slug: `sektor-${id.slice(0, 2)}`, count: 1, imageSrc: null })) as any}
+      />,
+    );
+    const vitrin = document.getElementById("kategoriler")!;
+    const blocks = within(vitrin).getAllByRole("region");
+    expect(blocks).toHaveLength(4);
+    for (const block of blocks) {
+      const grid = block.querySelector("ul")!;
+      expect(grid.querySelectorAll("li")).toHaveLength(6);
+      expect(grid.classList.contains("grid-cols-2")).toBe(true);
+      expect(grid.classList.contains("sm:grid-cols-3")).toBe(true);
+      expect(grid.classList.contains("lg:grid-cols-3")).toBe(true);
+      expect(grid.classList.contains("lg:grid-cols-5")).toBe(false);
+    }
+    // Görünür her sektör bir kez çizilir.
+    const hrefs = within(vitrin).getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs).toHaveLength(28);
+    expect(new Set(hrefs).size).toBe(28);
   });
 
   it("kategori vitrini FOTOĞRAFSIZ — çizgisel segment ikonu (2026-09-21, kullanıcı kararı)", () => {

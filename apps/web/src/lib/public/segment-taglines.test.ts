@@ -15,9 +15,22 @@ describe("segmentTaglineKey", () => {
     expect(segmentTaglineKey(undefined)).toBe("fallback");
   });
   it("gizli segment kendi sloganını almaz (2026-10-09) — nötr anahtar", () => {
-    expect(segmentTaglineKey("46000000")).toBe("fallback");
+    expect(segmentTaglineKey("92000000")).toBe("fallback");
     expect(segmentTaglineKey("77101500")).toBe("fallback");
     expect(segmentTaglineKey("10000000")).toBe("fallback");
+  });
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" geri açıldı; silah ve
+  // kolluk dalları gizli. Kod segmente inmeden ÖNCE sınanır.
+  it("46 görünür: segment ve görünür dalları s46 alır; gizli ailesi ve gizli sınıfı nötr anahtara düşer", () => {
+    for (const visible of ["46000000", "46181500", "46191600", "46210000"]) expect(segmentTaglineKey(visible), visible).toBe("s46");
+    for (const hidden of ["46101500", "46100000", "46151600", "46220000", "46182500", "46182501"]) {
+      expect(segmentTaglineKey(hidden), hidden).toBe("fallback");
+    }
+  });
+  it.each(LOCALES)("s46 cümlesi iş güvenliğini anlatır, kolluk / silah sözcüğü taşımaz (%s)", (locale) => {
+    const text = (createWebTranslator(locale)("web.marketing.taglines.s46" as never) as string).toLocaleLowerCase(locale);
+    expect(text).not.toContain("web.marketing");
+    expect(text).not.toMatch(/kolluk|silah|emniyet|law enforcement|weapon|police|правоохран|оружи|полици/);
   });
   it.each(LOCALES)("sloganlar her dilde var ve sayı/istatistik taşımaz (%s)", (locale) => {
     const t = createWebTranslator(locale);

@@ -40,7 +40,7 @@ vi.mock("@/hooks/use-seller-tenders", async (orig) => ({
 vi.mock("@/hooks/use-portal-discovery", () => ({
   useCategorySegments: () => ({
     data: [
-      { id: "10000000", nameTr: "Canlı Hayvanlar" },
+      { id: "23000000", nameTr: "Endüstriyel Makineler" },
       { id: "39000000", nameTr: "Elektrik" },
     ],
   }),
@@ -91,7 +91,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     myBidStatus: null,
     myBidSubmitCount: null,
     categoryMatch: false,
-    categories: [{ code: "10000000", name: "Canlı Hayvanlar" }],
+    categories: [{ code: "23000000", name: "Endüstriyel Makineler" }],
     extraCategoryCount: 0,
     ...over,
   };
@@ -170,7 +170,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getAllByText("Alıcı A.Ş.").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("5 gün kaldı").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
-    expect(screen.getAllByText("Canlı Hayvanlar").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Endüstriyel Makineler").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Profilinizle eşleşti")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getAllByText("Profilinizle eşleşti").length).toBeGreaterThanOrEqual(2);
@@ -466,7 +466,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     ];
     render(<SellerTendersView />);
     expect(group("Kategori").getByLabelText(/^Elektrik/).closest("label")).toHaveTextContent("Elektrik1");
-    expect(group("Kategori").getByLabelText(/^Canlı Hayvanlar/).closest("label")).toHaveTextContent("Canlı Hayvanlar1");
+    expect(group("Kategori").getByLabelText(/^Endüstriyel Makineler/).closest("label")).toHaveTextContent("Endüstriyel Makineler1");
     expect(group("Kapanış").getByLabelText(/^3 gün içinde/).closest("label")).toHaveTextContent("3 gün içinde1");
     expect(group("Para birimi").getByLabelText(/^USD/).closest("label")).toHaveTextContent("USD1");
     expect(group("Usul").getByLabelText(/^Pazarlık/).closest("label")).toHaveTextContent("Pazarlık1");

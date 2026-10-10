@@ -109,17 +109,36 @@ describe("sitemap parçaları", () => {
 
 describe("sitemap — kategoriler parçası", () => {
   // 2026-10-09: gizli segmentin sayfası 404'tür; API özeti süzer, web ikinci kat.
-  it("gizli segmentin (46, 77…) adresi yazılmaz; görünür segment yazılır", async () => {
+  it("gizli segmentin (77, 92…) adresi yazılmaz; görünür segment yazılır", async () => {
     const rows = summary.categories as unknown as Record<string, unknown>[];
     rows.push(
       { id: "39000000", name: "Elektrik", slug: "elektrik", count: 2, lastmod: "2026-09-07T00:00:00.000Z" },
-      { id: "46000000", name: "Kolluk ve Emniyet", slug: "kolluk-ve-emniyet", count: 5, lastmod: "2026-09-07T00:00:00.000Z" },
+      { id: "92000000", name: "Kamu Düzeni", slug: "kamu-duzeni", count: 5, lastmod: "2026-09-07T00:00:00.000Z" },
       { id: "77000000", name: "Çevre Hizmetleri", slug: "cevre-hizmetleri", count: 1, lastmod: "2026-09-07T00:00:00.000Z" },
     );
     try {
       const locs = (await buildPart({ kind: "categories", page: 0 })).map((u) => u.loc);
       expect(locs.some((l) => l.includes("39000000-elektrik"))).toBe(true);
-      expect(locs.filter((l) => /46000000|77000000/.test(l))).toEqual([]);
+      expect(locs.filter((l) => /92000000|77000000/.test(l))).toEqual([]);
+    } finally {
+      rows.length = 0;
+    }
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // geri açıldı — açılış sayfası vardır ve site haritasına yazılır. Sayı ve
+  // tarih API özetinden gelir (gizli dallardaki ürünler orada sayılmaz); ürünü
+  // kalmayan (yalnız gizli dalda ürünü olan) segment `count: 0` ile yazılmaz.
+  it("46 geri açıldı: ürünü varsa adresi yazılır, yoksa yazılmaz", async () => {
+    const rows = summary.categories as unknown as Record<string, unknown>[];
+    const row = { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari", lastmod: "2026-10-10T00:00:00.000Z" };
+    try {
+      rows.push({ ...row, count: 4 });
+      const locs = (await buildPart({ kind: "categories", page: 0 })).map((u) => u.loc);
+      expect(locs.some((l) => l.endsWith("/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari"))).toBe(true);
+      rows.length = 0;
+      rows.push({ ...row, count: 0 });
+      expect(await buildPart({ kind: "categories", page: 0 })).toEqual([]);
     } finally {
       rows.length = 0;
     }

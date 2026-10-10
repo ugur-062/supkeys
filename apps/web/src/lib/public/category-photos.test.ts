@@ -32,11 +32,28 @@ describe("kategori fotoğrafları", () => {
   // 2026-10-09: gizli segmentin fotoğrafı hiçbir yüzeyde verilmez — görselsiz
   // eski ürünün kartı o fotoğrafla kategoriyi adını yazmadan gösterirdi.
   it("gizli segmentin fotoğrafı verilmez (dosya ve manifest durur); sıradaki görünür kod kazanır", () => {
-    expect(CATEGORY_PHOTOS.has("46000000")).toBe(true);
-    expect(categoryPhotoSrc("46000000")).toBeNull();
+    expect(CATEGORY_PHOTOS.has("77000000")).toBe(true);
+    expect(categoryPhotoSrc("77000000")).toBeNull();
     expect(categoryPhotoSrc("10000000")).toBeNull();
-    expect(segmentPhotoSrc(["46181500"])).toBeNull();
+    expect(segmentPhotoSrc(["92101500"])).toBeNull();
     expect(segmentPhotoSrc(["77101500", "10151500"])).toBeNull();
-    expect(segmentPhotoSrc(["46181500", "40171501"])).toBe("/categories/40000000.webp");
+    expect(segmentPhotoSrc(["77101500", "40171501"])).toBe("/categories/40000000.webp");
+  });
+
+  // 2026-10-10: 46 "İş Güvenliği ve Yangın Ekipmanları" görünür sektördür —
+  // fotoğrafı (yangın söndürücü) verilir. Silah / kolluk dalları gizli kalır:
+  // kod segmente yuvarlanmadan ÖNCE sınanır, yoksa `46101500` görünür
+  // `46000000` sayılıp gizli daldaki ürün sektörün fotoğrafını alırdı.
+  it("46 görünür: segmentin ve görünür dallarının fotoğrafı verilir; gizli ailesi ve gizli sınıfı almaz", () => {
+    expect(categoryPhotoSrc("46000000")).toBe("/categories/46000000.webp");
+    for (const visible of ["46000000", "46181500", "46180000", "46191600", "46211500"]) {
+      expect(segmentPhotoSrc([visible]), visible).toBe("/categories/46000000.webp");
+    }
+    for (const hidden of ["46101500", "46100000", "46151600", "46201000", "46220000", "46182500", "46182501"]) {
+      expect(segmentPhotoSrc([hidden]), hidden).toBeNull();
+    }
+    // Gizli dal atlanır, sıradaki görünür kod kazanır (aynı sektörden olsa da).
+    expect(segmentPhotoSrc(["46101500", "40171501"])).toBe("/categories/40000000.webp");
+    expect(segmentPhotoSrc(["46182501", "46181500"])).toBe("/categories/46000000.webp");
   });
 });

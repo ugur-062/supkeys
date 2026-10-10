@@ -133,10 +133,10 @@ describe("Panel ürün sayfası (derin denetim LU-22)", () => {
   // kapatmıştı; gizli kategori adı "… içinde yeni" başlığına hâlâ gidiyordu.
   it("gizli segmentteki kategori 'kategoride yeni' başlığına da gitmez; görünür kategori gider", () => {
     h.related = true;
-    h.category = { id: "46181500", name: "Koruyucu giysi" };
+    h.category = { id: "46101500", name: "Ateşli silahlar" };
     const { unmount } = render(<PanelProductPage />);
     expect(h.relatedCategoryName).toBeNull();
-    expect(h.trail.map((s) => s.label)).not.toContain("Koruyucu giysi");
+    expect(h.trail.map((s) => s.label)).not.toContain("Ateşli silahlar");
     unmount();
     h.category = { id: "39121000", name: "Panolar" };
     render(<PanelProductPage />);

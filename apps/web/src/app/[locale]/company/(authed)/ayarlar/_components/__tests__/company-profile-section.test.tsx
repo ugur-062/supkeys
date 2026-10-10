@@ -434,26 +434,47 @@ describe("CompanyProfileSection", () => {
   });
 
   /**
-   * GİZLİ SEKTÖR (2026-10-09, sahip kararı; arayüz denetimi W-10): sektör
-   * gizlenmeden önce kaydedilmiş beyan (46 = kolluk/emniyet, 77 = çevre
-   * hizmetleri) forma HİÇ girmez. Dokunulmayan eksen gönderilmez (depoda kalır,
-   * eşleştirme kullanmayı sürdürür); dokunulan eksen yalnız görünür kodlarla
-   * yazılır → gizliler o kayıtta düşer.
+   * GİZLİ KATEGORİ (2026-10-09, sahip kararı; arayüz denetimi W-10): dal
+   * gizlenmeden önce kaydedilmiş beyan forma HİÇ girmez. Dokunulmayan eksen
+   * gönderilmez (depoda kalır, eşleştirme kullanmayı sürdürür); dokunulan eksen
+   * yalnız görünür kodlarla yazılır → gizliler o kayıtta düşer.
+   *
+   * 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür,
+   * silah / kolluk dalları gizli. Alış ekseni GÖRÜNÜR sektörün gizli ailesinde
+   * (4610, hafif silahlar) bir seçim taşır: beyan ata zinciriyle saklandığı
+   * için 46000000 de kayıttadır ve yalnız gizli seçimin atasıdır — forma o da
+   * girmez (girseydi seçici "sektörün tamamı" diye çizer, kayıt öyle yazardı).
+   * Satış ekseni tümüyle gizli bir sektördedir (77 = çevre hizmetleri).
    */
   const legacyProfile = () =>
     baseProfile({
       buyerCategoryIds: ["46000000", "39000000"],
-      buyerSubCategoryIds: ["46180000", "46181500", "39120000", "39121000"],
+      buyerSubCategoryIds: ["46100000", "46101500", "39120000", "39121000"],
       sellerCategoryIds: ["77000000"],
       sellerSubCategoryIds: ["77100000", "77101500"],
     });
 
-  it("gizli sektör kodu seçicilere verilmez; form açılışta kirli değildir", () => {
+  it("gizli kod ve yalnız onun atası olan sektör seçicilere verilmez; form açılışta kirli değildir", () => {
     h.profile = legacyProfile();
     render(<CompanyProfileSection />);
     expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["39000000"], subIds: ["39120000", "39121000"] });
     // Yalnız gizli beyanı olan eksen boş durumla açılır.
     expect(h.pickers[SELL]!.value).toEqual({ mainIds: [], subIds: [] });
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("46 görünür sektör: tamamı beyanı ve görünür seçimi forma girer; aynı sektördeki gizli seçim girmez", () => {
+    h.profile = baseProfile({
+      buyerCategoryIds: ["46000000"],
+      buyerSubCategoryIds: [],
+      sellerCategoryIds: ["46000000"],
+      sellerSubCategoryIds: ["46100000", "46101500", "46180000", "46181500", "46182500", "46182501"],
+    });
+    render(<CompanyProfileSection />);
+    // Altı boş sektör = bilinçli "sektörün tamamı" beyanı: kalır.
+    expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["46000000"], subIds: [] });
+    // Görünür seçimin (koruyucu giysi) zinciri kalır; gizli aile ve gizli sınıf düşer.
+    expect(h.pickers[SELL]!.value).toEqual({ mainIds: ["46000000"], subIds: ["46180000", "46181500"] });
     expect(saveButton()).toBeDisabled();
   });
 

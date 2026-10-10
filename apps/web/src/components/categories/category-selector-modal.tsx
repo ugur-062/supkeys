@@ -170,10 +170,14 @@ export function CategorySelectorModal({
   maxSectors,
 }: Props) {
   const tr = useTranslations("web.shared.categorySelectorModal");
-  // Pencere kataloğu SUNAN yüzeydir: gizli segmentteki eski kod (2026-10-09)
-  // taslağa hiç girmez — seçim şeridinde çip, sayaçta sayı olmaz. Çağıranlar
-  // değeri zaten süzer; burası ikinci kat. `useMemo`: taslağı sıfırlayan efekt
-  // `value` kimliğine bağlı, her çizimde yeni dizi taslağı sürekli sıfırlardı.
+  // Pencere kataloğu SUNAN yüzeydir: gizli kategorideki eski kod (2026-10-09;
+  // gizli segment ya da — 2026-10-10 — görünür segmentin gizli ailesi / sınıfı)
+  // taslağa hiç girmez — seçim şeridinde çip, sayaçta sayı, sektör satırındaki
+  // "bu dalda n seçim" rozetinde sayı olmaz. Gizli dalın SATIRI da yoktur
+  // (`useChildren` / `useCategorySearchTree` listelemez), yani işaretlenemez.
+  // Çağıranlar değeri zaten süzer; burası ikinci kat. `useMemo`: taslağı
+  // sıfırlayan efekt `value` kimliğine bağlı, her çizimde yeni dizi taslağı
+  // sürekli sıfırlardı.
   const value = useMemo(() => visibleCategoryIds(rawValue), [rawValue]);
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
