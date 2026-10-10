@@ -265,6 +265,103 @@ export function inviteMissesClosing(sendAt: Date, closesAt: Date | null): boolea
   return !!closesAt && sendAt.getTime() > closesAt.getTime() - INVITE_MIN_HOURS_BEFORE_CLOSE * 3_600_000;
 }
 
+/**
+ * Why a queued letter will not leave. `PAUSED` and `FREQUENCY` are the cancel
+ * reasons the dispatcher writes when the row's turn comes; `CLOSES_FIRST` = the
+ * row's turn itself comes after the request closes (no hold involved - the row
+ * is dropped as `LISTING_CLOSED` once the request is closed).
+ */
+export type QueuedInviteDropReason = "CLOSES_FIRST" | "PAUSED" | "FREQUENCY";
+
+/** `leavesAt` = the moment the letter can really leave; `null` = it will not leave before the request closes. */
+export type QueuedInviteForecast =
+  | { leavesAt: Date; dropReason: null }
+  | { leavesAt: null; dropReason: QueuedInviteDropReason };
+
+/** What the forecast reads of a queued letter. */
+export type QueuedLetter = { source: InviteSourceKind; country: string | null; sendAfter: Date };
+
+/** The address's letters of the last 90 days + its interest signal (`inviteAddressHistories`). */
+type InviteHistory = { lastInviteEmailAt: Date | null; sends90d: number; engaged: boolean };
+
+/**
+ * WHAT WILL THE DISPATCHER DO WITH A QUEUED LETTER - single definition, pure
+ * counterpart of `ExternalInviteDispatcher.processAddress` (pause -> 7-day
+ * hold -> does the send window after the hold still fit before closing).
+ *
+ * ONE function for every place that tells the buyer about a queued letter
+ * (live check 2026-10-10, AUTO-COUNT-1): the creator's notification and
+ * e-mail ("N invitation e-mails queued"), the status band of the automatic run
+ * and the "invited by e-mail" section of the request page. The message counted
+ * with this rule while the two screens read the queue row alone: 9 "queued" on
+ * screen against 6 in the message, three of them with a planned time that was
+ * never going to be honoured.
+ *
+ *  - `leavesAt`: the stored `sendAfter`, or - for an address on the 7-day hold -
+ *    the start of the send window after the hold ends (exactly the `sendAfter`
+ *    the dispatcher writes when the row comes due).
+ *  - `dropReason`: the letter will not leave before the request closes.
+ *
+ * The dispatcher looks at a row when its turn comes, so the hold is measured
+ * at that moment (`sendAfter`, or now for a row that is already due): a hold
+ * that ends before the row's turn changes nothing.
+ *
+ * A LETTER AHEAD IN THE QUEUE COUNTS TOO (`ahead`; review of AUTO-COUNT-1).
+ * The 7-day hold is per ADDRESS, across requests and buyers, and every queued
+ * row has its own planned minute (0-45 min spread). Two requests that queue
+ * the same address for Monday 09:10 and 09:22 are two turns: the dispatcher
+ * sends the first and holds the second for 7 days. The history alone does not
+ * show this - the first letter has not left yet - so all four surfaces said
+ * "queued, Monday 09:22" for a row that was then dropped. `ahead` = the
+ * address's queued letters on OTHER requests (`queuedLettersAhead`): the first
+ * of them to leave, when it leaves before this row, is this row's last letter
+ * (and one more of its 90-day sends). Letters planned for the same moment go
+ * out as one e-mail, so an equal time holds nobody.
+ *
+ * Only that first letter is followed (it is the one certain to leave on time);
+ * what the letters behind it then do to each other is not simulated. Reasons
+ * that only show up later (opt-out, registered address, platform cap, a letter
+ * queued after this read) are not forecast here.
+ */
+export function queuedInviteForecast(
+  row: QueuedLetter,
+  history: InviteHistory | undefined,
+  closesAt: Date | null,
+  now: Date,
+  ahead: ReadonlyArray<QueuedLetter & { closesAt: Date | null }> = [],
+): QueuedInviteForecast {
+  const h = history ?? { lastInviteEmailAt: null, sends90d: 0, engaged: false };
+  const own = forecastFromHistory(row, h, closesAt, now);
+  if (!own.leavesAt || ahead.length === 0) return own;
+  // A row that is already due leaves at the dispatcher's next run, not in the past.
+  const turn = (leavesAt: Date) => Math.max(leavesAt.getTime(), now.getTime());
+  let first: number | null = null;
+  for (const other of ahead) {
+    const leavesAt = forecastFromHistory(other, h, other.closesAt, now).leavesAt;
+    if (leavesAt && (first === null || turn(leavesAt) < first)) first = turn(leavesAt);
+  }
+  if (first === null || first >= turn(own.leavesAt)) return own;
+  return forecastFromHistory(row, { ...h, lastInviteEmailAt: new Date(first), sends90d: h.sends90d + 1 }, closesAt, now);
+}
+
+/** The forecast of one letter from the address's history alone (`queuedInviteForecast` adds the queue). */
+function forecastFromHistory(row: QueuedLetter, h: InviteHistory, closesAt: Date | null, now: Date): QueuedInviteForecast {
+  if (closesAt && row.sendAfter.getTime() >= closesAt.getTime()) return { leavesAt: null, dropReason: "CLOSES_FIRST" };
+  if (invitePaused({ engaged: h.engaged, unengagedSends90d: h.sends90d, source: row.source })) {
+    return { leavesAt: null, dropReason: "PAUSED" };
+  }
+  const turn = row.sendAfter.getTime() > now.getTime() ? row.sendAfter : now;
+  const hold = inviteHoldUntil({
+    source: row.source,
+    engaged: h.engaged,
+    lastInviteEmailAt: h.lastInviteEmailAt,
+    now: turn,
+  });
+  if (!hold) return { leavesAt: row.sendAfter, dropReason: null };
+  const next = nextBusinessWindow(hold, timeZoneForCountry(row.country));
+  return inviteMissesClosing(next, closesAt) ? { leavesAt: null, dropReason: "FREQUENCY" } : { leavesAt: next, dropReason: null };
+}
+
 /** İlgi göstermeyen adrese yeterince yazıldı mı (duraklat)? */
 export function invitePaused(p: { engaged: boolean; unengagedSends90d: number; source: InviteSourceKind }): boolean {
   if (p.engaged || p.source === "MANUAL") return false;

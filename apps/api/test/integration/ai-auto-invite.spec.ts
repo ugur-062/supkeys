@@ -29,6 +29,8 @@ import { Prisma, PrismaClient } from "@rothern/db";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
+import { ListingEmailInvitesService } from "../../src/modules/company-connections/services/listing-email-invites.service";
+import { nextBusinessWindow, timeZoneForCountry } from "../../src/common/time/country-time-zone";
 import { DiscoveryRunsService } from "../../src/modules/ai/supplier-discovery/discovery-runs.service";
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import { EmailService } from "../../src/modules/email/email.service";
@@ -2142,5 +2144,188 @@ describe("A-4: sürdürülen tur, alıcının PENCEREDEN yaptığı daveti kendi
       .map((a) => (a.templateData.data as { paragraphs: string[] }).paragraphs.join(" "));
     expect(bodies).toHaveLength(2);
     expect(new Set(bodies).size).toBe(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ *
+ * CANLI DOĞRULAMA 2026-10-10, AUTO-COUNT-1 — bir talebin dört yüzeyi (bildirim,
+ * e-posta, durum bandı, "E-postayla davet edilenler" bölümü) sıradaki davetler
+ * için AYNI sayıyı söyler. Bildirim ve e-posta dağıtıcının kuralıyla sayıyordu
+ * (`queuedInviteForecast`), iki ekran kuyruk satırını tek başına okuyordu:
+ * mesajda "6 firmaya davet e-postası sıraya alındı", ekranda "9 davet sırada"
+ * ve üç satırda tutulmayacak bir "planlanan gönderim" saati.
+ * ------------------------------------------------------------------------ */
+describe("AUTO-COUNT-1: bildirim, e-posta, durum bandı ve e-posta davet bölümü aynı kuralı okur", () => {
+  /** Adres başka bir alıcının talebinden davet e-postası aldı (`ago` önce). */
+  const letterFromAnotherBuyer = (email: string, ago: number) =>
+    prisma.emailLog.create({
+      data: {
+        template: "tender_external_invite",
+        toEmail: email,
+        subject: "s",
+        provider: "test",
+        status: "SENT",
+        contextType: "tender_external_invite",
+        contextId: "baska-alici",
+        queuedAt: new Date(Date.now() - ago),
+      },
+    });
+  const section = () => new ListingEmailInvitesService(prisma as never, prisma as never);
+  const tally = (states: string[]) => {
+    const out: Record<string, number> = {};
+    for (const s of states) out[s] = (out[s] ?? 0) + 1;
+    return out;
+  };
+  const bandTally = (view: View) =>
+    tally(view.runs.flatMap((run) => run.candidates.map((c) => (c.inviteReason ? `${c.invite}:${c.inviteReason}` : c.invite))));
+
+  it("dokuz adresin üçü aynı gün başka talepten davet aldı, talep 7 günde kapanıyor: mesaj 6 der, bant ve bölüm de 6 sırada + 3 gönderilmedi (neden: sıklık, saat yok); dağıtıcı aynı üçünü düşürür", async () => {
+    const found = Array.from({ length: 9 }, (_, i) => ({
+      name: `Kablo ${i + 1} AŞ`,
+      email: `satis@kablo${i + 1}.com.tr`,
+      country: "TR",
+      reason: "r",
+      items: [1],
+    }));
+    const held = found.slice(0, 3);
+    const r = rig({ batches: [found, []] });
+    const owner = await buyer();
+    await memberSeller("Üye Bir Ltd");
+    await memberSeller("Üye İki Ltd");
+    // Öğleden sonra başka talebin mektubu gitti: 7 günlük fren, talebin kapanışından 5 saat önce biter —
+    // sonraki mesai penceresi kapanışa 12 saatten yakın (ya da kapanıştan sonra).
+    for (const c of held) await letterFromAnotherBuyer(c.email, 5 * 60 * MIN);
+    const l = await openRequest(owner, { closesAt: new Date(Date.now() + 7 * DAY) });
+
+    await runPublish(r, l.id);
+
+    // Dokuzu da kuyruğa girdi.
+    expect(await prisma.externalListingInvite.count({ where: { listingId: l.id, state: "QUEUED" } })).toBe(9);
+
+    // 1) Bildirim.
+    expect(r.notifications.pushToUser).toHaveBeenCalledWith(
+      owner.user.id,
+      expect.objectContaining({
+        bodyKey: "api.notifications.discovery.invitedBodyBoth",
+        params: expect.objectContaining({ members: 2, emails: 6 }),
+      }),
+    );
+    // 2) E-posta.
+    const mail = r.email.send.mock.calls.map((c) => c[0] as SendArg).find((a) => a.context.type === "ai_supplier_suggestions")!;
+    expect(mail.subject).toBe("Talebinize 2 Rothern üyesi davet edildi, 6 davet e-postası sırada");
+    expect((mail.templateData.data as { paragraphs: string[] }).paragraphs.join(" | ")).toContain("6 firmaya davet e-postası sıraya alındı");
+
+    // 3) Durum bandı (`inviteCounts` bu alanları sayar): 2 davet edildi · 6 davet sırada · 3 gönderilmedi.
+    const band = await r.runs.forListing(owner.auth, l.id);
+    expect(bandTally(band)).toEqual({ INVITED: 2, QUEUED: 6, "NOT_SENT:FREQUENCY": 3 });
+    const bandRows = band.runs.flatMap((run) => run.candidates);
+    const heldNames = new Set(held.map((c) => c.name));
+    expect(bandRows.filter((c) => c.invite === "NOT_SENT").map((c) => c.name).sort()).toEqual([...heldNames].sort());
+    // Gidemeyecek satır planlanan saat taşımaz; gidecek satır taşır.
+    expect(bandRows.filter((c) => c.invite === "NOT_SENT").map((c) => c.sendAfter)).toEqual([null, null, null]);
+    expect(bandRows.filter((c) => c.invite === "QUEUED").every((c) => !!c.sendAfter)).toBe(true);
+
+    // 4) Kalıcı "E-postayla davet edilenler" bölümü.
+    const { items } = await section().forListing(owner.auth, l.id);
+    expect(tally(items.map((i) => (i.reason ? `${i.invite}:${i.reason}` : i.invite)))).toEqual({ QUEUED: 6, "NOT_SENT:FREQUENCY": 3 });
+    expect(items.filter((i) => i.invite === "NOT_SENT").map((i) => [i.email, i.sendAfter]).sort()).toEqual(
+      held.map((c) => [c.email, null]).sort(),
+    );
+    // Bant ve bölüm aynı adres için aynı saati söyler.
+    const bandTime = Object.fromEntries(bandRows.filter((c) => c.email).map((c) => [c.email, c.sendAfter]));
+    for (const i of items) expect(i.sendAfter).toBe(bandTime[i.email]);
+
+    // Sırası gelince dağıtıcı ekranın dediğini yapar: altısı gider, üçü FREQUENCY ile düşer.
+    await makeDue();
+    const report = await r.dispatcher.dispatch();
+    expect([report.sent, report.cancelled, report.deferred]).toEqual([6, 3, 0]);
+    expect(
+      (await prisma.externalListingInvite.findMany({ where: { listingId: l.id, state: "CANCELLED" }, select: { email: true, cancelReason: true } }))
+        .map((x) => [x.email, x.cancelReason])
+        .sort(),
+    ).toEqual(held.map((c) => [c.email, "FREQUENCY"]).sort());
+    expect(bandTally(await r.runs.forListing(owner.auth, l.id))).toEqual({ INVITED: 8, "NOT_SENT:FREQUENCY": 3 });
+  });
+
+  it("frendeki adres talep kapanmadan gidebiliyorsa sayılır ve iki ekran da GERÇEK saati söyler (frenin bittiği mesai penceresi); dağıtıcı satırı tam o ana erteler", async () => {
+    const r = rig({ batches: [[TR_WEB], []] });
+    const owner = await buyer();
+    const letter = await letterFromAnotherBuyer(TR_WEB.email, 2 * DAY);
+    const l = await openRequest(owner, { closesAt: new Date(Date.now() + 20 * DAY) });
+
+    await runPublish(r, l.id);
+
+    expect(r.notifications.pushToUser).toHaveBeenCalledWith(
+      owner.user.id,
+      expect.objectContaining({ params: expect.objectContaining({ members: 0, emails: 1 }) }),
+    );
+    const stored = await prisma.externalListingInvite.findFirstOrThrow({ where: { listingId: l.id, email: TR_WEB.email } });
+    const afterHold = nextBusinessWindow(new Date(letter.queuedAt.getTime() + 7 * DAY), timeZoneForCountry("TR"));
+    // Kuyruğa yazılan saat ilk mesai penceresi; adres o gün hâlâ frende.
+    expect(stored.sendAfter.getTime()).toBeLessThan(afterHold.getTime());
+
+    const bandRow = async () =>
+      (await r.runs.forListing(owner.auth, l.id)).runs[0]!.candidates.find((c) => c.email === TR_WEB.email)!;
+    const sectionRow = async () => (await section().forListing(owner.auth, l.id)).items.find((i) => i.email === TR_WEB.email)!;
+    expect(await bandRow()).toMatchObject({ invite: "QUEUED", inviteReason: null, sendAfter: afterHold.toISOString() });
+    expect(await sectionRow()).toMatchObject({ invite: "QUEUED", reason: null, sendAfter: afterHold.toISOString() });
+
+    // Sırası gelince dağıtıcı satırı ekranın söylediği ana erteler; ekran aynı saati göstermeye devam eder.
+    await prisma.externalListingInvite.update({ where: { id: stored.id }, data: { sendAfter: new Date(Date.now() - MIN) } });
+    const report = await r.dispatcher.dispatch();
+    expect([report.sent, report.deferred, report.cancelled]).toEqual([0, 1, 0]);
+    expect((await prisma.externalListingInvite.findUniqueOrThrow({ where: { id: stored.id } })).sendAfter).toEqual(afterHold);
+    expect((await bandRow()).sendAfter).toBe(afterHold.toISOString());
+    expect((await sectionRow()).sendAfter).toBe(afterHold.toISOString());
+  });
+
+  /**
+   * AUTO-COUNT-1 gözden geçirmesi (F1): aynı belirti, başka tetikleyici. Adrese
+   * henüz HİÇBİR mektup gitmedi — başka bir alıcının talebi aynı adresi sıraya
+   * almış ve mektubu birkaç dakika ÖNCE çıkacak (her kuyruk satırı kendi 0-45
+   * dakikalık payını alır). Dağıtıcı onu gönderir, bu satırı 7 gün tutar; geçmiş
+   * boş olduğu için dört yüzey de "sırada" diyordu.
+   */
+  it("adres BAŞKA bir talebin kuyruğunda birkaç dakika önde: sonuç mesajının sayısı, bant ve bölüm aynı şeyi söyler (sayılmaz / gönderilmedi: sıklık); dağıtıcı öndekini gönderir, bunu düşürür", async () => {
+    const earlier = await buyer("Önceki Alıcı AŞ");
+    const le = await openRequest(earlier, { closesAt: new Date(Date.now() + 7 * DAY) });
+    await runPublish(rig({ batches: [[TR_WEB], []] }), le.id);
+    const owner = await buyer();
+    const l = await openRequest(owner, { closesAt: new Date(Date.now() + 7 * DAY) });
+    const r = rig({ batches: [[TR_WEB, IT_WEB], []] });
+    const runId = await runPublish(r, l.id);
+    // Planlanan dakikalar: önceki talebin mektubu, on iki dakika sonra bu talebinkiler.
+    const ahead = new Date(Date.now() + 10 * MIN);
+    const behind = new Date(ahead.getTime() + 12 * MIN);
+    await prisma.externalListingInvite.updateMany({ where: { listingId: le.id }, data: { sendAfter: ahead } });
+    await prisma.externalListingInvite.updateMany({ where: { listingId: l.id }, data: { sendAfter: behind } });
+
+    // 1-2) Bildirim ve e-postanın sayısı (`invitedCounts`): İtalyan adres sayılır, öndeki mektubun tutacağı adres sayılmaz.
+    const counts = await (
+      r.runs as unknown as {
+        invitedCounts(run: string, listing: { id: string; closesAt: Date | null }, now: Date): Promise<{ members: number; emails: number }>;
+      }
+    ).invitedCounts(runId, { id: l.id, closesAt: l.closesAt }, new Date());
+    expect(counts).toEqual({ members: 0, emails: 1 });
+    // 3) Durum bandı ve 4) kalıcı bölüm aynı satırı aynı nedenle "gönderilmedi" okur.
+    expect(outcomes(await r.runs.forListing(owner.auth, l.id))).toEqual({ "Cıvata AŞ": "NOT_SENT:FREQUENCY", "Viti Srl": "QUEUED" });
+    const { items } = await section().forListing(owner.auth, l.id);
+    expect(Object.fromEntries(items.map((i) => [i.email, [i.invite, i.reason, i.sendAfter]]))).toEqual({
+      [TR_WEB.email]: ["NOT_SENT", "FREQUENCY", null],
+      [IT_WEB.email]: ["QUEUED", null, behind.toISOString()],
+    });
+    // Öndeki mektubun kendi talebi etkilenmez: arkadaki satır onu tutmaz.
+    expect(outcomes(await r.runs.forListing(earlier.auth, le.id))).toEqual({ "Cıvata AŞ": "QUEUED" });
+
+    // Dağıtıcı: önce öndeki mektup gider; sıra bu talebe gelince adres frendedir.
+    expect((await r.dispatcher.dispatch(ahead)).sent).toBe(1);
+    const report = await r.dispatcher.dispatch(new Date(behind.getTime() + MIN));
+    expect([report.sent, report.cancelled]).toEqual([1, 1]);
+    expect(
+      await prisma.externalListingInvite.findMany({ where: { listingId: l.id }, select: { email: true, state: true, cancelReason: true }, orderBy: { email: "asc" } }),
+    ).toEqual([
+      { email: IT_WEB.email, state: "SENT", cancelReason: null },
+      { email: TR_WEB.email, state: "CANCELLED", cancelReason: "FREQUENCY" },
+    ]);
   });
 });

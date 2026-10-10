@@ -996,3 +996,126 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     expect(out.ok).toBe(false);
   });
 });
+
+/**
+ * Canlı doğrulama 2026-10-10, NEW-PF-1 — model talebi / siparişi kullanıcının
+ * gördüğü NUMARAYLA anar (sistem istemi öyle söyler). request_* araçları da
+ * numarayı kabul eder; onay kaydına HER ZAMAN iç kimlik yazılır (onay, servisi
+ * o kimlikle çağırır) ve sahiplik kapsamı aynı kalır.
+ */
+describe("NEW-PF-1: request_* araçları talep / sipariş NUMARASINI da kabul eder", () => {
+  it("send_invites: kendi talebinin numarasıyla kart çıkar, onay iç kimlikle yürür; başka firmanın numarası bulunamaz", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const stranger = await makeCompanyWithUser(prisma);
+    const { invitee, code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      number: "ROT-000834",
+    });
+    await makeListing(prisma, { companyId: stranger.company.id, createdById: stranger.user.id, type: "ALIM", number: "ROT-000900" });
+    const session = await makeSession(owner.user.id, owner.company.id);
+
+    const foreign = await actions.proposeSendInvites(owner.auth, session.id, { listingId: "ROT-000900", rothernIds: [code] });
+    expect(foreign).toMatchObject({ ok: false, problem: expect.stringMatching(/bulunamadı/) });
+    const missing = await actions.proposeSendInvites(owner.auth, session.id, { listingId: "ROT-999999", rothernIds: [code] });
+    expect(missing.problem).toBe(foreign.problem);
+
+    const out = await actions.proposeSendInvites(owner.auth, session.id, { listingId: "rot-834", rothernIds: [code] });
+    expect(out.ok).toBe(true);
+    const stored = await prisma.aiChatSession.findUniqueOrThrow({ where: { id: session.id } });
+    expect((stored.pendingAction as { params: { listingId: string } }).params.listingId).toBe(listing.id);
+
+    const res = await actions.confirm(owner.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    expect(
+      await prisma.listingInvitation.count({ where: { listingId: listing.id, invitedCompanyId: invitee.company.id } }),
+    ).toBe(1);
+  });
+
+  it("eleme: talep numarasıyla teklif bulunur; onay teklifi eler", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma, { name: "Teklifçi AŞ" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      number: "ROT-000835",
+    });
+    const item = await makeItem(prisma, listing.id, { quantity: new Prisma.Decimal(2) });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: "200",
+      currency: "TRY",
+      items: [{ itemId: item.id, unitPrice: "100" }],
+    });
+    const session = await makeSession(owner.user.id, owner.company.id);
+
+    const out = await actions.proposeEliminateBid(owner.auth, session.id, { listingId: "ROT-000835", bidId: bid.id });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary.join(" ")).toContain("Teklifçi AŞ");
+    expect((await actions.confirm(owner.auth, session.id, out.pending!.id)).status).toBe("executed");
+    expect((await prisma.listingBid.findUniqueOrThrow({ where: { id: bid.id } })).status).toBe("LOST");
+  });
+
+  it("place_bid: açık talebin numarasıyla kart çıkar ve teklif gönderilir; olmayan numara 'bulunamadı'", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      number: "ROT-000836",
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY"],
+    });
+    const item = await makeItem(prisma, listing.id, { quantity: new Prisma.Decimal(10), name: "NYM kablo" });
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+    const args = { items: [{ itemId: item.id, unitPrice: 50 }], deliveryTime: "W1_2", validityDays: 30 };
+
+    const missing = await actions.proposePlaceBid(bidder.auth, session.id, { ...args, listingId: "ROT-999999" });
+    expect(missing).toMatchObject({ ok: false, problem: expect.stringMatching(/bulunamadı/) });
+
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, { ...args, listingId: "ROT-000836" });
+    expect(out.ok).toBe(true);
+    expect((await actions.confirm(bidder.auth, session.id, out.pending!.id)).status).toBe("executed");
+    const bid = await prisma.listingBid.findFirstOrThrow({ where: { listingId: listing.id, bidderCompanyId: bidder.company.id } });
+    expect(bid.status).toBe("SUBMITTED");
+  });
+
+  it("mark_order_received: sipariş numarasıyla (ROT-ORD-…) kart çıkar ve onay yürür; satıcı taraf yine öneremez", async () => {
+    const actions = makeActions();
+    const seller = await makeCompanyWithUser(prisma, { name: "Satıcı AŞ" });
+    const buyer = await makeCompanyWithUser(prisma);
+    const order = await prisma.companyOrder.create({
+      data: {
+        number: "ROT-ORD-000012",
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "IN_DELIVERY",
+        paymentTiming: "AFTER_DELIVERY",
+      } as never,
+    });
+    const sellerSession = await makeSession(seller.user.id, seller.company.id);
+    expect((await actions.proposeMarkOrderReceived(seller.auth, sellerSession.id, { orderId: "ROT-ORD-000012" })).ok).toBe(false);
+
+    const session = await makeSession(buyer.user.id, buyer.company.id);
+    const out = await actions.proposeMarkOrderReceived(buyer.auth, session.id, { orderId: "rot-ord-12" });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary.join(" ")).toContain("Satıcı AŞ");
+    expect((await actions.confirm(buyer.auth, session.id, out.pending!.id)).status).toBe("executed");
+    expect((await prisma.companyOrder.findUniqueOrThrow({ where: { id: order.id } })).status).toBe("COMPLETED");
+  });
+});

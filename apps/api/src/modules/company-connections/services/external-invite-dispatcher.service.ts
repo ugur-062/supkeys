@@ -24,6 +24,7 @@ import {
   inviteHoldUntil,
   inviteMissesClosing,
   invitePaused,
+  queuedInviteForecast,
   REMINDER_EARLY_HOURS,
   REMINDER_MIN_LEFT_HOURS,
   registrationBlockedCountry,
@@ -31,6 +32,8 @@ import {
   utcDayStart,
   type ColdInviteCap,
   type InviteSourceKind,
+  type QueuedInviteForecast,
+  type QueuedLetter,
 } from "../../../common/company/external-invite-policy";
 import {
   countryFromEmailDomain,
@@ -71,6 +74,28 @@ function sendableListingWhere(now: Date): Prisma.ListingWhereInput {
     status: "OPEN",
     OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
     company: { isActive: true, isBlocked: false },
+  };
+}
+
+/**
+ * A queued row the dispatcher reads when its turn comes: the request can be
+ * sent for, the buyer has not cancelled the invitation link, and an automatic
+ * invitation is still wanted. ONE definition for the dispatcher (`dueInvites`)
+ * and for the forecast's letters ahead (`queuedInviteForecasts`): a row the
+ * dispatcher would not read holds nobody. Read as of `now` - a request that
+ * becomes sendable later (a draft that is published, an embargo that ends) is
+ * not forecast.
+ */
+function readableQueueWhere(now: Date): Prisma.ExternalListingInviteWhereInput {
+  return {
+    state: "QUEUED",
+    listing: sendableListingWhere(now),
+    // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
+    referralInvite: { status: { not: "CANCELLED" } },
+    // Özele çevrilen / kutusu kapatılan talebin otomatik daveti okunmaz
+    // (dağıtıcı turun başında iptal eder; o iptalden SONRA çevrilen talebin
+    // satırı sonraki turda düşer).
+    NOT: AUTO_INVITE_OFF_WHERE,
   };
 }
 
@@ -188,25 +213,48 @@ export async function inviteAddressHistories(
 }
 
 /**
- * Kuyruktaki davet e-postası talep kapanmadan GİDEBİLİR Mİ? Dağıtıcının
- * `processAddress` kararının saf karşılığı (duraklatma → 7 gün freni → frenin
- * bittiği mesai penceresi kapanışa sığıyor mu); sonuç mesajı gidemeyecek adresi
- * "sıraya alındı" diye saymasın (gözden geçirme AI-6). Çıkış / kayıtlı adres /
- * platform tavanı gibi SONRADAN belli olan nedenler burada öngörülmez.
+ * FORECAST OF THE QUEUED LETTERS OF ONE REQUEST, by address - the ONE read
+ * behind every surface that tells the buyer about a queued letter: the
+ * creator's message, the status band, the "invited by e-mail" section and the
+ * answer of the invitation request itself. The rule is the pure
+ * `queuedInviteForecast` (`external-invite-policy.ts`, the counterpart of
+ * `processAddress`); this function hands it what it needs to know:
+ *  - the address's letters of the last 90 days and its interest signal;
+ *  - the address's queued letters on OTHER requests of any buyer (review of
+ *    AUTO-COUNT-1): the 7-day hold is per address, so a letter that leaves a
+ *    few minutes earlier for another request holds this one - although nothing
+ *    has been sent yet and the history is still empty.
+ *
+ * Three queries for the whole request, none when `rows` is empty - never one
+ * per row. Bypass client: both reads span every buyer. `rows` = the QUEUED
+ * rows of `listing`.
  */
-export function queuedInviteCanLeave(
-  row: { source: InviteSourceKind; country: string | null; sendAfter: Date },
-  history: InviteAddressHistory | undefined,
-  closesAt: Date | null,
+export async function queuedInviteForecasts(
+  prisma: Pick<PrismaBypassService, "emailLog" | "companyReferralInvite" | "externalListingInvite">,
+  rows: ReadonlyArray<QueuedLetter & { email: string }>,
+  listing: { id: string; closesAt: Date | null },
   now: Date,
-): boolean {
-  const h = history ?? { lastInviteEmailAt: null, sends90d: 0, engaged: false };
-  // Sırası talebin kapanışından sonra gelen satır kapanışta düşer (LISTING_CLOSED).
-  if (closesAt && row.sendAfter.getTime() >= closesAt.getTime()) return false;
-  if (invitePaused({ engaged: h.engaged, unengagedSends90d: h.sends90d, source: row.source })) return false;
-  const hold = inviteHoldUntil({ source: row.source, engaged: h.engaged, lastInviteEmailAt: h.lastInviteEmailAt, now });
-  if (!hold) return true;
-  return !inviteMissesClosing(nextBusinessWindow(hold, timeZoneForCountry(row.country)), closesAt);
+): Promise<Map<string, QueuedInviteForecast>> {
+  const out = new Map<string, QueuedInviteForecast>();
+  const emails = [...new Set(rows.map((r) => r.email))];
+  if (emails.length === 0) return out;
+  const [histories, others] = await Promise.all([
+    inviteAddressHistories(prisma, emails, now),
+    prisma.externalListingInvite.findMany({
+      where: { ...readableQueueWhere(now), email: { in: emails }, listingId: { not: listing.id } },
+      select: { email: true, source: true, country: true, sendAfter: true, listing: { select: { closesAt: true } } },
+    }),
+  ]);
+  const ahead = new Map<string, Array<QueuedLetter & { closesAt: Date | null }>>();
+  for (const o of others) {
+    const list = ahead.get(o.email) ?? [];
+    list.push({ source: o.source, country: o.country, sendAfter: o.sendAfter, closesAt: o.listing.closesAt });
+    ahead.set(o.email, list);
+  }
+  for (const r of rows) {
+    out.set(r.email, queuedInviteForecast(r, histories.get(r.email), listing.closesAt, now, ahead.get(r.email)));
+  }
+  return out;
 }
 
 export interface DispatchReport {
@@ -309,16 +357,7 @@ export class ExternalInviteDispatcher {
   /** Rows whose turn has come and whose request can be sent for (one run's batch). */
   private async dueInvites(now: Date): Promise<DueInvite[]> {
     return (await this.prisma.externalListingInvite.findMany({
-      // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
-      // `NOT AUTO_INVITE_OFF_WHERE`: yukarıdaki iptalden SONRA özele çevrilen
-      // talebin satırı da bu turda okunmaz (sonraki tur iptal eder).
-      where: {
-        state: "QUEUED",
-        sendAfter: { lte: now },
-        listing: sendableListingWhere(now),
-        referralInvite: { status: { not: "CANCELLED" } },
-        NOT: AUTO_INVITE_OFF_WHERE,
-      },
+      where: { ...readableQueueWhere(now), sendAfter: { lte: now } },
       orderBy: { sendAfter: "asc" },
       take: DUE_BATCH,
       select: DUE_SELECT,

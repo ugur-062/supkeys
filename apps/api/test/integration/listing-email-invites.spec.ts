@@ -21,6 +21,7 @@ import { CompanyConnectionsService } from "../../src/modules/company-connections
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
 import { ListingEmailInvitesService } from "../../src/modules/company-connections/services/listing-email-invites.service";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
+import { nextBusinessWindow, timeZoneForCountry } from "../../src/common/time/country-time-zone";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { holdInviteSendWindowOpen } from "./invite-send-window";
@@ -38,16 +39,69 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-const reader = () => new ListingEmailInvitesService(prisma as never);
+const reader = () => new ListingEmailInvitesService(prisma as never, prisma as never);
 
-async function openListing(companyId: string, userId: string) {
+async function openListing(companyId: string, userId: string, closesInDays = 10) {
   return makeListing(prisma, {
     companyId,
     createdById: userId,
     status: "OPEN",
-    closesAt: new Date(Date.now() + 10 * DAY),
+    closesAt: new Date(Date.now() + closesInDays * DAY),
     publishedAt: new Date(),
   });
+}
+
+/** An invitation letter the address received from ANOTHER buyer (the dispatcher's history source). */
+async function letterFromAnotherBuyer(email: string, daysAgo: number) {
+  const queuedAt = new Date(Date.now() - daysAgo * DAY);
+  await prisma.emailLog.create({
+    data: {
+      template: "tender_external_invite",
+      toEmail: email,
+      subject: "s",
+      provider: "test",
+      status: "SENT",
+      contextType: "tender_external_invite",
+      contextId: "another-buyer",
+      queuedAt,
+    },
+  });
+  return queuedAt;
+}
+
+/** Like the real EmailService: every letter writes an EmailLog row (the dispatcher's history source), at `clock.now`. */
+function loggingEmail(clock: { now: Date }) {
+  return {
+    send: jest.fn(async (a: { to: { email: string }; templateData: { template: string }; context: { type: string; id: string } }) => {
+      await prisma.emailLog.create({
+        data: {
+          template: a.templateData.template,
+          toEmail: a.to.email,
+          subject: "s",
+          provider: "test",
+          status: "SENT",
+          contextType: a.context.type,
+          contextId: a.context.id,
+          queuedAt: clock.now,
+        },
+      });
+      return { emailLogId: "t", sent: true };
+    }),
+  };
+}
+
+const testConfig = () => ({ get: jest.fn((k: string) => (k === "WEB_URL" ? "http://localhost:3000" : undefined)) });
+
+function connectionsWith(email: unknown, config: unknown) {
+  return new CompanyConnectionsService(
+    prisma as never,
+    prisma as never,
+    { blockedCompanyIds: jest.fn().mockResolvedValue([]) } as never,
+    email as never,
+    config as never,
+    { notify: jest.fn(), pushToCompany: jest.fn(), pushToUser: jest.fn() } as never,
+    new AuditService(prisma as never),
+  );
 }
 
 /** Queue row written directly (the state under test is the dispatcher's, not the write path's). */
@@ -283,6 +337,240 @@ describe("ListingEmailInvitesService.forListing", () => {
     expect(after).toMatchObject({ id: queued[0]!.id, email: "sales@tubacex.com", invite: "INVITED", reason: null, sendAfter: null });
     expect(after!.sentAt).toEqual(expect.any(String));
     expect(Date.now() - new Date(after!.sentAt!).getTime()).toBeLessThan(60_000);
+  });
+
+  /**
+   * Live check 2026-10-10, AUTO-COUNT-1. The section answered from the queue
+   * row alone: an address that had received a letter from another buyer the
+   * same week read "queued" with a planned time the dispatcher was never going
+   * to honour (it defers the row to the end of the 7-day hold, or drops it when
+   * the request closes first), while the creator's message did not count it.
+   * The section now reads the same forecast as the message.
+   */
+  it("a queued row is read with the dispatcher's forecast: real time for an address on hold, NOT_SENT + reason when it cannot leave before closing - and the dispatcher then does exactly that", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const long = await openListing(owner.company.id, owner.user.id, 20);
+    const short = await openListing(owner.company.id, owner.user.id, 3);
+    const tomorrow = new Date(Date.now() + DAY);
+    // Picked in the "find suppliers" window (`AI_FORM`): held and paused like a row of the automatic run.
+    const queued = (listingId: string, email: string, over: Record<string, unknown> = {}) =>
+      queueRow(owner, listingId, email, { source: "AI_FORM", state: "QUEUED", country: "TR", sendAfter: tomorrow, ...over });
+
+    // Received a letter two days ago: on hold for five more days.
+    const lastLetter = await letterFromAnotherBuyer("held@firma.com.tr", 2);
+    await letterFromAnotherBuyer("typed@firma.com.tr", 2);
+    // Three letters in 90 days, none of them answered: paused.
+    for (const daysAgo of [20, 30, 40]) await letterFromAnotherBuyer("silent@firma.com.tr", daysAgo);
+
+    await queued(long.id, "held@firma.com.tr");
+    await queued(long.id, "fresh@firma.com.tr");
+    await queued(long.id, "silent@firma.com.tr");
+    await queued(short.id, "held@firma.com.tr");
+    // The buyer typed this address: neither held nor paused.
+    await queued(short.id, "typed@firma.com.tr", { source: "MANUAL" });
+    // Next send window of this row is after the request closes.
+    await queued(short.id, "late@firma.com.tr", { sendAfter: new Date(Date.now() + 4 * DAY) });
+
+    const afterHold = nextBusinessWindow(new Date(lastLetter.getTime() + 7 * DAY), timeZoneForCountry("TR"));
+    expect(afterHold.getTime()).toBeGreaterThan(tomorrow.getTime() + 3 * DAY);
+    const read = async (listingId: string) =>
+      Object.fromEntries(
+        (await reader().forListing(owner.auth, listingId)).items.map((i) => [i.email, [i.invite, i.reason, i.sendAfter]]),
+      );
+    const expectedLong = {
+      "held@firma.com.tr": ["QUEUED", null, afterHold.toISOString()],
+      "fresh@firma.com.tr": ["QUEUED", null, tomorrow.toISOString()],
+      "silent@firma.com.tr": ["NOT_SENT", "PAUSED", null],
+    };
+    expect(await read(long.id)).toEqual(expectedLong);
+    expect(await read(short.id)).toEqual({
+      "held@firma.com.tr": ["NOT_SENT", "FREQUENCY", null],
+      "typed@firma.com.tr": ["QUEUED", null, tomorrow.toISOString()],
+      "late@firma.com.tr": ["NOT_SENT", "CLOSES_FIRST", null],
+    });
+
+    // The rows' turn comes: the dispatcher writes what the page already said.
+    await prisma.externalListingInvite.updateMany({
+      where: { email: { in: ["held@firma.com.tr", "silent@firma.com.tr"] } },
+      data: { sendAfter: new Date(Date.now() - 60_000) },
+    });
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn((k: string) => (k === "WEB_URL" ? "http://localhost:3000" : undefined)) };
+    const report = await new ExternalInviteDispatcher(prisma as never, email as never, config as never, undefined as never).dispatch();
+    expect([report.sent, report.deferred, report.cancelled]).toEqual([0, 1, 2]);
+    expect(email.send).not.toHaveBeenCalled();
+    const rows = await prisma.externalListingInvite.findMany({
+      where: { email: { in: ["held@firma.com.tr", "silent@firma.com.tr"] } },
+      select: { listingId: true, email: true, state: true, cancelReason: true, sendAfter: true },
+    });
+    const stored = (listingId: string, address: string) => rows.find((r) => r.listingId === listingId && r.email === address)!;
+    expect(stored(long.id, "held@firma.com.tr")).toMatchObject({ state: "QUEUED", sendAfter: afterHold });
+    expect(stored(short.id, "held@firma.com.tr")).toMatchObject({ state: "CANCELLED", cancelReason: "FREQUENCY" });
+    expect(stored(long.id, "silent@firma.com.tr")).toMatchObject({ state: "CANCELLED", cancelReason: "PAUSED" });
+    // ...and the page reads the same as before the dispatcher ran.
+    expect(await read(long.id)).toEqual(expectedLong);
+    expect((await read(short.id))["held@firma.com.tr"]).toEqual(["NOT_SENT", "FREQUENCY", null]);
+  });
+
+  it("the address history and the letters ahead in the queue are read once for all queued rows of the request, not once per row", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    for (let i = 0; i < 9; i++) {
+      await queueRow(owner, listing.id, `satis${i}@firma${i}.com.tr`, { source: "AI_FORM", state: "QUEUED", country: "TR" });
+    }
+    const logReads = jest.spyOn(prisma.emailLog, "findMany");
+    const clickReads = jest.spyOn(prisma.companyReferralInvite, "findMany");
+    const queueReads = jest.spyOn(prisma.externalListingInvite, "findMany");
+    try {
+      expect((await reader().forListing(owner.auth, listing.id)).items).toHaveLength(9);
+      expect(logReads).toHaveBeenCalledTimes(1);
+      expect(clickReads).toHaveBeenCalledTimes(1);
+      // The request's own rows + the same addresses on other requests.
+      expect(queueReads).toHaveBeenCalledTimes(2);
+    } finally {
+      logReads.mockRestore();
+      clickReads.mockRestore();
+      queueReads.mockRestore();
+    }
+  });
+
+  /**
+   * Review of AUTO-COUNT-1 (F1): the same symptom with a different trigger.
+   * Nothing has been SENT to the address yet - another request's letter waits
+   * in the queue for it, twelve minutes ahead (every queued row gets its own
+   * 0-45 minute spread). The dispatcher sends that one and then holds this row
+   * for 7 days. The address history is still empty, so the section read
+   * "queued" with the stored time, and the row was dropped when its turn came.
+   */
+  it("a letter ahead in the queue on ANOTHER request counts: the row behind it reads NOT_SENT (or the time after that letter's hold) - and the dispatcher then does exactly that", async () => {
+    const first = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const second = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const one = await openListing(first.company.id, first.user.id, 7);
+    const two = await openListing(second.company.id, second.user.id, 7);
+    const long = await openListing(second.company.id, second.user.id, 20);
+    const draft = await makeListing(prisma, { companyId: first.company.id, createdById: first.user.id, status: "DRAFT" });
+    // Planned minutes: the first request's letter, then the others twelve minutes later.
+    const ahead = new Date(Date.now() + 10 * 60_000);
+    const behind = new Date(ahead.getTime() + 12 * 60_000);
+    // Picked in the "find suppliers" window (`AI_FORM`): held like a row of the automatic run.
+    const queued = (owner: typeof first, listingId: string, email: string, sendAfter: Date) =>
+      queueRow(owner, listingId, email, { source: "AI_FORM", state: "QUEUED", country: "TR", sendAfter });
+    await queued(first, one.id, "satis@kablo.com.tr", ahead);
+    await queued(second, two.id, "satis@kablo.com.tr", behind);
+    await queued(second, long.id, "satis@kablo.com.tr", behind);
+    // An address nobody else has queued, and one whose only earlier letter sits on a DRAFT (the dispatcher does not read it).
+    await queued(second, two.id, "tek@kablo.com.tr", behind);
+    await queued(first, draft.id, "taslak@kablo.com.tr", ahead);
+    await queued(second, two.id, "taslak@kablo.com.tr", behind);
+
+    const afterHold = nextBusinessWindow(new Date(ahead.getTime() + 7 * DAY), timeZoneForCountry("TR"));
+    const read = async (auth: AuthenticatedCompanyUser, listingId: string) =>
+      Object.fromEntries((await reader().forListing(auth, listingId)).items.map((i) => [i.email, [i.invite, i.reason, i.sendAfter]]));
+    // The letter ahead itself: nothing ahead of IT - the later rows do not hold it.
+    expect(await read(first.auth, one.id)).toEqual({ "satis@kablo.com.tr": ["QUEUED", null, ahead.toISOString()] });
+    const expectedTwo = {
+      // Held for 7 days from the letter ahead; this request closes first.
+      "satis@kablo.com.tr": ["NOT_SENT", "FREQUENCY", null],
+      "tek@kablo.com.tr": ["QUEUED", null, behind.toISOString()],
+      "taslak@kablo.com.tr": ["QUEUED", null, behind.toISOString()],
+    };
+    expect(await read(second.auth, two.id)).toEqual(expectedTwo);
+    // Open long enough: queued, for the window after THAT letter's hold - not the stored time.
+    const expectedLong = { "satis@kablo.com.tr": ["QUEUED", null, afterHold.toISOString()] };
+    expect(await read(second.auth, long.id)).toEqual(expectedLong);
+
+    // The dispatcher's minute of the first letter, then the minute of the rows behind it.
+    const clock = { now: ahead };
+    const email = loggingEmail(clock);
+    const dispatcher = new ExternalInviteDispatcher(prisma as never, email as never, testConfig() as never, undefined as never);
+    const tick = async (at: Date) => {
+      clock.now = at;
+      const report = await dispatcher.dispatch(at);
+      return [report.sent, report.deferred, report.cancelled];
+    };
+    expect(await tick(ahead)).toEqual([1, 0, 0]);
+    expect(email.send.mock.calls.map((c) => c[0].to.email)).toEqual(["satis@kablo.com.tr"]);
+    // The letter has left: the pages behind it read the same as before.
+    expect(await read(second.auth, two.id)).toEqual(expectedTwo);
+    expect(await read(second.auth, long.id)).toEqual(expectedLong);
+
+    expect(await tick(new Date(behind.getTime() + 60_000))).toEqual([2, 1, 1]);
+    const rows = await prisma.externalListingInvite.findMany({
+      where: { email: "satis@kablo.com.tr" },
+      select: { listingId: true, state: true, cancelReason: true, sendAfter: true },
+    });
+    const stored = (listingId: string) => rows.find((r) => r.listingId === listingId)!;
+    expect(stored(two.id)).toMatchObject({ state: "CANCELLED", cancelReason: "FREQUENCY" });
+    expect(stored(long.id)).toMatchObject({ state: "QUEUED", sendAfter: afterHold });
+    // ...and the pages still say what they said before anything was sent.
+    expect(await read(second.auth, two.id)).toEqual({
+      ...expectedTwo,
+      "tek@kablo.com.tr": ["INVITED", null, null],
+      "taslak@kablo.com.tr": ["INVITED", null, null],
+    });
+    expect(await read(second.auth, long.id)).toEqual(expectedLong);
+  });
+
+  /**
+   * Review of AUTO-COUNT-1 (F3): the "find suppliers" window shows the ANSWER
+   * of the invitation request; the section of the same page reads the queue row
+   * with the dispatcher's forecast. Answering from the row alone, the window
+   * said "queued, planned for Monday 09:13" for an address the section showed
+   * as "not sent - it received another invitation this week".
+   */
+  it("the answer of the invitation request says what the section says for the same row: the real time, or the reason when the letter will not leave", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const short = await openListing(owner.company.id, owner.user.id, 7);
+    const long = await openListing(owner.company.id, owner.user.id, 20);
+    const typed = await openListing(owner.company.id, owner.user.id, 7);
+    // Another buyer's letter reached the address five hours ago.
+    const letter = await letterFromAnotherBuyer("held@firma.com.tr", 5 / 24);
+    const afterHold = nextBusinessWindow(new Date(letter.getTime() + 7 * DAY), timeZoneForCountry("TR"));
+    const connections = connectionsWith({ send: jest.fn() }, testConfig());
+    const invite = (listingId: string, emails: string[], source: "MANUAL" | "AI_FORM") =>
+      connections.inviteExternalForListing(owner.auth, listingId, emails.map((email) => ({ email, country: "TR" })), source);
+    const section = async (listingId: string) => (await reader().forListing(owner.auth, listingId)).items;
+    const storedTime = async (listingId: string, email: string) =>
+      (await prisma.externalListingInvite.findFirstOrThrow({ where: { listingId, email } })).sendAfter.toISOString();
+
+    // Closes in 7 days: the hold ends after the last moment a letter may leave.
+    const a = await invite(short.id, ["held@firma.com.tr", "fresh@firma.com.tr"], "AI_FORM");
+    expect(a.results).toEqual([
+      { email: "held@firma.com.tr", status: "QUEUED", notSentReason: "FREQUENCY" },
+      { email: "fresh@firma.com.tr", status: "QUEUED", sendAfter: await storedTime(short.id, "fresh@firma.com.tr") },
+    ]);
+    expect(Object.fromEntries((await section(short.id)).map((i) => [i.email, [i.invite, i.reason, i.sendAfter]]))).toEqual({
+      "held@firma.com.tr": ["NOT_SENT", "FREQUENCY", null],
+      "fresh@firma.com.tr": ["QUEUED", null, a.results[1]!.sendAfter],
+    });
+
+    // Closes in 20 days: queued, and the time is the window after the hold - not the stored one.
+    const b = await invite(long.id, ["held@firma.com.tr"], "AI_FORM");
+    expect(b.results).toEqual([{ email: "held@firma.com.tr", status: "QUEUED", sendAfter: afterHold.toISOString() }]);
+    expect(await storedTime(long.id, "held@firma.com.tr")).not.toBe(afterHold.toISOString());
+    expect((await section(long.id)).map((i) => [i.invite, i.sendAfter])).toEqual([["QUEUED", afterHold.toISOString()]]);
+
+    // An address the buyer typed is not held: the answer is the stored time, as before.
+    const c = await invite(typed.id, ["held@firma.com.tr"], "MANUAL");
+    expect(c.results).toEqual([
+      { email: "held@firma.com.tr", status: "QUEUED", sendAfter: await storedTime(typed.id, "held@firma.com.tr") },
+    ]);
+  });
+
+  it("a forecast read that fails does not fail the invitation: the rows are queued and the answer carries the stored time", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id, 7);
+    await letterFromAnotherBuyer("held@firma.com.tr", 5 / 24);
+    const connections = connectionsWith({ send: jest.fn() }, testConfig());
+    const logReads = jest.spyOn(prisma.emailLog, "findMany").mockRejectedValueOnce(new Error("read failed"));
+    try {
+      const res = await connections.inviteExternalForListing(owner.auth, listing.id, [{ email: "held@firma.com.tr", country: "TR" }], "AI_FORM");
+      const row = await prisma.externalListingInvite.findFirstOrThrow({ where: { listingId: listing.id } });
+      expect(row.state).toBe("QUEUED");
+      expect(res.results).toEqual([{ email: "held@firma.com.tr", status: "QUEUED", sendAfter: row.sendAfter.toISOString() }]);
+    } finally {
+      logReads.mockRestore();
+    }
   });
 
   it("another company's request and an unknown request are 404 - also for a Gold buyer", async () => {

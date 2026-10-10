@@ -16,7 +16,11 @@ import {
   RUN_ERROR_PRIVATE_LISTING,
 } from "../../../common/company/ai-suggestions";
 import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
-import { inviteReachesAddress } from "../../../common/company/external-invite-policy";
+import {
+  inviteReachesAddress,
+  type InviteSourceKind,
+  type QueuedInviteForecast,
+} from "../../../common/company/external-invite-policy";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { runWithLocale } from "../../../common/i18n/locale-context";
 import { listingTitleParam } from "../../../common/notifications/notification-params";
@@ -27,10 +31,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyConnectionsService } from "../../company-connections/services/company-connections.service";
-import {
-  inviteAddressHistories,
-  queuedInviteCanLeave,
-} from "../../company-connections/services/external-invite-dispatcher.service";
+import { queuedInviteForecasts } from "../../company-connections/services/external-invite-dispatcher.service";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { CompanyListingsService, DISCOVERY_HOLD_MS } from "../../company-listings/services/company-listings.service";
 import { EmailService } from "../../email/email.service";
@@ -770,7 +771,11 @@ export class DiscoveryRunsService {
    *    hafta başka alıcıdan davet almış adresin 7 günlük freni kapanıştan
    *    sonra bitiyorsa dağıtıcı satırı `FREQUENCY` ile düşürür ve e-posta hiç
    *    gitmez; öyle adres sayılmaz (kural dağıtıcıyla AYNI fonksiyon:
-   *    `queuedInviteCanLeave`). Durum listesi her adayı yine tek tek gösterir.
+   *    `queuedInviteForecast`). Durum bandı ve "E-postayla davet edilenler"
+   *    bölümü AYNI fonksiyonu okur (`withQueueForecast`, AUTO-COUNT-1): öyle
+   *    satır ekranda da "sırada" değil "gönderilmedi"dir, sayılar uyuşur.
+   *    Fren yalnız GİTMİŞ mektupla başlamaz: aynı adrese başka bir talepten
+   *    daha erken çıkacak SIRADAKİ mektup da sayılır (`queuedInviteForecasts`).
    */
   private async invitedCounts(
     runId: string,
@@ -786,18 +791,13 @@ export class DiscoveryRunsService {
       ...new Set(invited.filter((c) => !c.memberCompanyId && c.email).map((c) => c.email!.trim().toLowerCase())),
     ];
     if (addresses.length === 0) return { members, emails: 0 };
-    const [rows, histories] = await Promise.all([
-      this.bypass.externalListingInvite.findMany({
-        where: { listingId: listing.id, email: { in: addresses } },
-        select: { email: true, state: true, source: true, country: true, sendAfter: true },
-      }),
-      inviteAddressHistories(this.bypass, addresses, now),
-    ]);
-    const emails = rows.filter(
-      (r) =>
-        r.state === "SENT" ||
-        (r.state === "QUEUED" && queuedInviteCanLeave(r, histories.get(r.email), listing.closesAt, now)),
-    ).length;
+    const stored = await this.bypass.externalListingInvite.findMany({
+      where: { listingId: listing.id, email: { in: addresses } },
+      select: { email: true, state: true, source: true, country: true, sendAfter: true },
+    });
+    // The read the two screens use - not a second copy of it (review of AUTO-COUNT-1).
+    const rows = await withQueueForecast(this.bypass, stored, listing, now);
+    const emails = rows.filter((r) => r.state === "SENT" || !!r.forecast?.leavesAt).length;
     return { members, emails };
   }
 
@@ -1144,6 +1144,7 @@ export class DiscoveryRunsService {
         visibility: true,
         aiDiscovery: true,
         bidsOpenAt: true,
+        closesAt: true,
         categoryIds: true,
       },
     });
@@ -1164,6 +1165,11 @@ export class DiscoveryRunsService {
    * (`external_listing_invites.state` + `cancelReason`); üye talebe davetli mi
    * (`listing_invitations`). Pencereden/elle sonradan davet edilen aday da
    * böylece "davet edildi" görünür.
+   *
+   * Kuyruktaki satır tek başına "sırada" demek DEĞİL (AUTO-COUNT-1): sonuç
+   * mesajıyla aynı öngörü okunur (`withQueueForecast`) — talep kapanmadan
+   * gidemeyecek satır "gönderilmedi" + nedeni, frendeki satırın saati frenin
+   * bittiği mesai penceresi.
    */
   async forListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.ownListing(user, listingId);
@@ -1201,16 +1207,17 @@ export class DiscoveryRunsService {
     });
     const emails = runs.flatMap((r) => r.candidates.map((c) => c.email)).filter((e): e is string => !!e);
     const memberIds = runs.flatMap((r) => r.candidates.map((c) => c.memberCompanyId)).filter((m): m is string => !!m);
-    const [queueRows, invitedMembers] = await Promise.all([
+    const [storedQueueRows, invitedMembers] = await Promise.all([
       this.prisma.externalListingInvite.findMany({
         where: { listingId, email: { in: emails } },
-        select: { email: true, state: true, cancelReason: true, sendAfter: true },
+        select: { email: true, state: true, cancelReason: true, sendAfter: true, source: true, country: true },
       }),
       this.prisma.listingInvitation.findMany({
         where: { listingId, invitedCompanyId: { in: memberIds } },
         select: { invitedCompanyId: true },
       }),
     ]);
+    const queueRows = await withQueueForecast(this.bypass, storedQueueRows, listing, new Date());
     const queueByEmail = new Map(queueRows.map((i) => [i.email, i]));
     const invitedMember = new Set(invitedMembers.map((i) => i.invitedCompanyId));
     const shownBadges = runs.some((r) => r.candidates.some((c) => c.matchedCategories.length > 0))
@@ -1405,15 +1412,57 @@ function queueCancelReason(reason: string | null): string {
 }
 
 /**
+ * A queue row as a screen reads it. `forecast` is REQUIRED so that no reader
+ * answers "queued" from the row alone (AUTO-COUNT-1): `withQueueForecast`
+ * fills it for every QUEUED row; `null` only for a row that is not queued.
+ */
+export type ScreenQueueRow = {
+  state: string;
+  cancelReason: string | null;
+  sendAfter: Date;
+  forecast: QueuedInviteForecast | null;
+};
+
+/**
+ * QUEUE ROWS OF ONE REQUEST WITH THE DISPATCHER'S FORECAST - the one read the
+ * creator's message (`invitedCounts`) and both screens share (status band
+ * here, "invited by e-mail" section in `ListingEmailInvitesService`). The
+ * forecast itself is `queuedInviteForecasts`: the address history and the
+ * address's letters ahead in the queue on other requests are read ONCE for all
+ * queued rows (three queries, none when nothing is queued) and with the bypass
+ * client - both span every buyer's letters to the address.
+ */
+export async function withQueueForecast<
+  T extends { email: string; state: string; source: InviteSourceKind; country: string | null; sendAfter: Date },
+>(
+  bypass: Parameters<typeof queuedInviteForecasts>[0],
+  rows: readonly T[],
+  listing: { id: string; closesAt: Date | null },
+  now: Date,
+): Promise<Array<T & { forecast: QueuedInviteForecast | null }>> {
+  const forecasts = await queuedInviteForecasts(
+    bypass,
+    rows.filter((r) => r.state === "QUEUED"),
+    listing,
+    now,
+  );
+  return rows.map((r) => ({ ...r, forecast: r.state === "QUEUED" ? (forecasts.get(r.email) ?? null) : null }));
+}
+
+/**
  * Adayın davet sonucu — SAF. Öncelik: tur bulduğunda zaten davetliydi →
  * üyenin talep daveti → e-posta kuyruğu satırı → aday satırına yazılan
  * "gönderilmedi" nedeni → tur sürüyorsa bekliyor.
+ *
+ * Kuyruktaki satır (QUEUED) dağıtıcının öngörüsüyle okunur (`forecast`):
+ * talep kapanmadan gidemeyecekse "gönderilmedi" + neden (`FREQUENCY`,
+ * `PAUSED`, `CLOSES_FIRST`), gidecekse GERÇEKTEN çıkacağı an.
  */
 export function candidateInvite(c: {
   status: string;
   memberCompanyId: string | null;
   memberInvited: boolean;
-  queue?: { state: string; cancelReason: string | null; sendAfter: Date } | undefined;
+  queue?: ScreenQueueRow | undefined;
   /** Tur sürüyor (PENDING / RUNNING). */
   active: boolean;
 }): { invite: CandidateInviteState; inviteReason: string | null; sendAfter: string | null } {
@@ -1427,7 +1476,11 @@ export function candidateInvite(c: {
   // Üye e-posta kuyruğuna girmez; adresi eşleşse de kuyruk satırı ona ait sayılmaz.
   if (!c.memberCompanyId && c.queue) {
     if (c.queue.state === "SENT") return out("INVITED");
-    if (c.queue.state === "QUEUED") return out("QUEUED", null, c.queue.sendAfter.toISOString());
+    if (c.queue.state === "QUEUED") {
+      const forecast = c.queue.forecast;
+      if (forecast && !forecast.leavesAt) return out("NOT_SENT", forecast.dropReason);
+      return out("QUEUED", null, (forecast?.leavesAt ?? c.queue.sendAfter).toISOString());
+    }
     return out("NOT_SENT", c.queue.state === "FAILED" ? "FAILED" : queueCancelReason(c.queue.cancelReason));
   }
   if (NOT_SENT_STATUSES.has(c.status)) return out("NOT_SENT", c.status === "SKIPPED_REGISTERED" ? "REGISTERED" : c.status);

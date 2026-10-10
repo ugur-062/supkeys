@@ -4,6 +4,7 @@ import {
   inviteHoldUntil,
   invitePaused,
   inviteReachesAddress,
+  queuedInviteForecast,
   registrationBlockedCountry,
   reminderDue,
   reminderLeavesNow,
@@ -205,6 +206,164 @@ describe("inviteReachesAddress", () => {
 
   it("a row that was sent stays reached whatever its state says later", () => {
     expect(inviteReachesAddress({ state: "CANCELLED", sentAt: NOW })).toBe(true);
+  });
+});
+
+/**
+ * Live check 2026-10-10, AUTO-COUNT-1: the creator's message counted the queued
+ * letters with the dispatcher's rule, the two screens read the queue row alone
+ * (9 "queued" on screen, 6 in the message, three planned times that were never
+ * going to be honoured). One pure forecast now answers both questions - "will
+ * it leave before the request closes" and "when".
+ */
+describe("queuedInviteForecast", () => {
+  // The tester's request: published Fri 9 Oct 2026 22:12 Istanbul, closes a week later.
+  const now = new Date("2026-10-09T19:20:00Z");
+  const closesAt = new Date("2026-10-16T19:12:00Z");
+  // Planned when it was queued: Monday 09:32 Istanbul.
+  const row = { source: "AI_AUTO" as const, country: "TR", sendAfter: new Date("2026-10-12T06:32:00Z") };
+  const history = (lastInviteEmailAt: string | null, extra: { sends90d?: number; engaged?: boolean } = {}) => ({
+    lastInviteEmailAt: lastInviteEmailAt ? new Date(lastInviteEmailAt) : null,
+    sends90d: lastInviteEmailAt ? 1 : 0,
+    engaged: false,
+    ...extra,
+  });
+  const read = (...args: Parameters<typeof queuedInviteForecast>) => {
+    const f = queuedInviteForecast(...args);
+    return f.leavesAt ? f.leavesAt.toISOString() : f.dropReason;
+  };
+
+  it("an address without a recent letter leaves at its stored time", () => {
+    expect(read(row, undefined, closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+    expect(read(row, history(null), closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+    // The last letter is more than seven days old.
+    expect(read(row, history("2026-10-01T08:00:00Z"), closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+  });
+
+  it("the live case: a letter from another request the same afternoon - the hold ends Friday 16:58, the next window is Monday, the request closes Friday night: FREQUENCY, no planned time", () => {
+    expect(queuedInviteForecast(row, history("2026-10-09T13:58:00Z"), closesAt, now)).toEqual({
+      leavesAt: null,
+      dropReason: "FREQUENCY",
+    });
+  });
+
+  it("on hold but still in time: the planned time is the window after the hold, not the stored one", () => {
+    // Same letter, a request that closes two weeks later: Monday 19 Oct 09:00 Istanbul.
+    expect(read(row, history("2026-10-09T13:58:00Z"), new Date("2026-10-30T19:12:00Z"), now)).toBe("2026-10-19T06:00:00.000Z");
+    // The hold ends inside a window (Thursday 11:00 Istanbul): that very moment.
+    expect(read(row, history("2026-10-08T08:00:00Z"), closesAt, now)).toBe("2026-10-15T08:00:00.000Z");
+    // No closing date: the hold only moves the time.
+    expect(read(row, history("2026-10-09T13:58:00Z"), null, now)).toBe("2026-10-19T06:00:00.000Z");
+  });
+
+  it("the 12 hours before closing: a window that opens later than that is too late", () => {
+    const held = history("2026-10-08T08:00:00Z"); // hold ends Thu 15 Oct 08:00 UTC
+    expect(read(row, held, new Date("2026-10-15T20:00:00Z"), now)).toBe("2026-10-15T08:00:00.000Z");
+    expect(read(row, held, new Date("2026-10-15T19:59:00Z"), now)).toBe("FREQUENCY");
+  });
+
+  it("a hold that ends before the row's turn changes nothing: the dispatcher meets no hold when the row comes due", () => {
+    // Hold ends Monday 08:00 Istanbul, the row is planned for 09:32 the same morning.
+    const held = history("2026-10-05T05:00:00Z");
+    expect(read(row, held, closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+    // ...also when the request closes that afternoon (the window after the hold is inside the last 12 hours).
+    expect(read(row, held, new Date("2026-10-12T15:00:00Z"), now)).toBe("2026-10-12T06:32:00.000Z");
+  });
+
+  it("a row that is already due is measured now", () => {
+    const due = { ...row, sendAfter: new Date("2026-10-09T10:00:00Z") };
+    expect(read(due, history("2026-10-09T13:58:00Z"), new Date("2026-10-30T19:12:00Z"), now)).toBe("2026-10-19T06:00:00.000Z");
+    expect(read(due, history(null), closesAt, now)).toBe("2026-10-09T10:00:00.000Z");
+  });
+
+  it("three unanswered letters in 90 days: PAUSED; a row whose turn comes after closing: CLOSES_FIRST", () => {
+    expect(read(row, history("2026-09-01T08:00:00Z", { sends90d: 3 }), closesAt, now)).toBe("PAUSED");
+    expect(read(row, history(null), new Date("2026-10-12T06:32:00Z"), now)).toBe("CLOSES_FIRST");
+    expect(read(row, history(null), new Date("2026-10-12T06:33:00Z"), now)).toBe("2026-10-12T06:32:00.000Z");
+  });
+
+  it("exempt as in the dispatcher: an address that opened an invitation link, and an address the buyer typed", () => {
+    const busy = history("2026-10-09T13:58:00Z", { sends90d: 5 });
+    expect(read(row, { ...busy, engaged: true }, closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+    expect(read({ ...row, source: "MANUAL" }, busy, closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+  });
+
+  it("the recipient's own country decides the window after the hold", () => {
+    // Hold ends Fri 16 Oct 13:58 UTC: 15:58 in Madrid (inside the window), 16:58 in Istanbul (after hours).
+    const held = history("2026-10-09T13:58:00Z");
+    const later = new Date("2026-10-30T19:12:00Z");
+    expect(read({ ...row, country: "ES" }, held, later, now)).toBe("2026-10-16T13:58:00.000Z");
+    expect(read({ ...row, country: null }, held, later, now)).toBe("2026-10-19T06:00:00.000Z");
+  });
+
+  /**
+   * Review of AUTO-COUNT-1: the same trap with a different trigger. The other
+   * request's letter has not LEFT yet - it waits in the queue for the same
+   * address, a few minutes ahead (every row gets its own 0-45 minute spread).
+   * The dispatcher sends that one first and then holds this row for 7 days;
+   * the history is still empty, so the forecast said "queued, Monday 09:32".
+   */
+  describe("a letter ahead in the queue for the same address (another request, any buyer)", () => {
+    const later = new Date("2026-10-30T19:12:00Z");
+    /** A queued letter of the same address on another request (closing far away unless said). */
+    const other = (sendAfter: string, extra: { source?: "MANUAL" | "AI_FORM" | "AI_AUTO"; closesAt?: string | null } = {}) => ({
+      source: extra.source ?? ("AI_AUTO" as const),
+      country: "TR",
+      sendAfter: new Date(sendAfter),
+      closesAt: extra.closesAt === null ? null : new Date(extra.closesAt ?? "2026-10-30T19:12:00Z"),
+    });
+    const ahead = other("2026-10-12T06:20:00Z"); // Monday 09:20 Istanbul, twelve minutes before this row
+
+    it("this request closes inside the hold that letter starts: FREQUENCY, no planned time", () => {
+      expect(queuedInviteForecast(row, undefined, closesAt, now, [ahead])).toEqual({ leavesAt: null, dropReason: "FREQUENCY" });
+      // Without the queue the same row reads "queued" - the defect.
+      expect(read(row, undefined, closesAt, now)).toBe("2026-10-12T06:32:00.000Z");
+    });
+
+    it("this request stays open long enough: the planned time is seven days after THAT letter, not the stored one", () => {
+      expect(read(row, undefined, later, now, [ahead])).toBe("2026-10-19T06:20:00.000Z");
+      expect(read(row, undefined, null, now, [ahead])).toBe("2026-10-19T06:20:00.000Z");
+    });
+
+    it("a letter planned for the same moment or later holds nobody: same moment = one e-mail, later = this row leaves first", () => {
+      expect(read(row, undefined, closesAt, now, [other("2026-10-12T06:32:00Z")])).toBe("2026-10-12T06:32:00.000Z");
+      expect(read(row, undefined, closesAt, now, [other("2026-10-12T06:44:00Z")])).toBe("2026-10-12T06:32:00.000Z");
+    });
+
+    it("the FIRST of several letters counts; a letter that will not leave itself counts for nothing", () => {
+      // Two ahead: the hold starts with the earlier one.
+      expect(read(row, undefined, later, now, [other("2026-10-12T06:25:00Z"), other("2026-10-12T06:05:00Z")])).toBe(
+        "2026-10-19T06:05:00.000Z",
+      );
+      // Its own request closes before its turn: it is dropped, this row is free.
+      expect(read(row, undefined, closesAt, now, [other("2026-10-12T06:20:00Z", { closesAt: "2026-10-12T06:00:00Z" })])).toBe(
+        "2026-10-12T06:32:00.000Z",
+      );
+    });
+
+    it("rows that are already due leave in the same run: neither holds the other; a due letter holds a row planned for later from NOW", () => {
+      const due = { ...row, sendAfter: new Date("2026-10-09T10:00:00Z") };
+      expect(read(due, undefined, closesAt, now, [other("2026-10-09T09:00:00Z")])).toBe("2026-10-09T10:00:00.000Z");
+      // The due letter leaves now (Fri 19:20 UTC): seven days later is after hours, the next window is Monday 19 Oct.
+      expect(read(row, undefined, later, now, [other("2026-10-09T09:00:00Z")])).toBe("2026-10-19T06:00:00.000Z");
+    });
+
+    it("an address already on hold: both letters wait for the same window and leave as one e-mail - the other row adds nothing", () => {
+      const held = history("2026-10-09T13:58:00Z");
+      expect(read(row, held, later, now, [ahead])).toBe("2026-10-19T06:00:00.000Z");
+      // ...unless the other one was typed by its buyer: it leaves on time and its hold replaces the older one.
+      expect(read(row, held, later, now, [other("2026-10-12T06:20:00Z", { source: "MANUAL" })])).toBe("2026-10-19T06:20:00.000Z");
+    });
+
+    it("that letter is one more unanswered letter: the third in 90 days pauses this row", () => {
+      expect(read(row, history("2026-09-01T08:00:00Z", { sends90d: 2 }), later, now, [ahead])).toBe("PAUSED");
+      expect(read(row, history("2026-09-01T08:00:00Z", { sends90d: 1 }), later, now, [ahead])).toBe("2026-10-19T06:20:00.000Z");
+    });
+
+    it("exempt as in the dispatcher: an address that opened an invitation link, and a row the buyer typed", () => {
+      expect(read(row, history(null, { engaged: true }), closesAt, now, [ahead])).toBe("2026-10-12T06:32:00.000Z");
+      expect(read({ ...row, source: "MANUAL" }, undefined, closesAt, now, [ahead])).toBe("2026-10-12T06:32:00.000Z");
+    });
   });
 });
 

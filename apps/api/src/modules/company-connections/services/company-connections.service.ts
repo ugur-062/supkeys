@@ -68,7 +68,10 @@ import {
   registrationBlockedCountry,
   utcDayStart,
   type InviteSourceKind,
+  type QueuedInviteDropReason,
+  type QueuedLetter,
 } from "../../../common/company/external-invite-policy";
+import { queuedInviteForecasts } from "./external-invite-dispatcher.service";
 import {
   INVITE_LISTING_SELECT,
   InviteContentBuilder,
@@ -120,8 +123,20 @@ export interface ExternalInviteResult {
   email: string;
   status: ExternalInviteStatus;
   reason?: string;
-  /** QUEUED: e-postanın en erken gideceği an (alıcının mesai saati). */
+  /**
+   * QUEUED: the moment the e-mail can really leave (the recipient's business
+   * hours; after the address's 7-day hold when it has one) - the dispatcher's
+   * forecast, the same value the request page shows. Absent when the letter
+   * will not leave (`notSentReason`).
+   */
   sendAfter?: string;
+  /**
+   * QUEUED, but the letter will NOT leave before the request closes: the
+   * reason code the request page shows for the same row (`FREQUENCY`, `PAUSED`,
+   * `CLOSES_FIRST`). The row stays in the queue (the address is invited: it is
+   * linked to the request when it registers), so `status` stays `QUEUED`.
+   */
+  notSentReason?: QueuedInviteDropReason;
 }
 
 /**
@@ -569,7 +584,7 @@ export class CompanyConnectionsService {
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true, status: true, type: true, createdById: true },
+      select: { id: true, status: true, type: true, createdById: true, closesAt: true },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
@@ -668,6 +683,8 @@ export class CompanyConnectionsService {
     }));
     let budget = COMPANY_DAILY_INVITE_CAP - externalToday - memberToday;
     let queued = 0;
+    /** The rows this call put into the queue, as the dispatcher's forecast reads them. */
+    const queuedRows: Array<QueuedLetter & { email: string }> = [];
     for (const r of recipients) {
       const email = r.email;
       if (budget <= 0) {
@@ -806,7 +823,34 @@ export class CompanyConnectionsService {
       }
       budget--;
       queued++;
+      queuedRows.push({ email, source, country, sendAfter });
       results.push({ email, status: "QUEUED", sendAfter: sendAfter.toISOString() });
+    }
+
+    // THE ANSWER SAYS WHAT THE REQUEST PAGE SAYS (review of AUTO-COUNT-1). The
+    // "find suppliers" window shows this answer; the "invited by e-mail"
+    // section of the same page reads the queue row with the dispatcher's
+    // forecast. Answering from the row alone, the window said "queued, planned
+    // for Monday 09:13" for an address the section showed as "not sent - it
+    // received another invitation this week". Same read, same rule: the time
+    // is the moment the letter can really leave, and a letter that will not
+    // leave before the request closes carries the reason instead of a time.
+    // A read that fails changes nothing: the rows are written, the stored
+    // times stand.
+    if (queuedRows.length > 0) {
+      const forecasts = await queuedInviteForecasts(this.bypass, queuedRows, listing, now).catch((err: unknown) => {
+        this.logger.warn(`queued invite forecast failed (${listing.id}): ${err instanceof Error ? err.message : String(err)}`);
+        return null;
+      });
+      for (const result of results) {
+        const forecast = result.status === "QUEUED" ? forecasts?.get(result.email) : undefined;
+        if (!forecast) continue;
+        if (forecast.leavesAt) result.sendAfter = forecast.leavesAt.toISOString();
+        else {
+          delete result.sendAfter;
+          result.notSentReason = forecast.dropReason;
+        }
+      }
     }
 
     void this.audit.log({

@@ -19,6 +19,7 @@ import { RequireCompanyPermission } from "../../company-auth/decorators/require-
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { SupplierDiscoveryService } from "./supplier-discovery.service";
 
 /**
@@ -74,7 +75,9 @@ export class ExternalDiscoveryDto extends DiscoveryDto {
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(2)
-  @ArrayUnique()
+  // The default-message translation has no pattern for this validator: without
+  // a message of its own the field answered in raw English (AS-5).
+  @ArrayUnique({ message: () => tApi("api.validation.arrayUnique") })
   @IsIn(["LOCAL", "ABROAD"], { each: true })
   scopes?: Array<"LOCAL" | "ABROAD">;
 }
@@ -135,9 +138,16 @@ export class SupplierDiscoveryController {
 
   /**
    * ASYNCHRONOUS WEB SEARCH (N1) - status, polled every 3 s by the window:
-   * `{ status: RUNNING | DONE | FAILED, startedAt, result?, error? }`; `result`
-   * is the body of `external`. 404: unknown, forgotten (kept 15 minutes; lost
-   * on a restart) or another user's search.
+   * `{ status: RUNNING | DONE | FAILED, startedAt, elapsedMs, result?, error? }`;
+   * `result` is the body of `external`. 404: unknown, forgotten (kept 15
+   * minutes; lost on a restart) or another user's search.
+   *
+   * `elapsedMs` = how long ago the search was registered, measured on THIS
+   * server's clock (review of AS-4). The window's "time elapsed" counter of a
+   * tab that joined a running search starts from it. `startedAt` alone cannot
+   * serve that: it is a moment on the server's clock, and a browser whose clock
+   * is half a minute ahead or behind turns it into a wrong counter. A duration
+   * needs no shared clock.
    *
    * Own rate limit: an in-memory read, polled by every open window - the
    * default 100/min per address is reached by a few users behind one office
@@ -147,6 +157,7 @@ export class SupplierDiscoveryController {
   @Throttle({ default: { limit: SEARCH_STATUS_POLLS_PER_MINUTE, ttl: 60_000 } })
   @RequireCompanyPermission("buy:listing:manage")
   externalSearch(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Param("searchId") searchId: string) {
-    return this.service.externalSearchStatus(user, searchId);
+    const view = this.service.externalSearchStatus(user, searchId);
+    return { ...view, elapsedMs: Math.max(0, Date.now() - Date.parse(view.startedAt)) };
   }
 }

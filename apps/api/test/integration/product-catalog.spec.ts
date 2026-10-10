@@ -585,3 +585,70 @@ describe("Ürünlerim listesi — sunucu süzgeci ve en yeni üstte", () => {
     expect(usage.items.some((i) => i.id === newest.id)).toBe(false);
   });
 });
+
+/**
+ * Canlı doğrulama 2026-10-10, NEW-PF-3 — ürünü AÇMAK (Ürünlerim'de vitrin
+ * okuması) satırı değiştiriyordu: serileştirici tamamlanma skorunu her çağrıda
+ * koşulsuz ve Prisma ile yazıyor, `@updatedAt` ilerliyordu (skor 90 → 90,
+ * updatedAt 19:16 → 19:37; yayındaki üründe de). `updatedAt` ürün
+ * sitemap'inin lastmod'u ve çeviri kapsam denetiminin ölçüsüdür. Skor
+ * türetilmiş kolondur: yalnız saklanan değer farklıysa ve `updatedAt`e
+ * dokunmayan ham SQL ile yazılır.
+ */
+describe("vitrin okuması satırı değiştirmez (türetilmiş skor kolonu)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+    await seedTree();
+    audit.log.mockReset();
+  });
+
+  const OLD = new Date("2026-09-01T08:00:00.000Z");
+  /** Satırın sürümü (`xmin` her yazmada değişir) + okunan kolonlar. */
+  const rowState = async (id: string) => {
+    const [row] = await prisma.$queryRaw<Array<{ version: string; completionScore: number; updatedAt: Date }>>`
+      SELECT xmin::text AS version, "completionScore", "updatedAt" FROM "company_items" WHERE "id" = ${id}`;
+    return row!;
+  };
+  /** Skor yazımı yanıtı bekletmez (ateşle-unut): tek bağlantılı test istemcisinde sıradaki okuma yazmadan sonra koşar. */
+  const settleWrites = async () => {
+    await new Promise((res) => setTimeout(res, 150));
+    await prisma.$queryRaw`SELECT 1`;
+  };
+
+  it("saklanan skor güncelse ürünü açmak hiçbir şey yazmaz: satır sürümü ve updatedAt aynı kalır (yayındaki üründe de)", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id, {
+      description: "x".repeat(120),
+      images: ["a.webp"],
+      keywords: ["pano"],
+      isPublic: true,
+      reviewStatus: "APPROVED",
+      publishedAt: OLD,
+      slug: "dagitim-panosu-400a",
+    });
+    const score = (await service().getShowcase(auth, item.id)).completion.score;
+    expect(score).toBeGreaterThan(0);
+    // Skor saklandı, satır eski tarihli: bundan sonrası salt okuma.
+    await settleWrites();
+    await prisma.$executeRaw`UPDATE "company_items" SET "completionScore" = ${score}, "updatedAt" = ${OLD} WHERE "id" = ${item.id}`;
+    const before = await rowState(item.id);
+    expect(before).toMatchObject({ completionScore: score, updatedAt: OLD });
+
+    for (let i = 0; i < 3; i++) await service().getShowcase(auth, item.id);
+    await settleWrites();
+
+    expect(await rowState(item.id)).toEqual(before);
+  });
+
+  it("saklanan skor farklıysa yazılır — updatedAt ilerlemeden", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id, { description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"] });
+    await prisma.$executeRaw`UPDATE "company_items" SET "completionScore" = 1, "updatedAt" = ${OLD} WHERE "id" = ${item.id}`;
+
+    const score = (await service().getShowcase(auth, item.id)).completion.score;
+    expect(score).not.toBe(1);
+    await settleWrites();
+
+    expect(await rowState(item.id)).toMatchObject({ completionScore: score, updatedAt: OLD });
+  });
+});

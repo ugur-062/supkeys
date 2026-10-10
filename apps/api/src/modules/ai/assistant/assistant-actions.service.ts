@@ -35,6 +35,7 @@ import { MAX_MONEY } from "../../../common/constants/money";
 import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 import { missingFieldsForPrompt } from "./assistant.prompts";
+import { listingIdOfRef, listingRefWhere, orderRefWhere } from "./record-ref";
 import { validatePendingDto } from "./validate-pending-dto";
 
 /**
@@ -113,19 +114,20 @@ export class AssistantActionsService {
     sessionId: string,
     args: Record<string, unknown>,
   ): Promise<ProposeOutcome> {
-    const listingId = String(args.listingId ?? "").trim();
+    // The reference is the request NUMBER or the internal id (`record-ref.ts`).
+    const listingRef = String(args.listingId ?? "").trim();
     const rothernIds = Array.isArray(args.rothernIds)
       ? args.rothernIds.filter((r): r is string => typeof r === "string").slice(0, 50)
       : [];
-    if (!listingId || rothernIds.length === 0) {
-      return { ok: false, problem: "Satın Alma Talebi id ve en az bir firma kodu (Rothern ID) gerekli." };
+    if (!listingRef || rothernIds.length === 0) {
+      return { ok: false, problem: "Satın Alma Talebi numarası (ya da id) ve en az bir firma kodu (Rothern ID) gerekli." };
     }
     const listing = await this.prisma.listing.findFirst({
-      where: { id: listingId, companyId: user.companyId },
+      where: { ...listingRefWhere(listingRef), companyId: user.companyId },
       select: { id: true, title: true, number: true, status: true, type: true },
     });
     if (!listing) {
-      return { ok: false, problem: "Bu id ile firmanıza ait bir satın alma talebi bulunamadı." };
+      return { ok: false, problem: "Bu numara ya da id ile firmanıza ait bir satın alma talebi bulunamadı." };
     }
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
       return { ok: false, problem: "Bu satın alma talebi artık davete kapalı (yalnız taslak/açık satın alma talebine davet eklenir)." };
@@ -141,7 +143,8 @@ export class AssistantActionsService {
     return this.storePending(user, sessionId, {
       type: "send_invites",
       severity: "normal",
-      params: { listingId, rothernIds },
+      // The stored id is always the internal one: `confirm` hands it to the service as it is.
+      params: { listingId: listing.id, rothernIds },
       summary: [
         tApi("api.ai.assistant.card.listing", {
           title: listing.title,
@@ -377,12 +380,15 @@ export class AssistantActionsService {
     sessionId: string,
     args: Record<string, unknown>,
   ): Promise<ProposeOutcome> {
-    const listingId = String(args.listingId ?? "").trim();
-    if (!listingId) return { ok: false, problem: "Satın Alma Talebi id gerekli." };
-    let detail: Record<string, unknown>;
-    try {
-      detail = (await this.listings.getOne(user, listingId)) as Record<string, unknown>;
-    } catch {
+    const listingRef = String(args.listingId ?? "").trim();
+    if (!listingRef) return { ok: false, problem: "Satın Alma Talebi numarası (ya da id) gerekli." };
+    // Number -> internal id; what the bidder may see is still decided by `getOne`.
+    // An unknown number and a request the bidder may not see get the same answer.
+    const listingId = await listingIdOfRef(this.prisma, listingRef);
+    const detail = listingId
+      ? ((await this.listings.getOne(user, listingId).catch(() => null)) as Record<string, unknown> | null)
+      : null;
+    if (!listingId || !detail) {
       return { ok: false, problem: "Satın Alma Talebi bulunamadı veya erişiminiz yok." };
     }
     if (detail.isOwner === true) {
@@ -550,10 +556,10 @@ export class AssistantActionsService {
     sessionId: string,
     args: Record<string, unknown>,
   ): Promise<ProposeOutcome> {
-    const orderId = String(args.orderId ?? "").trim();
-    if (!orderId) return { ok: false, problem: "Sipariş id gerekli." };
+    const orderRef = String(args.orderId ?? "").trim();
+    if (!orderRef) return { ok: false, problem: "Sipariş numarası (ya da id) gerekli." };
     const order = await this.prisma.companyOrder.findFirst({
-      where: { id: orderId, buyerCompanyId: user.companyId },
+      where: { ...orderRefWhere(orderRef), buyerCompanyId: user.companyId },
       select: {
         id: true,
         number: true,
@@ -564,7 +570,7 @@ export class AssistantActionsService {
       },
     });
     if (!order) {
-      return { ok: false, problem: "Bu id ile firmanızın alıcı olduğu bir sipariş bulunamadı." };
+      return { ok: false, problem: "Bu numara ya da id ile firmanızın alıcı olduğu bir sipariş bulunamadı." };
     }
     if (order.status !== "IN_DELIVERY") {
       return { ok: false, problem: "Yalnız yoldaki (gönderilmiş) sipariş teslim alındı olarak işaretlenebilir." };
@@ -573,7 +579,7 @@ export class AssistantActionsService {
     return this.storePending(user, sessionId, {
       type: "mark_order_received",
       severity: "normal",
-      params: { orderId, note },
+      params: { orderId: order.id, note },
       summary: [
         tApi("api.ai.assistant.orderReceived.heading", {
           number: order.number ?? order.id,
@@ -599,16 +605,16 @@ export class AssistantActionsService {
       }
     | string
   > {
-    const listingId = String(args.listingId ?? "").trim();
+    const listingRef = String(args.listingId ?? "").trim();
     const bidId = String(args.bidId ?? "").trim();
-    if (!listingId || !bidId) return "Satın Alma Talebi id ve teklif id gerekli.";
+    if (!listingRef || !bidId) return "Satın Alma Talebi numarası (ya da id) ve teklif id gerekli.";
     const listing = await this.prisma.listing.findFirst({
-      where: { id: listingId, companyId: user.companyId },
+      where: { ...listingRefWhere(listingRef), companyId: user.companyId },
       select: { id: true, title: true, number: true, status: true },
     });
-    if (!listing) return "Bu id ile firmanıza ait bir satın alma talebi bulunamadı.";
+    if (!listing) return "Bu numara ya da id ile firmanıza ait bir satın alma talebi bulunamadı.";
     const bid = await this.prisma.listingBid.findFirst({
-      where: { id: bidId, listingId },
+      where: { id: bidId, listingId: listing.id },
       select: {
         id: true,
         amount: true,

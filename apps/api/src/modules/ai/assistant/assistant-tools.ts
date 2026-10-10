@@ -89,6 +89,23 @@ export const TOOL_NAMES = {
   requestMarkOrderReceived: "request_mark_order_received",
 } as const;
 
+/**
+ * How the model is told to reference a request / an order (NEW-PF-1): by the
+ * NUMBER the user sees, or by the internal id a list tool returned. Every tool
+ * parameter that names a request or order carries one of these two texts; the
+ * server side is `record-ref.ts`. Model instructions, not user-facing text.
+ */
+const LISTING_REF_PARAM = {
+  type: "string",
+  description:
+    "Request number (e.g. ROT-000123 - when the user gave the number, pass it EXACTLY as written) or the internal id a list tool returned.",
+} as const;
+const ORDER_REF_PARAM = {
+  type: "string",
+  description:
+    "Order number (e.g. ROT-ORD-000123 - when the user gave the number, pass it EXACTLY as written) or the internal id a list tool returned.",
+} as const;
+
 /** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). Para birimi tek kaynak `CURRENCY_CODES`. */
 const CURRENCY_ENUM: string[] = [...CURRENCY_CODES];
 const DELIVERY_ENUM = [
@@ -170,10 +187,10 @@ export function toolDefsForUser(
     {
       name: TOOL_NAMES.getTenderDetail,
       description:
-        "Belirli bir satın alma talebi/ilanın detayını getirir (id ile). Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır.",
+        "Belirli bir satın alma talebi/ilanın detayını getirir — talep NUMARASIYLA (ör. ROT-000123) ya da iç kimlikle (id). Kullanıcı numarayı söylediyse numarayı AYNEN ver; önce listelemen gerekmez. Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır. Bu numarayla kullanıcının görebildiği bir talep yoksa \"not_found\" döner (kesinti DEĞİLDİR).",
       parameters: {
         type: "object",
-        properties: { id: { type: "string" } },
+        properties: { id: LISTING_REF_PARAM },
         required: ["id"],
       },
     },
@@ -184,10 +201,11 @@ export function toolDefsForUser(
     },
     {
       name: TOOL_NAMES.getOrderDetail,
-      description: "Belirli bir siparişin detayını getirir (id ile).",
+      description:
+        "Belirli bir siparişin detayını getirir — sipariş NUMARASIYLA (ör. ROT-ORD-000123) ya da iç kimlikle (id). Kullanıcı numarayı söylediyse numarayı AYNEN ver. Bu numarayla kullanıcının görebildiği bir sipariş yoksa \"not_found\" döner (kesinti DEĞİLDİR).",
       parameters: {
         type: "object",
-        properties: { id: { type: "string" } },
+        properties: { id: ORDER_REF_PARAM },
         required: ["id"],
       },
     },
@@ -220,11 +238,11 @@ export function toolDefsForUser(
     defs.push({
       name: TOOL_NAMES.requestSendInvites,
       description:
-        "Kullanıcı kendi satın alma talebine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi satın alma talebi; rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
+        "Kullanıcı kendi satın alma talebine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi satın alma talebi (numarası ya da iç kimliği); rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           rothernIds: { type: "array", items: { type: "string" } },
         },
         required: ["listingId", "rothernIds"],
@@ -260,7 +278,7 @@ export function toolDefsForUser(
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           currency: { type: "string", description: "Boşsa satın alma talebinin ana para birimi" },
           items: {
             type: "array",
@@ -296,7 +314,7 @@ export function toolDefsForUser(
       parameters: {
         type: "object",
         properties: {
-          orderId: { type: "string" },
+          orderId: ORDER_REF_PARAM,
           note: { type: "string", description: "Opsiyonel teslim notu" },
         },
         required: ["orderId"],
@@ -314,7 +332,7 @@ export function toolDefsForUser(
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           bidId: { type: "string" },
           reason: { type: "string", description: "Opsiyonel eleme gerekçesi (tedarikçi görür)" },
         },
@@ -328,7 +346,7 @@ export function toolDefsForUser(
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           bidId: { type: "string" },
           note: { type: "string", description: "Opsiyonel not (onay akışı varsa onaycılara iletilir)" },
         },

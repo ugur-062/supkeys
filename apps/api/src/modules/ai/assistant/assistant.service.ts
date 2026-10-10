@@ -60,6 +60,7 @@ import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 import { CategorySuggestService } from "../tender-extract/category-suggest.service";
 import { TenderExtractService } from "../tender-extract/tender-extract.service";
 import { AssistantActionsService } from "./assistant-actions.service";
+import { listingIdOfRef, orderIdOfRef } from "./record-ref";
 import { SUGGEST_NEW_CHAT_AFTER, planWindow, type StoredMessage } from "./window";
 
 const MAX_TOOL_ITERATIONS = 4;
@@ -76,8 +77,17 @@ const MAX_OUTPUT_TOKENS = 4096;
 /** Asistan turlarında düşünme kısılır: gecikme + thought-token israfı azalır,
  *  thought signature akışı (Gemini 3 zorunluluğu) aynen korunur. */
 const THINKING_LEVEL = "low" as const;
-/** Araç hatası (403/404/timeout/beklenmeyen) → hep bu nötr sonuç (bilgi sızmaz). */
+/** Araç hatası (timeout/beklenmeyen, izinsiz araç ya da liste) → hep bu nötr sonuç (bilgi sızmaz). */
 const NEUTRAL_ERROR = { error: "unavailable" } as const;
+/**
+ * A DETAIL tool found no record the user may see (live check 2026-10-10,
+ * NEW-PF-1). 403 and 404 share this one answer - whether the record exists and
+ * whether the user may see it is still not told apart. It is NOT the outage
+ * answer: the model read "unavailable" as a temporary failure and told the user
+ * to try again later, for a request number that simply was not found.
+ */
+const NOT_FOUND = { error: "not_found" } as const;
+const DETAIL_TOOLS: ReadonlySet<string> = new Set([TOOL_NAMES.getTenderDetail, TOOL_NAMES.getOrderDetail]);
 
 @Injectable()
 export class AssistantService {
@@ -618,15 +628,21 @@ export class AssistantService {
           };
         }
         case TOOL_NAMES.getTenderDetail: {
-          const id = String(call.args.id ?? "");
-          if (!id) return { ...NEUTRAL_ERROR };
+          const ref = String(call.args.id ?? "");
+          if (!ref.trim()) return { ...NEUTRAL_ERROR };
+          // The reference is the internal id or the request NUMBER (`record-ref.ts`);
+          // what the user may see is decided by `getOne`, as for an id.
+          const id = await listingIdOfRef(this.prisma, ref);
+          if (!id) return { ...NOT_FOUND };
           return this.capObject(labeled(await this.listings.getOne(user, id), "listing"));
         }
         case TOOL_NAMES.listMyOrders:
           return trimList(labeled(await this.orders.list(user), "order"));
         case TOOL_NAMES.getOrderDetail: {
-          const id = String(call.args.id ?? "");
-          if (!id) return { ...NEUTRAL_ERROR };
+          const ref = String(call.args.id ?? "");
+          if (!ref.trim()) return { ...NEUTRAL_ERROR };
+          const id = await orderIdOfRef(this.prisma, ref);
+          if (!id) return { ...NOT_FOUND };
           return this.capObject(labeled(await this.orders.getOne(user, id), "order"));
         }
         case TOOL_NAMES.listMyConnections:
@@ -635,11 +651,13 @@ export class AssistantService {
           return { ...NEUTRAL_ERROR };
       }
     } catch (err) {
-      // 403/404/timeout/beklenmeyen — AYRIM YAPMA (varlık/yetki bilgisi sızmasın).
-      if (
-        !(err instanceof ForbiddenException) &&
-        !(err instanceof NotFoundException)
-      ) {
+      // 403 ile 404 arasında AYRIM YAPMA (varlık/yetki bilgisi sızmasın).
+      const refused = err instanceof ForbiddenException || err instanceof NotFoundException;
+      // Detay aracında ret = "bu kullanıcının görebildiği böyle bir kayıt yok";
+      // kesintiden AYRI söylenir (model "daha sonra deneyin" demesin). Liste
+      // araçlarının reddi (yetki / doğrulama kapısı) eskisi gibi nötr kalır.
+      if (refused && DETAIL_TOOLS.has(call.name)) return { ...NOT_FOUND };
+      if (!refused) {
         this.logger.warn(
           `Araç hatası (${call.name}): ${err instanceof Error ? err.message : String(err)}`,
         );

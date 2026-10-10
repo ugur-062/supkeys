@@ -8,6 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { RequestMethod } from "@nestjs/common";
 import { METHOD_METADATA, PATH_METADATA } from "@nestjs/common/constants";
+import type { QueuedInviteForecast } from "../../src/common/company/external-invite-policy";
 import { candidateInvite } from "../../src/modules/ai/supplier-discovery/discovery-runs.service";
 import { COMPANY_PERMISSION_KEY } from "../../src/modules/company-auth/decorators/require-company-permission.decorator";
 import { CompanyConnectionsModule } from "../../src/modules/company-connections/company-connections.module";
@@ -19,7 +20,16 @@ import {
 } from "../../src/modules/company-connections/services/listing-email-invites.service";
 
 const SEND_AFTER = new Date("2030-01-01T09:00:00.000Z");
-const row = (state: string, cancelReason: string | null = null) => ({ state, cancelReason, sendAfter: SEND_AFTER });
+/** End of the address's 7-day hold moved to the send window - later than the stored time. */
+const AFTER_HOLD = new Date("2030-01-07T06:00:00.000Z");
+const leaves = (at: Date): QueuedInviteForecast => ({ leavesAt: at, dropReason: null });
+const dropped = (dropReason: "FREQUENCY" | "PAUSED" | "CLOSES_FIRST"): QueuedInviteForecast => ({ leavesAt: null, dropReason });
+/** A queued row carries the dispatcher's forecast (`withQueueForecast`); any other row carries none. */
+const row = (
+  state: string,
+  cancelReason: string | null = null,
+  forecast: QueuedInviteForecast | null = state === "QUEUED" ? leaves(SEND_AFTER) : null,
+) => ({ state, cancelReason, sendAfter: SEND_AFTER, forecast });
 
 describe("emailInviteOutcome - queue row -> what the buyer is told", () => {
   it.each([
@@ -44,10 +54,22 @@ describe("emailInviteOutcome - queue row -> what the buyer is told", () => {
     expect(emailInviteOutcome(row(state, cancelReason))).toEqual({ invite, reason, sendAfter });
   });
 
+  // AUTO-COUNT-1: the queue row alone does not say "queued" - the forecast the creator's message counts with decides.
+  it.each([
+    ["on the 7-day hold, still in time: the time it can really leave", leaves(AFTER_HOLD), "QUEUED", null, "2030-01-07T06:00:00.000Z"],
+    ["the hold ends after the request closes", dropped("FREQUENCY"), "NOT_SENT", "FREQUENCY", null],
+    ["three unanswered letters", dropped("PAUSED"), "NOT_SENT", "PAUSED", null],
+    ["its turn comes after the request closes", dropped("CLOSES_FIRST"), "NOT_SENT", "CLOSES_FIRST", null],
+  ])("QUEUED, %s -> %s (%s)", (_label, forecast, invite, reason, sendAfter) => {
+    expect(emailInviteOutcome(row("QUEUED", null, forecast))).toEqual({ invite, reason, sendAfter });
+  });
+
   it("is the status band's own answer for the same queue row (one vocabulary, not a second copy)", () => {
     const rows = [
       row("SENT"),
       row("QUEUED"),
+      row("QUEUED", null, leaves(AFTER_HOLD)),
+      ...(["FREQUENCY", "PAUSED", "CLOSES_FIRST"] as const).map((r) => row("QUEUED", null, dropped(r))),
       row("FAILED"),
       ...["FREQUENCY", "PAUSED", "OPTED_OUT", "REGISTERED", "LISTING_CLOSED", "ALLOWLIST", "AUTO_INVITE_OFF", "INVITER_DOWNGRADED", null].map(
         (r) => row("CANCELLED", r),

@@ -1,14 +1,20 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import type { InviteSourceKind } from "../../../common/company/external-invite-policy";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../../common/prisma/prisma.service";
 // The ONE definition of "what happened to a queued e-mail invitation" is
 // `candidateInvite` (status band of the automatic run). It is imported, not
 // copied: the two screens of the same request page must not disagree.
+// `withQueueForecast` comes from the same place for the same reason: a queued
+// row is read with the dispatcher's forecast, exactly as the band reads it.
 // This file exists apart from `CompanyConnectionsService` because
 // `discovery-runs.service` imports that service (and the dispatcher) - an
 // import from there would be circular. Neither of those two may import this file.
-import { candidateInvite } from "../../ai/supplier-discovery/discovery-runs.service";
+import {
+  candidateInvite,
+  withQueueForecast,
+  type ScreenQueueRow,
+} from "../../ai/supplier-discovery/discovery-runs.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 
 /** Outcome of an e-mail invitation as the buyer sees it (subset of `CandidateInviteState`). */
@@ -23,9 +29,12 @@ export interface ListingEmailInvite {
   locale: string;
   source: InviteSourceKind;
   invite: EmailInviteState;
-  /** NOT_SENT: reason code (FREQUENCY, PAUSED, OPTED_OUT, REGISTERED, LISTING_CLOSED, ALLOWLIST, CANCELLED, FAILED...). */
+  /**
+   * NOT_SENT: reason code (FREQUENCY, PAUSED, OPTED_OUT, REGISTERED, LISTING_CLOSED, ALLOWLIST, CANCELLED, FAILED...;
+   * `CLOSES_FIRST` = still in the queue, but its turn comes after the request closes).
+   */
   reason: string | null;
-  /** QUEUED: earliest moment the e-mail leaves (ISO). */
+  /** QUEUED: the moment the e-mail can really leave (ISO) - after the 7-day hold of the address, when it has one. */
   sendAfter: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -38,14 +47,15 @@ const MAX_ROWS = 500;
  * Queue row -> what the buyer is told. Pure; the vocabulary is
  * `candidateInvite`'s: INVITED = the e-mail was sent, QUEUED (+ `sendAfter`),
  * NOT_SENT (+ reason: the dispatcher's cancel reason, `CANCELLED` for a
- * withdrawn invitation, `FAILED` for a failed delivery).
+ * withdrawn invitation, `FAILED` for a failed delivery; for a row still in the
+ * queue that will not leave before the request closes, the forecast's reason).
  */
-export function emailInviteOutcome(row: { state: string; cancelReason: string | null; sendAfter: Date }): {
+export function emailInviteOutcome(row: ScreenQueueRow): {
   invite: EmailInviteState;
   reason: string | null;
   sendAfter: string | null;
 } {
-  // No member, a queue row present: `candidateInvite` answers from the row alone.
+  // No member, a queue row present: `candidateInvite` answers from the row and its forecast.
   const out = candidateInvite({ status: "INVITED", memberCompanyId: null, memberInvited: false, queue: row, active: false });
   return {
     invite: out.invite === "INVITED" || out.invite === "QUEUED" ? out.invite : "NOT_SENT",
@@ -70,16 +80,20 @@ export function emailInviteOutcome(row: { state: string; cancelReason: string | 
  */
 @Injectable()
 export class ListingEmailInvitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    /** Forecast of the queued rows: every buyer's letters to the address (sent and queued), not only this company's. */
+    private readonly bypass: PrismaBypassService,
+  ) {}
 
   async forListing(user: AuthenticatedCompanyUser, listingId: string): Promise<{ items: ListingEmailInvite[] }> {
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true },
+      select: { id: true, closesAt: true },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
 
-    const rows = await this.prisma.externalListingInvite.findMany({
+    const stored = await this.prisma.externalListingInvite.findMany({
       where: { listingId: listing.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: MAX_ROWS,
@@ -96,7 +110,9 @@ export class ListingEmailInvitesService {
         createdAt: true,
       },
     });
-    if (rows.length === 0) return { items: [] };
+    if (stored.length === 0) return { items: [] };
+    // Same forecast as the run's band and the creator's message (AUTO-COUNT-1).
+    const rows = await withQueueForecast(this.bypass, stored, listing, new Date());
 
     // Company name: only what the discovery of THIS request found for the
     // address (newest run wins). A typed address has no name.

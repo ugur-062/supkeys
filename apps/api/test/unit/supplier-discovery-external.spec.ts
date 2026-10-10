@@ -15,7 +15,10 @@ import {
   worstSearchMs,
   type DiscoveryAiRunner,
 } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
-import { ExternalDiscoveryDto } from "../../src/modules/ai/supplier-discovery/supplier-discovery.controller";
+import {
+  ExternalDiscoveryDto,
+  SupplierDiscoveryController,
+} from "../../src/modules/ai/supplier-discovery/supplier-discovery.controller";
 import {
   fitsInTick,
   STUCK_AFTER_MS,
@@ -26,6 +29,8 @@ import { AiTimeoutException } from "../../src/modules/ai/ai.service";
 import { AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiProviderTimeoutError } from "../../src/modules/ai/providers/ai-provider.interface";
 import { inviteReachesAddress } from "../../src/common/company/external-invite-policy";
+import { translateValidatorMessage } from "../../src/common/error-messages";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 import { companyMailDomain, domainOwnName, isFreeMailDomain, ownsMailDomain } from "../../src/common/net/free-mail-domains";
 import {
   declaresRequestCategory,
@@ -592,6 +597,62 @@ describe("R5-03 — eksik kapsamın nedeni ve yalnız o kapsamı arama", () => {
     expect(await errorsOf({ scopes: ["LOCAL", "LOCAL"] })).toEqual(["scopes"]);
     expect(await errorsOf({ scopes: "ABROAD" })).toEqual(["scopes"]);
     expect(await errorsOf({ scope: ["ABROAD"] })).toEqual(["scope"]);
+  });
+
+  // Canlı doğrulama 2026-10-10, AS-5: yinelenen kapsam "All scopes's elements must be unique" diye ham İngilizce dönüyordu.
+  it("AS-5: yinelenen `scopes` reddi istek dilinde döner (ham class-validator metni değil)", async () => {
+    /** Alan mesajı, doğrulama borusunun (`main.ts` `exceptionFactory`) ürettiği gibi. */
+    const fieldMessage = (locale: string, scopes: string[]) =>
+      runWithLocale(locale, async () => {
+        const [error] = await validate(plainToInstance(ExternalDiscoveryDto, { type: "ALIM", scopes }), {
+          whitelist: true,
+          forbidNonWhitelisted: true,
+        });
+        return translateValidatorMessage(Object.values(error!.constraints ?? {})[0]!);
+      });
+    expect(await fieldMessage("tr", ["LOCAL", "LOCAL"])).toBe("Aynı öğe birden fazla kez seçilemez");
+    expect(await fieldMessage("en", ["LOCAL", "LOCAL"])).toBe("The same item cannot be selected more than once");
+    expect(await fieldMessage("ru", ["ABROAD", "ABROAD"])).toBe("Один и тот же элемент нельзя выбрать более одного раза");
+    // Aynı alanın öteki kuralı eskisi gibi çevrilir.
+    expect(await fieldMessage("tr", ["ALL"])).toBe("Geçersiz seçim");
+  });
+});
+
+/**
+ * AS-4 gözden geçirmesi: süren aramaya sonradan katılan sekmenin sayacı yoklama
+ * yanıtındaki `startedAt` ile kuruluyordu — sunucu saatindeki bir AN, tarayıcının
+ * saatiyle karşılaştırılıyordu (tarayıcı saati yarım dakika ileri / geri ise
+ * sayaç yanlış). Yanıt artık bir SÜRE de taşır: aramanın kaç milisaniyedir
+ * sürdüğü, sunucunun kendi saatiyle ölçülmüş; ortak saat gerektirmez.
+ */
+describe("AS-4 — yoklama yanıtı `elapsedMs` taşır (sunucu saatiyle geçen süre)", () => {
+  const NOW = Date.parse("2026-10-09T14:00:14.700Z");
+  const controllerFor = (view: Record<string, unknown>) => {
+    const service = { externalSearchStatus: jest.fn().mockReturnValue(view) };
+    return { service, controller: new SupplierDiscoveryController(service as never) };
+  };
+
+  let clock: jest.SpyInstance;
+  beforeEach(() => {
+    clock = jest.spyOn(Date, "now").mockReturnValue(NOW);
+  });
+  afterEach(() => {
+    clock.mockRestore();
+  });
+
+  it("süren arama: kayıt anından bu yana geçen süre; servisin görünümü aynen durur", () => {
+    const view = { status: "RUNNING", startedAt: "2026-10-09T14:00:00.000Z" };
+    const { service, controller } = controllerFor(view);
+    expect(controller.externalSearch(user, "s1")).toEqual({ ...view, elapsedMs: 14_700 });
+    expect(service.externalSearchStatus).toHaveBeenCalledWith(user, "s1");
+  });
+
+  it("biten aramada sonuç gövdesine dokunulmaz; süre negatif olamaz", () => {
+    const result = { companies: [], incompleteScopes: [] };
+    const done = controllerFor({ status: "DONE", startedAt: "2026-10-09T13:58:00.000Z", result }).controller.externalSearch(user, "s1");
+    expect(done).toEqual({ status: "DONE", startedAt: "2026-10-09T13:58:00.000Z", result, elapsedMs: 134_700 });
+    const ahead = controllerFor({ status: "RUNNING", startedAt: "2026-10-09T14:00:15.000Z" }).controller.externalSearch(user, "s1");
+    expect(ahead.elapsedMs).toBe(0);
   });
 });
 

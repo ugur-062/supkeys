@@ -800,7 +800,12 @@ describe("N1 — routes (shared contract with the web)", () => {
     const dto = { type: "ALIM" as const, listingId: "l1", scopes: ["LOCAL" as const] };
     await expect(controller.startExternal(user, dto)).resolves.toEqual({ searchId: "s1" });
     expect(service.startExternalSearch).toHaveBeenCalledWith(user, dto);
-    expect(controller.externalSearch(user, "s1")).toEqual({ status: "RUNNING", startedAt: "2026-10-09T14:00:00.000Z" });
+    // The status answer is the service's view + `elapsedMs` (contract: supplier-discovery-external.spec.ts, "AS-4").
+    expect(controller.externalSearch(user, "s1")).toEqual({
+      status: "RUNNING",
+      startedAt: "2026-10-09T14:00:00.000Z",
+      elapsedMs: expect.any(Number),
+    });
     expect(service.externalSearchStatus).toHaveBeenCalledWith(user, "s1");
   });
 

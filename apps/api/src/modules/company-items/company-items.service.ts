@@ -1811,9 +1811,18 @@ export class CompanyItemsService {
       requiredAttributeKeys: defs.filter((d) => d.isRequired).map((d) => d.key),
     });
     // Skor DB'ye de yazılır (sıralama/rapor için); yanıt taze hesaptan döner.
-    void this.prisma.companyItem
-      .update({ where: { id: r.id }, data: { completionScore: completion.score } })
-      .catch(() => undefined);
+    // DERIVED COLUMN, WRITTEN ONLY WHEN IT DIFFERS AND WITH RAW SQL (live check
+    // 2026-10-10, NEW-PF-3). This used to be an unconditional Prisma `update`:
+    // merely opening a product rewrote the row and advanced `@updatedAt` - the
+    // product sitemap's lastmod and the translation coverage check read that
+    // column, so an owner browsing their own products made them look changed
+    // (also published ones). The condition is in the statement itself: a score
+    // that is already stored touches no row. Bypass client: raw statements are
+    // not wrapped by the RLS extension; the id is the caller's own row (every
+    // caller of this serializer loaded it inside the owner's scope).
+    void this.crossTenant.$executeRaw`
+      UPDATE "company_items" SET "completionScore" = ${completion.score}
+      WHERE "id" = ${r.id} AND "completionScore" <> ${completion.score}`.catch(() => undefined);
     return {
       id: r.id,
       name: r.name,

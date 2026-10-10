@@ -350,7 +350,7 @@ describe("Faz AI-2 — araç kümesi (bağlayıcı yazma YOK)", () => {
 });
 
 describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
-  it("başka firmanın ihale id'si sorulunca unavailable — firma verisi asistana gitmez", async () => {
+  it("başka firmanın ihale id'si sorulunca not_found (kesinti değil) — firma verisi asistana gitmez", async () => {
     const provider = new FakeProvider();
     const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
@@ -372,10 +372,136 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     await svc.message(a.auth, { message: `${bListing.id} detayı` });
 
     const responses = toolResponses(provider.calls[1]!);
-    expect(responses).toContainEqual({ error: "unavailable" });
+    expect(responses).toEqual([{ error: "not_found" }]);
     // B'nin başlığı hiçbir çağrının history'sinde/prompt'unda GEÇMEZ.
     const allText = JSON.stringify(provider.calls);
     expect(allText).not.toContain("GIZLI-B-IHALESI");
+  });
+
+  /**
+   * Canlı doğrulama 2026-10-10, NEW-PF-1 — "ROT-000834 talebimin kategorisi
+   * nedir?" iki denemede iki kez düştü: araç yalnız iç kimliği alıyordu, model
+   * (istemin dediği gibi) numarayı verdi, okuma 404 oldu ve nötr "unavailable"
+   * modele geçici kesinti gibi göründü ("biraz sonra tekrar deneyin").
+   */
+  describe("NEW-PF-1: talep NUMARASIYLA sorulan soru yanıtlanır", () => {
+    /** Modelin detay aracına verdiği başvuru → modele dönen araç sonucu. */
+    async function detailResult(
+      asker: Parameters<AssistantService["message"]>[0],
+      ref: string,
+      setup: (b: ReturnType<typeof build>) => void = () => undefined,
+      tool: "get_tender_detail" | "get_order_detail" = "get_tender_detail",
+    ) {
+      const provider = new FakeProvider();
+      provider.steps = [{ toolCalls: [{ name: tool, args: { id: ref } }] }, { text: "tamam" }];
+      const built = build(makeCfg(), provider);
+      setup(built);
+      const reply = await built.svc.message(asker, { message: `${ref} talebimin kategorisi nedir?` });
+      return { result: toolResponses(provider.calls[1]!)[0]!, reply, provider, ...built };
+    }
+
+    it("kendi talebi numarayla bulunur (kullanıcının yazdığı her biçimde); araç sonucu talebin kendisidir", async () => {
+      const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+      const mine = await makeListing(prisma, {
+        companyId: co.company.id,
+        createdById: co.user.id,
+        type: "ALIM",
+        status: "OPEN",
+        number: "ROT-000834",
+        title: "NUMARALI-TALEP",
+        categoryIds: ["31161500"],
+      });
+      const auth = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]);
+
+      for (const ref of ["ROT-000834", "rot-000834", "#ROT-834"]) {
+        const { result, reply } = await detailResult(auth, ref);
+        expect(result).not.toHaveProperty("error");
+        expect(result.data).toMatchObject({ id: mine.id, number: "ROT-000834", title: "NUMARALI-TALEP", categoryIds: ["31161500"] });
+        expect(reply.toolsUsed).toEqual(["get_tender_detail"]);
+      }
+      // İç kimlik eskisi gibi çalışır.
+      expect((await detailResult(auth, mine.id)).result.data).toMatchObject({ number: "ROT-000834" });
+    });
+
+    it("başka firmanın numarası ve hiç olmayan numara AYNI yanıtı alır: not_found — başlık modele gitmez", async () => {
+      const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      await makeListing(prisma, {
+        companyId: b.company.id,
+        createdById: b.user.id,
+        type: "ALIM",
+        status: "OPEN",
+        visibility: "PRIVATE",
+        number: "ROT-000900",
+        title: "GIZLI-B-IHALESI",
+      });
+
+      const foreign = await detailResult(a.auth, "ROT-000900");
+      const missing = await detailResult(a.auth, "ROT-999999");
+      expect(foreign.result).toEqual({ error: "not_found" });
+      expect(missing.result).toEqual(foreign.result);
+      expect(JSON.stringify(foreign.provider.calls)).not.toContain("GIZLI-B-IHALESI");
+    });
+
+    it("satış tarafı: görebildiği açık talebi numarayla da açar (kimlikle açabildiğinden fazlası değil)", async () => {
+      const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const seller = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATISCI] });
+      const open = await makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        type: "ALIM",
+        status: "OPEN",
+        visibility: "PUBLIC",
+        number: "ROT-000901",
+        title: "ACIK-TALEP",
+      });
+      const { result } = await detailResult(authFor(seller.user, seller.company.id, [CompanyRole.SATISCI]), "ROT-000901");
+      expect(result.data).toMatchObject({ id: open.id, title: "ACIK-TALEP", isOwner: false });
+    });
+
+    it("gerçek kesinti 'unavailable' kalır: bulunamadı ile kesinti modele AYRI söylenir", async () => {
+      const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      await makeListing(prisma, { companyId: co.company.id, createdById: co.user.id, type: "ALIM", number: "ROT-000834" });
+      const outage = await detailResult(co.auth, "ROT-000834", (b) => {
+        jest.spyOn(b.listings, "getOne").mockRejectedValueOnce(new Error("connection reset"));
+      });
+      expect(outage.result).toEqual({ error: "unavailable" });
+      // Numara okuması düşerse de kesintidir (bulunamadı DEĞİL).
+      const lookup = jest.spyOn(prisma.listing, "findUnique").mockRejectedValueOnce(new Error("pool timeout"));
+      try {
+        expect((await detailResult(co.auth, "ROT-000834")).result).toEqual({ error: "unavailable" });
+      } finally {
+        lookup.mockRestore();
+      }
+    });
+
+    it("sipariş numarası (ROT-ORD-…) iç kimliğe çözülüp sipariş okumasına verilir; olmayan numara not_found", async () => {
+      const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const seller = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const order = await prisma.companyOrder.create({
+        data: {
+          number: "ROT-ORD-000012",
+          sellerCompanyId: seller.company.id,
+          buyerCompanyId: buyer.company.id,
+          amount: 1000,
+          status: "IN_DELIVERY",
+          paymentTiming: "AFTER_DELIVERY",
+        } as never,
+      });
+
+      const found = await detailResult(
+        buyer.auth,
+        "rot-ord-12",
+        (b) => b.orders.getOne.mockResolvedValueOnce({ id: order.id, number: "ROT-ORD-000012", status: "IN_DELIVERY" } as never),
+        "get_order_detail",
+      );
+      expect(found.orders.getOne).toHaveBeenCalledWith(expect.objectContaining({ companyId: buyer.company.id }), order.id);
+      expect(found.result.data).toMatchObject({ number: "ROT-ORD-000012" });
+
+      const missing = await detailResult(buyer.auth, "ROT-ORD-999999", undefined, "get_order_detail");
+      expect(missing.orders.getOne).not.toHaveBeenCalled();
+      expect(missing.result).toEqual({ error: "not_found" });
+    });
   });
 
   it("SA kullanıcı kendi ALIM ihalelerini görebilir (portal-izinli)", async () => {
@@ -547,18 +673,33 @@ describe("Faz AI-2 — injection + nötr hata + oturum", () => {
     expect(call.system).not.toContain("YOKSAY");
   });
 
-  it("nötr hata: 403 ve 404 AYNI unavailable'a düşer (ayrım sızmaz)", async () => {
+  it("detay aracında 403 ve 404 AYNI not_found'a düşer (ayrım sızmaz); kesintinin yanıtı 'unavailable' ondan ayrıdır", async () => {
+    const ask = async (failure: Error) => {
+      const provider = new FakeProvider();
+      provider.steps = [
+        { toolCalls: [{ name: "get_order_detail", args: { id: "yok-1" } }] },
+        { text: "bulamadım" },
+      ];
+      const { svc, orders } = build(makeCfg(), provider);
+      orders.getOne.mockRejectedValueOnce(failure as never);
+      const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      await svc.message(co.auth, { message: "sipariş yok-1" });
+      expect(orders.getOne).toHaveBeenCalled();
+      return toolResponses(provider.calls[1]!);
+    };
+    expect(await ask(new NotFoundException("Sipariş bulunamadı"))).toEqual([{ error: "not_found" }]);
+    expect(await ask(new ForbiddenException("yetki yok"))).toEqual([{ error: "not_found" }]);
+    expect(await ask(new Error("connection reset"))).toEqual([{ error: "unavailable" }]);
+  });
+
+  it("LİSTE aracının reddi (yetki / doğrulama kapısı) 'bulunamadı' DEĞİLDİR: nötr 'unavailable' kalır", async () => {
     const provider = new FakeProvider();
-    provider.steps = [
-      { toolCalls: [{ name: "get_order_detail", args: { id: "yok-1" } }] },
-      { text: "ulaşamadım" },
-    ];
+    provider.steps = [{ toolCalls: [{ name: "list_my_orders", args: {} }] }, { text: "ulaşamadım" }];
     const { svc, orders } = build(makeCfg(), provider);
+    orders.list.mockRejectedValueOnce(new ForbiddenException("yetki yok") as never);
     const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
-    // orders.getOne NotFound fırlatır (fake) → nötrlenir.
-    await svc.message(co.auth, { message: "sipariş yok-1" });
-    expect(orders.getOne).toHaveBeenCalled();
-    expect(toolResponses(provider.calls[1]!)).toContainEqual({ error: "unavailable" });
+    await svc.message(co.auth, { message: "siparişlerim" });
+    expect(toolResponses(provider.calls[1]!)).toEqual([{ error: "unavailable" }]);
   });
 
   it("oturum kullanıcıya scope'lu: başka kullanıcının sessionId'si 404", async () => {
