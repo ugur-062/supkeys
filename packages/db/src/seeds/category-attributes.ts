@@ -808,7 +808,7 @@ export const CATEGORY_ATTRIBUTES: Record<string, AttrDef[]> = {
     DURUM_OPSIYONEL,
   ],
 
-  // ── 46 · Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları ──
+  // ── 46 · İş Güvenliği ve Yangın Ekipmanları (2026-10-10'a dek "Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları") ──
   "46000000": [
     {
       key: "urun_grubu",

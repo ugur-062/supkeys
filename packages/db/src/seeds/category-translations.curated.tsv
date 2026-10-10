@@ -6,10 +6,10 @@
 # seçicisinin ilk ekranında herkes segment adlarını görüyor.
 #
 # Segment adları (L1) — 2026-09-02, elle çevrildi. Ariba TR dışa aktarımında
-# bu 9 segment çevrilmemiş kalmıştı.
+# bu 9 segment çevrilmemiş kalmıştı. (46000000 sonradan yeniden adlandırıldı;
+# satırı dosyanın sonundaki 2026-10-10 bölümünde.)
 
 25000000	Araçlar, Aksesuarları ve Bileşenleri	Vehicles and their Accessories and Components
-46000000	Kolluk, Ulusal Güvenlik ve Emniyet Ekipmanları	Law Enforcement and National Security and Security and Safety Equipment and Supplies
 50000000	Gıda ve İçecek Ürünleri	Food and Beverage Products
 51000000	İlaç Ürünleri (Doğum Kontrol ve Aşılar Dahil)	Pharmaceutical Products incl. Contraceptives and Vaccines
 57000000	İnsani Yardım Malzemeleri, Kitleri ve Aksesuarları	Humanitarian Relief Items, Kits, or Accessories
@@ -21994,3 +21994,12 @@
 # yaprak (81141601, Tedarik zinciri yönetimi altında) ad tekilliği için ayrıştırıldı.
 78000000	Lojistik	Taşıma, Depolama ve Posta Hizmetleri
 81141601	Lojistik yönetimi	Lojistik
+
+# 2026-10-10 (sahip kararı): 46 segmenti geri açıldı ve adı "İş Güvenliği ve Yangın
+# Ekipmanları" oldu; altındaki silah ve kolluk dalları gizli kalır (`@rothern/shared`
+# `HIDDEN_BRANCH_PREFIXES`). 3. sütun BİLİNÇLİ BOŞ: Ariba'daki ad ("Law Enforcement and
+# National Security and Security and Safety Equipment and Supplies", `ariba-categories.tsv`de
+# durur) artık gizli dalların konusu — 3. sütun aramaya katıldığı için buraya YAZILMAZ
+# ("law enforcement" araması görünür sektörü bulmasın); güvenlik sözcükleri
+# `category-keywords.tsv` satırında.
+46000000	İş Güvenliği ve Yangın Ekipmanları

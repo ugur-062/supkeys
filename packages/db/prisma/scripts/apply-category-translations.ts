@@ -10,6 +10,18 @@
  *
  * ÖNCE `check-category-translations` koş — çakışma denetimi ordadır.
  *
+ * DAĞITIMA GÖRE SIRA. API kategori adını tablodan okur ve bu betikler
+ * dağıtımdan SONRA koşulur (operatör adımı; canlıda API dağıtımından sonra, web
+ * yayına alınmadan önce). Bir sürüm kategoriyi GÖRÜNÜR yaparken adını da
+ * değiştiriyorsa (2026-10-10: 46000000, "İş Güvenliği ve Yangın Ekipmanları";
+ * 78000000 "Lojistik") yeni ad AYRICA küçük bir veri migration'ıyla yazılır
+ * (`20261010120000_category_rename_safety_logistics`): ad, görünürlükle aynı
+ * anda (API açılışı) yerine oturur, betik beklenmez. Migration'daki değerler
+ * bu betiklerin yazdığıyla aynıdır — betik sonradan koşunca o satırlar değişmez.
+ * Yalnız bu betik koşulursa EN / RU ad eski kalır (sözleşme: API
+ * `test/integration/seed-scripts-hidden-category.spec.ts`,
+ * `category-rename-migration.spec.ts`).
+ *
  * Çalıştırma: `pnpm --filter @rothern/db apply-category-translations`
  *   --dry   yalnız ne değişeceğini yazar, DB'ye dokunmaz
  */

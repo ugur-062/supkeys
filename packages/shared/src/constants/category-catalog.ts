@@ -1,3 +1,5 @@
+import { categoryPrefix } from "../helpers/category-code";
+
 /**
  * Kategori kataloğu ekseni — Ariba'nın İKİ dışa aktarımı var ve platformda
  * İKİ AYRI yerde kullanılıyorlar:
@@ -48,25 +50,58 @@ export function categoryCatalogWhere(catalog: CategoryCatalog): CategoryCatalogW
 export type CategoryCatalogWhere = { inDiscovery?: true } & HiddenCategoryWhere;
 
 /**
- * GİZLİ SEGMENTLER — KATALOG SADELEŞTİRME (2026-09-19, kullanıcı kararı:
+ * GİZLİ KATEGORİLER — KATALOG SADELEŞTİRME (2026-09-19, kullanıcı kararı:
  * "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
  * kaldır"). Ariba kataloğu BİREBİR kalır (satır silinmez, `seed-categories`
- * ve çeviri katmanı dokunulmaz); bu liste yalnız hangi SEGMENTLERİN
- * (L1, ilk iki hane) ürün arayüzünde GÖRÜNMEYECEĞİNİ söyler. Tek kaynak:
- * seçiciler, arama, facet, herkese açık kategori sayfaları, sitemap, AI
- * önerisi ve doğrulama kapıları hepsi buradan okur. Geri almak = listeden
- * çıkarmak.
+ * ve çeviri katmanı dokunulmaz); buradaki iki liste yalnız hangi DALLARIN
+ * ürün arayüzünde GÖRÜNMEYECEĞİNİ söyler. Tek kaynak: seçiciler, arama,
+ * facet, herkese açık kategori sayfaları, sitemap, AI önerisi ve doğrulama
+ * kapıları hepsi buradan okur. Geri almak = listeden çıkarmak.
  *
- * 2026-10-09 (kullanıcı kararı): 46 (Kolluk, Ulusal Güvenlik ve Emniyet
- * Ekipmanları) ve 77 (Çevre Hizmetleri) de gizlendi — "anasayfadan kaldır;
- * anasayfada olmayan kategori talepte, üründe ya da başka yerde de
- * gösterilmesin". Anasayfa vitrini görünür segmentlerin TAMAMINI çizer
- * (`buildShowcase` limit 100), yani "anasayfada görünen" = "bu listede
- * olmayan"; kategori gösteren her yüzey bu listeden okur.
+ * KURALIN BİRİMİ KOD ÖNEKİDİR (2026-10-10): hiyerarşi koddan türediği için
+ * (segment = ilk 2 hane, aile = ilk 4, sınıf = ilk 6) bir dalı gizlemek o
+ * öneki listeye yazmaktır. Gizli önekin altındaki kategori hiç kimseye,
+ * hiçbir yüzeyde gösterilmez (ad, çip, kırıntı, bağlantı, süzgeç seçeneği,
+ * sayı, ikon / fotoğraf, e-posta, AI istemi); eski kayıt durur; eşleştirme
+ * ve bildirim saklanan kodların tamamını kullanır; yeni ya da değişen değer
+ * görünür olmalıdır.
  *
- * Kalan 27 segment: malzeme (11 12 13 14 15 30 31 32), makine/ekipman
- * (20 21 22 23 24 25 26 27 39 40 41 47), endüstriyel hizmet (71 72 73 76
- * 78 81) + 95 (yapılar ve altyapı).
+ *   `HIDDEN_SEGMENTS`         — tümüyle gizli segmentler (2 hane).
+ *   `HIDDEN_BRANCH_PREFIXES`  — GÖRÜNÜR bir segmentin gizli aileleri (4 hane)
+ *                               ve sınıfları (6 hane).
+ *   `HIDDEN_CATEGORY_PREFIXES`— ikisinin birleşimi; aşağıdaki bütün
+ *                               yardımcılar YALNIZ bunu okur (tek tanım).
+ *
+ * 2026-10-09 (kullanıcı kararı): 77 (Çevre Hizmetleri) gizlendi —
+ * "anasayfadan kaldır; anasayfada olmayan kategori talepte, üründe ya da
+ * başka yerde de gösterilmesin". Anasayfa vitrini görünür segmentlerin
+ * TAMAMINI çizer (`buildShowcase` limit 100), yani "anasayfada görünen
+ * sektör" = "`HIDDEN_SEGMENTS`te olmayan"; kategori gösteren her yüzey
+ * buradan okur. Aynı gün 46 da tümüyle gizlenmişti.
+ *
+ * 2026-10-10 (sahip kararı): 46 GERİ AÇILDI ve adı değişti — TR "İş Güvenliği
+ * ve Yangın Ekipmanları" · EN "Workplace Safety and Fire Equipment" · RU
+ * "Средства охраны труда и противопожарное оборудование" (Ariba adı "Law
+ * Enforcement and National Security and Security and Safety Equipment and
+ * Supplies"). Segmentin altında baret, eldiven, yangın ve iş güvenliği
+ * grupları seçilebilir; yalnız silah ve kolluk dalları gizli kalır
+ * (`HIDDEN_BRANCH_PREFIXES`). 46'nın görünür aileleri: 4616 (trafik
+ * kontrolü, su güvenliği, kurtarma), 4617 (kilit, gözetleme, araç geçiş
+ * kontrolü), 4618 (kişisel koruyucu donanım; 461825 hariç), 4619 (yangından
+ * korunma), 4621 (iş güvenliği).
+ *
+ * YENİ SONUÇ — GÖRÜNÜR ATANIN GİZLİ TORUNU OLABİLİR. Görünür bir kategorinin
+ * ALT AĞACINI gezen ya da sayan her şey (alt liste, arama, öneri, "46
+ * altındaki ürünler / talepler / firmalar" süzgeçleri ve sayıları, segmente
+ * yuvarlama, sitemap, iniş sayfaları) gizli torunları dışarıda bırakır:
+ * 4610xxxx'te saklanmış kayıt "İş Güvenliği ve Yangın Ekipmanları" altında
+ * listelenmez, sayılmaz. Bunun yapı taşları `hiddenPrefixesUnder`,
+ * `categorySubtreeWhere`, `categorySubtreeMatcher` ve (ata zinciri saklayan
+ * firma beyanı için) `visibleCompanyCategorySelection`.
+ *
+ * Görünür segmentler: malzeme (11 12 13 14 15 30 31 32), makine / ekipman
+ * (20 21 22 23 24 25 26 27 39 40 41 47), iş güvenliği ve yangın (46),
+ * endüstriyel hizmet (71 72 73 76 78 81), yapılar ve altyapı (95).
  */
 export const HIDDEN_SEGMENTS: readonly string[] = [
   "10", // Canlı bitkiler, hayvanlar
@@ -74,7 +109,6 @@ export const HIDDEN_SEGMENTS: readonly string[] = [
   "43", // Bilgisayar, yazılım, telekom
   "44", // Ofis ekipmanı
   "45", // Baskı, fotoğraf, ses-video
-  "46", // Kolluk, ulusal güvenlik ve emniyet ekipmanları (2026-10-09)
   "48", // Hizmet sektörü ekipmanı
   "49", // Spor
   "50", // Gıda ve içecek
@@ -102,22 +136,65 @@ export const HIDDEN_SEGMENTS: readonly string[] = [
   "94", // Organizasyonlar ve kulüpler
 ];
 
-const HIDDEN_SET: ReadonlySet<string> = new Set(HIDDEN_SEGMENTS);
+/**
+ * GÖRÜNÜR bir segmentin gizli aileleri (4 hane) ve sınıfları (6 hane).
+ * 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+ * açık; silah ve kolluk dalları gizli. Bir önek, başka bir gizli önekin
+ * altına YAZILMAZ (zaten gizlidir) — `hidden-segments.spec` kilitler.
+ */
+export const HIDDEN_BRANCH_PREFIXES: readonly string[] = [
+  "4610", // Hafif silahlar ve mühimmat
+  "4611", // Geleneksel savaş silahları
+  "4612", // Füzeler
+  "4613", // Roketler ve alt sistemleri
+  "4614", // Fırlatıcılar
+  "4615", // Kolluk ekipmanları (kalabalık kontrol, adli, patlayıcı kontrol)
+  "4620", // Savunma ve kolluk eğitim ekipmanları (kamu güvenliği, hafif silah)
+  "4622", // Askeri silah ve mühimmat imha, mayın temizleme
+  "461825", // Kişisel güvenlik cihazları veya silahları (görünür 4618 ailesinin gizli sınıfı)
+];
 
-/** Kod (herhangi seviye, 8 hane) gizli bir segmentin altında mı? */
+/** Gizli öneklerin TAMAMI (segment + aile + sınıf) — kuralın TEK tanımı. */
+export const HIDDEN_CATEGORY_PREFIXES: readonly string[] = [...HIDDEN_SEGMENTS, ...HIDDEN_BRANCH_PREFIXES];
+
+const HIDDEN_PREFIX_SET: ReadonlySet<string> = new Set(HIDDEN_CATEGORY_PREFIXES);
+/** Listede geçen önek uzunlukları, kısadan uzuna. */
+const HIDDEN_PREFIX_LENGTHS: readonly number[] = [...new Set(HIDDEN_CATEGORY_PREFIXES.map((p) => p.length))].sort(
+  (a, b) => a - b,
+);
+
+/**
+ * Kodu kapsayan gizli önek ("10" · "4610" · "461825"); görünürse `null`.
+ * Girdi 8 haneli kod ya da kodun baş kısmıdır (kod aramasına yazılan "4610").
+ * Önekin uzunluğu gizlemenin DÜZEYİNİ söyler: 2 segment, 4 aile, 6 sınıf.
+ */
+export function hiddenCategoryPrefixOf(code: string | null | undefined): string | null {
+  if (!code) return null;
+  for (const length of HIDDEN_PREFIX_LENGTHS) {
+    if (code.length < length) break;
+    const prefix = code.slice(0, length);
+    if (HIDDEN_PREFIX_SET.has(prefix)) return prefix;
+  }
+  return null;
+}
+
+/** Kod (herhangi seviye) gizli bir önekin — segment, aile ya da sınıf — altında mı? */
 export function isHiddenCategory(code: string | null | undefined): boolean {
-  if (!code || code.length < 2) return false;
-  return HIDDEN_SET.has(code.slice(0, 2));
+  return hiddenCategoryPrefixOf(code) !== null;
 }
 
 /**
- * SAKLANMIŞ kodları GÖSTERİME hazırlar: gizli segmentin altındaki kodlar düşer,
+ * SAKLANMIŞ kodları GÖSTERİME hazırlar: gizli bir önekin altındaki kodlar düşer,
  * sıra korunur. Kural (2026-10-09, kullanıcı): "anasayfada olmayan kategori
  * talepte, üründe ya da başka yerde de gösterilmesin" — kataloğu GEZDİREN
  * yüzeyler `hiddenCategoryWhere` ile zaten süzülüyordu; saklanmış bir kodu ada
  * / etikete / bağlantıya / sayıya çeviren her okuma da BURADAN geçer (eski
  * kayıt durur, yalnız gizli kategorisi görünmez). Eşleştirme ve bildirim
  * saklanan kodların TAMAMINI kullanmaya devam eder — bu yardımcı oraya girmez.
+ *
+ * Ata zinciri SAKLAYAN kayıtta (firma beyanı: segment + aile + sınıf + yaprak)
+ * bu tek başına yetmez — gizli seçimin görünür atası geride kalır. Orada
+ * `visibleCompanyCategorySelection` kullanılır.
  */
 export function visibleCategoryIds<T extends string | null | undefined>(ids: readonly T[] | null | undefined): string[] {
   const out: string[] = [];
@@ -130,11 +207,106 @@ export function visibleCategoryId(id: string | null | undefined): string | null 
   return id && !isHiddenCategory(id) ? id : null;
 }
 
-export type HiddenCategoryWhere = { NOT: { id: { startsWith: string } }[] };
+/** Tek `startsWith` koşulu; `F` kategori kodunu tutan Prisma alanı (`id`, `categoryId`, …). */
+export type CategoryPrefixClause<F extends string = "id"> = Record<F, { startsWith: string }>;
 
-/** Prisma `where` parçası — gizli segmentlerin altındaki kodları dışarıda bırakır. */
-export function hiddenCategoryWhere(): HiddenCategoryWhere {
-  return { NOT: HIDDEN_SEGMENTS.map((p) => ({ id: { startsWith: p } })) };
+export type HiddenCategoryWhere<F extends string = "id"> = { NOT: CategoryPrefixClause<F>[] };
+
+function prefixClause<F extends string>(field: F, prefix: string): CategoryPrefixClause<F> {
+  return { [field]: { startsWith: prefix } } as CategoryPrefixClause<F>;
+}
+
+/**
+ * Prisma `where` parçası — gizli öneklerin altındaki kodları dışarıda bırakır.
+ * Alan verilmezse `Category.id` (biçim eskisiyle aynı); kodu başka adla tutan
+ * tabloda alan adıyla çağrılır: `hiddenCategoryWhere("categoryId")`.
+ *
+ * ⚠️ Parça `NOT` anahtarı taşır: yanına ikinci bir `NOT` SPREAD EDİLMEZ
+ * (anahtar ezilir) — `AND: [hiddenCategoryWhere(), …]`.
+ * ⚠️ NULL olabilen alanda `NOT startsWith` kategorisiz (NULL) satırı da eler;
+ * o satırlar kalacaksa çağıran `OR: [{ alan: null }, hiddenCategoryWhere("alan")]` kurar.
+ */
+export function hiddenCategoryWhere(): HiddenCategoryWhere;
+export function hiddenCategoryWhere<F extends string>(field: F): HiddenCategoryWhere<F>;
+export function hiddenCategoryWhere(field: string = "id"): HiddenCategoryWhere<string> {
+  // Aşırı yükleme, tür parametresi değil: argümansız çağrının dönüş türü
+  // bağlamdan ÇIKARILMAZ (`AND: [hiddenCategoryWhere()]` içinde alan adı
+  // `keyof …WhereInput`e genişler ve atama düşerdi), her zaman `id`dir.
+  return { NOT: HIDDEN_CATEGORY_PREFIXES.map((p) => prefixClause(field, p)) };
+}
+
+/**
+ * ALT AĞAÇ ÖNEKİ — 8 haneli kod seviyesine göre kesilir (`categoryPrefix`:
+ * `46000000` → `46`, `46180000` → `4618`, yaprak → kendisi); 2 / 4 / 6 haneli
+ * girdi zaten önektir. Geçersiz girdi `null`.
+ */
+function subtreePrefix(codeOrPrefix: string | null | undefined): string | null {
+  if (!codeOrPrefix) return null;
+  if (codeOrPrefix.length === 8) return categoryPrefix(codeOrPrefix);
+  return /^(\d\d){1,3}$/.test(codeOrPrefix) ? codeOrPrefix : null;
+}
+
+/**
+ * Bir kategorinin ALT AĞACINDAKİ gizli önekler (kendisinden UZUN olanlar):
+ * `46000000` / `"46"` → 4610 … 4622 + 461825 · `46180000` / `"4618"` →
+ * 461825 · torunu gizli olmayan kod → `[]`.
+ *
+ * Girdinin KENDİSİ gizliyse de `[]` döner (altında ayrıca gizlenecek bir şey
+ * yok): "gizli kod süzgeç değildir" kararı çağıranındır ve bu çağrıdan ÖNCE
+ * `visibleCategoryId` ile verilir. Ham SQL süzgeci bu listeden kurulur
+ * (`c LIKE '46%' AND NOT (c LIKE ANY(<önek%>))`).
+ */
+export function hiddenPrefixesUnder(codeOrPrefix: string | null | undefined): string[] {
+  const prefix = subtreePrefix(codeOrPrefix);
+  if (!prefix) return [];
+  return HIDDEN_CATEGORY_PREFIXES.filter((hidden) => hidden.length > prefix.length && hidden.startsWith(prefix));
+}
+
+/** `categorySubtreeWhere` sonucu: alt ağaç koşulu + (gizli torun varsa) dışlama listesi. */
+export type CategorySubtreeWhere<F extends string> = CategoryPrefixClause<F> & { NOT?: CategoryPrefixClause<F>[] };
+
+/**
+ * Prisma `where` parçası — "alan `<önek>` ile başlar AMA altındaki gizli bir
+ * önekle başlamaz": görünür bir kategorinin alt ağacındaki kayıtlar, gizli
+ * torunlar hariç. `{ categoryId: { startsWith: categoryPrefix(code) } }`
+ * yazan her yerin karşılığıdır:
+ *
+ *   categorySubtreeWhere("31160000", "categoryId")
+ *     → { categoryId: { startsWith: "3116" } }                     (eskisiyle AYNI)
+ *   categorySubtreeWhere("46180000", "categoryId")
+ *     → { categoryId: { startsWith: "4618" }, NOT: [{ categoryId: { startsWith: "461825" } }] }
+ *
+ * · Gizli torunu olmayan kodda `NOT` anahtarı HİÇ yoktur (bugünkü biçim).
+ * · Geçersiz girdi `null` (çağıran `?? {}` ile "süzgeç yok"a çevirir).
+ * · Girdinin kendisi gizliyse sonuç HAM alt ağaçtır (bkz. `hiddenPrefixesUnder`).
+ * · `NOT` taşıyabildiği için `where`e spread edilmez; `AND: [...]` öğesi olur.
+ * · `Category` tablosunda alan `"id"`dir; orada `hiddenCategoryWhere()` zaten
+ *   bütün gizli önekleri eler, bu parça yalnız alt ağaç koşulunu ekler.
+ */
+export function categorySubtreeWhere<F extends string>(
+  codeOrPrefix: string | null | undefined,
+  field: F,
+): CategorySubtreeWhere<F> | null {
+  const prefix = subtreePrefix(codeOrPrefix);
+  if (!prefix) return null;
+  const hidden = hiddenPrefixesUnder(prefix);
+  const own = prefixClause(field, prefix);
+  return hidden.length > 0 ? { ...own, NOT: hidden.map((p) => prefixClause(field, p)) } : own;
+}
+
+/**
+ * `categorySubtreeWhere`in BELLEKTEKİ ikizi — satırları kodla süzen yerler
+ * (facet sayaçları, alt dal kırılımı): kod alt ağaçta VE gizli bir torun
+ * önekinin altında değilse `true`. Aynı kural, aynı kenar durumları; geçersiz
+ * girdi `null`.
+ */
+export function categorySubtreeMatcher(
+  codeOrPrefix: string | null | undefined,
+): ((code: string | null | undefined) => boolean) | null {
+  const prefix = subtreePrefix(codeOrPrefix);
+  if (!prefix) return null;
+  const hidden = hiddenPrefixesUnder(prefix);
+  return (code) => !!code && code.startsWith(prefix) && !hidden.some((p) => code.startsWith(p));
 }
 
 /**

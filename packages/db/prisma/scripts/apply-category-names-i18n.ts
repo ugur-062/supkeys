@@ -8,6 +8,10 @@
  * Yalnız FARKLI satırlar güncellenir; TSV'de olmayan kod dokunulmaz. Arama
  * metni (`searchText`) EN/RU adları da içerir → ad ya da arama metni farklıysa
  * ikisi birlikte yazılır (i18n arama, 2026-09-24).
+ *
+ * Dağıtıma göre sıra `apply-category-translations` başlığında: betikler
+ * dağıtımdan SONRA koşulur; bir kategoriyi GÖRÜNÜR yapan sürümle gelen yeniden
+ * adlandırma (2026-10-10: 46000000) ayrıca veri migration'ıyla yazılır.
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { prepareScriptDatabase } from "./lib/script-env";
