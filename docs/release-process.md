@@ -170,8 +170,11 @@ edemez; amaç bizim tarafımızdaki her nedeni kaldırmak. **Kodun yaptığı:**
 daveti, hatırlatması, özeti ve "katıl" daveti düz mektup olarak gider (görsel,
 ek, kart, düğme, gizli önizleme metni yok; en fazla dört bağlantı, hepsi
 `WEB_URL` alan adında; HTML 2-4 KB, beş talepli özette en çok ~6 KB; düz metin
-parçası aynı içerik),
-`List-Unsubscribe` + `List-Unsubscribe-Post` ve `Feedback-ID` taşır
+parçası aynı içerik), `Feedback-ID` taşır; **`List-Unsubscribe` +
+`List-Unsubscribe-Post` başlıklarını varsayılan olarak TAŞIMAZ** (2026-10-10,
+sahip kararı: bu iki başlık iletiyi liste postası olarak işaretler ve Gmail'in
+"Tanıtımlar" sekmesine iten en güçlü işarettir; mektubun alt bilgisindeki
+çıkış bağlantısı durur)
 (sözleşme: `cold-invite-plain-letter.spec`, `cold-invite-delivery.spec`).
 **Aşağıdakileri yalnız operatör yapabilir** ve kodun yaptığından daha çok
 belirleyicidir; önem sırasıyla:
@@ -220,10 +223,22 @@ belirleyicidir; önem sırasıyla:
    hangi e-posta türünün şikâyet aldığı buradan okunur. Veri yalnız yeterli
    Gmail hacminde görünür.
 
+7. **`COLD_INVITE_LIST_UNSUBSCRIBE_HEADER` — yalnız hacim büyüyünce.** Davet
+   mektupları bugün `List-Unsubscribe` başlığı taşımaz. Google, Gmail'e günde
+   5.000 ve üzeri ileti gönderen alan adından (bütün akışların toplamı) tek tık
+   çıkış başlığı ister ve bu statü geri alınmaz. Postmaster Tools'ta günlük
+   Gmail hacmi 5.000'e yaklaşırken Render `api` ortamında değişken TAM OLARAK
+   `true` yapılır ve API yeniden başlatılır; açılış günlüğünde
+   `Invite stream List-Unsubscribe headers ON` satırı aranır
+   (`… is set but not exactly "true"` uyarısı = değer yanlış yazılmış, başlık
+   yok). Bedeli: davetler yeniden liste postası olarak işaretlenir. Kanıt
+   adımında davette başlık YOK diye bu anahtar açılmaz.
+
 Her dağıtımdan ya da DNS / sağlayıcı ayarı değişikliğinden sonra tek kanıt
 adımı: kendi Gmail adresinize bir talep daveti gönderin, "Orijinali göster"de
-1 ve 3'teki satırları, `Reply-To`, `List-Unsubscribe` ve `Feedback-ID`
-başlıklarını ve iletinin hangi sekmeye düştüğünü not edin. Staging'de
+1 ve 3'teki satırları, `Reply-To` ve `Feedback-ID` başlıklarını,
+`List-Unsubscribe` başlığının OLMADIĞINI (bir keşif bildiriminde — ör. kategori
+eşleşmesi — olduğunu) ve iletinin hangi sekmeye düştüğünü not edin. Staging'de
 `EMAIL_ALLOWLIST` dolu olduğundan (yukarıda) deneme adresi listede olmalı.
 
 ## Gecelik e2e için GitHub sırları (2026-09-12)

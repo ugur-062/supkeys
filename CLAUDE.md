@@ -1312,7 +1312,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Ülkeye göre hukuki yapı listesi + enum eşlemesi | `@rothern/shared` `data/legal-forms.ts` (`resolveLegalForm`) |
 | Şifre politikası · web sitesi biçimi · LIKE kaçışı | `common/auth/password-policy.ts` · `common/company/website-address.ts` · `common/prisma/like-literal.ts` |
 | Hız sınırı deposu | `common/http/throttler-storage.ts` (`PerKeyThrottlerStorage`) |
-| Saklanmış kategori kodunun GÖSTERİMİ (gizli segment düşer) | `@rothern/shared` `constants/category-catalog.ts` `visibleCategoryIds` / `visibleCategoryId` · web `lib/visible-categories.ts` · admin aynası `apps/admin/src/lib/category-label.ts` |
+| Saklanmış kategori kodunun GÖSTERİMİ (gizli ön ekin altındaki kod düşer) | `@rothern/shared` `constants/category-catalog.ts` `visibleCategoryIds` / `visibleCategoryId` · web `lib/visible-categories.ts` · admin aynası `apps/admin/src/lib/category-label.ts` |
+| Gizli kategori ön ekleri (segment + dal) · görünür kategorinin alt ağacı | `@rothern/shared` `constants/category-catalog.ts` `HIDDEN_CATEGORY_PREFIXES` (`HIDDEN_SEGMENTS` + `HIDDEN_BRANCH_PREFIXES`), `hiddenCategoryWhere(alan)`, `categorySubtreeWhere`, `categorySubtreeMatcher`, `hiddenPrefixesUnder` · API ürün alt ağacı `common/company/product-index.ts` `productSubtreeClauses` |
+| Firma kategori beyanının GÖSTERİLEN hâli (gizli seçim, yalnız onun için saklanan atalarla düşer) | `@rothern/shared` `helpers/company-category-selection.ts` `visibleCompanyCategorySelection` · API `common/company/company-directory.ts` `shownCompanyDeclaration` |
 | `?kategori=` süzgeç parametresi (gizli kod = süzgeç yok) | web `lib/public/filter-param-utils.ts` `categoryParam` · API `productIndexWhere` / `visibleCategoryId` |
 | Talep düzenlemede yazılan kategori listesi · ürün kategori kapısı | `company-listings.service.ts` `categoryIdsAfterEdit` · `CompanyItemsService.assertCategoryAllowed` |
 | Seed / demo betiklerinde kategori (ve kategori görseli) kapısı | `packages/db/prisma/scripts/lib/seed-category-guard.ts` · demo verisi `lib/marketplace-demo-data.ts`, `lib/staging-demo-data.ts` |
@@ -1547,8 +1549,10 @@ tarihli iki SAP Ariba dışa aktarımı (Türkçe arayüzden): 158.018 adın ~14
 "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
 kaldır").** Satır SİLİNMEDİ (birebir garantisi ve `seed-categories` akışı
 aynen); tek kaynak `@rothern/shared` `category-catalog.ts`
-`HIDDEN_SEGMENTS` (ilk iki hane) + `isHiddenCategory` + `hiddenCategoryWhere`
-(Prisma `NOT startsWith`). `categoryCatalogWhere` artık bu parçayı da
+`HIDDEN_CATEGORY_PREFIXES` (2026-10-10'dan beri kuralın birimi kod ÖN EKİ:
+`HIDDEN_SEGMENTS` iki hane + `HIDDEN_BRANCH_PREFIXES` dört / altı hane) +
+`isHiddenCategory` + `hiddenCategoryWhere` (Prisma `NOT startsWith`).
+`categoryCatalogWhere` artık bu parçayı da
 döndürür → `childrenOf`/`searchHierarchical` otomatik süzer; ayrıca
 `getAllActive`, `getSegments`, `validateIds`, firma beyanı
 (`category-selection.helper`), talep kapısı (`company-listings`), herkese açık
@@ -1558,14 +1562,17 @@ facet'i (`company-directory`), AI kategori ipucu/önerisi ve web'de
 `SHOWCASE_ORDER` sanayi odaklı), `/urunler/kategori/<kod>` ve panel kategori
 sayfası (gizliyse 404) hepsi buradan okur. Gizlenenler: 10 42 43 44 45 48
 49 50 51 52 53 54 55 56 57 60 64 70 80 82 83 84 85 86 90 91 92 93 94
-(≈137 bin yaprak, kataloğun %86'sı). **2026-10-09 (kullanıcı kararı): 46 ve 77 de
-gizlendi → 31 gizli, 27 görünür:** malzeme 11 12 13 14 15 30 31 32 · makine/ekipman
-20 21 22 23 24 25 26 27 39 40 41 47 · hizmet 71 72 73 76 78 81 · 95 (bkz. "CANLI
-DOĞRULAMA TURU + KATEGORİ TUTARLILIĞI 2026-10-09"). Canlıda 2026-09-19'da sıfır
+(≈137 bin yaprak, kataloğun %86'sı). **2026-10-09 (kullanıcı kararı): 77 gizlendi; 46 önce tümüyle
+gizlendi, 2026-10-10'da "İş Güvenliği ve Yangın Ekipmanları" adıyla GERİ AÇILDI (yalnız silah / kolluk
+dalları gizli) → 30 gizli segment + 9 gizli dal ön eki, 28 görünür sektör:** malzeme 11 12 13 14 15 30 31
+32 · makine/ekipman 20 21 22 23 24 25 26 27 39 40 41 47 · iş güvenliği ve yangın 46 · hizmet 71 72 73 76
+78 81 · 95 (bkz. "CANLI DOĞRULAMA TURU + KATEGORİ TUTARLILIĞI 2026-10-09" › GİZLİ KATEGORİ KURALI ÖN EK
+TABANLI). Canlıda 2026-09-19'da sıfır
 firma/ürün/talep vardı → veri taşıma gerekmedi. Geri almak = listeden çıkarmak. Eşleştirme/bildirim eski
 beyanlara dokunmaz. Admin kategori tarayıcısı da herkese açık `search-tree`yi kullanır, gizli
-segmentleri ARAMAZ; gizli segmentteki sonuçsuz kod aramasında API `hiddenSegment` döner, admin
-nedeni yazar (arayüz testi 2026-10-01 api1-03).
+dalları ARAMAZ; gizli ön ekin altındaki sonuçsuz kod aramasında API `hiddenPrefix` (2, 4 ya da 6 hane;
+segmentin tamamı gizliyse ayrıca `hiddenSegment`) döner, admin nedeni yazar (`hiddenSearchReason`;
+arayüz testi 2026-10-01 api1-03).
 Sözleşme: API `test/unit/hidden-segments.spec.ts`, web `category-showcase.test`.
 
 **Kategori fotoğrafları:** 58/58 segment, `apps/web/public/categories/<kod>.webp`
@@ -2218,9 +2225,23 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   `rothern.com` Resend alan adında, yeni DNS yok): `hesap@` (işlem + ACTIVITY),
   `bildirim@`, `davet@`, `haber@rothern.com`, yanıt `destek@rothern.com` (eski
   `talep@updates` / `davet@invite` önerisinin yerine).
-- **TEK TIK ÇIKIŞ (RFC 8058):** NOTIFICATION/INVITE/LIFECYCLE e-postaları (`carriesOneClickUnsubscribe`) `List-Unsubscribe` +
-  `List-Unsubscribe-Post` başlığı ve alt bilgide çıkış/tercih bağlantısı taşır
-  (düz metin dahil); kod/şifre/sipariş ve ACTIVITY TAŞIMAZ. Jeton AES-256-GCM (adres +
+- **TEK TIK ÇIKIŞ (RFC 8058) — İKİ AYRI SORU, ikisinin de tek tanımı `modules/email/email-streams.ts`:**
+  (1) alt bilgide çıkış / tercih bağlantısı + çıkış kapsamı → `carriesUnsubscribeLink` = NOTIFICATION / INVITE /
+  LIFECYCLE (düz metin dahil); (2) `List-Unsubscribe` + `List-Unsubscribe-Post` BAŞLIKLARI →
+  `carriesOneClickUnsubscribe(stream, { coldInviteListHeader })` = NOTIFICATION / LIFECYCLE; **INVITE (kayıtsız adrese
+  giden düz mektuplar) başlıkları TAŞIMAZ (2026-10-10, sahip: "davetler reklama düşmemeli" — bu iki başlık iletiyi
+  liste postası olarak işaretler; 2026-10-05'te ACTIVITY için verilen kararın aynısı).** INVITE'ta DEĞİŞMEYENLER: mektubun
+  alt bilgisindeki jetonlu çıkış bağlantısı (çıkış düğmeyle), `invite` kapsamı ve gönderim kapıları (`referral_opt_outs`
+  + `email_opt_outs` `all`), aydınlatma satırı, `Feedback-ID` / `X-Mailru-Msgtype`, tek tık ucu (teslim edilmiş eski
+  mektuplar çalışır). INVITE e-postasında `List-Unsubscribe*` yokluğu REGRESYON DEĞİLDİR; geri eklenmez. Operatör anahtarı
+  `COLD_INVITE_LIST_UNSUBSCRIBE_HEADER`: TAM OLARAK `true` iki başlığı INVITE'a geri getirir (alan adının Gmail'e günlük
+  TOPLAM hacmi 5.000'e yaklaşmadan açılır — Google toplu göndericiden tek tık çıkış ister; `COLD_INVITE_MAX_DAILY`
+  varsayılanı 5000); tanımsız / başka her değer = başlık yok; EmailService kurucusunda BİR KEZ okunur (yeniden başlatma
+  ister); açıkken açılış satırı `Invite stream List-Unsubscribe headers ON (…)`, `True` / `1` gibi değer uyarı basar ve
+  başlık YOK. Kod/şifre/sipariş ve ACTIVITY ikisini de TAŞIMAZ. EmailService iki soruyu da oradan okur; şablonda ya da
+  spec yardımcısında kuralın ikinci kopyası olmaz. Sağlayıcı SDK'sını taklit eden test her çağrıda AYRI ileti kimliği
+  döndürür (`email_logs.providerMessageId` benzersiz; sabit kimlikte ikinci gönderim FAILED yazılır ve istek üzerindeki
+  beklenti yine geçer) ve çok gönderimli senaryo teslim sonucunu da doğrular. Jeton AES-256-GCM (adres +
   kapsam + dil; anahtar `JWT_SECRET`ten türetilmiş, DB satırı yok, süresiz).
   **KVKK aydınlatma satırı** (HTML Layout ve `renderEmail` düz metni aynı kural)
   `showsPrivacyNotice(env)` = `EmailEnv.privacyNotice || unsubscribeUrl`; EmailService
@@ -2952,9 +2973,11 @@ direkt"):** hero → kategori vitrini → yeni eklenen ürünler; `fetchFeatured
 anasayfada çağrılmaz. **Alıcı yüzü kategori vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
 visual="icon"` çizgisel lucide segment ikonu (`category-visual.ts`
 `TONE_CLASS.iconStrong`, tam opaklık), promo kartta mavi zeminde beyaz ikon;
-panel vitrini (`/company/satinalma`) fotoğraflı KALIR (`visual` varsayılanı
-"photo"). Sözleşme: `home-faces.test`, `audience-switch.test`,
-`marketing-header-audience.test`.
+**panel vitrini (`/company/satinalma`) de İKONLU (2026-10-10, kullanıcı: "satınalma sayfasında fotoğraf değil
+ikon olacaktı")** — 21 Eylül kararı yalnız anasayfaya uygulanmış, panel fotoğraflı kalmıştı; `visual` varsayılanı
+artık "icon", iki çağıran da açıkça geçirir. Kategori SAYFASI başlığındaki fotoğraf ve OG görselleri değişmedi.
+Sözleşme: `home-faces.test`, `audience-switch.test`, `marketing-header-audience.test`,
+`satinalma/__tests__/page-showcase.test`.
 **PANEL DOSYALARINA DOKUNULMADI** — `PanelHeroSearch` ve `CategoryShowcaseRows`
 prop'la sürülüyor. Monokrom kuralı **yalnız `/` için** delindi; diğer public
 sayfalar siyah kalır.
@@ -3442,12 +3465,19 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- **Son iki migration 2026-10-07'den, staging VE canlıda BEKLİYOR:** `20261007090000_revoked_sessions`
+- **Son migration `20261010120000_category_rename_safety_logistics` (2026-10-10), staging VE canlıda BEKLİYOR:**
+  yalnız veri, şema değişmez — üç `UPDATE "categories" … WHERE "code" = …` (46000000 "İş Güvenliği ve Yangın
+  Ekipmanları", 78000000 "Lojistik", 81141601 "Lojistik yönetimi": üç dilde ad + `keywords` + `searchText`);
+  idempotent, kategori tablosu boşken hiçbir satır yazmaz. Kategori adları normalde operatör betikleriyle yazılır;
+  bu üçü, 46'yı görünür bırakıp dallarını gizleyen sürümle AYNI ANDA (API açılışı) otursun diye migration'da.
+  Değerleri değiştiren kişi tohum dosyalarını da değiştirir (ikisi aynı kalmalı — `category-rename-migration.spec`
+  yazılan `searchText`'i `categorySearchText` ile karşılaştırır).
+- **Önceki iki migration 2026-10-07'den, staging VE canlıda BEKLİYOR:** `20261007090000_revoked_sessions`
   (yalnız yeni tablo; yeni API bunsuz her kimlikli istekte 500 verir → API ÖNCE; O-76) ve
   `20261007150000_notification_i18n` (`notifications.i18n` JSONB, nullable, metadata-only; O-77). İkisi de
-  eklemeli, backfill yok. Canlı koda (`62f0c26`) göre fark **29 migration dosyası**
+  eklemeli, backfill yok. Canlı koda (`62f0c26`) göre fark **30 migration dosyası**
   (`git diff --name-only 62f0c26 HEAD -- packages/db/prisma/migrations | cut -d/ -f5 | sort -u | wc -l`);
-  i18n'in beşi canlı DB'ye uygulanmış olduğundan açılışta 24'ü koşar. İlk 27'si canlı dökümü kopyasında
+  i18n'in beşi canlı DB'ye uygulanmış olduğundan açılışta 25'i koşar. İlk 27'si canlı dökümü kopyasında
   prova edildi (2026-10-07; döküm dönüşü için önce `CREATE EXTENSION pg_trgm SCHEMA public`,
   `docs/backup-restore-drill.md`).
 - **Önceki sekiz migration arayüz testinden (2026-10-01/03), staging VE canlıda BEKLİYOR (O-56;
@@ -3673,10 +3703,12 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **354 suite / 5.395 test** (5.393 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 36 parti) · web
-  **400 / 3.949** · admin **68 / 410** · i18n **15 / 142** (vitest toplamı 4.501) — son kapı YEŞİL
-  (kurulum, typecheck 7/7, lint 3/3, i18n:check, prisma validate, üç build, kategori çakışması 0,
-  `pnpm audit --prod --audit-level high` rc=0), 9.894 test geçti (2 LIVE atlandı), canlı doğrulama turunun kapanış düzeltmeleri 2026-10-10.
+- API **356 suite / 5.648 test** (5.646 geçer, 2 LIVE spec atlanır; 10'luk `--runInBand` partiler, 36 parti, tam koşu
+  ~56 dk) · web **404 / 4.106** · admin **68 / 422** · i18n **15 / 142** (vitest toplamı 4.670). Son TAM kapı
+  2026-10-10 (46. sektör + davet başlıkları; API 355 / 5.616, web 401 / 4.039): YEŞİL — kurulum, typecheck 7/7, lint
+  3/3, i18n:check, prisma validate, üç build, kategori çakışması 0, `pnpm audit --prod --audit-level high` rc=0
+  (16 orta + 3 düşük kaldı). Ardından gelen küçük ekler (vitrin, ikonlar, anahtar kelimeler, `ai-invite-arrival.spec`)
+  odaklı koşuldu: web tam paket 404 / 4.106, etkilenen 8 API spec'i 254 test, yerel `next build`.
   `ayarlar-security.spec` "legacy DÜZ METİN secret" TOTP testi ARA SIRA kırmızı (zaman adımı sınırı) — tek
   başına yeniden koşuda yeşil, gerileme sayılmaz.
   Kapı ajan yerine betikle koşulur: `/home/noah/rothern-qa-2026-10/gate-final.sh` + `gate-apijest/run.sh`.
@@ -4471,10 +4503,11 @@ Ayrıntı, ölçümler ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Canl
 
 **GİZLİ SEGMENT KURALI SAKLANMIŞ KODU DA KAPSAR (kullanıcı: "Çevre Hizmetleri ve Kolluk… kategorilerini
 anasayfadan kaldır; anasayfada olmayan kategoriyi talepte, üründe ya da başka yerde gösterme").**
-- 46 ve 77 gizlendi (31 gizli / 27 görünür). Anasayfa görünür segmentlerin TAMAMINI çizer → "anasayfada olan" =
-  `HIDDEN_SEGMENTS` dışı. 46'nın altında silah / kolluk ailelerinin yanında kişisel koruyucu donanım, yangından
-  korunma ve iş güvenliği aileleri de var; SAHİP KARARI BEKLİYOR (aile düzeyinde geri açma — bugün yalnız segment
-  düzeyinde gizleme var).
+- 2026-10-09'da 46 ve 77 gizlendi; **2026-10-10'da 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla geri açıldı,
+  yalnız silah / kolluk dalları gizli** (30 gizli segment + 9 gizli dal ön eki / 28 görünür sektör; aşağıda "GİZLİ
+  KATEGORİ KURALI ÖN EK TABANLI"). Anasayfa görünür sektörlerin TAMAMINI çizer → "anasayfada olan" = tümüyle gizli
+  olmayan segment; bir sektörün ALTINDA görünen = `HIDDEN_CATEGORY_PREFIXES` dışı. Bu bloktaki "gizli segment"
+  sözü bugün "gizli ön ekin altındaki kod" demektir.
 - Kural yalnız kataloğu GEZDİREN yüzeyleri değil, saklanmış bir kodu ada / etikete / kırıntıya / bağlantıya /
   süzgeç seçeneğine / sayıya / ikon-fotoğrafa çeviren HER okumayı kapsar ve herkes için geçerlidir (ziyaretçi,
   tarayıcı, üye, kaydın sahibi, e-posta alıcısı, AI istemi). Eski kayıt (ürün, talep, firma beyanı) durur, yalnız
@@ -4509,22 +4542,103 @@ anasayfadan kaldır; anasayfada olmayan kategoriyi talepte, üründe ya da başk
 - Pano kırılımları `breakdownSegmentOf` (ilk GÖRÜNÜR kategorinin segmenti): tasarruf sekmesinde hepsi gizli olan
   "Kategorisiz"e, top-6 grafiklerde dışarıda. Segment görsel tabloları 58 satır kalır; `categoryVisual`,
   `categoryPhotoSrc`, `segmentTaglineKey` gizli kodda nötr yedeği döner. Admin `@rothern/shared`e bağlı değildir:
-  `apps/admin/src/lib/category-label.ts` listeyi aynalar (drift testi paylaşılan kaynağı okur), ekranda "— (gizli
-  segment)".
+  `apps/admin/src/lib/category-label.ts` iki listeyi aynalar (drift testi paylaşılan kaynağı okur), ekranda tümüyle
+  gizli segmentteki koda "— (gizli segment)", görünür segmentin gizli dalındaki koda "— (gizli kategori)".
 - Seed / demo betikleri Prisma ile yazar, doğrulama kapılarından geçmez → kategori yazan her betik
   `lib/seed-category-guard.ts` `assertVisibleSeedCategories`'i ilk yazmadan önce çağırır (`/categories/<segment>.webp`
   görsel yolları dahil). `cleanup-categories` tarihseldir, salt okunur. `apply-category-keywords` `-- --dry` tanır.
 - Kullanıcı metninde katalog büyüklüğü ("58 üst kategori", "158 bin kod") YAZILMAZ; kod yorumlarına da segment
   sayısı yazılmaz (sayı `hidden-segments.spec`te kilitli).
-- Test fikstürü: sıradan kategori olarak gizli segment kodu (10, 42–46, 48–57, 60, 64, 70, 77, 80, 82–86, 90–94)
-  KULLANILMAZ — artık "süzgeç yok" gibi davranır. Görünür örnek `31161500`; eski kayıt fikstürü `46xxxxxx` /
-  `10xxxxxx`; "bilinmeyen kod" `99990000`.
+- Test fikstürü: sıradan kategori olarak gizli kod KULLANILMAZ — "süzgeç yok" gibi davranır. Gizli = tümüyle gizli
+  segment (10, 42–45, 48–57, 60, 64, 70, 77, 80, 82–86, 90–94) ya da 46'nın gizli dalı (4610–4615, 4620, 4622,
+  461825). Görünür örnek `31161500`; 46'nın görünür örnekleri `46000000`, `46180000`, `46181500`, `46191600`; eski
+  kayıt fikstürü gizli aile `46101500`, gizli sınıf `46182500` / `46182501`, gizli segment `10xxxxxx` / `77xxxxxx`;
+  "bilinmeyen kod" `99990000`. "Yükte gizli kod yok" arayan spec `/"46\d{6}"/` değil
+  `/"46(1[0-5]|20|22)\d{4}"|"461825\d{2}"/` + gizli segmentleri arar.
 - **78 segmentinin adı "Lojistik"** (EN Logistics · RU Логистика; Ariba adı "Taşıma, Depolama ve Posta
   Hizmetleri" aramada kalır); aynı adı taşıyan yaprak 81141601 "Lojistik yönetimi". Adres
-  `/urunler/kategori/78000000-lojistik`, eskisi 308. Veritabanına O-74 adımıyla yansır.
+  `/urunler/kategori/78000000-lojistik`, eskisi 308. Veritabanına veri migration'ı
+  `20261010120000_category_rename_safety_logistics` ile (API açılışı) ve O-74 betikleriyle yansır.
 - Sözleşmeler: `hidden-segments.spec`, `hidden-category-public-surfaces.spec`, `hidden-category-panel.spec`,
   `hidden-category-email-ai.spec`, `hidden-category-projections.spec`, `seed-category-guard.spec`,
   `seed-scripts-hidden-category.spec`; web `visible-categories` testleri, admin `category-label.test`.
+
+**GİZLİ KATEGORİ KURALI ÖN EK TABANLI (2026-10-10, sahip kararı: "sektörü 'İş Güvenliği ve Yangın Ekipmanları'
+adıyla geri aç, yalnız silah ve kolluk gruplarını gizle").**
+- **Kuralın birimi kod ÖN EKİDİR** (segment 2 hane, aile 4, sınıf 6). Tek tanım `@rothern/shared`
+  `category-catalog.ts` `HIDDEN_CATEGORY_PREFIXES` = `HIDDEN_SEGMENTS` (30) + `HIDDEN_BRANCH_PREFIXES` (46'nın gizli
+  dalları: 4610 hafif silahlar ve mühimmat · 4611 savaş silahları · 4612 füzeler · 4613 roketler · 4614 fırlatıcılar
+  · 4615 kolluk ekipmanları · 4620 savunma / kolluk eğitim ekipmanları · 4622 silah ve mühimmat imha · 461825
+  "kişisel güvenlik cihazları veya silahları" sınıfı). 46'nın GÖRÜNEN aileleri: 4616 kamu güvenliği ve kontrol · 4617
+  güvenlik gözetleme ve tespit · 4618 kişisel güvenlik ve korunma (461825 hariç) · 4619 yangından korunma · 4621 iş
+  güvenliği ekipmanları. Bir ön ek başka bir gizli ön ekin altına yazılmaz (`hidden-segments.spec`). Bir dalı
+  gizlemek / açmak = o listeye satır. Kod hiçbir yerde `HIDDEN_SEGMENTS`ten kendi süzgecini KURMAZ:
+  `hiddenCategoryWhere(alan)`, `isHiddenCategory`, `visibleCategoryId(s)`, `hiddenCategoryPrefixOf`.
+- **"Gizli mi" TAM kodla sorulur, segmente yuvarlamadan ÖNCE.** Önce yuvarlayan yardımcı gizli dalı görünür sektöre
+  çevirir (46101500 → 46000000). API toplamaları (facet, mega menü, sayaç, sitemap sayısı ve lastmod, IndexNow, pano
+  kırılımı, ürün kırıntısı) `segmentCodeOf(visibleCategoryId(kod))` yazar, tersini değil; web `categoryVisual`,
+  `segmentPhotoSrc`, `segmentTaglineKey`, vitrin kapakları, `rowSegments`, `parseRequestFilters`,
+  `similarListingsSegment` ve AI arama niyeti aynı sırayı izler. Ürün sayfasında sektör kırıntısı ve JSON-LD halkası
+  yalnız ürünün KENDİ kategorisi görünürken yazılır (yalnız segment koduna bakmak gizli daldaki ürünü görünür sektörün
+  altında gösterir).
+- **Görünür kategorinin alt ağacı gizli torunları OLMADAN listelenir ve sayılır.** Ürün: `productSubtreeClauses(kod)`
+  (`common/company/product-index.ts`; `AND` öğesi olarak, spread EDİLMEZ). Bellekteki satırlar
+  `categorySubtreeMatcher`; talep `categoryIds` dizileri ham SQL + `hiddenPrefixesUnder`; Prisma
+  `categorySubtreeWhere(kod, alan)` — kök gizliyse HAM alt ağacı döner, "gizli kod = süzgeç yok" kararı çağırmadan
+  ÖNCE `visibleCategoryId` ile verilir. `productCategoryWhere` HAM kalır (eşleştirme + gizli daldaki eski ürünün
+  ilişkili blokları). Sektörü aileleriyle, aileyi sınıflarıyla açan arama çocuk sorgularına da `hiddenCategoryWhere()`
+  ekler; sektör yalnız ADIYLA eşleşir. `visibleAttributeWhere()` = `hiddenCategoryWhere("categoryId")`.
+- **Firma beyanı ata zincirini saklar → gösterim, süzgeç, sayaç ve rozet eksen başına
+  `visibleCompanyCategorySelection(mainIds, subIds)` ile okunur** (`helpers/company-category-selection.ts`): gizli
+  seçim, YALNIZ onun için saklanan görünür atalarla birlikte düşer (geride kalan çıplak 46000000 "sektörün tamamı"
+  demek olurdu ve o sektörün bütün bildirimlerini getirirdi). İki diziye ayrı ayrı `visibleCategoryIds` uygulamak bu
+  hatayı üretir. API tek yardımcı `shownCompanyDeclaration` (`common/company/company-directory.ts`: dizin listesi /
+  facet / kart, eski `GET company/directory`, panel firma profili; herkese açık profil `shownMainCategoryIds`);
+  sorgudaki `hasSome` / `has` yalnız üst kümedir, kararı gösterilen beyan verir. Web: `CompanyCategoryPicker`,
+  Ayarlar › Kategoriler, onboarding taslağı, Profilim özeti / sayıları / bulunabilirlik. `profileCompleteness` dört
+  HAM diziyi alır. Profil kaydı: eksenin saklanan yanı aynı fonksiyonla okunur; isteğin gönderdiği liste gönderildiği
+  gibi yazılır, saklı gizli kodlar hariç.
+- **Eşleştirme, `strongMatch`, puan ve bildirim saklanan kodlarda KALIR**; gösterilen her şey gösterilen beyandan:
+  keşif rozetleri (`matchedCategories`) adayın gösterilen beyanı ∩ talebin GÖRÜNÜR kodlarının zinciri (yazarken
+  `discoverRegisteredFor`, okurken `visibleBadgeNames`); asistan `list_my_connections` modele gösterilen beyanı verir
+  (`connectionsForModel`, sonra `redactHiddenCategories` — ata zinciri saklayan listede o tek başına yetmez); panel
+  ürün aramasında "Alım kategorinizle eşleşiyor" rozeti ve varsayılan sıra alıcının gösterilen beyanından
+  (`CompanyItemsService.buyerCategoryClauses`; SAHİP KARARI BEKLİYOR — varsayılan olarak uygulandı). Talep
+  satırındaki "Profilinizle eşleşti" çipi (`categoryMatch`) DEĞİŞMEDİ: bildirim ve davetle aynı
+  `deriveCategoryMatchCandidates`'i izler.
+- **Web ikinci katmandır ve SAYI üretemez.** Dalın listelendiği tek yer ağaç kancalarıdır (`useChildren`,
+  `useCategorySearchTree` → `visibleSearchTree`, `fetchCategoryMenu`, `useCategoriesByIds`); gizli dalın satırı
+  olmadığı için işaretlenemez. `visibleSearchTree` budamanın boş bıraktığı görünür aileyi / sektörü de düşürür (kendi
+  adı eşleşen ve boş gelen satır kalır). Facet sayıları, alt dal sayıları, iniş toplamları, sitemap / llms girişi ve
+  `childCount` API'den gelir → API web'den ÖNCE ya da birlikte dağıtılır. `HIDDEN_TAGLINE_PATHS` segment düzeyinde
+  kalır (slogan segment başınadır; gizli dal yalnız `segmentTaglineKey`'i yedeğe düşürür).
+- **46'nın adı VERİDİR** (web, admin ve kataloglarda kopyası yok; slogan `web.marketing.taglines.s46` ve fotoğraf ada
+  bağlı değil — `segment-taglines.test` kolluk / silah sözcüğü taşımadığını kilitler). Yeni ad görünürlük
+  değişikliğiyle AYNI ANDA otursun diye veri migration'ı `20261010120000_category_rename_safety_logistics` üç satırı
+  yazar (46000000, 78000000, 81141601: üç dilde ad + `keywords` + `searchText`; idempotent, boş tabloda satır yazmaz;
+  değerler `apply-category-*` betiklerinin yazdığıyla aynı → betik sonradan koşunca o satırlar değişmez). O-74 / O-90
+  betikleri yine dağıtımdan SONRA koşulur (öteki adlar için). Eski kolluk adı aramada KALMAZ:
+  `category-translations.curated.tsv`'de 46000000 satırının 3. sütunu bilinçli BOŞ (o sütun anahtar kelimelere
+  girer), `category-keywords.tsv` satırı güvenlik sözcükleri taşır. Adres
+  `/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari`, eskisi 308. Web veri önbelleği eski adı en çok bir
+  saat tutabilir (`POST <web>/api/seo/revalidate`, `seo:facets` + `seo:sitemap` etiketleri).
+- **46'nın anahtar kelimeleri elle:** sektör sözlük üretilirken gizliydi, üretilen dosyada 46 satırı yok. Görünen 5 aile
+  ve 21 sınıfın satırları `category-keywords.tsv`'de elle yazılıdır ("kkd", "isg", "ppe", "toz maskesi", "yangın tüpü"…);
+  sektör satırı seçicilerde yalnız ADIYLA eşleştiği için kısaltmalar aile / sınıf satırına yazılır, çok sözcüklü arama
+  bütün sözcükleri AYNI satırda ister. Silah / askeri / kolluk sözcüğü ve gizli koda satır YOK (kilit
+  `seed-category-guard.spec` "46 görünür dalları", `seed-scripts-hidden-category.spec` "46 eş anlamlıları").
+  Veritabanına `apply-category-keywords` ile gelir (O-90).
+- **Model çağıran üretici betikler** (`gen-category-keywords`, `gen-category-translations`) partilerini
+  `visiblePromptNodes`tan (`lib/seed-category-guard.ts`) keser: gizli ön ekin altındaki ad isteme girmez.
+- **Sürüm sırası dağıtılmış sürümlerden hesaplanır, HEAD'den değil** (`git ls-remote origin main production`):
+  2026-10-10'da staging `af0dea3c`, canlı `62f0c269` idi ve 46'yı tümüyle gizleyen commit hiç push edilmemişti →
+  dağıtılmış hiçbir sürüm 46'yı gizlemiyordu. Bu yüzden "kategori betikleri dağıtımdan önce" istisnası YAZILMAZ.
+- Sözleşmeler: `hidden-segments.spec` (ön ek kuralı, alt ağaç yardımcıları), `category-rename-migration.spec`,
+  `seed-category-guard.spec` ("46 yeniden adlandırıldı", "model çağıran üretici betikler"),
+  `seed-scripts-hidden-category.spec`, API `hidden-category-*` spec'leri; web `visible-categories.test`,
+  `category-showcase(-rows|-covers).test`, `segment-taglines.test`; admin `category-label.test`.
+- apps/api spec'leri `isolatedModules` ile derlenir (jest tip denetlemez); spec tiplerini denetlemek için apps/api'de
+  `npx tsc --noEmit -p tsconfig.spec.json --rootDir .` (`--rootDir .` olmadan TS6059 ile durur).
 
 **AI TEDARİKÇİ ARAMASI — süre, kısmi sonuç, eşleşme (kullanıcı: "emin ol düzgün ve efektif çalıştığından").**
 - Arama geçişleri bağımsızdır (`Promise.allSettled`): bir geçiş düşerse öteki geçişin adayları döner; 5xx yalnız
@@ -4623,10 +4737,12 @@ Admin denetim etiketleri "AI tanıtım önerisi …" (eylem anahtarları DEĞİ�
 metni görünmez ölçü olarak aynı ızgara hücresinde (`SizedSlot`, `<h1>`in DIŞINDA) → Tedarikçiyim / Alıcıyım
 geçişinde arama kutusu yerinden oynamaz; kabuk (`HeroShell`) aynı yuvayı kullanır.
 
-**ANASAYFA KATEGORİ VİTRİNİ DENGELİ BÖLÜNÜR.** `toShowcaseRows` blokları dengeler (en az blok, boyutlar en çok
-bir kutu farklı; 27 sektör = 3 × (1 tanıtım + 8 kutu)), sütun sayısı bloktaki kutu sayısından
+**ANASAYFA KATEGORİ VİTRİNİ DENGELİ BÖLÜNÜR.** `toShowcaseRows` blokları dengeler (boyutlar en çok bir kutu
+farklı) ve EŞİT blokları yeğler (2026-10-10): en az blok sayısı eşit bölmüyor, bir fazlası eşit bölüyorsa bir blok
+eklenir — 28 sektör = 4 × (1 tanıtım + 6 kutu, 3 × 2), 27 = 3 × (1 + 8), 30 = 3 × (1 + 9); 26 ve 29 eşit bölünmez,
+en az blokla kalır. Eklenen blok tek satırlık (≤ 4 kutu) olacaksa eklenmez. Sütun sayısı bloktaki kutu sayısından
 (`showcaseGridShape`; çok satırlı blokta en çok bir boş yer); sabit `lg:grid-cols-5` geri gelmez. Görünür her
-sektör çizilir. Gizli segmentlerin slogan metinleri istemciye gönderilmez (`clientMessages`
+sektör çizilir. Anasayfa ve panel Satınalma sayfası aynı fonksiyonu kullanır. Gizli segmentlerin slogan metinleri istemciye gönderilmez (`clientMessages`
 `HIDDEN_TAGLINE_PATHS`; kataloglar 58 satır kalır).
 
 **SON DÜZELTME TURU 2026-10-10 — ekler.**
@@ -4722,6 +4838,29 @@ sektör çizilir. Gizli segmentlerin slogan metinleri istemciye gönderilmez (`c
   aynı); ortalı flex sütununda ayrıca `max-w-full`. Düz
   `hyphens-auto` kullanılmaz (sığan sözcüğü de heceler, TR / EN satır kırılımını değiştirir). Tailwind v4
   `max-[360px]:` = genişlik < 360 (kesin küçük).
+
+**AI DAVETİYLE GELEN FİRMA = DAVETLE GELEN FİRMA (2026-10-10, sahip: "AI ile geldiğinde davet mantığı gibi olacak
+davet edilen şirketin bağlantısı olacak eğer ücretsizse sadece o bağlantı kurduğu şirketin isteklerine teklif
+verebilecek kural korunacak yani doğrulanmadığı durum için söylüyorum").** AI'ın bulduğu kayıtsız firma için AYRI
+bir üyelik ya da teklif kuralı YOKTUR ve yeni kod da eklemez; kuralı var olan iki mekanizma taşır:
+- **Bağlantı:** talep daveti mektubundaki kayıt bağlantısı davet edenin `CompanyReferralInvite` jetonunu taşır
+  (`appRoutes`: `/company/kayit?ref=<jeton>&redirect=/company/ilan/<id>`; önizleme sayfası aynı jeton). Bu jetonla kayıt
+  davet eden alıcıyla ACTIVE bağlantı (origin `INVITE`) + jetonun taşıdığı talep davetlerini kurar
+  (`CompanyAuthService.acceptReferralInvites`, `{ token }` dalı). Kaynak (MANUAL / AI_FORM / AI_AUTO) ve kayıt adresinin
+  davet adresinden farklı olması fark etmez. Geçersiz otomatik davet (`AUTO_INVITE_OFF_WHERE`, e-postası gitmemiş) bağlanmaz.
+- **Teklif:** doğrulanmamış firma (ücretsiz dönemde "ücretsiz" = doğrulanmamış: UNVERIFIED · PENDING · REJECTED) yalnız
+  bağlantılı olduğu alıcının taleplerine (herkese açık + bağlantılara açık) ve açıkça davet edildiği taleplere teklif
+  verir; bağlantısı olmayan alıcının herkese açık talebi maskeli satırdır, teklif 403 + doğrulama çağrısı; bağlantılı
+  alıcının davet edilmediği özel talebi 404 (`listingBidEligibility`, `assertBidAccess`, `assertBidVerified`).
+  Doğrulanınca kısıt kalkar. Bağlantı teklif kapısında yalnız alıcı yetkiliyken (doğrulanmış) sayılır (`isConnectionValid`).
+- **Bağlantı kullanılmadan** aynı adresle kayıt (ya da aynı adresi davet eden İKİNCİ alıcı): adres kanıtlanınca talep
+  daveti bağlanır (o talebe teklif verilir), bağlantı PENDING istektir — tedarikçi kabul edince kurulur (BK-CONN-1: rıza
+  yalnız kullanılan bağlantı için). SAHİP KARARI BEKLİYOR: böyle kalsın mı, bağlantı kendiliğinden mi kurulsun.
+- AI'ın doğrudan talebe davet ettiği MEVCUT üye bağlantı OLMAZ (yalnız o talebin davetlisi; zaten doğrulanmış olmak
+  zorunda — `ai-recommendable.ts`).
+- Sözleşme: `test/integration/ai-invite-arrival.spec.ts` (gerçek kayıt + e-posta doğrulaması + gerçek JWT stratejisi +
+  `placeBid`; satırları bir testte gerçek yazıcı `inviteExternalForListing` yazar). Ücretsiz dönem anahtarı kapatılırsa
+  bu spec'in (1) gerçek yazıcı, (2) ve (5) testleri kırmızıya döner: kural o gün yeniden kararlaştırılır.
 
 **TEST TUZAKLARI (bu turdan).** TR katalog değerini yerinde değiştirmek (yalnız harf büyüklüğü bile) EN / RU durum
 kaydını bayatlatır ve `pnpm i18n:check`i kırar: aynı değişiklikte anahtar `--mark-reviewed` + durum sadeleştirme. Sabit
