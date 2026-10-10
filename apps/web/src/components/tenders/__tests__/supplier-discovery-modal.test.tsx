@@ -2859,6 +2859,28 @@ describe("SupplierDiscoveryModal — son canlı kontrol (2026-10-10)", () => {
       expect(screen.queryByRole("timer")).toBeNull();
     });
 
+    it("DISC-N2 — başlatma yanıtı aramanın yaşını söylediyse (kimlikten hemen sonra, yoklamadan önce) sayaç hiç '0 sn'de beklemez; kayıt da gerçek başlangıcı taşır", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+      const search = deferredSearch();
+      render(listingModal());
+      openWebTab();
+      clickSearch();
+      const clicked = sessionOf("l1")?.searchSince as number;
+      // Kanca başlatma yanıtını okur: önce kimlik, ardından (aynı anda) başlangıç.
+      act(() => {
+        optionsOf(0).onStarted?.("s-1");
+        optionsOf(0).onStartedAt?.(clicked - 12_000);
+      });
+      // Zaman hiç ilerlemedi: katılan sekme öteki sekmenin değerinden başlar.
+      expect(timer()).toHaveTextContent("Geçen süre: 12 sn");
+      expect(readPendingExternalSearch("l:l1")).toMatchObject({ searchId: "s-1", since: clicked - 12_000 });
+      act(() => {
+        vi.advanceTimersByTime(2_000);
+      });
+      expect(timer()).toHaveTextContent("Geçen süre: 14 sn");
+      await search.resolve(found([]));
+    });
+
     it("başlangıç İLERİYE çekilmez (aramayı başlatan sekmede sayaç geri saymaz); saniyenin altındaki fark ve olamayacak kadar eski değer yok sayılır", async () => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
       const search = deferredSearch();

@@ -16,14 +16,24 @@ import { Link } from "@/i18n/navigation";
  *    böler; sözlüğü olmayan tarayıcıda üstteki kural devrededir. Yalnız Rusça:
  *    `hyphens: auto` satıra sığan sözcükleri de satır sonunda böler, öteki
  *    dillerin görünümü bu tur için değiştirilmedi.
- *  - `hyphenate-limit-chars: 13`: yalnız UZUN sözcük (13+ harf) hecelenir;
- *    kısa sözcük eskisi gibi bütün olarak alt satıra iner ("строи-тельная",
- *    "кани-фоль" gibi gereksiz bölmeler olmaz). Chromium ve Firefox 137+ tanır;
- *    tanımayan tarayıcı (Safari) Rusçada her sözcüğü heceleyebilir.
+ *  - `hyphenate-limit-chars: 14 4 4` (sözcük en az 14 harf · tireden önce en az
+ *    4 · sonra en az 4): yalnız UZUN sözcük hecelenir; kısa sözcük eskisi gibi
+ *    bütün olarak alt satıra iner. Chromium ve Firefox 137+ tanır; tanımayan
+ *    tarayıcı (Safari) Rusçada her sözcüğü heceleyebilir.
+ *    Kapanış kontrolü CL-03: ilk değer yalnız `13`tü — kutuya SIĞAN 13 harfli
+ *    sözcükler de bölünüyor ("рас-пределения", "про-мышленного",
+ *    "стро-ительству", altbilgide "ди-станционной"), satır sonunda 2–3 harflik
+ *    parça kalıyordu. Çalışan derlemede CSS'i değiştirerek ölçüldü (/ru, 320–1920
+ *    px, 201 genişlik; kutular + tanıtım başlıkları + altbilgi): `13 4 4` kısa
+ *    parçayı kaldırıyor ama 13 harfli sözcükleri bölmeyi sürdürüyor; `14 4 4`te
+ *    13 harfliler bütün iner, bölünenler kutusundan geniş sözcüklerdir
+ *    ("Сельскохозяй-ственное", "Производ-ственные", "Конфиденциаль-ность") ve
+ *    16 harfli "произ-водственное"; `15`te 14 harfli "Посредническое" tiresiz
+ *    bölünüyor. Taşan metin yok. Değer üç dosyada AYNI kalmalı.
  * Tanıtım kartı başlığı (`category-showcase-rows.tsx`) ve altbilgi bağlantıları
  * (`marketplace-footer.tsx`) aynı üç kuralı kullanır.
  */
-const TILE_LABEL_WRAP = "break-words [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto";
+const TILE_LABEL_WRAP = "break-words [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto";
 
 /**
  * KATEGORİ KARTI — TEK bileşen (kart sistemi PROMPT 5, 2026-09-06).
@@ -86,9 +96,21 @@ export function CategoryTile({
             className={`size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
           />
         </span>
-        {/* `max-w-full`: sütun düzeninde ortalanan etiket içeriği kadar genişler;
-            tek sözcük kutudan uzunsa kartın dışına taşardı (bkz. `TILE_LABEL_WRAP`). */}
-        <span className={`mt-4 line-clamp-2 max-w-full text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}>
+        {/* ÜST SINIR: sütun düzeninde ortalanan etiket içeriği kadar genişler; tek
+            sözcük kutudan uzunsa kartın dışına taşardı (bkz. `TILE_LABEL_WRAP`).
+            "…" İÇİN YER (kapanış kontrolü CL-02): iki satırda kesilen etiketin
+            üç noktası ortalanmış satırın sonundaki boşluktan SONRA çizilir ve
+            kutuyu 1–6 px aşar; `overflow: hidden` onu bir-iki noktaya kırpıyordu
+            (TR / EN / RU, 320–1920 px; aşma en çok 6 px). Etiket iki yandan 8 px
+            büyür (`-mx-2` + `px-2`; kartın 12 px'lik iç boşluğunun içinde kalır),
+            üst sınır da o kadar: METİN kutusu aynı genişlikte — satırlar, metnin
+            yeri ve kart boyu değişmez (çalışan derlemede CSS'i değiştirerek
+            ölçüldü: üç dil × 201 genişlik, 14 472 ölçüm, 0 fark). Üçü birlikte
+            durur. Fotoğraflı kare kartta (panel) UYGULANMADI: aynı deneme 320
+            px'te metni 1 px kaydırdı. */}
+        <span
+          className={`-mx-2 mt-4 line-clamp-2 max-w-[calc(100%+1rem)] px-2 text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}
+        >
           {c.name}
         </span>
         {c.count > 0 ? (

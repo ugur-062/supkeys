@@ -216,7 +216,15 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       hero();
       expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
       expect(screen.queryByRole("link", { name: /Açık talepleri görün/ })).toBeNull();
-      expect(screen.queryByText("Taleplere teklif vermek tamamen ücretsiz")).toBeNull();
+      // Notun YERİ durur (kapanış kontrolü CL-01: kabuğun ayırdığı yuva kaybolunca
+      // başlık zıplıyordu) — metin yalnız görünmez, okunmayan ölçü hücresindedir.
+      const callTexts = screen.queryAllByText("Taleplere teklif vermek tamamen ücretsiz");
+      expect(callTexts.length).toBeGreaterThan(0);
+      for (const el of callTexts) {
+        expect(el).toHaveAttribute("aria-hidden", "true");
+        expect(el.className).toContain("invisible");
+        expect(el.querySelector("a")).toBeNull();
+      }
     } finally {
       useCompanyAuthStore.setState({ user: null, company: null });
     }

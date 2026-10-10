@@ -197,10 +197,12 @@ function ShowcaseGrid({
    NEW-02). 1024–1295 px'te tanıtım sütunu 272 px, başlık kutusu 224 px; Rusça
    "Производственные" 237 px tutuyor, bölünemediği için sağ iç boşluğa giriyordu
    (24 yerine 11 px). Kural kare kartın etiketiyle aynı (`category-tile.tsx`
-   `TILE_LABEL_WRAP`): sığmayan sözcük bölünür; Rusçada yalnız uzun sözcük (13+
-   harf) hece sınırından tire ile — kısa sözcüklü başlıkların satırları
-   değişmez, kartın yüksekliği de (ölçüldü: 388 px, önce ve sonra). */
-const PROMO_TITLE_WRAP = "break-words [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto";
+   `TILE_LABEL_WRAP`): sığmayan sözcük bölünür; Rusçada yalnız uzun sözcük (14+
+   harf) hece sınırından tire ile, tirenin iki yanında en az 4 harf (kapanış
+   kontrolü CL-03: "Производствен-ные комплектую-щие" → "Производ-ственные
+   комплектующие") — kısa sözcüklü başlıkların satırları değişmez, kartın
+   yüksekliği de (ölçüldü: 388 px, önce ve sonra). */
+const PROMO_TITLE_WRAP = "break-words [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto";
 
 /** Sol tanıtım kartı: büyük fotoğraf (ya da çizgisel ikon) üstte, altta koyu blokta sayı + ad + eylem. */
 function PromoCard({

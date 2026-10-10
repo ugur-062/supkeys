@@ -79,11 +79,13 @@ export function MarketplaceFooter() {
                         "Конфиденциальность" 151 px tutuyor, son sütundan taşıp
                         sayfayı 3 px yatay kaydırıyordu (640–648 px, her herkese
                         açık sayfada). Sığmayan sözcük bölünür; Rusçada yalnız
-                        uzun sözcük (13+ harf) hece sınırından tire ile — kural
+                        uzun sözcük (14+ harf) hece sınırından tire ile, tirenin
+                        iki yanında en az 4 harf (kapanış kontrolü CL-03:
+                        "Договор ди-станционной продажи" bölünmez) — kural
                         kategori kartıyla aynı (`category-tile.tsx`). */}
                     <Link
                       href={l.href}
-                      className="text-sm/6 break-words text-zinc-600 hover:text-zinc-950 [hyphenate-limit-chars:13] [&:lang(ru)]:hyphens-auto"
+                      className="text-sm/6 break-words text-zinc-600 hover:text-zinc-950 [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto"
                     >
                       {l.label}
                     </Link>

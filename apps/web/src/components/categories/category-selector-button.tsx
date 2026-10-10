@@ -48,6 +48,18 @@ interface Props {
    * doğrulama CP-04). Durumu tek cümle anlatır, o cümle de burada yazılır.
    */
   retiredOptional?: boolean;
+  /**
+   * `false`: seçim KALDIRILAMAZ, yalnız DEĞİŞTİRİLİR — çipte "kaldır" (×) çizilmez,
+   * pencerede boş seçim onaylanmaz (pencere açık kalır, nedenini söyler).
+   * Varsayılan `true` (talep formu: kategori kaldırılabilir).
+   *
+   * Ürün formu `false` verir (kapanış kontrolü CL-PF-2): sunucu ürünün kayıtlı
+   * kategorisini boş değerle SİLMEZ (`null` = "olduğu gibi bırak"; gizli
+   * segmentteki eski ürün bilerek null gönderir ve kodunu korur). Çip × ile
+   * kaldırılıp taslak kaydedilince form "kaydedildi" deyip kategorisiz görünüyor,
+   * sayfa yenilenince kayıtlı kategori geri geliyordu.
+   */
+  clearable?: boolean;
 }
 
 /**
@@ -75,6 +87,7 @@ export function CategorySelectorButton({
   catalog = "full",
   retiredHint = false,
   retiredOptional = false,
+  clearable = true,
 }: Props) {
   const t = useTranslations("web.shared.categorySelectorButton");
   // Ad hatası metni pencereyle ortak (aynı durum, aynı cümle).
@@ -159,7 +172,7 @@ export function CategorySelectorButton({
                     <Tag className="h-3 w-3 shrink-0" />
                     {/* Adın tamamı: sabit piksel tavanı yok, uzun ad sarılır. */}
                     <span className="min-w-0 break-words">{label}</span>
-                    {!disabled ? (
+                    {!disabled && clearable ? (
                       // Dokunma hedefi 32 px; eksi kenar boşluğu çipi büyütmez.
                       <button
                         type="button"
@@ -223,6 +236,10 @@ export function CategorySelectorButton({
           // değişir, açık pencere taslağını kayıtlı değere sıfırlardı.
           value={value}
           onConfirm={onChange}
+          // Kaldırılamayan seçimde boş onay reddedilir: pencere açık kalır ve boş
+          // seçim için kendi cümlesini uyarı satırında gösterir. Seçim yokken onay
+          // zaten kapalıdır.
+          validate={clearable ? undefined : (ids) => (ids.length === 0 ? tm("listedenSecimYapin") : null)}
           mode={mode}
           maxSelection={maxSelection}
           title={modalTitle ?? t("kategoriSec")}

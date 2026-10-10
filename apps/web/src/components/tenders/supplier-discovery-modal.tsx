@@ -220,7 +220,8 @@ import { toast } from "sonner";
  *        "E-postayla davet edilenler" bölümü aynı adres için "Gönderilmedi" diyordu.
  *        Satır yine kilitlidir (kuyruk satırı duruyor; yeniden gönderilemez).
  *  - AS-4 Süren aramaya SONRADAN katılan sekmenin sayacı sıfırdan başlamaz:
- *        yoklama yanıtı aramanın başlangıcını GERİYE çeker (ileriye asla — sayaç
+ *        başlatma yanıtı (DISC-N2; eski API'de ilk yoklama yanıtı) aramanın
+ *        başlangıcını GERİYE çeker (ileriye asla — sayaç
  *        geri saymasın). Başlangıç, sunucunun kendi saatiyle ölçtüğü geçen
  *        SÜREDEN (`elapsedMs`) bu tarayıcının saatine çevrilir (kanca yapar);
  *        sunucu saatindeki `startedAt` tarayıcı saatiyle karşılaştırılmaz (saati
@@ -985,6 +986,9 @@ export function SupplierDiscoveryModal({
         // sekmenin bildiği an isteğin yolda geçen süresi kadar ERKENDİR, sayaç
         // geri saymaz; bir saniyeden küçük fark sayacı değiştirmez; süren bir
         // aramanın olamayacağı kadar eski değer yok sayılır.
+        // DISC-N2 — bildirim artık BAŞLATMA yanıtından da gelir (`onStarted`dan
+        // hemen sonra; kimlik o an oturumda ve kayıtta): katılan sekme ilk
+        // yoklamaya kadar (3 sn) "0 sn" demez. Kural aynıdır.
         onStartedAt: (startedAt) => {
           if (!isCurrent()) return;
           const s = qc.getQueryData<DiscoverySession>(key);

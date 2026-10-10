@@ -270,3 +270,32 @@ describe("ürün formu — gizli kategorinin nitelikleri AI istemine girmez (CP-
     expect(body.facts).toEqual(["Ürün grubu: Tohum"]);
   });
 });
+
+/**
+ * ÜRÜNÜN KATEGORİSİ DEĞİŞTİRİLİR, KALDIRILMAZ (kapanış kontrolü 2026-10-10,
+ * CL-PF-2). Çip × ile kaldırılıp "Taslak olarak kaydet" denince PATCH
+ * `categoryId: null` gönderiyor, sunucu kayıtlı kategoriyi koruyor (null orada
+ * "olduğu gibi bırak"), form ise "Taslak kaydedildi" deyip kategorisiz
+ * görünüyordu — sayfa yenilenince kategori ve nitelik alanları geri geliyordu.
+ * Kategori kutusu GERÇEK (`CategorySelectorButton`).
+ */
+describe("ürün formu — kategori kaldırılamaz, yalnız değiştirilir (CL-PF-2)", () => {
+  const draft = { ...COMPLETE, categoryId: VISIBLE, attributes: { urun_grubu: "Tohum" } } as ProductShowcase;
+
+  it("kategori çipinde kaldırma düğmesi YOK, 'Değiştir' var; taslak kaydı gösterilen kategoriyi gönderir", async () => {
+    renderForm(draft);
+    // Çip adıyla çizildi.
+    expect(await screen.findByText("Vidalar")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /kategorisini kaldır/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Değiştir" })).toBeInTheDocument();
+
+    h.patch.mockResolvedValue({ data: draft });
+    fireEvent.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Taslak olarak kaydet" }));
+    await waitFor(() => expect(h.patch).toHaveBeenCalled());
+    const [, body] = h.patch.mock.calls[0]!;
+    // Form ile kayıt aynı şeyi söyler: gönderilen kategori ekrandaki kategoridir.
+    expect((body as { categoryId: string | null }).categoryId).toBe(VISIBLE);
+    expect(screen.getByText("Vidalar")).toBeInTheDocument();
+  });
+});

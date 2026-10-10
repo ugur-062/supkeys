@@ -183,6 +183,12 @@ export interface ExternalSearchOptions {
    * aramayı başlatan sekmenin sayacı 3. saniyede "33 sn" diyor, gerideyse katılan
    * sekme yine sıfırdan sayıyordu. Süre ortak saat gerektirmez. Çağıran değeri
    * kendi bildiği başlangıçla (aynı saat) karşılaştırıp kullanır.
+   *
+   * BAŞLATMA yanıtı da aynı alanı taşır (kapanış kontrolü DISC-N2: yeni aramada
+   * 0, süren aramaya katılana aramanın yaşı): varsa bildirim ilk yoklamayı (3 sn)
+   * BEKLEMEDEN, `onStarted`dan hemen sonra gelir — katılan sekme o üç saniye
+   * boyunca "0 sn" demez. Alanı taşımayan (eski) API'de ilk bildirim eskisi gibi
+   * yoklamadan gelir.
    */
   onStartedAt?: (startedAt: number) => void;
   /** Başlatma ucu yok (eski API, 404): arama eş zamanlı uca düştü — çağıran bunu hatırlar. */
@@ -253,6 +259,15 @@ function isStartRouteMissing(err: unknown): boolean {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Sunucunun KENDİ saatiyle ölçtüğü geçen süre (`elapsedMs`) → aramanın başladığı
+ * an, BU tarayıcının saatiyle (yanıtın geldiği an eksi süre). Başlatma ve yoklama
+ * yanıtı aynı kuralla okunur; alan yoksa / sayı değilse / eksiyse `null`.
+ */
+function startedAtFromElapsed(elapsedMs: unknown): number | null {
+  return typeof elapsedMs === "number" && Number.isFinite(elapsedMs) && elapsedMs >= 0 ? Date.now() - elapsedMs : null;
+}
+
 const externalSearchUrl = (searchId: string) => `${EXTERNAL_SEARCH_PATH}/searches/${encodeURIComponent(searchId)}`;
 
 /**
@@ -268,9 +283,10 @@ async function pollExternalSearch(
   since: number,
   shouldStop: (() => boolean) | undefined,
   onStartedAt?: (startedAt: number) => void,
+  startAlreadyTold = false,
 ): Promise<ExternalDiscoveryResult> {
   const url = externalSearchUrl(searchId);
-  let startToldOnce = false;
+  let startToldOnce = startAlreadyTold;
   for (;;) {
     await wait(EXTERNAL_SEARCH_POLL_MS);
     if (shouldStop?.()) throw new ExternalSearchError("ABANDONED");
@@ -287,10 +303,10 @@ async function pollExternalSearch(
       // Sunucunun ölçtüğü SÜRE, bu tarayıcının saatine çevrilir (yanıtın geldiği an
       // eksi süre). Alanı taşımayan (eski) API'de bildirim yoktur: sayaç eskisi
       // gibi bu sekmenin bildiği andan sürer.
-      const elapsedMs = state.elapsedMs;
-      if (typeof elapsedMs === "number" && Number.isFinite(elapsedMs) && elapsedMs >= 0) {
+      const startedAt = startedAtFromElapsed(state.elapsedMs);
+      if (startedAt !== null) {
         startToldOnce = true;
-        onStartedAt(Date.now() - elapsedMs);
+        onStartedAt(startedAt);
       }
     }
     if (state?.status === "DONE") {
@@ -335,6 +351,7 @@ export async function searchExternalSuppliers(
   if (options.sync) return searchSynchronously(body);
   const since = options.since ?? Date.now();
   let searchId: string;
+  let startedAt: number | null;
   try {
     // Yanıt hemen gelir; zaman aşımı yine de cömert (uyuyan API ~30 sn'de kalkar):
     // sunucu aramayı başlatmışken istemcinin isteği kesmesi, "Yeniden ara" ile
@@ -343,17 +360,23 @@ export async function searchExternalSuppliers(
       timeout: 60_000,
       skipErrorToast: true,
     });
-    const id = asRecord(data)?.searchId;
+    const started = asRecord(data);
+    const id = started?.searchId;
     // Kimliksiz "başladı" yanıtı izlenemez: genel arama hatası.
     if (typeof id !== "string" || !id) throw new ExternalSearchError("FAILED");
     searchId = id;
+    // DISC-N2 — süren aramaya KATILAN sekmeye başlatma yanıtı aramanın yaşını söyler.
+    startedAt = startedAtFromElapsed(started?.elapsedMs);
   } catch (err) {
     if (!isStartRouteMissing(err)) throw err;
     options.onSyncFallback?.();
     return searchSynchronously(body);
   }
   options.onStarted?.(searchId);
-  return pollExternalSearch(searchId, since, options.shouldStop, options.onStartedAt);
+  // Kimlikten SONRA: çağıran başlangıcı kimliğin kaydına da yazar.
+  const startTold = startedAt !== null && !!options.onStartedAt;
+  if (startedAt !== null) options.onStartedAt?.(startedAt);
+  return pollExternalSearch(searchId, since, options.shouldStop, options.onStartedAt, startTold);
 }
 
 /**

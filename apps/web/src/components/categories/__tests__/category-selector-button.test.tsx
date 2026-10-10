@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   byIds: {} as { data?: unknown; isError?: boolean; refetch?: () => void },
   args: [] as unknown[][],
+  /** Pencereye son geçen prop'lar (pencere sahte). */
+  modal: null as null | { validate?: (ids: string[]) => string | null; value: string[] },
 }));
 
 vi.mock("@/hooks/use-categories", () => ({
@@ -20,7 +22,10 @@ vi.mock("@/hooks/use-categories", () => ({
   },
 }));
 vi.mock("@/components/categories/category-selector-modal", () => ({
-  CategorySelectorModal: () => <div data-testid="modal" />,
+  CategorySelectorModal: (props: NonNullable<typeof h.modal>) => {
+    h.modal = props;
+    return <div data-testid="modal" />;
+  },
 }));
 
 import { CategorySelectorButton } from "../category-selector-button";
@@ -32,6 +37,7 @@ beforeEach(() => {
     data: [{ id: "39121300", nameTr: LONG, breadcrumb: `Z. Elektrik Sistemleri › Elektrik donanımı › ${LONG}` }],
   };
   h.args = [];
+  h.modal = null;
 });
 
 describe("CategorySelectorButton — seçim çipleri", () => {
@@ -69,6 +75,43 @@ describe("CategorySelectorButton — seçim çipleri", () => {
     render(<CategorySelectorButton value={["39121300"]} onChange={() => {}} />);
     expect(screen.getByText("…")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Yeniden dene" })).toBeNull();
+  });
+});
+
+/**
+ * KALDIRILAMAYAN SEÇİM (kapanış kontrolü 2026-10-10, CL-PF-2). Ürün formunda çip
+ * × ile kaldırılıp taslak kaydedilince form "kaydedildi" deyip kategorisiz
+ * görünüyor, sunucu ise kayıtlı kategoriyi koruyordu (boş değer orada "olduğu
+ * gibi bırak"tır). `clearable={false}`: seçim yalnız DEĞİŞTİRİLİR.
+ */
+describe("CategorySelectorButton — kaldırılamayan seçim (`clearable={false}`)", () => {
+  it("çipte kaldırma düğmesi YOK; 'Değiştir' pencereyi açar", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<CategorySelectorButton value={["39121300"]} onChange={onChange} mode="single" clearable={false} />);
+    expect(screen.getByText(LONG)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /kategorisini kaldır/ })).toBeNull();
+    expect(screen.queryByTestId("modal")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Değiştir" }));
+    expect(screen.getByTestId("modal")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("pencerede BOŞ seçim onaylanmaz (pencere kendi cümlesiyle reddeder); bir seçim onaylanır", async () => {
+    const user = userEvent.setup();
+    render(<CategorySelectorButton value={["39121300"]} onChange={() => {}} mode="single" clearable={false} />);
+    await user.click(screen.getByRole("button", { name: "Değiştir" }));
+    expect(h.modal?.validate?.([])).toBe("Listeden seçim yapın");
+    expect(h.modal?.validate?.(["39121600"])).toBeNull();
+  });
+
+  it("varsayılan (talep formu) değişmedi: kaldırma düğmesi durur, pencere boş seçimi reddetmez", async () => {
+    const user = userEvent.setup();
+    render(<CategorySelectorButton value={["39121300"]} onChange={() => {}} mode="single" />);
+    expect(screen.getByRole("button", { name: `${LONG} kategorisini kaldır` })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Değiştir" }));
+    expect(h.modal).not.toBeNull();
+    expect(h.modal?.validate).toBeUndefined();
   });
 });
 

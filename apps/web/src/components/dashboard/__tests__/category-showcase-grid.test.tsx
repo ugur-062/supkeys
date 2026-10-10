@@ -95,9 +95,12 @@ describe("CategoryShowcaseRows — blok ızgarası", () => {
     const cls = title.className.split(/\s+/);
     expect(cls).toContain("break-words");
     expect(cls).toContain("[&:lang(ru)]:hyphens-auto");
-    // Yalnız uzun sözcük (13+ harf): "строительные" gibi sözcükler bölünmez,
-    // başlık dört satıra çıkıp kartı uzatmaz.
-    expect(cls).toContain("[hyphenate-limit-chars:13]");
+    // Yalnız uzun sözcük (14+ harf), tirenin iki yanında en az 4 harf:
+    // "строительные" gibi sözcükler bölünmez, başlık dört satıra çıkıp kartı
+    // uzatmaz. Kapanış kontrolü CL-03: `13` iken "Производствен-ные
+    // комплектую-щие" iki kez bölünüyordu (ikincisi kendi satırına sığar).
+    expect(cls).toContain("[hyphenate-limit-chars:14_4_4]");
+    expect(cls.filter((c) => c.startsWith("[hyphenate-limit-chars:"))).toHaveLength(1);
     // Öteki dillerde heceleme açılmaz (sığan sözcüklerin sarması değişmesin).
     expect(cls).not.toContain("hyphens-auto");
   });

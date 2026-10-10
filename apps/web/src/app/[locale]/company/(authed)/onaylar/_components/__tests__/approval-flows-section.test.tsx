@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -83,6 +83,13 @@ describe("ApprovalFlowsSection — liste okunamadı (OUTF-4)", () => {
     expect(alert).toHaveTextContent("Onay akışları yüklenemedi");
     expect(alert).toHaveTextContent("Lütfen yeniden deneyin.");
     expect(alert).not.toHaveTextContent(/bağlantı/i);
+  });
+
+  it("yeniden deneme düğmesi cümle düzeninde: 'Yeniden dene' (kapanış kontrolü OUTC-1 — 'Yeniden Dene' idi)", () => {
+    h.flowsFailed = true;
+    render(<ApprovalFlowsSection canManage />);
+    const buttons = within(screen.getByRole("alert")).getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Yeniden dene"]);
   });
 });
 

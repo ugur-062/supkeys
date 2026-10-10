@@ -34,9 +34,12 @@ describe("MarketplaceFooter — sütun bağlantıları", () => {
     for (const link of links) {
       const cls = link.className.split(/\s+/);
       expect(cls).toContain("break-words");
-      // Rusçada yalnız uzun sözcük (13+ harf) hecelenir.
+      // Rusçada yalnız uzun sözcük (14+ harf) hecelenir; tirenin iki yanında en
+      // az 4 harf (kapanış kontrolü CL-03: "Договор ди-станционной продажи"
+      // bölünüyordu — 13 harfli sözcük kendi satırına sığar).
       expect(cls).toContain("[&:lang(ru)]:hyphens-auto");
-      expect(cls).toContain("[hyphenate-limit-chars:13]");
+      expect(cls).toContain("[hyphenate-limit-chars:14_4_4]");
+      expect(cls.filter((c) => c.startsWith("[hyphenate-limit-chars:"))).toHaveLength(1);
       // Öteki dillerde heceleme açılmaz.
       expect(cls).not.toContain("hyphens-auto");
       // Kırpma ya da tek satıra zorlama yok: bağlantının tamamı okunur.

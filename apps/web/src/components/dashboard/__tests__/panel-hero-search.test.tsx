@@ -514,3 +514,67 @@ describe("PanelHeroSearch — iki yüzlü sayfada sabit yükseklik (canlı doğr
     expect(screen.getByText("Kısa cümle").className).not.toContain("grid-area");
   });
 });
+
+/**
+ * NOT YUVASI (kapanış kontrolü 2026-10-10, CL-01): herkese açık anasayfanın
+ * sunucu kabuğu yuvayı misafir notlarıyla ayırır; notu OLMAYAN üyede (izni yok)
+ * yuva hiç çizilmediği için başlık ve arama kutusu hidrasyonda ve yüz geçişinde
+ * oynuyordu. Ölçü verildiyse yuva not yokken de durur.
+ */
+describe("PanelHeroSearch — not yuvası (`ctaNote` / `ctaNoteSizer`)", () => {
+  const OWN = { text: "Aradığınızı bulamadınız mı?", label: "Talep aç", href: "/talep" };
+  const OTHER = { text: "Teklif vermek ücretsiz", label: "Açık talepleri görün" };
+  const GUEST = { text: "Teklif vermek ücretsiz", label: "Ücretsiz kaydolun" };
+  const hero = (props: Partial<Parameters<typeof PanelHeroSearch>[0]>) =>
+    render(<PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" {...props} />);
+  /** Arama formundan sonraki kardeş: not yuvası (ya da yuva yoksa `null`). */
+  const slotOf = (container: HTMLElement) => container.querySelector("form")!.nextElementSibling as HTMLElement | null;
+
+  it("not YOK ama ölçü var: yuva yalnız görünmez ölçü hücreleriyle çizilir — bağlantı ve okunan metin yok", () => {
+    const { container } = hero({ ctaNoteSizer: [undefined, OTHER, GUEST] });
+    const slot = slotOf(container)!;
+    expect(slot.className).toMatch(/(^|\s)grid(\s|$)/);
+    expect([...slot.children].map((c) => c.textContent)).toEqual([
+      "Teklif vermek ücretsizAçık talepleri görün",
+      "Teklif vermek ücretsizÜcretsiz kaydolun",
+    ]);
+    for (const cell of slot.children) {
+      expect(cell).toHaveAttribute("aria-hidden", "true");
+      for (const cls of ["invisible", "[grid-area:1/1]", "mt-5", "flex-wrap", "text-sm"]) expect(cell.className).toContain(cls);
+    }
+    expect(slot.querySelector("a")).toBeNull();
+    expect(screen.queryByRole("link", { name: /Talep aç|kaydolun|talepleri/ })).toBeNull();
+  });
+
+  it("not + ölçü listesi: görünen not ile aynı hücrede; görünen notla ya da birbiriyle AYNI ölçü ikinci kez çizilmez", () => {
+    const { container } = hero({ ctaNote: OWN, ctaNoteSizer: [OTHER, { text: OWN.text, label: OWN.label }, GUEST, OTHER] });
+    const slot = slotOf(container)!;
+    const [own, ...sizers] = [...slot.children] as HTMLElement[];
+    expect(own!.tagName).toBe("P");
+    expect(own!.className).toContain("[grid-area:1/1]");
+    expect(own!.getAttribute("aria-hidden")).toBeNull();
+    expect(screen.getByRole("link", { name: "Talep aç" })).toHaveAttribute("href", "/talep");
+    expect(sizers.map((c) => c.textContent)).toEqual([
+      "Teklif vermek ücretsizAçık talepleri görün",
+      "Teklif vermek ücretsizÜcretsiz kaydolun",
+    ]);
+  });
+
+  it("tek ölçü (eski biçim) eskisi gibi; ölçü yoksa not sarmalayıcısız, not da yoksa hiçbir şey çizilmez", () => {
+    const single = hero({ ctaNote: OWN, ctaNoteSizer: OTHER });
+    expect([...slotOf(single.container)!.children].map((c) => c.tagName)).toEqual(["P", "DIV"]);
+    single.unmount();
+
+    const plain = hero({ ctaNote: OWN });
+    const note = slotOf(plain.container)!;
+    expect(note.tagName).toBe("P");
+    expect(note.className).not.toContain("grid-area");
+    plain.unmount();
+
+    for (const props of [{}, { ctaNoteSizer: [] }, { ctaNoteSizer: [undefined] }]) {
+      const none = hero(props);
+      expect(slotOf(none.container)).toBeNull();
+      none.unmount();
+    }
+  });
+});

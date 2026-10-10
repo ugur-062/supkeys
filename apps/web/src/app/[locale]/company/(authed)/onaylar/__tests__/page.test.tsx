@@ -235,12 +235,14 @@ describe("OnaylarPage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Lütfen yeniden deneyin.");
     expect(screen.getByRole("alert")).not.toHaveTextContent(/bağlantı/i);
     expect(screen.queryByText("Sıra sizde bekleyen onay yok")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Yeniden Dene" }));
+    // Kapanış kontrolü OUTC-1: düğme paneldeki öteki "yeniden dene"ler gibi cümle
+    // düzeninde ("Yeniden Dene" değil) — hemen üstündeki not "Tekrar dene" diyor.
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden dene" }));
     expect(h.refetchPending).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
     expect(screen.getByRole("alert")).toHaveTextContent("Kayıtlar yüklenemedi");
-    fireEvent.click(screen.getByRole("button", { name: "Yeniden Dene" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden dene" }));
     expect(h.refetchAll).toHaveBeenCalledTimes(1);
   });
 

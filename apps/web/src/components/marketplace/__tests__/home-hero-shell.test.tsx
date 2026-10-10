@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * KABUK ↔ HERO KUTU SÖZLEŞMESİ (son canlı kontrol 2026-10-10, NEW-04).
@@ -33,6 +33,7 @@ vi.mock("@/hooks/use-ai-search-intent", () => ({
 
 import { AudienceProvider } from "@/components/marketplace/audience-switch";
 import { HomeHero } from "@/components/marketplace/home-hero";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 function HeroPage() {
   return (
@@ -48,9 +49,11 @@ function renderShell(): HTMLElement {
   const { container } = render(<HeroPage />);
   return container.querySelector("section") as HTMLElement;
 }
-/** Hidrasyon sonrası: tedarikçi yüzü, misafir. */
-function renderHero(): HTMLElement {
+/** Hidrasyon sonrası: tedarikçi yüzü (varsayılan) ya da kayıtlı tercihle alıcı yüzü. */
+function renderHero(face: "supplier" | "buyer" = "supplier"): HTMLElement {
   h.suspend = false;
+  if (face === "buyer") window.localStorage.setItem("rothern.audience", "buyer");
+  else window.localStorage.removeItem("rothern.audience");
   const { container } = render(<HeroPage />);
   return container.querySelector("section") as HTMLElement;
 }
@@ -182,5 +185,85 @@ describe("Anasayfa hero'su — hidrasyon öncesi kabuk hero ile aynı yeri tutar
     const hero = parts(renderHero());
     expect(hero.search.querySelector('input[type="search"]')).not.toBeNull();
     expect(hero.note.querySelector("a")).not.toBeNull();
+  });
+});
+
+/**
+ * OTURUMLU ÜYE (kapanış kontrolü 2026-10-10, CL-01). Sunucu HTML'i her zaman
+ * misafir hâlidir: kabuk not yuvasını iki yüzün MİSAFİR notuyla ayırır. Üyenin
+ * notu hidrasyondan sonra başka (etiketi farklı) ya da HİÇ yok olabilir (izni
+ * yok). Eskiden notu olmayan yüz yuvayı hiç çizmiyordu: görüntüleyicide başlık
+ * ve arama kutusu hidrasyonda 28–52 px, yalnız satınalma / yalnız satış rolünde
+ * yüz geçişinde 28–42 px oynuyordu.
+ *
+ * Kural: hero'nun not yuvası HER rolde ve HER yüzde durur; kabuğun ölçtüğü iki
+ * misafir notunu (görünen not olarak ya da görünmez ölçü olarak) taşır; iki yüz
+ * aynı not kümesini ölçer.
+ */
+describe("Anasayfa hero'su — oturumlu üyede not yuvası kabuğun ayırdığı yerde kalır (CL-01)", () => {
+  const GUEST_SUPPLIER = "Taleplere teklif vermek tamamen ücretsizÜcretsiz kaydolun";
+  const GUEST_BUYER = "Aradığınız ürünü bulamadınız mı? Alım talebi açmak ücretsiz.Talep aç";
+  const signIn = (permissions: string[]) =>
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions, roles: [] } as never,
+      company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never,
+    });
+  const cells = (slot: HTMLElement) => [...slot.children] as HTMLElement[];
+  const texts = (slot: HTMLElement) => cells(slot).map((c) => c.textContent ?? "").sort();
+
+  afterEach(() => {
+    useCompanyAuthStore.setState({ user: null, company: null });
+  });
+
+  it.each([
+    // [rol, izinler, tedarikçi yüzünde not var mı, alıcı yüzünde not var mı]
+    ["görüntüleyici (iki yüzde de not yok)", ["buy:view", "sell:view"], false, false],
+    ["yalnız satış (alıcı yüzünde not yok)", ["sell:view", "sell:bid:submit"], true, false],
+    ["yalnız satınalma (tedarikçi yüzünde not yok)", ["buy:view", "buy:listing:manage"], false, true],
+    ["bütün izinler (iki yüzde de not var)", ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"], true, true],
+  ])("%s: yuva iki yüzde de durur, kabuğun ölçtüğü notları taşır, iki yüz aynı kümeyi ölçer", (_role, permissions, supplierNote, buyerNote) => {
+    signIn(permissions);
+    // Kabuk üyede de misafir yuvasıdır (sunucu oturumu tanımaz).
+    const shell = parts(renderShell());
+    expect(texts(shell.note)).toEqual([GUEST_BUYER, GUEST_SUPPLIER].sort());
+
+    const faces = { supplier: parts(renderHero("supplier")), buyer: parts(renderHero("buyer")) };
+    expect(faces.supplier.column.parentElement!.getAttribute("aria-label")).toBe("Yeni siparişler bulun");
+    expect(faces.buyer.column.parentElement!.getAttribute("aria-label")).toBe("Yeni tedarikçiler bulun");
+
+    for (const [face, visible] of [["supplier", supplierNote], ["buyer", buyerNote]] as const) {
+      const hero = faces[face];
+      // Dört yuva: not yuvası kaybolmaz (eskiden notu olmayan yüzde üç çocuk kalıyordu).
+      expect(hero.column.children).toHaveLength(4);
+      expect(hero.extra).toHaveLength(0);
+      expect(hero.search.tagName).toBe("FORM");
+      // Aynı ızgara; hücreler kabuğun hücreleriyle aynı kutu sınıflarını taşır.
+      expect(tokens(hero.note)).toEqual(tokens(shell.note));
+      for (const cell of cells(hero.note)) expect(box(cell)).toEqual(box(shell.note.children[0]!));
+      // Kabuğun ölçtüğü iki misafir notu da ölçülür → yuva kabuktan kısa olamaz.
+      expect(texts(hero.note)).toEqual(expect.arrayContaining([GUEST_SUPPLIER, GUEST_BUYER]));
+      // Görünen not en çok bir tane; gerisi görünmez ve yardımcı teknolojiden gizli.
+      const shown = cells(hero.note).filter((c) => c.getAttribute("aria-hidden") !== "true");
+      expect(shown).toHaveLength(visible ? 1 : 0);
+      for (const cell of cells(hero.note)) {
+        if (shown.includes(cell)) continue;
+        expect(cell.className).toContain("invisible");
+        expect(cell.querySelector("a, button")).toBeNull();
+      }
+      // İzni olmayana çağrı yok: yuvada bağlantı çizilmez.
+      expect(hero.note.querySelectorAll("a")).toHaveLength(visible ? 1 : 0);
+      // Aynı not iki kez ölçülmez.
+      expect(new Set(texts(hero.note)).size).toBe(cells(hero.note).length);
+    }
+    // İki yüz aynı not kümesini ölçer → yüz geçişinde arama kutusu oynamaz.
+    expect(texts(faces.supplier.note)).toEqual(texts(faces.buyer.note));
+  });
+
+  it("misafirde yuva değişmedi: görünen not + öteki yüzün notu, başka ölçü yok (iki yüzde)", () => {
+    const supplier = parts(renderHero("supplier"));
+    expect(cells(supplier.note).map((c) => c.textContent)).toEqual([GUEST_SUPPLIER, GUEST_BUYER]);
+    const buyer = parts(renderHero("buyer"));
+    expect(cells(buyer.note).map((c) => c.textContent)).toEqual([GUEST_BUYER, GUEST_SUPPLIER]);
   });
 });

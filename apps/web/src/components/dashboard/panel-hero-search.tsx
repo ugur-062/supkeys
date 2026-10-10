@@ -256,6 +256,31 @@ export function heroBandClass(accent: "blue" | "emerald", hasWidgets: boolean): 
 
 type HeroNoteText = { text: string; label: string };
 
+/** Ölçü yuvasının ızgarası ve görünmez ölçü hücresi (`SizedSlot` ve not yuvası ortak kullanır). */
+const SIZED_SLOT_CLASS = "grid items-end";
+const SIZER_CELL_CLASS = "invisible [grid-area:1/1]";
+
+/**
+ * Not yuvasının ÖLÇÜ notları: verilenlerden boş olmayan, görünen nottan ve
+ * birbirinden farklı (metin + etiket) olanlar, verildiği sırada. Aynı içerik aynı
+ * yüksekliği verir — yinelenen ölçü çizilmez (misafirde yuva eskisiyle birebir).
+ */
+function heroNoteSizers(
+  own: HeroNoteText | undefined,
+  sizers: HeroNoteText | readonly (HeroNoteText | undefined)[] | undefined,
+): HeroNoteText[] {
+  const keyOf = (n: HeroNoteText) => `${n.text}\u0000${n.label}`;
+  const seen = new Set(own ? [keyOf(own)] : []);
+  const out: HeroNoteText[] = [];
+  const list: readonly (HeroNoteText | undefined)[] = !sizers ? [] : "text" in sizers ? [sizers] : sizers;
+  for (const note of list) {
+    if (!note || seen.has(keyOf(note))) continue;
+    seen.add(keyOf(note));
+    out.push(note);
+  }
+  return out;
+}
+
 /** Notun içeriğinin ETKİLEŞİMSİZ kopyası (metin + hap): ölçü hücresi ve kabuk çizer. */
 function HeroNoteGhost({ note }: { note: HeroNoteText }) {
   return (
@@ -326,9 +351,9 @@ export function SizedSlot({
 }) {
   if (!sizer) return <>{children}</>;
   return (
-    <div className="grid items-end">
+    <div className={SIZED_SLOT_CLASS}>
       {children}
-      <div aria-hidden className={cn("invisible [grid-area:1/1]", sizerClassName)}>
+      <div aria-hidden className={cn(SIZER_CELL_CLASS, sizerClassName)}>
         {sizerNode ?? sizer}
       </div>
     </div>
@@ -401,8 +426,16 @@ export function PanelHeroSearch({
    * geçti: sayılar bilgi veriyordu ama bir sonraki adımı söylemiyordu.
    */
   ctaNote?: { text: string; label: string; href: string };
-  /** Öteki yüzün notu — yalnız ÖLÇÜ (görünmez); bkz. `titleSizer`. */
-  ctaNoteSizer?: { text: string; label: string };
+  /**
+   * Not yuvasının ÖLÇÜSÜ (görünmez; bkz. `titleSizer`): öteki yüzün notu — ya da
+   * bir liste. Yuva, görünen notla birlikte bunların en uzununun yüksekliğini
+   * alır. Ölçü varsa yuva `ctaNote` YOKKEN de çizilir (yalnız görünmez ölçüler):
+   * herkese açık anasayfada sunucu kabuğu yuvayı misafir notlarıyla ayırır;
+   * notu olmayan üyede (izni yok) yuva kaybolursa başlık ve arama kutusu
+   * hidrasyonda ve yüz geçişinde 28–52 px oynuyordu (kapanış kontrolü CL-01).
+   * Verilmezse (panel anasayfaları) işaretleme eskisiyle birebir aynıdır.
+   */
+  ctaNoteSizer?: HeroNoteText | readonly (HeroNoteText | undefined)[];
   /**
    * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
    * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
@@ -610,6 +643,19 @@ export function PanelHeroSearch({
           soft: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
           softOn: "bg-emerald-100 text-emerald-800",
         };
+
+  const noteSizers = heroNoteSizers(ctaNote, ctaNoteSizer);
+  /** Görünen not; `cell` = ölçü yuvasındaki ızgara hücresi sınıfı (yuva yoksa boş). */
+  const noteLine = (cell: string) =>
+    ctaNote ? (
+      <p className={`${cell}${HERO_NOTE_CLASS} text-zinc-600`}>
+        {ctaNote.text}
+        <Link href={ctaNote.href} className={`${HERO_NOTE_PILL_CLASS} text-white transition ${tone.btn}`}>
+          {ctaNote.label}
+          <ArrowRightIcon aria-hidden className="size-4" />
+        </Link>
+      </p>
+    ) : null;
 
   return (
     <section
@@ -929,29 +975,24 @@ export function PanelHeroSearch({
             gönderilmez. */}
         {/* KÜÇÜK ÇIKIŞ — "bulamadıysan talep aç". Sayfanın birincil CTA'sı
             sol menüde; bu ikincil ve cümle içinde, hero'yu şişirmiyor. */}
-        {ctaNote ? (
+        {noteSizers.length > 0 ? (
           /* ÖLÇÜ (canlı doğrulama 2026-10-09, HEAD-01-R): iki yüzün notu
              telefonda farklı satır sayısına sarıyor; bant içeriğini dikeyde
              ortaladığı için 20 px'lik fark arama kutusunu 10 px oynatıyordu.
-             Öteki yüzün notu görünmez ölçü olarak aynı hücrede — başlık ve
-             alt cümleyle aynı yuva. */
-          <SizedSlot
-            sizer={ctaNoteSizer ? `${ctaNoteSizer.text} ${ctaNoteSizer.label}` : undefined}
-            sizerNode={ctaNoteSizer ? <HeroNoteGhost note={ctaNoteSizer} /> : undefined}
-            sizerClassName={HERO_NOTE_CLASS}
-          >
-          <p className={`${ctaNoteSizer ? "[grid-area:1/1] " : ""}${HERO_NOTE_CLASS} text-zinc-600`}>
-            {ctaNote.text}
-            <Link
-              href={ctaNote.href}
-              className={`${HERO_NOTE_PILL_CLASS} text-white transition ${tone.btn}`}
-            >
-              {ctaNote.label}
-              <ArrowRightIcon aria-hidden className="size-4" />
-            </Link>
-          </p>
-          </SizedSlot>
-        ) : null}
+             Ölçü notları görünmez olarak aynı hücrede — başlık ve alt cümleyle
+             aynı yuva. Yuva NOT YOKKEN de durur (CL-01): kabuğun ayırdığı yer
+             hidrasyonda ve yüz geçişinde kaybolmaz. */
+          <div className={SIZED_SLOT_CLASS}>
+            {noteLine("[grid-area:1/1] ")}
+            {noteSizers.map((sizer) => (
+              <div key={`${sizer.text} ${sizer.label}`} aria-hidden className={cn(SIZER_CELL_CLASS, HERO_NOTE_CLASS)}>
+                <HeroNoteGhost note={sizer} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          noteLine("")
+        )}
 
         {chips.length > 0 ? (
           <nav

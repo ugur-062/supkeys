@@ -97,6 +97,17 @@ export function HomeHero() {
               : t("supplierMemberCtaLabel"),
             href: bidLockedHref ?? PANEL_TARGET.openRequests,
           };
+  /* KABUĞUN AYIRDIĞI NOT YUVASI HERO'DA DA DURUR (kapanış kontrolü CL-01).
+     Sunucu HTML'i her zaman misafir hâlidir: kabuk iki yüzün MİSAFİR notuna yer
+     ayırır. Hidrasyondan sonra üyenin notu başka (etiketi farklı) ya da HİÇ yok
+     (izni yok: görüntüleyici; yalnız satınalma / yalnız satış rolünde öteki yüz).
+     Eskiden notu olmayan yüz yuvayı çizmiyordu: başlık ve arama kutusu hidrasyonda
+     28–52 px, yüz geçişinde 28–42 px oynuyordu. Kabuğun ölçtüğü iki misafir notu
+     artık her yüzde ölçü olarak durur (öteki yüzün gerçek notuyla birlikte);
+     yuva her rolde ve iki yüzde aynı not kümesinin en uzunu kadardır. Misafirde
+     küme değişmez (yinelenen ölçü çizilmez). */
+  const guestSupplierNote = { text: t("supplierCtaText"), label: t("supplierCtaLabel") };
+  const guestBuyerNote = { text: t("buyerCtaText"), label: t("buyerCtaLabel") };
 
   return (
     /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
@@ -137,9 +148,9 @@ export function HomeHero() {
         <AudienceSwitch className="pointer-events-auto bg-white/70 shadow-md shadow-zinc-950/5 ring-zinc-950/10 backdrop-blur" />
       </div>
 
-      {/* Kabuk hero ile AYNI yüksekliği ayırır (NEW-04): notlar da ona gider —
-          sunucuda ikisi de misafir hâlidir. */}
-      <Suspense fallback={<HeroShell note={supplierCtaNote} noteSizer={buyerCtaNote} />}>
+      {/* Kabuk hero ile AYNI yüksekliği ayırır (NEW-04): not yuvasını iki yüzün
+          MİSAFİR notuyla — sunucu HTML'i her zaman misafir hâlidir (CL-01). */}
+      <Suspense fallback={<HeroShell note={guestSupplierNote} noteSizer={guestBuyerNote} />}>
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
@@ -164,7 +175,7 @@ export function HomeHero() {
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
           ctaNote={supplierCtaNote}
-          ctaNoteSizer={buyerCtaNote}
+          ctaNoteSizer={[buyerCtaNote, guestSupplierNote, guestBuyerNote]}
         />
       ) : (
         <PanelHeroSearch
@@ -181,7 +192,7 @@ export function HomeHero() {
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
           ctaNote={buyerCtaNote}
-          ctaNoteSizer={supplierCtaNote}
+          ctaNoteSizer={[supplierCtaNote, guestSupplierNote, guestBuyerNote]}
         />
       )}
       </Suspense>
@@ -218,7 +229,7 @@ function HeroShell({
   note,
   noteSizer,
 }: {
-  /** Tedarikçi yüzünün notu (görünmez yer) ve öteki yüzün notu (ölçü). */
+  /** Tedarikçi yüzünün MİSAFİR notu (görünmez yer) ve öteki yüzün misafir notu (ölçü). */
   note?: { text: string; label: string };
   noteSizer?: { text: string; label: string };
 }) {

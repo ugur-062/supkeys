@@ -19,7 +19,8 @@
  *  - Süren aramanın kaydı (gözden geçirme R6-02): kimlik bağlam başına sekme
  *    deposunda — sayfa yenilemeyi aşar, arama bitince silinir, çıkışta silinir.
  *  - Son canlı kontrol (2026-10-10): yoklama yanıtındaki geçen süre (`elapsedMs`)
- *    başlangıç anı olarak çağırana bildirilir (AS-4); BİTMİŞ aramanın sonucu tek istekle geri okunur ve kaydı
+ *    başlangıç anı olarak çağırana bildirilir (AS-4; başlatma yanıtı da taşıyorsa ilk
+ *    yoklama beklenmez — DISC-N2); BİTMİŞ aramanın sonucu tek istekle geri okunur ve kaydı
  *    `finished` işaretiyle durur (AS-1); davet mutasyonları çağıran isterse genel
  *    hata toast'ını kapatır (AS-2).
  */
@@ -433,6 +434,81 @@ describe("yoklama yanıtındaki geçen süre (`elapsedMs`) başlangıç anı ola
     await tick(3_000);
     expect(finished.state).toBe("resolved");
     expect(late).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Kapanış kontrolü DISC-N2: katılan sekme ilk yoklamaya kadar (3 sn) "Geçen
+   * süre: 0 sn" diyordu — başlatma yanıtı aramanın yaşını taşımıyordu. Artık
+   * taşır (`{ searchId, elapsedMs }`: yeni aramada 0, katılana aramanın yaşı).
+   */
+  describe("BAŞLATMA yanıtındaki geçen süre ilk yoklamayı beklemeden bildirilir (DISC-N2)", () => {
+    it("süren aramaya katılan sekme: bildirim başlatma yanıtıyla, kimlikten SONRA gelir; yoklama aynı aramayı ikinci kez bildirmez", async () => {
+      // Tarayıcı saati sunucudan 5 dk geride; arama sunucuda 12,3 sn'dir sürüyor.
+      const clicked = SERVER_NOW - 5 * 60_000;
+      vi.setSystemTime(clicked);
+      h.post.mockResolvedValue({ data: { searchId: "s-1", elapsedMs: 12_300 } });
+      h.get.mockResolvedValueOnce(runningFor(15_300)).mockResolvedValueOnce(runningFor(18_300)).mockResolvedValueOnce(done(emptyResult));
+      const calls: string[] = [];
+      const onStarted = vi.fn(() => void calls.push("id"));
+      const onStartedAt = vi.fn(() => void calls.push("startedAt"));
+      const outcome = settle(searchExternalSuppliers({ type: "ALIM" }, { onStarted, onStartedAt }));
+      await tick(0);
+      // Yoklama henüz atılmadı; başlangıç bu tarayıcının saatinde, tıklamadan 12,3 sn önce.
+      expect(h.get).not.toHaveBeenCalled();
+      expect(onStartedAt).toHaveBeenCalledTimes(1);
+      expect(onStartedAt).toHaveBeenCalledWith(clicked - 12_300);
+      // Çağıran başlangıcı kimliğin kaydına yazar: kimlik önce bildirilir.
+      expect(calls).toEqual(["id", "startedAt"]);
+      await tick(9_000);
+      expect(h.get).toHaveBeenCalledTimes(3);
+      expect(outcome.state).toBe("resolved");
+      expect(onStartedAt).toHaveBeenCalledTimes(1);
+    });
+
+    it("yeni arama (`elapsedMs: 0`): bildirilen an yanıtın geldiği andır — sayaç bu sekmenin bildiği andan sürer", async () => {
+      const clicked = SERVER_NOW + 30_000;
+      vi.setSystemTime(clicked);
+      h.post.mockResolvedValue({ data: { searchId: "s-1", elapsedMs: 0 } });
+      h.get.mockResolvedValueOnce(done(emptyResult));
+      const onStartedAt = vi.fn();
+      const outcome = settle(searchExternalSuppliers({ type: "ALIM" }, { onStartedAt }));
+      await tick(0);
+      expect(onStartedAt).toHaveBeenCalledTimes(1);
+      expect(onStartedAt).toHaveBeenCalledWith(clicked);
+      await tick(3_000);
+      expect(outcome.state).toBe("resolved");
+    });
+
+    it.each([
+      ["alan yok (eski API)", {}],
+      ["metin", { elapsedMs: "12300" }],
+      ["eksi", { elapsedMs: -1 }],
+      ["null", { elapsedMs: null }],
+    ])("başlatma yanıtında okunabilir süre yoksa (%s) bugünkü davranış: ilk bildirim yoklamadan gelir", async (_label, extra) => {
+      vi.setSystemTime(SERVER_NOW - 3_000);
+      h.post.mockResolvedValue({ data: { searchId: "s-1", ...extra } });
+      h.get.mockResolvedValueOnce(runningFor(14_700)).mockResolvedValueOnce(done(emptyResult));
+      const onStarted = vi.fn();
+      const onStartedAt = vi.fn();
+      const outcome = settle(searchExternalSuppliers({ type: "ALIM" }, { onStarted, onStartedAt }));
+      await tick(2_999);
+      expect(onStarted).toHaveBeenCalledWith("s-1");
+      expect(onStartedAt).not.toHaveBeenCalled();
+      await tick(1);
+      expect(onStartedAt).toHaveBeenCalledTimes(1);
+      expect(onStartedAt).toHaveBeenCalledWith(SERVER_NOW - 14_700);
+      await tick(3_000);
+      expect(outcome.state).toBe("resolved");
+    });
+
+    it("dinleyen yoksa başlatma yanıtındaki süre aramayı etkilemez", async () => {
+      h.post.mockResolvedValue({ data: { searchId: "s-1", elapsedMs: 12_300 } });
+      h.get.mockResolvedValueOnce(runningFor(15_300)).mockResolvedValueOnce(done(emptyResult));
+      const outcome = settle(searchExternalSuppliers({ type: "ALIM" }));
+      await tick(6_000);
+      expect(outcome.state).toBe("resolved");
+      expect(outcome.value).toMatchObject({ companies: [] });
+    });
   });
 });
 

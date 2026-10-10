@@ -741,6 +741,10 @@ export function ProductShowcaseForm({
                   // canlı kontrol NEW-PF-5). Yayında olmayan üründe kategori
                   // gerçekten eksiktir: not ister, ray da ister.
                   retiredOptional={product.isPublic}
+                  // Ürünün kategorisi DEĞİŞTİRİLİR, kaldırılmaz (kapanış kontrolü
+                  // CL-PF-2): sunucu boş değerde kayıtlı kategoriyi korur — "kaldır"
+                  // sunulsaydı form kayıttan farklı bir şey gösterirdi.
+                  clearable={false}
                 />
               </Field>
 
