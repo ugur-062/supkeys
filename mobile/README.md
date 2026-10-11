@@ -40,6 +40,18 @@ npm run sync:staging
 
 Mağaza paketinden önce yeniden düz `npx cap sync`.
 
+## Android deneme paketi (Mac'siz, bu makinede)
+
+Java 21 ve Android SDK `~/android-sdk` altında kurulu (2026-10-11). Telefona elle kurulan deneme paketi:
+
+```bash
+export JAVA_HOME=~/android-sdk/jdk ANDROID_HOME=~/android-sdk PATH=~/android-sdk/jdk/bin:$PATH
+cd mobile && npx cap sync android && cd android && ./gradlew --no-daemon assembleDebug
+```
+
+Çıktı `android/app/build/outputs/apk/debug/app-debug.apk` (imzasız deneme paketi; mağazaya GİTMEZ).
+Staging'i açan deneme paketi işe yaramaz: staging web Vercel girişinin arkasında, WebView oraya takılır.
+
 ## Mağaza paketi
 
 - **Android:** Android Studio → Build → Generate Signed App Bundle (`.aab`). İlk seferde yükleme anahtarı
