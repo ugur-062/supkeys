@@ -1,4 +1,5 @@
 import { ErrorReporter } from "@/components/error-reporter";
+import { NativeShellBridge } from "@/components/native-shell-bridge";
 import { PopstateRestoreGuard } from "@/components/popstate-restore-guard";
 import { I18nRuntimeBridge } from "@/i18n/runtime-bridge";
 import { routing } from "@/i18n/routing";
@@ -53,6 +54,7 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
     template: `%s · ${SITE_NAME}`,
   },
   applicationName: SITE_NAME,
+  manifest: "/site.webmanifest",
   /* Arama motoruna ve AI tarayıcısına AÇIK yönerge: parçacığı kısaltma,
      görseli küçük gösterme, videoyu kırpma. Varsayılan davranış Google'da
      "kısa parçacık"tır; uzun parçacık hem tıklamayı hem üretken motorların
@@ -141,6 +143,8 @@ export default async function RootLayout({
         {/* Geri/İleri sonrası Next'in bayat yaması önceki sayfayı geri
             çizerse onarır (adres liste, ekran detay — D-283). */}
         <PopstateRestoreGuard />
+        {/* Mobil kabukta uygulamaya devredilen bağlantıyı açar; tarayıcıda boş. */}
+        <NativeShellBridge />
         {/* Sağlayıcı sunucudan render edilir: dil + mesajlar next-intl v4'te
             otomatik aktarılır. Köprü, React dışı kodun (axios) dilini kaydeder. */}
         <NextIntlClientProvider messages={messages}>

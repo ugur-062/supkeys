@@ -23,6 +23,9 @@ const INTL_SKIP = [
   // soyup Türkçe sürümü 404'e yollamasın).
   /^\/(?:(?:tr|en|ru)\/)?llms(-full)?\.txt$/,
   /^\/indexnow(\/|$)/,
+  // Mobil uygulama bağlantı beyanları (`apple-app-site-association` UZANTISIZ —
+  // aşağıdaki uzantı kuralına takılmaz, `/tr/.well-known/…`e yazılıp 404 olurdu).
+  /^\/\.well-known(\/|$)/,
   /^\/_next(\/|$)/,
   /^\/_vercel(\/|$)/,
   /\/[^/]*\.[a-zA-Z0-9]+$/, // uzantılı dosya (public/ varlıkları)

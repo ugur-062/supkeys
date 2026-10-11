@@ -1,7 +1,11 @@
 {
+  "id": "/",
   "name": "Rothern",
   "short_name": "Rothern",
-  "description": "Rothern",
+  "description": "B2B satın alma platformu: alım talebi açın, teklif toplayın, yeni tedarikçiler bulun.",
+  "lang": "tr",
+  "start_url": "/company",
+  "scope": "/",
   "icons": [
     {
       "src": "icon-192.png",

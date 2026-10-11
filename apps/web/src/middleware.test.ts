@@ -62,6 +62,15 @@ describe("llms dil sürümleri ve yanıt başlıkları (2026-09-27)", () => {
   });
 });
 
+describe("mobil uygulama bağlantı beyanları", () => {
+  it("`/.well-known/*` next-intl'e girmez (uzantısız apple-app-site-association dahil)", () => {
+    for (const path of ["/.well-known/apple-app-site-association", "/.well-known/assetlinks.json"]) {
+      const res = middleware(new NextRequest(`http://localhost${path}`));
+      expect(res.headers.get("x-middleware-next")).toBe("1");
+    }
+  });
+});
+
 describe("CSP frame-src — ürün videosu (arayüz testi Y-11)", () => {
   it("yalnız izinli oynatıcıları açar; liste shared PRODUCT_VIDEO_FRAME_HOSTS ile aynı", async () => {
     const { PRODUCT_VIDEO_FRAME_HOSTS } = await import("@rothern/shared");
