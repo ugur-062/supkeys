@@ -1,43 +1,60 @@
+import { entitlementDenial } from "../../common/company/entitlement-required";
+import { appRoutes } from "../../common/company/app-routes";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import { localeOf } from "../notifications/notification.service";
+import { isLocale, type Locale } from "@rothern/i18n";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
 import {
   ALL_SEAT_PERMISSIONS,
+  BUYING_TIER,
   BUY_SEAT_PERMISSIONS,
   SELL_SEAT_PERMISSIONS,
-  SEAT_LIMITS,
-  countSeats,
+  VIEWER_PRESET,
   seatGroupsOf,
+  tierAtLeast,
   type SeatGroup,
 } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
+import { UnverifiedSignupCleanupService } from "../company-auth/services/unverified-signup-cleanup.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   ALL_COMPANY_PERMISSIONS,
   effectivePermissions,
+  hasCompanyPermission,
   hasManagementRole,
   normalizePermissions,
   permissionsForRoles,
   rolesFromPermissions,
 } from "../company-auth/permissions/company-permissions.constants";
-import { BUYING_TIER, LEGACY_PERMISSION_MAP, tierAtLeast } from "@rothern/shared";
+import { LEGACY_PERMISSION_MAP } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { deliverInvite } from "../../common/company/invite-delivery";
+import {
+  addsBuySeatPermission,
+  assertSeatAvailable as assertSeatGate,
+  readSeatUsage,
+} from "../../common/company/seat-gate";
 import {
   AcceptCompanyInvitationDto,
   InviteCompanyUserDto,
@@ -47,6 +64,31 @@ import {
 
 /** Davet linki geçerlilik süresi (eski sistemle aynı). */
 const INVITATION_TTL_DAYS = 7;
+/**
+ * Açan kişi ayrılınca sorumluluğu devredilen talep durumları — hâlâ yönetim
+ * aksiyonu alabilen her durum (kazandırılmış/iptal = geçmiş kaydı, devredilmez).
+ */
+const HANDOVER_LISTING_STATUSES = [
+  "DRAFT",
+  "IN_APPROVAL",
+  "OPEN",
+  "CLOSED",
+  "IN_AWARD",
+  "IN_AWARD_APPROVAL",
+  "CLOSED_NO_AWARD",
+] as const;
+type ListingHandover = { transferred: number; toUserId: string | null };
+/**
+ * EKİP DAVETİ E-POSTA FRENİ (yayın denetimi 2026-09-28 Bölüm 5). Görüntüleme
+ * izinli davet koltuk tüketmez → koltuk kapısı sınır DEĞİLDİ; yeniden gönderim
+ * beklemesizdi. Ücretsiz bir hesap rastgele adreslere (konuda kendi seçtiği
+ * firma adıyla) sınırsız e-posta attırabiliyor ve bunu doğrulama kodu/şifre
+ * sıfırlama ile AYNI işlem göndereninden yapıyordu. Firma başına günde
+ * TEAM_INVITE_DAILY_CAP davet e-postası (ilk gönderim + yeniden gönderim),
+ * aynı davete TEAM_INVITE_RESEND_COOLDOWN_MIN dakikada bir.
+ */
+export const TEAM_INVITE_DAILY_CAP = 20;
+export const TEAM_INVITE_RESEND_COOLDOWN_MIN = 10;
 
 /**
  * INV-AUDIT-1 (denial): son-yönetici garantisi tetiklendiğinde fırlatılır.
@@ -57,17 +99,52 @@ const INVITATION_TTL_DAYS = 7;
  */
 class LastActiveAdminError extends BadRequestException {
   constructor() {
-    super("Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı");
+    super(i18nMessage("api.companyUsers.enAzBirAktifYonetimYetkilisiKalmali"));
   }
 }
 
-const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Kurucu",
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
+/**
+ * Rol etiketi — katalog ANAHTARI (metin alıcının dilinde üretilir; davet
+ * e-postasının "Rol" satırı). Bilinmeyen rol ham koda düşer.
+ */
+const ROLE_LABEL_KEY: Record<CompanyRole, ApiMessageKey> = {
+  SAHIP: "api.notifications.companyUsers.role.SAHIP",
+  YONETICI: "api.notifications.companyUsers.role.YONETICI",
+  SATIN_ALMACI: "api.notifications.companyUsers.role.SATIN_ALMACI",
+  SATISCI: "api.notifications.companyUsers.role.SATISCI",
+  ONAYLAYICI: "api.notifications.companyUsers.role.ONAYLAYICI",
 };
+
+function roleLabel(role: CompanyRole, locale: Locale): string {
+  const key: ApiMessageKey | undefined = ROLE_LABEL_KEY[role];
+  return key ? tApi(key, undefined, locale) : String(role);
+}
+
+/**
+ * Davet e-postasının "Rol" satırı. Yalnız görüntüleme/rapor/içgörü izni
+ * verilen davette `rolesFromPermissions` BOŞ döner (hazır setlerin hiçbiri
+ * tutmaz) → satır boş kalıyordu. Boşsa "Görüntüleyici" yazılır.
+ */
+export function inviteRoleLine(roles: readonly CompanyRole[], locale: Locale): string {
+  if (roles.length === 0) {
+    return tApi("api.notifications.companyUsers.role.VIEWER", undefined, locale);
+  }
+  return roles.map((r) => roleLabel(r, locale)).join(" + ");
+}
+
+/**
+ * Davet e-postası sonucu — yanıtta döner, ekran "gönderildi" demeden önce
+ * bakar. `suppressed`: adres daha önce kalıcı geri döndü/şikâyet etti
+ * (yeniden göndermek işe yaramaz); `undeliverable`: alan adına e-posta
+ * teslim edilemez (`.test`, example.com…; yeniden göndermek işe yaramaz);
+ * `allowlist`: yalnız staging — alıcı `EMAIL_ALLOWLIST`te yok, bu ortamda
+ * bilerek gönderilmedi;
+ * `failed`: sağlayıcı hatası/zaman aşımı (yeniden gönder denenebilir).
+ */
+export interface InvitationEmailResult {
+  emailSent: boolean;
+  emailFailureReason?: "suppressed" | "undeliverable" | "allowlist" | "failed";
+}
 
 @Injectable()
 export class CompanyUsersService {
@@ -83,7 +160,25 @@ export class CompanyUsersService {
     // Faz K: seat-selection bildirimi — @Optional: elle kurulan test rig'leri
     // 6-parametreli kalabilir (push best-effort, yoksa sessiz atlanır).
     @Optional() private readonly notifications?: NotificationService,
+    // Expired unverified sign-ups (owner decision 2026-10-08). @Optional for
+    // the hand-built test rigs; `CompanyAuthModule` exports it. Without it an
+    // address held by such a sign-up answers 409 exactly as before.
+    @Optional() private readonly unverifiedSignups?: UnverifiedSignupCleanupService,
   ) {}
+
+  /**
+   * Is `email` the address of a live account? An address held by an EXPIRED
+   * unverified sign-up does not count: that sign-up is removed first (the
+   * nightly job would remove it anyway) and the invitation goes on.
+   */
+  private async isAddressTaken(email: string): Promise<boolean> {
+    const existing = await this.prisma.companyUser.findUnique({
+      where: { email },
+      select: { id: true, deletedAt: true },
+    });
+    if (!existing || existing.deletedAt) return false;
+    return !(await this.unverifiedSignups?.releaseAddress(email, "team_invite"));
+  }
 
   async list(companyId: string) {
     const [users, company] = await Promise.all([
@@ -104,12 +199,17 @@ export class CompanyUsersService {
         permissions: u.permissions,
         roles: u.roles,
       });
-      // Eski düzenleyici uyumu: rol hazır setine göre +/- farkı.
-      const preset = new Set(permissionsForRoles(u.roles));
+      // Eski düzenleyici uyumu: rol hazır setine göre +/- farkı. Rolsüz
+      // kişinin hazır seti "Görüntüleyici"dir (boş küme değil) — aksi hâlde
+      // Görüntüleyici setiyle davet edilen herkes "Özel" rozeti alıyordu (D-305).
+      const rolePreset = permissionsForRoles(u.roles);
+      const preset = new Set(
+        u.roles.length > 0 ? rolePreset : normalizePermissions(VIEWER_PRESET),
+      );
       const stored = new Set(
         u.permissions.length > 0
           ? normalizePermissions(u.permissions)
-          : [...preset],
+          : rolePreset,
       );
       return {
         id: u.id,
@@ -139,7 +239,7 @@ export class CompanyUsersService {
 
   // ============================================================
   // DAVET — token'lı davet-kabul akışı. Hesap davetle DEĞİL kabulle açılır:
-  // kullanıcı adını/parolasını kendisi belirler, sözleşmeleri kendisi onaylar.
+  // kullanıcı adını/şifresini kendisi belirler, sözleşmeleri kendisi onaylar.
   // ============================================================
 
   /**
@@ -152,61 +252,67 @@ export class CompanyUsersService {
     const requested = (dto.roles ?? []) as CompanyRole[];
     if (requested.includes("SAHIP")) {
       throw new BadRequestException(
-        "Kuruculuk davetle verilemez; mevcut bir kullanıcıya devredin",
+        i18nMessage("api.companyUsers.kuruculukDavetleVerilemezMevcutBirKullaniciya"),
       );
     }
     const permissions = this.resolveGrantedPermissions(dto.permissions, requested);
     if (permissions.length === 0) {
-      throw new BadRequestException("En az bir yetki seçin");
+      throw new BadRequestException(i18nMessage("api.companyUsers.enAzBirYetkiSecin"));
     }
     const roles = rolesFromPermissions(permissions, false) as CompanyRole[];
     // Yetki üretim kapısı: "Kullanıcı ve yetki" tikini yalnız Kurucu verir;
     // rol atama yalnız yönetim (users:manage) — guard zaten kapıda.
     this.assertCanGrantPermissions(actor, permissions, []);
     this.assertCanGrantRoles(actor, roles);
-    // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
-    // davetleri de sayılır.
-    await this.assertSeatAvailable(this.prisma, actor.companyId, {
-      groups: seatGroupsOf({ permissions }),
-      includePending: true,
-      context: "invite",
-    });
     const email = dto.email.toLowerCase().trim();
 
-    const existing = await this.prisma.companyUser.findUnique({
-      where: { email },
-      select: { id: true, deletedAt: true },
-    });
-    if (existing && !existing.deletedAt) {
-      throw new ConflictException("Bu e-posta zaten kayıtlı");
+    if (await this.isAddressTaken(email)) {
+      throw new ConflictException(i18nMessage("api.companyUsers.buEPostaZatenKayitli"));
     }
-    const pending = await this.prisma.companyUserInvitation.findFirst({
-      where: {
-        companyId: actor.companyId,
-        email,
-        status: "PENDING",
-        expiresAt: { gt: new Date() },
-      },
-      select: { id: true },
-    });
-    if (pending) {
-      throw new ConflictException(
-        "Bu e-postaya bekleyen bir davet zaten var — gerekirse yeniden gönderin",
-      );
-    }
+    await this.assertInvitationMailBudget(actor.companyId);
 
-    const inv = await this.prisma.companyUserInvitation.create({
-      data: {
-        companyId: actor.companyId,
-        email,
-        roles,
-        permissions,
-        token: crypto.randomBytes(32).toString("hex"),
-        expiresAt: new Date(
-          Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
-        ),
-        invitedById: actor.userId,
-      },
+    // Koltuk kapısı + "bekleyen davet var mı" + oluşturma TEK kilitte (firma
+    // satırı FOR UPDATE — arayüz testi FX-00 O-001): eşzamanlı iki davet
+    // eskiden ikisi de "bekleyen yok" görüp aynı adrese iki davet ve iki
+    // e-posta üretiyor, bekleyen koltuk sayısı paket sınırını aşabiliyordu.
+    // E-posta işlem bittikten SONRA gönderilir.
+    const inv = await this.lockedAdminTx(actor.companyId, async (tx) => {
+      // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
+      // davetleri de sayılır.
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        groups: seatGroupsOf({ permissions }),
+        includePending: true,
+        context: "invite",
+      });
+      const pending = await tx.companyUserInvitation.findFirst({
+        where: {
+          companyId: actor.companyId,
+          email,
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+      if (pending) {
+        throw new ConflictException(
+          i18nMessage("api.companyUsers.buEPostayaBekleyenBirDavet"),
+        );
+      }
+      return tx.companyUserInvitation.create({
+        data: {
+          companyId: actor.companyId,
+          email,
+          roles,
+          permissions,
+          token: crypto.randomBytes(32).toString("hex"),
+          expiresAt: new Date(
+            Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
+          ),
+          invitedById: actor.userId,
+          // Davet dili (diyalogdaki seçim); yoksa gönderimde davet edenin dili.
+          locale: isLocale(dto.locale) ? dto.locale : null,
+        },
+      });
     });
     // INV-AUDIT-1: ilk yetki verilişi (davet) iz bırakır — e-posta (PII)
     // metadata'ya YAZILMAZ, davet id + verilen izinler.
@@ -221,8 +327,8 @@ export class CompanyUsersService {
       critical: true,
       metadata: { roles, permissions },
     });
-    await this.sendInvitationEmail(inv.id);
-    return { id: inv.id, email: inv.email, expiresAt: inv.expiresAt };
+    const mail = await this.sendInvitationEmail(inv.id);
+    return { id: inv.id, email: inv.email, expiresAt: inv.expiresAt, ...mail };
   }
 
   /**
@@ -249,7 +355,9 @@ export class CompanyUsersService {
       return !c || !valid.has(c);
     });
     if (invalid.length > 0) {
-      throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
+      throw new BadRequestException(
+        i18nMessage("api.companyUsers.gecersizIzin", { permission: invalid[0] }),
+      );
     }
   }
 
@@ -267,7 +375,7 @@ export class CompanyUsersService {
     if (actor.isOwner) return;
     if (next.includes("users:manage") && !current.includes("users:manage")) {
       throw new ForbiddenException(
-        "'Kullanıcı ve yetki' tikini yalnızca Kurucu verebilir",
+        i18nMessage("api.companyUsers.kullaniciVeYetkiTikiniYalnizcaKurucu"),
       );
     }
   }
@@ -302,6 +410,13 @@ export class CompanyUsersService {
   }
 
   async cancelInvitation(actor: AuthenticatedCompanyUser, id: string) {
+    // Audit Detay'ı için geri alınan yetki seti (rol + izin) — davet kaydıyla
+    // aynı biçim; aktivite logu "Roller: …" diye çizer (arayüz testi kalanlar
+    // api-2: metadata null olduğu için Detay hücresi boştu).
+    const inv = await this.prisma.companyUserInvitation.findFirst({
+      where: { id, companyId: actor.companyId },
+      select: { roles: true, permissions: true },
+    });
     const res = await this.prisma.companyUserInvitation.updateMany({
       where: {
         id,
@@ -310,7 +425,22 @@ export class CompanyUsersService {
       },
       data: { status: "CANCELLED" },
     });
-    if (res.count === 0) throw new NotFoundException("Davet bulunamadı");
+    if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
+    // INV-AUDIT-1: bekleyen yetki verilişinin geri alınması da iz bırakır
+    // (arayüz testi webC-07 NEW-2 — Aktivite Logu'nda görünmüyordu). E-posta
+    // (PII) metadata'ya yazılmaz (aktivite logu okuma anında davet satırından
+    // çözer); davet id + geri alınan roller/izinler.
+    await this.audit.log({
+      action: "company.user.invitation_cancelled",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user_invitation",
+      entityId: id,
+      critical: true,
+      metadata: { roles: inv?.roles ?? [], permissions: inv?.permissions ?? [] },
+    });
     return { ok: true };
   }
 
@@ -320,7 +450,7 @@ export class CompanyUsersService {
       where: { id, companyId: actor.companyId },
     });
     if (!inv || (inv.status !== "PENDING" && inv.status !== "EXPIRED")) {
-      throw new NotFoundException("Davet bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     }
     // Dalga B-3: yeniden gönderim rol-verme kapısını YENİDEN uygulamalı.
     // Eskiden yalnız firma-sahipliği kontrol ediliyordu; süresi dolmuş bir
@@ -338,7 +468,10 @@ export class CompanyUsersService {
       groups: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }),
       includePending: true,
       context: "invite",
+      // Davet kendi koltuğunu zaten tutuyor — iki kez sayılmasın (O-063).
+      excludeInvitationId: inv.id,
     });
+    await this.assertInvitationMailBudget(actor.companyId, inv.id);
     await this.prisma.companyUserInvitation.update({
       where: { id: inv.id },
       data: {
@@ -349,8 +482,64 @@ export class CompanyUsersService {
         ),
       },
     });
-    await this.sendInvitationEmail(inv.id);
-    return { ok: true };
+    const mail = await this.sendInvitationEmail(inv.id);
+    return { ok: true, ...mail };
+  }
+
+  /**
+   * Ekip daveti e-posta freni (bkz. TEAM_INVITE_DAILY_CAP). Sayım gönderim
+   * DENEMESİ üzerinden (e-posta kaydı; suppress/başarısız da sayılır —
+   * itibar freni). Davet satırı silinmez (iptal = CANCELLED), bu yüzden
+   * bugün dokunulan davetlerin kayıtları sayacı güvenilir kılar.
+   */
+  private async assertInvitationMailBudget(companyId: string, resendOf?: string): Promise<void> {
+    if (resendOf) {
+      const recent = await this.prisma.emailLog.findFirst({
+        where: {
+          contextType: "company_user_invitation",
+          contextId: resendOf,
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(Date.now() - TEAM_INVITE_RESEND_COOLDOWN_MIN * 60_000) },
+        },
+        select: { id: true },
+      });
+      if (recent) {
+        throw new HttpException(
+          i18nMessage(
+            "api.companyUsers.davetYenidenGonderimBekleyin",
+            { minutes: TEAM_INVITE_RESEND_COOLDOWN_MIN },
+            "RESEND_COOLDOWN",
+          ),
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const touchedToday = await this.prisma.companyUserInvitation.findMany({
+      where: { companyId, updatedAt: { gte: dayStart } },
+      select: { id: true },
+    });
+    const sentToday =
+      touchedToday.length === 0
+        ? 0
+        : await this.prisma.emailLog.count({
+            where: {
+              contextType: "company_user_invitation",
+              contextId: { in: touchedToday.map((r) => r.id) },
+              queuedAt: { gte: dayStart },
+            },
+          });
+    if (sentToday >= TEAM_INVITE_DAILY_CAP) {
+      throw new HttpException(
+        i18nMessage(
+          "api.companyConnections.gunlukDavetLimitineUlasildi",
+          { cap: TEAM_INVITE_DAILY_CAP },
+          "DAILY_LIMIT",
+        ),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   /** Davet önizleme (public) — kabul sayfası firma+rol gösterir. */
@@ -372,14 +561,12 @@ export class CompanyUsersService {
   async acceptInvitation(token: string, dto: AcceptCompanyInvitationDto) {
     const inv = await this.requireUsableInvitation(token);
     if (!inv.company.isActive || inv.company.isBlocked) {
-      throw new BadRequestException("Firma hesabı aktif değil");
+      throw new BadRequestException(i18nMessage("api.companyUsers.firmaHesabiAktifDegil"));
     }
-    const existing = await this.prisma.companyUser.findUnique({
-      where: { email: inv.email },
-      select: { id: true, deletedAt: true },
-    });
-    if (existing && !existing.deletedAt) {
-      throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+    // Same release as at `invite`: the invitation can outlive a sign-up that
+    // took the address after it was sent (a resend extends the invitation).
+    if (await this.isAddressTaken(inv.email)) {
+      throw new ConflictException(i18nMessage("api.companyUsers.buEPostaIleZatenBir"));
     }
 
     const { authId } = await this.supabaseAuth.createUser(
@@ -407,12 +594,14 @@ export class CompanyUsersService {
           data: { status: "ACCEPTED", acceptedAt: now },
         });
         if (claimed.count === 0) {
-          throw new BadRequestException("Davet artık geçerli değil");
+          throw new BadRequestException(i18nMessage("api.companyUsers.davetArtikGecerliDegil"));
         }
         const u = await tx.companyUser.create({
           data: {
             email: inv.email,
             authId,
+            // i18n: davet kabul sayfasının dili hesabın dili olur.
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone?.trim() || null,
@@ -472,12 +661,12 @@ export class CompanyUsersService {
         company: { select: { name: true, isActive: true, isBlocked: true } },
       },
     });
-    if (!inv) throw new NotFoundException("Davet bulunamadı");
+    if (!inv) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     if (inv.status === "ACCEPTED") {
-      throw new BadRequestException("Bu davet zaten kabul edilmiş");
+      throw new BadRequestException(i18nMessage("api.companyUsers.buDavetZatenKabulEdilmis"));
     }
     if (inv.status === "CANCELLED") {
-      throw new BadRequestException("Bu davet iptal edilmiş");
+      throw new BadRequestException(i18nMessage("api.companyUsers.buDavetIptalEdilmis"));
     }
     if (inv.status === "EXPIRED" || inv.expiresAt <= new Date()) {
       if (inv.status === "PENDING") {
@@ -487,21 +676,23 @@ export class CompanyUsersService {
         });
       }
       throw new BadRequestException(
-        "Davetin süresi dolmuş — firmanızdan yeni davet isteyin",
+        i18nMessage("api.companyUsers.davetinSuresiDolmusFirmanizdanYeniDavet"),
       );
     }
     return inv;
   }
 
-  private async sendInvitationEmail(invitationId: string) {
+  private async sendInvitationEmail(
+    invitationId: string,
+  ): Promise<InvitationEmailResult> {
     const inv = await this.prisma.companyUserInvitation.findUnique({
       where: { id: invitationId },
       include: { company: { select: { name: true } } },
     });
-    if (!inv) return;
+    if (!inv) return { emailSent: false, emailFailureReason: "failed" };
     const inviter = await this.prisma.companyUser.findUnique({
       where: { id: inv.invitedById },
-      select: { firstName: true, lastName: true },
+      select: { firstName: true, lastName: true, locale: true },
     });
     const inviterName =
       `${inviter?.firstName ?? ""} ${inviter?.lastName ?? ""}`.trim() ||
@@ -509,45 +700,78 @@ export class CompanyUsersService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    const acceptUrl = `${baseUrl}/company/davet/${inv.token}`;
-    try {
-      await this.email.send({
+    // DİL (2026-09-27): davet edilen kişi henüz kayıtlı değil (dili yok) →
+    // davet edenin diyalogda SEÇTİĞİ dil (`CompanyUserInvitation.locale`);
+    // eski/dilsiz davette davet edenin kayıtlı dili. Türk kurucu İngilizce
+    // konuşan çalışanını davet edince e-posta, kabul sayfası ve (sayfada
+    // değiştirilmezse) hesap İngilizce olur. Yeniden gönderim kayıtlı dili korur.
+    const locale = isLocale(inv.locale) ? inv.locale : localeOf(inviter?.locale);
+    // Bağlantı da e-postanın dilinde açılsın (yol parçaları dile göre).
+    const acceptUrl = appRoutes.invite(baseUrl, inv.token, locale);
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
+    // Teslim sonucu BEKLENİR ve yanıta yazılır (2026-09-27): eskiden hata
+    // yutulup `sent:false` (suppress) yok sayılıyordu, ekran her durumda
+    // "gönderildi" diyordu.
+    const res = await deliverInvite(() =>
+      this.email.send({
         to: { email: inv.email },
+        locale,
         templateData: {
           template: "notification",
           data: {
-            subject: `${inv.company.name} sizi ekibine davet ediyor`,
-            heading: "Ekip Daveti",
+            subject: t("api.notifications.companyUsers.invite.subject", {
+              company: inv.company.name,
+            }),
+            heading: t("api.notifications.companyUsers.invite.heading"),
             paragraphs: [
-              `${inviterName}, sizi ${inv.company.name} firmasının ekibine katılmaya davet ediyor.`,
-              "Daveti kabul ederken adınızı ve parolanızı kendiniz belirlersiniz.",
+              t("api.notifications.companyUsers.invite.intro", {
+                inviter: inviterName,
+                company: inv.company.name,
+              }),
+              t("api.notifications.companyUsers.invite.setOwnPassword"),
             ],
             infoRows: [
-              { label: "Firma", value: inv.company.name },
               {
-                label: "Rol",
-                value: inv.roles.map((r) => ROLE_LABEL[r] ?? r).join(" + "),
+                label: t("api.notifications.companyUsers.invite.rowCompany"),
+                value: inv.company.name,
               },
               {
-                label: "Geçerlilik",
-                value: `${INVITATION_TTL_DAYS} gün`,
+                label: t("api.notifications.companyUsers.invite.rowRole"),
+                value: inviteRoleLine(inv.roles as CompanyRole[], locale),
+              },
+              {
+                label: t("api.notifications.companyUsers.invite.rowValidity"),
+                value: t("api.notifications.companyUsers.invite.validityDays", {
+                  days: INVITATION_TTL_DAYS,
+                }),
               },
             ],
-            ctaLabel: "Daveti Kabul Et",
+            ctaLabel: t("api.notifications.companyUsers.invite.cta"),
             ctaUrl: acceptUrl,
-            footerNote:
-              "Bu daveti siz beklemiyorsanız e-postayı yok sayabilirsiniz.",
+            footerNote: t("api.notifications.companyUsers.invite.footer"),
           },
         },
         context: { type: "company_user_invitation", id: inv.id },
-      });
-    } catch (err) {
-      this.logger.error(
-        `Davet e-postası gönderilemedi (${inv.email}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
+      }),
+    );
+    if (res.delivery === "SENT") return { emailSent: true };
+    this.logger.error(
+      `Davet e-postası gönderilemedi (${inv.id}): ${res.delivery}${
+        res.timedOut ? " (timeout)" : ""
+      }${res.error ? ` — ${res.error}` : ""}`,
+    );
+    return {
+      emailSent: false,
+      emailFailureReason:
+        res.delivery !== "SUPPRESSED"
+          ? "failed"
+          : res.undeliverable
+            ? "undeliverable"
+            : res.allowlist
+              ? "allowlist"
+              : "suppressed",
+    };
   }
 
   async updateRoles(
@@ -589,18 +813,17 @@ export class CompanyUsersService {
     void target;
     const transferring =
       roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
+    // Roller ETİKET: yazılan doğruluk kaynağı hazır setlerin birleşimi —
+    // devirde hedefin mevcut işlem izinleri de korunur (derin denetim MU-13).
+    const next = transferring
+      ? this.transferTargetGrant(target, roles)
+      : { roles, permissions: permissionsForRoles(roles) };
+    roles = next.roles;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
-      // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
-      // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
-      await this.assertSeatAvailable(tx, actor.companyId, {
-        groups: this.newSeatGroups(
-          seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
-          seatGroupsOf({ permissions: permissionsForRoles(roles) }),
-        ),
-        context: "assign",
-      });
-      // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
-      // son-yönetici garantisi.
+      // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin; devirde
+      // eski Kurucunun yeni koltukları kapıdan geçer), sonra hedefin koltuk
+      // kapısı ve son-yönetici garantisi. Hedef kapısı eski Kurucunun yazımından
+      // SONRA koşar: ikisinin yeni koltukları toplamda limiti aşamasın.
       await this.resolveOwnership(
         tx,
         actor.companyId,
@@ -608,11 +831,20 @@ export class CompanyUsersService {
         targetId,
         roles,
       );
+      // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
+      // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        groups: this.newSeatGroups(
+          seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+          seatGroupsOf({ permissions: next.permissions }),
+        ),
+        context: "assign",
+        addsBuyPermission: this.addsBuyGrant(target, next.permissions),
+      });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
-      // Roller ETİKET: yazılan doğruluk kaynağı hazır setlerin birleşimi.
       await tx.companyUser.update({
         where: { id: targetId },
-        data: { roles, permissions: permissionsForRoles(roles) },
+        data: { roles, permissions: next.permissions },
       });
     });
     // INV-AUDIT-1: yetki geçişi (rol değişimi) — commit SONRASI, before/after.
@@ -629,8 +861,14 @@ export class CompanyUsersService {
     });
     if (transferring) {
       await this.auditOwnershipTransfer(actor, targetId, undefined);
+      await this.notifyOwnershipTransfer(
+        actor.companyId,
+        company?.ownerUserId ?? null,
+        targetId,
+      );
+    } else {
+      await this.notifyPermissionChange(targetId);
     }
-    await this.notifyPermissionChange(targetId);
     return { ok: true };
   }
 
@@ -701,40 +939,51 @@ export class CompanyUsersService {
       );
     }
     void target;
+    const transferring =
+      !!roles &&
+      roles.includes(CompanyRole.SAHIP) &&
+      company?.ownerUserId !== targetId;
+    // Devirde hedefin mevcut işlem izinleri korunur — bkz. updateRoles.
+    const grant = roles
+      ? transferring
+        ? this.transferTargetGrant(target, roles)
+        : { roles, permissions: permissionsForRoles(roles) }
+      : null;
     const data = {
       ...(dto.firstName !== undefined
         ? { firstName: dto.firstName.trim() }
         : {}),
       ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
       ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
-      ...(roles ? { roles, permissions: permissionsForRoles(roles) } : {}),
+      ...(grant ? { roles: grant.roles, permissions: grant.permissions } : {}),
     };
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
-    if (roles) {
-      const transferring =
-        roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
-      await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
-        // Faz K: updateRoles ile aynı koltuk kapısı.
-        await this.assertSeatAvailable(tx, actor.companyId, {
-          groups: this.newSeatGroups(
-            seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
-            seatGroupsOf({ permissions: permissionsForRoles(roles) }),
-          ),
-          context: "assign",
-        });
+    if (grant) {
+      await this.lockedAdminTxAudited(actor, targetId, grant.roles, async (tx) => {
+        // Sıra updateRoles ile aynı: önce sahiplik (eski Kurucunun koltuk
+        // kapısı dahil), sonra hedefin koltuk kapısı.
         await this.resolveOwnership(
           tx,
           actor.companyId,
           company?.ownerUserId ?? null,
           targetId,
-          roles,
+          grant.roles,
           dto.previousOwnerRoles as CompanyRole[] | undefined,
         );
-        await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
+        // Faz K: updateRoles ile aynı koltuk kapısı.
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          groups: this.newSeatGroups(
+            seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+            seatGroupsOf({ permissions: grant.permissions }),
+          ),
+          context: "assign",
+          addsBuyPermission: this.addsBuyGrant(target, grant.permissions),
+        });
+        await this.assertNotLastAdmin(tx, actor.companyId, targetId, grant.roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
       });
-      // INV-AUDIT-1: yalnız rol değişince yetki izi (profil-alanı düzenlemesi
-      // audit'lenmez). before = eski roller, after = yeni roller.
+      // INV-AUDIT-1: rol değişimi yetki izi bırakır (kişi bilgisi ayrı
+      // `profile_updated` kaydıdır, aşağıda). before = eski, after = yeni roller.
       await this.audit.log({
         action: "company.user.roles_changed",
         actorType: "company",
@@ -744,7 +993,7 @@ export class CompanyUsersService {
         entityType: "company_user",
         entityId: targetId,
         critical: true,
-        metadata: { before: target.roles, after: roles },
+        metadata: { before: target.roles, after: grant.roles },
       });
       if (transferring) {
         await this.auditOwnershipTransfer(
@@ -752,10 +1001,34 @@ export class CompanyUsersService {
           targetId,
           dto.previousOwnerRoles as CompanyRole[] | undefined,
         );
+        await this.notifyOwnershipTransfer(
+          actor.companyId,
+          company?.ownerUserId ?? null,
+          targetId,
+        );
+      } else {
+        await this.notifyPermissionChange(targetId);
       }
-      await this.notifyPermissionChange(targetId);
     } else {
       await this.prisma.companyUser.update({ where: { id: targetId }, data });
+    }
+    // Kişi bilgisi düzenlemesi de Aktivite Logu'nda görünür (arayüz testi
+    // webC-07 NEW-2). Yalnız GERÇEKTEN değişen alanların ADI yazılır — değer
+    // (ad/telefon, PII) metadata'ya girmez.
+    const changedFields = (["firstName", "lastName", "phone"] as const).filter(
+      (k) => k in data && (data as Record<string, unknown>)[k] !== target[k],
+    );
+    if (changedFields.length > 0) {
+      await this.audit.log({
+        action: "company.user.profile_updated",
+        actorType: "company",
+        actorId: actor.userId,
+        actorEmail: actor.email,
+        tenantId: actor.companyId,
+        entityType: "company_user",
+        entityId: targetId,
+        metadata: { changedFields },
+      });
     }
     return { ok: true };
   }
@@ -788,6 +1061,103 @@ export class CompanyUsersService {
   }
 
   /**
+   * KURUCULUK DEVRİ bildirimi (arayüz testi D-189): eskiden iki tarafa da
+   * e-posta gitmiyor, eski Kurucu hiçbir bildirim almıyor, yeni Kurucu yalnız
+   * genel "yetkileriniz güncellendi" satırını görüyordu. Her iki tarafa kendi
+   * dilinde e-posta + in-app satırı. In-app tipi `permissions_changed` —
+   * istemci bu tiple `/me`'yi yeniler (iki tarafın menüsü de değişti).
+   * Best-effort: devir commit edildi, bildirim hatası işlemi bozmaz.
+   */
+  private async notifyOwnershipTransfer(
+    companyId: string,
+    previousOwnerId: string | null,
+    newOwnerId: string,
+  ) {
+    try {
+      const ids = [newOwnerId, ...(previousOwnerId ? [previousOwnerId] : [])];
+      const [company, people] = await Promise.all([
+        this.prisma.company.findUnique({
+          where: { id: companyId },
+          select: { name: true },
+        }),
+        this.prisma.companyUser.findMany({
+          where: { id: { in: ids }, companyId, deletedAt: null },
+          select: { id: true, email: true, firstName: true, lastName: true, locale: true },
+        }),
+      ]);
+      if (!company) return;
+      const byId = new Map(people.map((p) => [p.id, p]));
+      const fullName = (p?: { firstName: string | null; lastName: string | null }) =>
+        `${p?.firstName ?? ""} ${p?.lastName ?? ""}`.trim();
+      const prev = previousOwnerId ? byId.get(previousOwnerId) : undefined;
+      const next = byId.get(newOwnerId);
+      const baseUrl = resolveWebUrl(this.config).replace(/\/$/, "");
+      const sides: {
+        user: typeof next;
+        side: "toNewOwner" | "toPreviousOwner";
+        other: string;
+      }[] = [
+        { user: next, side: "toNewOwner", other: fullName(prev) || (prev?.email ?? "") },
+        { user: prev, side: "toPreviousOwner", other: fullName(next) || (next?.email ?? "") },
+      ];
+      for (const { user, side, other } of sides) {
+        if (!user) continue;
+        const locale = localeOf(user.locale);
+        const params = { company: company.name, other };
+        const keys = {
+          title: `api.notifications.companyUsers.ownershipTransferred.${side}.title`,
+          body: `api.notifications.companyUsers.ownershipTransferred.${side}.body`,
+        } as const;
+        await this.notifications
+          ?.pushToUser(user.id, {
+            type: "permissions_changed",
+            titleKey: keys.title,
+            bodyKey: keys.body,
+            params,
+            ctaLabelKey: "api.notifications.companyUsers.permissionsChanged.cta",
+            ctaPath: "/company",
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `Ownership transfer in-app notification failed (${user.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+        await this.email
+          .send({
+            to: { email: user.email },
+            locale,
+            templateData: {
+              template: "notification",
+              data: {
+                subject: tApi(keys.title, params, locale),
+                heading: tApi(keys.title, params, locale),
+                paragraphs: [tApi(keys.body, params, locale)],
+                ctaLabel: tApi("api.notifications.companyUsers.permissionsChanged.cta", undefined, locale),
+                ctaUrl: appRoutes.home(baseUrl, locale),
+              },
+            },
+            context: { type: "company_ownership_transferred", id: companyId },
+          })
+          .catch((err: unknown) =>
+            this.logger.warn(
+              `Ownership transfer email failed (${user.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            ),
+          );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Ownership transfer notification failed (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  /**
    * Yetki değişince kişiye bildirim — istemci bu tipi görünce `/me`'yi
    * yeniler (menü anında değişir; sunucu zaten her istekte taze).
    */
@@ -795,10 +1165,11 @@ export class CompanyUsersService {
     try {
       await this.notifications?.pushToUser(targetId, {
         type: "permissions_changed",
-        title: "Yetkileriniz güncellendi",
-        body: "Firma yöneticiniz yetkilerinizi değiştirdi. Menü ve erişimleriniz yeni yetkilere göre yenilendi.",
-        ctaUrl: "/company",
-        ctaLabel: "Panele git",
+        titleKey: "api.notifications.companyUsers.permissionsChanged.title",
+        bodyKey: "api.notifications.companyUsers.permissionsChanged.body",
+        ctaLabelKey: "api.notifications.companyUsers.permissionsChanged.cta",
+        // Türkçe İÇ yol — alıcının diline çevrilir (`/en/company`).
+        ctaPath: "/company",
       });
     } catch (err) {
       this.logger.warn(
@@ -832,7 +1203,7 @@ export class CompanyUsersService {
     const targetIsOwner = company?.ownerUserId === targetId;
     if (targetIsOwner && !actor.isOwner) {
       throw new BadRequestException(
-        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+        i18nMessage("api.companyUsers.kurucununIzinleriKisitlanamazTumYetkilereSahipti"),
       );
     }
     this.assertKnownPermissions(requested);
@@ -861,10 +1232,13 @@ export class CompanyUsersService {
       seatGroupsOf({ permissions: next }),
     );
 
+    const addsBuyPermission = this.addsBuyGrant(target, next);
+
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       await this.assertSeatAvailable(tx, actor.companyId, {
         groups: needSeats,
         context: "assign",
+        addsBuyPermission,
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
@@ -892,7 +1266,10 @@ export class CompanyUsersService {
         rolesAfter: nextRoles,
       },
     });
-    if (added.length > 0 || removed.length > 0) {
+    // Kurucu kendi işlem tiklerini düzenlediğinde kendine "Firma yöneticiniz
+    // yetkilerinizi değiştirdi" demek yanlış (arayüz testi Y-13 notu); kendi
+    // ekranı /me'yi kendisi tazeler.
+    if ((added.length > 0 || removed.length > 0) && targetId !== actor.userId) {
       await this.notifyPermissionChange(targetId);
     }
     return { ok: true, permissions: next, roles: nextRoles };
@@ -910,11 +1287,12 @@ export class CompanyUsersService {
       select: { ownerUserId: true },
     });
     if (company?.ownerUserId === targetId) {
-      throw new BadRequestException("Firma sahibi pasifleştirilemez");
+      throw new BadRequestException(i18nMessage("api.companyUsers.firmaSahibiPasiflestirilemez"));
     }
     if (targetId === actor.userId) {
-      throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyUsers.kendiniziPasiflestiremezsiniz"));
     }
+    let handover: ListingHandover | null = null;
     if (!active) {
       // Denetim 2026-08-23 LOW: #8 düşürme koruması burada da uygulanır —
       // users:manage override'lı op-rollü kullanıcı YONETICI'yi pasifleştiremesin
@@ -924,12 +1302,13 @@ export class CompanyUsersService {
         { id: target.id, roles: target.roles as CompanyRole[] },
         company?.ownerUserId ?? null,
       );
-      await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
+      handover = await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
         await tx.companyUser.update({
           where: { id: targetId },
           data: { isActive: false },
         });
+        return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
       });
     } else if (
       seatGroupsOf({ permissions: target.permissions, roles: target.roles }).size > 0
@@ -962,7 +1341,12 @@ export class CompanyUsersService {
       entityType: "company_user",
       entityId: targetId,
       critical: true,
-      metadata: { active },
+      metadata: {
+        active,
+        ...(handover?.transferred
+          ? { listingsTransferred: handover.transferred, listingsTransferredTo: handover.toUserId }
+          : {}),
+      },
     });
     return { ok: true };
   }
@@ -982,7 +1366,7 @@ export class CompanyUsersService {
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
-        "İzinleri yalnızca Kurucu düzenleyebilir",
+        i18nMessage("api.companyUsers.izinleriYalnizcaKurucuDuzenleyebilir"),
       );
     }
     const target = await this.requireMember(actor.companyId, targetId);
@@ -992,7 +1376,7 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+        i18nMessage("api.companyUsers.kurucununIzinleriKisitlanamazTumYetkilereSahipti"),
       );
     }
 
@@ -1005,7 +1389,9 @@ export class CompanyUsersService {
       return !c || !valid.has(c);
     });
     if (invalid.length > 0) {
-      throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
+      throw new BadRequestException(
+        i18nMessage("api.companyUsers.gecersizIzin", { permission: invalid[0] }),
+      );
     }
     const added = new Set(dto.added.map(canon) as string[]);
     const removed = new Set(
@@ -1028,11 +1414,14 @@ export class CompanyUsersService {
       seatGroupsOf({ permissions: next }),
     );
 
+    const addsBuyPermission = this.addsBuyGrant(target, next);
+
     await this.lockedAdminTxAudited(actor, targetId, nextRoles, async (tx) => {
       // Faz K/5: yeni koltuk grubu eklenirken kapı (tx + FOR UPDATE).
       await this.assertSeatAvailable(tx, actor.companyId, {
         groups: needSeats,
         context: "assign",
+        addsBuyPermission,
       });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, nextRoles);
       await tx.companyUser.update({
@@ -1071,11 +1460,11 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Kurucu çıkarılamaz — önce kuruculuğu devredin",
+        i18nMessage("api.companyUsers.kurucuCikarilamazOnceKuruculuguDevredin"),
       );
     }
     if (targetId === actor.userId) {
-      throw new BadRequestException("Kendinizi çıkaramazsınız");
+      throw new BadRequestException(i18nMessage("api.companyUsers.kendiniziCikaramazsiniz"));
     }
     // Denetim 2026-08-23 LOW: yönetici hedefi yalnız Kurucu/Yönetici çıkarabilir
     // (remove geri dönüşsüz — rol değişikliğinden daha kritik).
@@ -1084,7 +1473,7 @@ export class CompanyUsersService {
       { id: target.id, roles: target.roles as CompanyRole[] },
       company?.ownerUserId ?? null,
     );
-    await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
+    const handover = await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
       await tx.companyUser.update({
         where: { id: targetId },
@@ -1097,6 +1486,7 @@ export class CompanyUsersService {
           email: `deleted-${targetId}@deleted.rothern`,
         },
       });
+      return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
     });
     // INV-AUDIT-1: iş çıkışı (soft-delete) = tüm erişimin iptali — yetki tarafı.
     // Hedef e-postası metadata'ya YAZILMAZ (PII); yalnız entityId.
@@ -1109,7 +1499,12 @@ export class CompanyUsersService {
       entityType: "company_user",
       entityId: targetId,
       critical: true,
-      metadata: { previousRoles: target.roles },
+      metadata: {
+        previousRoles: target.roles,
+        ...(handover.transferred
+          ? { listingsTransferred: handover.transferred, listingsTransferredTo: handover.toUserId }
+          : {}),
+      },
     });
     // Supabase auth kaydını da temizle → giriş imkânsız + e-posta orada da serbest.
     if (target.authId) {
@@ -1145,19 +1540,19 @@ export class CompanyUsersService {
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
-      throw new BadRequestException("En az bir rol seçin");
+      throw new BadRequestException(i18nMessage("api.companyUsers.enAzBirRolSecin"));
     }
     if (
       roles.includes("SAHIP") &&
       (roles.includes("YONETICI") || roles.includes("ONAYLAYICI"))
     ) {
       throw new BadRequestException(
-        "Kurucu, Yönetici/Onaylayıcı ile birleştirilemez (yetkilerini zaten kapsar); işlem için Satın Almacı/Satışçı ekleyin",
+        i18nMessage("api.companyUsers.kurucuYoneticiOnaylayiciIleBirlestirilemezYetkil"),
       );
     }
     if (roles.includes("YONETICI") && roles.includes("ONAYLAYICI")) {
       throw new BadRequestException(
-        "Kurucu ve Yönetici zaten onay verebilir; ayrıca Onaylayıcı rolü gerekmez.",
+        i18nMessage("api.companyUsers.kurucuVeYoneticiZatenOnayVerebilir"),
       );
     }
   }
@@ -1171,9 +1566,12 @@ export class CompanyUsersService {
         permissions: true,
         email: true,
         authId: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
       },
     });
-    if (!u) throw new NotFoundException("Kullanıcı bulunamadı");
+    if (!u) throw new NotFoundException(i18nMessage("api.companyUsers.kullaniciBulunamadi"));
     return u;
   }
 
@@ -1185,7 +1583,7 @@ export class CompanyUsersService {
   private assertNotSelf(actor: AuthenticatedCompanyUser, targetId: string) {
     if (targetId === actor.userId && !actor.isOwner) {
       throw new BadRequestException(
-        "Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı",
+        i18nMessage("api.companyUsers.kendiYetkileriniziDuzenleyemezsinizKurucuVeyaBas"),
       );
     }
   }
@@ -1226,14 +1624,14 @@ export class CompanyUsersService {
     // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
     if (labelAdded("SAHIP") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
+        i18nMessage("api.companyUsers.kuruculuguYalnizcaMevcutKurucuDevredebilir"),
       );
     }
     // Faz R: YONETICI bir ETİKETTİR — yalnız Kurucu VERİR (Yönetici başka
     // Yönetici üretemez).
     if (labelAdded("YONETICI") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Yönetici etiketini yalnızca Kurucu verebilir",
+        i18nMessage("api.companyUsers.yoneticiEtiketiniYalnizcaKurucuVerebilir"),
       );
     }
     // Roller (SA/ST/ONAYLAYICI): Kurucu veya Yönetici atar — users:manage
@@ -1256,7 +1654,7 @@ export class CompanyUsersService {
         });
       }
       throw new ForbiddenException(
-        "Rol atamayı yalnızca Kurucu veya Yönetici yapabilir",
+        i18nMessage("api.companyUsers.rolAtamayiYalnizcaKurucuVeyaYonetici"),
       );
     }
   }
@@ -1295,9 +1693,36 @@ export class CompanyUsersService {
         metadata: { reason: "not_admin", targetRoles: target.roles },
       });
       throw new ForbiddenException(
-        "Yönetici veya Kurucu rolündeki bir kullanıcının rollerini yalnızca Kurucu veya Yönetici değiştirebilir",
+        i18nMessage("api.companyUsers.yoneticiVeyaKurucuRolundekiBirKullanicinin"),
       );
     }
+  }
+
+  /**
+   * DEVİRDE yeni Kurucunun yazılacak izinleri (derin denetim MU-13): hazır set
+   * (SAHIP = yönetim seti) + hedefin ZATEN tuttuğu işlem (koltuk) izinleri.
+   * Faz R'den beri Kurucu işlem iznini örtük taşımaz; yalnız hazır set
+   * yazılınca devralan Satın Almacı'nın açık talepleri/siparişleri üzerindeki
+   * işlem izinleri sessizce siliniyordu. Korunan izin YENİ koltuk açmaz (kişi
+   * o grubu zaten tutuyor); roller izinlerden türetilir (SAHIP + işlem rolleri).
+   */
+  private transferTargetGrant(
+    target: { permissions: string[]; roles: CompanyRole[] | string[] },
+    roles: CompanyRole[],
+  ): { roles: CompanyRole[]; permissions: string[] } {
+    const heldSeat = effectivePermissions({
+      isOwner: false,
+      permissions: target.permissions,
+      roles: target.roles,
+    }).filter((k) => ALL_SEAT_PERMISSIONS.includes(k));
+    const permissions = normalizePermissions([
+      ...permissionsForRoles(roles),
+      ...heldSeat,
+    ]);
+    return {
+      roles: rolesFromPermissions(permissions, true) as CompanyRole[],
+      permissions,
+    };
   }
 
   /**
@@ -1321,7 +1746,7 @@ export class CompanyUsersService {
     const targetIsOwner = currentOwnerId === targetId;
     if (!targetWantsOwner && targetIsOwner) {
       throw new BadRequestException(
-        "Kuruculuğu bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
+        i18nMessage("api.companyUsers.kuruculuguBirakmadanOnceBaskaBirAktif"),
       );
     }
     if (targetWantsOwner && !targetIsOwner) {
@@ -1332,7 +1757,7 @@ export class CompanyUsersService {
           : [CompanyRole.YONETICI];
       if (demoted.includes(CompanyRole.SAHIP)) {
         throw new BadRequestException(
-          "Devirde eski Kurucu tekrar Kurucu olamaz",
+          i18nMessage("api.companyUsers.devirdeEskiKurucuTekrarKurucuOlamaz"),
         );
       }
       this.assertValidRoleCombo(demoted);
@@ -1345,13 +1770,33 @@ export class CompanyUsersService {
       });
       if (!target?.isActive) {
         throw new BadRequestException(
-          "Kuruculuk yalnızca aktif bir kullanıcıya devredilebilir",
+          i18nMessage("api.companyUsers.kuruculukYalnizcaAktifBirKullaniciyaDevredilebil"),
         );
       }
       if (currentOwnerId) {
+        const demotedPermissions = permissionsForRoles(demoted);
+        // Eski Kurucunun YENİ işlem rolü de koltuk ve paket kapısından geçer
+        // (derin denetim MU-13): eskiden yalnız devrin hedefi denetleniyordu;
+        // koltuksuz birine devir + previousOwnerRoles=[SATIN_ALMACI, SATISCI]
+        // ücretsiz pakette satınalma yetkisi ve limit üstü koltuk açıyordu.
+        const previousOwner = await tx.companyUser.findUnique({
+          where: { id: currentOwnerId },
+          select: { roles: true, permissions: true },
+        });
+        await this.assertSeatAvailable(tx, companyId, {
+          groups: this.newSeatGroups(
+            seatGroupsOf({
+              isOwner: true,
+              permissions: previousOwner?.permissions ?? [],
+              roles: previousOwner?.roles ?? [],
+            }),
+            seatGroupsOf({ permissions: demotedPermissions }),
+          ),
+          context: "assign",
+        });
         await tx.companyUser.update({
           where: { id: currentOwnerId },
-          data: { roles: demoted, permissions: permissionsForRoles(demoted) },
+          data: { roles: demoted, permissions: demotedPermissions },
         });
       }
       await tx.company.update({
@@ -1375,6 +1820,17 @@ export class CompanyUsersService {
 
   /** Yeni koltuk sayısı: `after` gruplarından `before`da olmayanlar. */
   /** `after`ta olup `before`ta olmayan koltuk grupları — yeni işgal edilenler. */
+  /** Hedefin mevcut efektif izinlerine göre YENİ buy işlem izni ekleniyor mu. */
+  private addsBuyGrant(
+    target: { permissions: string[]; roles: string[] },
+    next: readonly string[],
+  ): boolean {
+    return addsBuySeatPermission(
+      effectivePermissions({ isOwner: false, permissions: target.permissions, roles: target.roles }),
+      next,
+    );
+  }
+
   private newSeatGroups(
     before: ReadonlySet<SeatGroup>,
     after: ReadonlySet<SeatGroup>,
@@ -1393,45 +1849,8 @@ export class CompanyUsersService {
     companyId: string,
     db: Prisma.TransactionClient = this.prisma,
   ) {
-    const company = await db.company.findUnique({
-      where: { id: companyId },
-      select: { tier: true, membershipEndAt: true, ownerUserId: true },
-    });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
-    const limit =
-      SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
-    const [users, invites] = await Promise.all([
-      db.companyUser.findMany({
-        where: { companyId, deletedAt: null, isActive: true },
-        select: { id: true, roles: true, permissions: true },
-      }),
-      db.companyUserInvitation.findMany({
-        where: { companyId, status: "PENDING", expiresAt: { gt: new Date() } },
-        select: { roles: true, permissions: true },
-      }),
-    ]);
-    const active = countSeats(
-      users.map((u) => ({
-        isOwner: company.ownerUserId === u.id,
-        permissions: u.permissions,
-        roles: u.roles,
-      })),
-    );
-    const pending = countSeats(
-      invites.map((i) => ({ permissions: i.permissions, roles: i.roles })),
-    );
-    return {
-      limit,
-      /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
-      tier: effectiveTier(company.tier, company.membershipEndAt),
-      used: active.total,
-      usedBuy: active.buy,
-      usedSell: active.sell,
-      pendingSeatInvites: pending.total,
-      pendingBuy: pending.buy,
-      pendingSell: pending.sell,
-      overflow: limit == null ? 0 : Math.max(0, active.total - limit),
-    };
+    // Tek kaynak: admin paneliyle aynı sayım (derin denetim MU-04).
+    return readSeatUsage(db, companyId);
   }
 
   /**
@@ -1457,39 +1876,15 @@ export class CompanyUsersService {
       groups: ReadonlySet<SeatGroup>;
       includePending?: boolean;
       context: "invite" | "accept" | "assign";
+      excludeInvitationId?: string;
+      /** Buy grubunu tutan kişiye YENİ buy işlem izni (paket kapısı, arayüz testi T3). */
+      addsBuyPermission?: boolean;
     },
   ) {
-    const need = opts.groups.size;
-    if (need <= 0) return;
-    const { limit, used, pendingSeatInvites, tier } = await this.seatUsage(
-      companyId,
-      db,
-    );
-    // SATINALMA YETKİSİ YALNIZ GOLD'DA VERİLEBİLİR (2026-09-14, kullanıcı
-    // kararı). SILVER DE YETMEZ — o satış paketidir; talep açma/kazandırma
-    // zaten `BUYING_TIER` (GOLD) kapısının arkasında. Yetkiyi yine de vermek
-    // kullanıcıya çalışmayan bir düğme gösteriyor ve koltuk yakıyordu.
-    // Kapı koltuk sayımından ÖNCE: "koltuk dolu" demek yanıltıcı olurdu,
-    // sorun sayı değil paket.
-    if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
-      throw new BadRequestException(
-        "Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve kazandırma diğer paketlerde kapalı.",
-      );
-    }
-    if (limit == null) return; // limitsiz kademe (bugün yok)
-    const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
-    if (occupied + need > limit) {
-      if (opts.context === "accept") {
-        throw new ConflictException(
-          "Koltuk dolu — davet şu an kabul edilemiyor; firma yöneticinize başvurun",
-        );
-      }
-      throw new BadRequestException(
-        opts.includePending && pendingSeatInvites > 0
-          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`
-          : `Koltuk dolu (${used}/${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`,
-      );
-    }
+    // Kurallar (GOLD-dışı satınalma kapısı koltuk sayımından ÖNCE, (kişi, grup)
+    // sayımı, bekleyen davetler) `common/company/seat-gate.ts`'te — admin
+    // paneli de aynı kapıdan geçer, iki kopya ayrışamaz (derin denetim MU-04).
+    await assertSeatGate(db, companyId, opts);
   }
 
   /**
@@ -1505,13 +1900,17 @@ export class CompanyUsersService {
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
-        "Koltuk seçimini yalnızca Kurucu yapabilir",
+        i18nMessage("api.companyUsers.koltukSeciminiYalnizcaKurucuYapabilir"),
       );
     }
     const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
-      const { limit } = await this.seatUsage(actor.companyId, tx);
+      const { limit, tier, verificationStatus } = await this.seatUsage(actor.companyId, tx);
+      // Gold altında satınalma koltuğu sayılmaz ve seçilemez (O-069, DN-04):
+      // kayıtlı satınalma izinleri dokunulmadan kalır (Gold'a dönünce geçerli),
+      // seçim yalnız satış koltukları üzerinden yapılır.
+      const buyCounts = tierAtLeast(tier, BUYING_TIER);
       if (limit == null) {
-        throw new BadRequestException("Bu pakette koltuk sınırı yok");
+        throw new BadRequestException(i18nMessage("api.companyUsers.koltukSiniriYok"));
       }
       const company = await tx.company.findUnique({
         where: { id: actor.companyId },
@@ -1523,14 +1922,15 @@ export class CompanyUsersService {
           select: { id: true, email: true, roles: true, permissions: true },
         })
       )
-        .map((h) => ({
-          ...h,
-          groups: seatGroupsOf({
+        .map((h) => {
+          const groups = seatGroupsOf({
             isOwner: company?.ownerUserId === h.id,
             permissions: h.permissions,
             roles: h.roles,
-          }),
-        }))
+          });
+          if (!buyCounts) groups.delete("buy");
+          return { ...h, groups };
+        })
         .filter((h) => h.groups.size > 0);
       // Seçimi (kişi, grup) çiftine indir.
       const keep = new Set<string>();
@@ -1539,15 +1939,23 @@ export class CompanyUsersService {
           const h = holders.find((x) => x.id === k);
           if (!h) {
             throw new BadRequestException(
-              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+              i18nMessage("api.companyUsers.secimListesindeKoltukKullanmayanBirKullanici"),
             );
           }
           for (const g of h.groups) keep.add(`${k}:${g}`);
         } else {
+          if (k.group === "buy" && !buyCounts) {
+            throw new BadRequestException(
+              entitlementDenial(verificationStatus, {
+                key: "api.companyUsers.satinalmaYetkisiIcinDogrulama",
+                code: null,
+              }),
+            );
+          }
           const h = holders.find((x) => x.id === k.userId);
           if (!h || !h.groups.has(k.group)) {
             throw new BadRequestException(
-              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+              i18nMessage("api.companyUsers.secimListesindeKoltukKullanmayanBirKullanici"),
             );
           }
           keep.add(`${k.userId}:${k.group}`);
@@ -1555,7 +1963,7 @@ export class CompanyUsersService {
       }
       if (keep.size > limit) {
         throw new BadRequestException(
-          `En fazla ${limit} koltuk seçebilirsiniz (paket limiti)`,
+          i18nMessage("api.companyUsers.enFazlaKoltukSecebilirsiniz", { limit: limit }),
         );
       }
       const dropped: {
@@ -1620,12 +2028,16 @@ export class CompanyUsersService {
           droppedGroups: d.droppedGroups,
         },
       });
+      // Seçimi yapan kendi koltuğunu bıraktıysa kendine "işlem yetkileriniz
+      // kaldırıldı" bildirimi gitmez — kararı kendisi verdi, sonucu toast'ta
+      // görüyor (setPermissions'taki Y-13 öz-düzenleme kuralıyla aynı).
+      if (d.id === actor.userId) continue;
       void this.notifications
         ?.pushToUser(d.id, {
           type: "seat_selection",
-          title: "İşlem yetkileriniz kaldırıldı",
-          body: "Paket küçültmesi nedeniyle bazı işlem yetkileriniz (koltuk) kaldırıldı. Hesabınız, görüntüleme ve diğer yetkileriniz aynen devam ediyor.",
-        } as never)
+          titleKey: "api.notifications.companyUsers.seatSelection.title",
+          bodyKey: "api.notifications.companyUsers.seatSelection.body",
+        })
         .catch((err: unknown) =>
           this.logger.warn(
             `Seat-selection bildirimi yazılamadı (${d.id}): ${
@@ -1677,6 +2089,18 @@ export class CompanyUsersService {
     // (YONETICI etiketi bundan türer). Eski satırlar (izin kolonu boş) için
     // etiket de sayılır — geçiş emniyeti.
     if (newRoles.includes("SAHIP") || newRoles.includes("YONETICI")) return;
+    // KURUCU HER ZAMAN YÖNETİCİDİR (arayüz testi Y-13): yönetim yetkisi onda
+    // ÖRTÜK ve kayıtlı listede tutulmaz — kendi işlem tiklerini düzenlemesi ya
+    // da koltuk seçimi satırına yalnız işlem izinlerini yazıyor, sonra izin
+    // listesine bakan sayım kurucuyu görmüyor ve her ekip düzenlemesi "en az
+    // bir aktif yönetim yetkilisi kalmalı" diye reddediliyordu. Hedef kurucu
+    // değilse ve kurucu aktifse garanti zaten sağlanır (kurucu pasifleştirilemez,
+    // çıkarılamaz; kuruculuğu yalnız devirle bırakır).
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { ownerUserId: true },
+    });
+    const ownerId = company?.ownerUserId ?? null;
     const otherActiveAdmins = await tx.companyUser.count({
       where: {
         companyId,
@@ -1684,6 +2108,7 @@ export class CompanyUsersService {
         isActive: true,
         id: { not: targetId },
         OR: [
+          ...(ownerId ? [{ id: ownerId }] : []),
           { permissions: { has: "users:manage" } },
           { permissions: { isEmpty: true }, roles: { hasSome: ["SAHIP", "YONETICI"] } },
         ],
@@ -1719,6 +2144,37 @@ export class CompanyUsersService {
       critical: false,
       metadata: { attemptedRoles },
     });
+  }
+
+  /**
+   * TALEP SORUMLULUĞU DEVRİ (derin denetim MU-20): talep yönetimi yalnız ilanı
+   * AÇANA açık (`listingManageDenial`, SAHİP istisnası yok). Açan kişi
+   * çıkarılınca/pasifleşince yaşayan talepleri (taslak → değerlendirme,
+   * kazanansız kapanan dahil) kimse kazandıramıyor, iptal edemiyor, yeni tura
+   * alamıyordu. Aynı tx'te devredilir: işlemi yapan kişi "Talep açma ve
+   * yönetme" iznini taşıyorsa ona, değilse Kurucu'ya (izni yoksa kendine
+   * verebilir). Kazandırılmış/iptal talepler geçmiş kaydıdır, devredilmez.
+   * Çıkarmayı ENGELLEMEZ — erişim iptali (güvenlik) talep yönetiminden önce gelir.
+   */
+  private async handOverLiveListings(
+    tx: Prisma.TransactionClient,
+    actor: AuthenticatedCompanyUser,
+    targetId: string,
+    ownerUserId: string | null,
+  ): Promise<ListingHandover> {
+    const toUserId = hasCompanyPermission(actor, "buy:listing:manage")
+      ? actor.userId
+      : ownerUserId;
+    if (!toUserId || toUserId === targetId) return { transferred: 0, toUserId: null };
+    const res = await tx.listing.updateMany({
+      where: {
+        companyId: actor.companyId,
+        createdById: targetId,
+        status: { in: [...HANDOVER_LISTING_STATUSES] },
+      },
+      data: { createdById: toUserId },
+    });
+    return { transferred: res.count, toUserId: res.count > 0 ? toUserId : null };
   }
 
   /**

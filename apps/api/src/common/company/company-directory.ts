@@ -1,17 +1,21 @@
 import type { PrismaClient } from "@rothern/db";
-import { isHiddenCategory } from "@rothern/shared";
-import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
-import { effectiveTier } from "./effective-tier";
+import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
+import { isHiddenCategory, visibleCategoryIds, visibleCompanyCategorySelection } from "@rothern/shared";
+import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
+import { effectiveTier, isFreePeriod } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
-import { productSearchClauses } from "./product-index";
+import { cityFacet, cityIdsOf, countriesOf, productSearchClauses } from "./product-index";
 import { FAST_REPLY_HOURS } from "./reply-time";
+import { likeLiteral } from "../prisma/like-literal";
 
 type Db = Pick<PrismaClient, "company" | "category" | "companyItem">;
 
 export interface DirectoryParams {
   q?: string;
-  /** Virgüllü çoklu şehir. */
+  /** Virgüllü çoklu şehir (kalıcı adres; eski ham il adı da çözülür — 2026-09-27). */
   city?: string;
+  /** Virgüllü çoklu ülke (ISO) — firmanın kayıt ülkesi (2026-09-27). */
+  country?: string;
   /** Virgüllü çoklu 8 haneli kod (alıcı ya da satıcı beyanı). */
   category?: string;
   /** Virgüllü çoklu faaliyet kodu. */
@@ -35,6 +39,19 @@ export interface DirectoryParams {
 export interface DirectoryScope {
   excludeIds?: string[];
   restrictIds?: string[];
+  /**
+   * i18n Faz 1e: kart önizleme/eşleşen ürün ADLARI okuyucunun dilinde — çağıran
+   * `ContentTranslationService.localizeProducts`i bağlar (yerel dil `currentLocale`).
+   * Verilmezse özgün ad. Ürün `id`si yalnız arama anahtarıdır, yanıta yazılmaz.
+   */
+  localizeProducts?: <T extends { name: string }>(items: T[], ids: string[]) => Promise<T[]>;
+  /**
+   * Aramada Rothern ID eşleşmesi — YALNIZ giriş yapmış panel dizini açar.
+   * Public dizin kartından Rothern ID düşüyor ("üyede kalır"); arama dalı
+   * açık kalsaydı anonim `?q=<ID>` tek kartla ID'nin hangi firmaya ait
+   * olduğunu söylerdi (kimlik kâhini — derin denetim LU-01).
+   */
+  matchRothernId?: boolean;
 }
 
 /** Sayfa başına 20 firma kartı (PROMPT 4; eskiden 24). */
@@ -42,9 +59,46 @@ export const DIRECTORY_PAGE_SIZE = 20;
 
 const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 10);
 
+/**
+ * `?category=` süzgeç kodları. GİZLİ bir dalın kodu süzgeç değildir (2026-10-09,
+ * sahip kuralı: "anasayfada olmayan kategori hiçbir yerde gösterilmez /
+ * sunulmaz"): elle yazılmış `10000000` düşer; geriye kod kalmazsa kategori
+ * seçilmemiş gibi davranır. Liste (`directoryRows`) ile sayaç (`directoryFacets`)
+ * AYNI fonksiyonu okur — ayrışırlarsa sayı ile liste tutmaz.
+ */
+const filterCategories = (v?: string) => visibleCategoryIds(multi(v).filter(isCategoryCode));
+
+/** Firma satırının dört beyan dizisi (satış / alım × ana / alt eksen). */
+export interface CompanyDeclarationArrays {
+  sellerCategoryIds: string[];
+  sellerSubCategoryIds: string[];
+  buyerCategoryIds: string[];
+  buyerSubCategoryIds: string[];
+}
+
+/**
+ * FİRMA BEYANININ GÖSTERİLEN HÂLİ — dizinin süzgeci, sayacı ve kartı AYNI
+ * fonksiyonu okur. Beyan seçimi ata zinciriyle saklar; gizleme aile / sınıf
+ * düzeyinde de olduğu için (2026-10-10) yalnız gizli kodları düşürmek yetmez:
+ * `46101500` (gizli aile) seçmiş firmanın kaydında görünür `46000000` da durur
+ * ve firma o sektörün süzgecinde / sayısında / kartında çıkardı. Kural tek
+ * kaynakta: `visibleCompanyCategorySelection` (eksen bazında — gizli kod düşer,
+ * yalnız gizli bir seçimin atası olan görünür kod da düşer).
+ *
+ * `main`: segmentler, beyan sırasıyla (önce satış, sonra alım) — kartın "ana
+ * kategorisi" adayları. `all`: dört dizinin tamamı — süzgeç ve sayaç.
+ * Eşleştirme ve bildirim saklanan kodları okur; buraya girmez.
+ */
+export function shownCompanyDeclaration(r: CompanyDeclarationArrays): { main: string[]; all: string[] } {
+  const selling = visibleCompanyCategorySelection(r.sellerCategoryIds, r.sellerSubCategoryIds);
+  const buying = visibleCompanyCategorySelection(r.buyerCategoryIds, r.buyerSubCategoryIds);
+  const main = [...selling.mainIds, ...buying.mainIds];
+  return { main, all: [...main, ...selling.subIds, ...buying.subIds] };
+}
+
 /** Efektif GOLD — süzgeç (`gold=1`), sıra ve kart rozeti aynı hesabı okur. */
-const isGold = (r: { tier: string; membershipEndAt: Date | null }) =>
-  effectiveTier(r.tier as TierName, r.membershipEndAt) === "GOLD";
+const isGold = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
+  effectiveTier(r.tier as TierName, r.membershipEndAt, r.companyVerificationStatus) === "GOLD";
 
 /**
  * FİRMA DİZİNİ — TEK KAYNAK (2026-09-04): herkese açık `/firmalar` ile panelin
@@ -71,9 +125,11 @@ export async function directoryRows(
   opts: DirectoryScope = {},
 ) {
   const tokens = q.q ? tokenizeQuery(q.q) : [];
-  const cities = multi(q.city);
+  const cityValues = multi(q.city);
+  const cityIds = cityIdsOf(q.city);
+  const countries = countriesOf(q.country);
   const activities = multi(q.activity).filter(isCompanyActivity);
-  const categories = multi(q.category).filter(isCategoryCode);
+  const categories = filterCategories(q.category);
   const rows = await prisma.company.findMany({
     where: {
       ...PUBLIC_PROFILE_WHERE,
@@ -82,7 +138,8 @@ export async function directoryRows(
         : opts.excludeIds?.length
           ? { id: { notIn: opts.excludeIds } }
           : {}),
-      ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
+      ...(cityValues.length ? { cityId: { in: cityIds } } : {}),
+      ...(countries.length ? { country: { in: countries } } : {}),
       ...(activities.length ? { activities: { hasSome: activities } } : {}),
       ...(q.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
       AND: [
@@ -99,7 +156,7 @@ export async function directoryRows(
             ]
           : []),
         // ARAMA İKİ DALLI: firmanın KENDİ metni (ad/sektör/hakkında/hizmet/
-        // Rothern ID) ya da SATTIĞI ÜRÜN. Tek dallıyken "kompanzasyon"
+        // Rothern ID — yalnız panelde, `matchRothernId`) ya da SATTIĞI ÜRÜN. Tek dallıyken "kompanzasyon"
         // araması ürün sekmesinde 12, firma sekmesinde 0 sonuç veriyordu —
         // oysa o 12 ürünün satıcıları tam olarak aranan firmalar. Ürün dalı
         // firma adını aramaz (`includeCompanyName: false`): ada uyan firmanın
@@ -109,13 +166,20 @@ export async function directoryRows(
               {
                 OR: [
                   {
+                    // Desene giden kullanıcı metni `likeLiteral`den geçer:
+                    // `%` / `_` joker değil ("%%" dizindeki HER firmayı
+                    // döndürüyordu). `services: { has }` tam eşleşmedir.
                     AND: tokens.map((t) => ({
                       OR: [
-                        { name: { contains: t, mode: "insensitive" as const } },
-                        { industry: { contains: t, mode: "insensitive" as const } },
-                        { aboutText: { contains: t, mode: "insensitive" as const } },
+                        { name: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                        { industry: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                        { aboutText: { contains: likeLiteral(t), mode: "insensitive" as const } },
                         { services: { has: t } },
-                        { rothernId: { contains: t.toUpperCase() } },
+                        ...(opts.matchRothernId
+                          ? [{ rothernId: { contains: likeLiteral(t.toUpperCase()) } }]
+                          : []),
+                        // Katlanmış kaynak + EN/RU çeviri (sektör/hizmet/tanıtım).
+                        { searchTextI18n: { contains: likeLiteral(stemPrefix(foldSearchText(t))) } },
                       ],
                     })),
                   },
@@ -138,6 +202,7 @@ export async function directoryRows(
       name: true,
       slug: true,
       city: true,
+      cityId: true,
       country: true,
       industry: true,
       activities: true,
@@ -170,9 +235,14 @@ export async function directoryRows(
     orderBy: [{ updatedAt: "desc" }],
     take: 5000,
   });
-  const paidRank = (r: { tier: string; membershipEndAt: Date | null }) =>
-    tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt), PAID_TIER) ? 0 : 1;
+  const paidRank = (r: { tier: string; membershipEndAt: Date | null; companyVerificationStatus: string }) =>
+    tierAtLeast(effectiveTier(r.tier as TierName, r.membershipEndAt, r.companyVerificationStatus), PAID_TIER) ? 0 : 1;
   const eligible = rows.filter((r) => {
+    // Sorgudaki `hasSome` saklanan kodlara bakar (üst küme); asıl karar
+    // GÖSTERİLEN beyandadır: `46000000`'ı yalnız gizli bir seçimin atası
+    // olarak saklayan firma o sektörün süzgecinde listelenmez. Sayaç
+    // (`directoryFacets`) aynı fonksiyonu okur.
+    if (categories.length > 0 && !shownCompanyDeclaration(r).all.some((c) => categories.includes(c))) return false;
     const productCount = r._count.items;
     if (q.hasProducts && productCount === 0) return false;
     if (q.gold && !isGold(r)) return false;
@@ -199,11 +269,15 @@ export async function buildDirectory(
   const eligible = await directoryRows(prisma, q, opts);
   const total = eligible.length;
   const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
-  const ids = [...new Set(slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)))].filter(isCategoryCode);
+  // Kartın "ana kategorisi" adayları: GÖSTERİLEN beyanın segmentleri. İlk beyanı
+  // gizli bir dalda olan firma kartta o kategoriyle (ya da onun görünür atasıyla)
+  // değil, ilk görünür beyanıyla (yoksa kategorisiz) listelenir.
+  const shownMain = new Map(slice.map((r) => [r.id, shownCompanyDeclaration(r).main] as const));
+  const ids = [...new Set(slice.flatMap((r) => (shownMain.get(r.id) ?? []).slice(0, 1)))].filter(isCategoryCode);
   const cats = ids.length
-    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(cats.map((c) => [c.id, c.nameTr]));
+  const nameById = new Map(cats.map((c) => [c.id, categoryName(c)]));
   // "ARAMANIZA UYAN ÜRÜNLER" — kartın küçük resim şeridi arama varken
   // sorguya uyan ürünleri gösterir. Ayrı bir sorgu, çünkü Prisma aynı
   // ilişkiyi iki farklı `where` ile İKİ KEZ seçemez; firma ELEMESİ buna
@@ -224,25 +298,41 @@ export async function buildDirectory(
     moq: string | null;
     unit: string;
   };
+  /* FİRMA BAŞINA AYRI `take` (arayüz testi O-060): eskiden sayfadaki bütün
+     firmalar için TEK sorgu `take: firma × 4` satırı genel puan sırasıyla
+     çekiyordu — birkaç çok ürünlü firma bütçeyi tüketiyor, 39 ürünlü bir
+     firmanın kartında "Portföyü görüntüle (39)" yazarken şerit boş
+     kalıyordu. Sayfa en çok `DIRECTORY_PAGE_SIZE` firma; firma başına
+     4 satırlık küçük sorgular paralel koşar, çeviri yine tek çağrı. */
   const previewByCompany = new Map<string, PreviewItem[]>();
   if (slice.length > 0) {
-    const previewRows = await prisma.companyItem.findMany({
-      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) } },
-      select: {
-        companyId: true,
-        slug: true,
-        name: true,
-        images: true,
-        priceMode: true,
-        priceAmount: true,
-        priceCurrency: true,
-        moq: true,
-        unit: true,
-      },
-      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-      take: slice.length * 4,
-    });
-    for (const i of previewRows) {
+    const previewRows = (
+      await Promise.all(
+        slice.map((r) =>
+          r._count.items === 0
+            ? Promise.resolve([])
+            : prisma.companyItem.findMany({
+                where: { ...publicProductWhere(), companyId: r.id },
+                select: {
+                  id: true,
+                  companyId: true,
+                  slug: true,
+                  name: true,
+                  images: true,
+                  priceMode: true,
+                  priceAmount: true,
+                  priceCurrency: true,
+                  moq: true,
+                  unit: true,
+                },
+                orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+                take: 4,
+              }),
+        ),
+      )
+    ).flat();
+    const previewLocalized = opts.localizeProducts ? await opts.localizeProducts(previewRows, previewRows.map((r) => r.id)) : previewRows;
+    for (const i of previewLocalized) {
       const list = previewByCompany.get(i.companyId) ?? [];
       if (list.length >= 4) continue;
       list.push({
@@ -261,13 +351,23 @@ export async function buildDirectory(
   const matchedByCompany = new Map<string, { slug: string; name: string; image: string | null }[]>();
   const searchClauses = productSearchClauses(q.q, { includeCompanyName: false });
   if (searchClauses.length > 0 && slice.length > 0) {
-    const hits = await prisma.companyItem.findMany({
-      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) }, AND: searchClauses },
-      select: { companyId: true, slug: true, name: true, images: true },
-      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-      take: slice.length * 4,
-    });
-    for (const h of hits) {
+    // Önizlemeyle aynı kıtlık (O-060): firma başına ayrı `take`.
+    const hits = (
+      await Promise.all(
+        slice.map((r) =>
+          r._count.items === 0
+            ? Promise.resolve([])
+            : prisma.companyItem.findMany({
+                where: { ...publicProductWhere(), companyId: r.id, AND: searchClauses },
+                select: { id: true, companyId: true, slug: true, name: true, images: true },
+                orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+                take: 3,
+              }),
+        ),
+      )
+    ).flat();
+    const hitsLocalized = opts.localizeProducts ? await opts.localizeProducts(hits, hits.map((r) => r.id)) : hits;
+    for (const h of hitsLocalized) {
       const list = matchedByCompany.get(h.companyId) ?? [];
       if (list.length >= 3) continue;
       list.push({ slug: h.slug ?? "", name: h.name, image: h.images[0] ?? null });
@@ -287,11 +387,11 @@ export async function buildDirectory(
     });
     const codes = [...new Set(grouped.map((g) => g.categoryId).filter((c): c is string => isCategoryCode(c ?? "")))];
     const catRows = codes.length
-      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, nameTr: true } })
+      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
       : [];
-    const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
+    const catName = new Map(catRows.map((c) => [c.id, categoryName(c)]));
     for (const g of grouped) {
-      // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
+      // Gizli dal (katalog sadeleştirme) "Ana kategoriler"e girmez.
       if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
       const list = topCategories.get(g.companyId) ?? [];
       list.push({ id: g.categoryId, name: catName.get(g.categoryId) as string, count: g._count._all });
@@ -303,7 +403,7 @@ export async function buildDirectory(
   }
   return {
     items: slice.map((r) => {
-      const main = [...r.sellerCategoryIds, ...r.buyerCategoryIds].find((id) => nameById.has(id));
+      const main = (shownMain.get(r.id) ?? []).find((id) => nameById.has(id));
       return {
         id: r.id,
         rothernId: r.rothernId,
@@ -316,7 +416,8 @@ export async function buildDirectory(
         logoUrl: r.logoUrl,
         verified: r.companyVerificationStatus === "VERIFIED",
         /** Kartta "Gold Üye" rozeti — `gold=1` süzgeci PROMPT 4'te vardı, karşılığı kartta yoktu. */
-        gold: isGold(r),
+        // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+        ...(isFreePeriod() ? {} : { gold: isGold(r) }),
         /** Kart açıklaması; test verisi herkese açık yüzeyde ÇIKMAZ (looksLikeProse). */
         about: looksLikeProse(r.aboutText) ? (r.aboutText as string) : null,
         foundedYear: r.foundedYear,
@@ -351,26 +452,23 @@ export async function directoryFacets(
 ) {
   const rows = await directoryRows(prisma, { q: params.q }, opts);
   type Row = (typeof rows)[number];
-  const cities = multi(params.city);
+  const hasCity = multi(params.city).length > 0;
+  const cityIds = new Set(cityIdsOf(params.city));
+  const countries = new Set(countriesOf(params.country));
   const activities = multi(params.activity).filter(isCompanyActivity);
-  const categories = multi(params.category).filter(isCategoryCode);
-  // SÜZGEÇ eşleşmesi: DB tarafıyla birebir — dört dizi de ham hâliyle.
-  const cats = (r: Row) => [
-    ...r.sellerCategoryIds,
-    ...r.buyerCategoryIds,
-    ...r.sellerSubCategoryIds,
-    ...r.buyerSubCategoryIds,
-  ];
+  const categories = filterCategories(params.category);
+  // SÜZGEÇ eşleşmesi: liste (`directoryRows`) ile birebir — dört dizinin
+  // GÖSTERİLEN hâli (`shownCompanyDeclaration`). Satır başına bir kez hesaplanır.
+  const shownOf = new Map(rows.map((r) => [r.id, shownCompanyDeclaration(r).all] as const));
+  const cats = (r: Row) => shownOf.get(r.id) ?? [];
   // FACET sayımı: alt kodlar SEGMENTİNE yuvarlanır. Ham hâlde sayılsaydı
-  // 158 bin kodluk katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı;
-  // facet bir gezinme aracı, kod sayımı değil.
-  const facetCats = (r: Row) =>
-    cats(r)
-      .map((c) => categorySegment(c) ?? c)
-      .filter(isCategoryCode)
-      // Gizli segment facet'te de yok (eski beyanlar süzgeç listesini kirletmesin).
-      .filter((c) => !isHiddenCategory(c));
-  const inCity = (r: Row) => cities.length === 0 || (!!r.city && cities.includes(r.city.trim()));
+  // katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı; facet bir gezinme
+  // aracı, kod sayımı değil. Gizli dal facet'te de yok: yuvarlanan kodlar
+  // gösterilen beyandandır, yani gizli kod (ve yalnız onun atası olan görünür
+  // segment) yuvarlamadan ÖNCE düşmüştür.
+  const facetCats = (r: Row) => cats(r).map((c) => categorySegment(c) ?? c).filter(isCategoryCode);
+  const inCity = (r: Row) => !hasCity || (r.cityId != null && cityIds.has(r.cityId));
+  const inCountry = (r: Row) => countries.size === 0 || countries.has(r.country);
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));
   const inCat = (r: Row) => categories.length === 0 || cats(r).some((c) => categories.includes(c));
   const inVerified = (r: Row) => !params.verified || r.companyVerificationStatus === "VERIFIED";
@@ -378,6 +476,7 @@ export async function directoryFacets(
   const inGold = (r: Row) => !params.gold || isGold(r);
   const others = (skip: string) => (r: Row) =>
     (skip === "city" || inCity(r)) &&
+    (skip === "country" || inCountry(r)) &&
     (skip === "activity" || inAct(r)) &&
     (skip === "category" || inCat(r)) &&
     (skip === "verified" || inVerified(r)) &&
@@ -386,8 +485,11 @@ export async function directoryFacets(
 
   const cityCount = new Map<string, number>();
   for (const r of rows.filter(others("city"))) {
-    const city = r.city?.trim();
-    if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+    if (r.cityId != null) cityCount.set(String(r.cityId), (cityCount.get(String(r.cityId)) ?? 0) + 1);
+  }
+  const countryCount = new Map<string, number>();
+  for (const r of rows.filter(others("country"))) {
+    if (r.country) countryCount.set(r.country, (countryCount.get(r.country) ?? 0) + 1);
   }
   const activityCount = new Map<string, number>();
   for (const r of rows.filter(others("activity"))) {
@@ -399,18 +501,19 @@ export async function directoryFacets(
   }
   const catIds = [...catCount.keys()];
   const catNames = catIds.length
-    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(catNames.map((c) => [c.id, c.nameTr] as const));
+  const nameById = new Map(catNames.map((c) => [c.id, categoryName(c)] as const));
   const all = rows.filter(others("none"));
   return {
     total: all.length,
     verified: rows.filter(others("verified")).filter((r) => r.companyVerificationStatus === "VERIFIED").length,
     withProducts: rows.filter(others("products")).filter((r) => r._count.items > 0).length,
-    gold: rows.filter(others("gold")).filter(isGold).length,
-    cities: [...cityCount.entries()]
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+    ...(isFreePeriod() ? {} : { gold: rows.filter(others("gold")).filter(isGold).length }),
+    cities: cityFacet(cityCount),
+    countries: [...countryCount.entries()]
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country)),
     activities: [...activityCount.entries()]
       .map(([activity, count]) => ({ activity, count }))
       .sort((a, b) => b.count - a.count),

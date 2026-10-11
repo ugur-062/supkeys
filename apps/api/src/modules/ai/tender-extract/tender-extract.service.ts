@@ -1,10 +1,14 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
 } from "@nestjs/common";
-import type { AiTenderExtractResult } from "@rothern/shared";
+import { tierAtLeast, type AiTenderExtractResult } from "@rothern/shared";
 import {
   assertReportedSize,
   assertSafeFileName,
@@ -20,17 +24,17 @@ import { sanitizeAiDraft, type SanitizedDraft } from "./ai-draft-sanitizer";
 import { CategorySuggestService } from "./category-suggest.service";
 import {
   TITLE_RESPONSE_SCHEMA,
-  TITLE_SYSTEM_PROMPT,
   buildTitlePrompt,
   sanitizeSuggestedTitle,
+  titleSystemPrompt,
   type TitleSuggestItem,
 } from "./title-suggest";
 import {
   EXTRACT_RESPONSE_SCHEMA,
-  EXTRACT_SYSTEM_PROMPT,
-  REFINE_SYSTEM_PROMPT,
   buildExtractPrompt,
   buildRefinePrompt,
+  extractSystemPrompt,
+  refineSystemPrompt,
 } from "./tender-extract.prompts";
 
 /**
@@ -54,6 +58,46 @@ const ALLOWED_UPLOAD_MIMES = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/csv",
 ];
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** Uzantidan kanonik tip — istemci tipi bos/genel geldiginde. */
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  xlsx: XLSX_MIME,
+  csv: "text/csv",
+};
+/** Tarayicinin tip bilmedigi durum (HEIC codec'i yok, bilinmeyen uzanti). */
+const GENERIC_MIMES = new Set(["", "application/octet-stream"]);
+/** Excel kurulu Windows .csv'yi "application/vnd.ms-excel" bildirir; digerleri yaygin CSV takma adlari. */
+const CSV_ALIAS_MIMES = new Set([
+  "application/vnd.ms-excel",
+  "application/csv",
+  "text/x-csv",
+  "text/comma-separated-values",
+]);
+
+/**
+ * Yukleme presign'i icin kabul edilen tip (derin denetim MU-08 S016). Istemci
+ * tipi yalniz ON ELEME — otoritatif tur indirildikten sonra imzadan
+ * (`routeExtractInput`) cikarilir. Bu yuzden kati esitlik Windows'taki CSV'yi
+ * ("application/vnd.ms-excel") ve codec'siz HEIC'i ("") 400'le reddediyordu:
+ * genel/bos tip uzantidan, CSV takma adi yalniz .csv uzantisiyla kanonik
+ * tipe cevrilir. Kabul edilmeyen → null.
+ */
+export function resolveAiUploadMime(fileName: string, mimeType: string): string | null {
+  const m = (mimeType ?? "").trim().toLowerCase();
+  if (ALLOWED_UPLOAD_MIMES.includes(m)) return m;
+  const ext = /\.([a-z0-9]+)$/i.exec(fileName ?? "")?.[1]?.toLowerCase() ?? "";
+  if (CSV_ALIAS_MIMES.has(m)) return ext === "csv" ? "text/csv" : null;
+  if (GENERIC_MIMES.has(m)) return MIME_BY_EXT[ext] ?? null;
+  return null;
+}
 
 @Injectable()
 export class TenderExtractService {
@@ -79,7 +123,7 @@ export class TenderExtractService {
       ...sanitized,
       draft: { ...sanitized.draft, suggestedCategoryIds: ids },
       missingRequired: sanitized.missingRequired.filter(
-        (m) => !m.startsWith("Kategori"),
+        (m) => m !== "category",
       ),
     };
   }
@@ -90,15 +134,16 @@ export class TenderExtractService {
     dto: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     this.ai.assertAiAccess(user);
-    if (!ALLOWED_UPLOAD_MIMES.includes(dto.mimeType)) {
+    const mimeType = resolveAiUploadMime(dto.fileName, dto.mimeType);
+    if (!mimeType) {
       throw new BadRequestException(
-        "Sadece PDF veya fotoğraf (JPG/PNG/WebP/HEIC) yüklenebilir",
+        i18nMessage("api.ai.sadecePdfVeyaFotografJpgPng"),
       );
     }
     assertSafeFileName(dto.fileName);
     assertReportedSize(dto.fileSize);
     const key = buildAiExtractKey(user.companyId, dto.fileName);
-    const url = await this.storage.generatePresignedPut("private", key, dto.mimeType);
+    const url = await this.storage.generatePresignedPut("private", key, mimeType);
     return { url, key };
   }
 
@@ -108,19 +153,25 @@ export class TenderExtractService {
   ): Promise<AiTenderExtractResult> {
     // Erişim kapısı EN BAŞTA — yetkisiz istek için dosya işlemeyiz bile.
     this.ai.assertAiAccess(user);
+    // Belge → talep taslağı = talep AI'ı (GOLD). Controller'ın GOLD kapısı
+    // asistan yolunu (fileKeys → extract) KAPSAMAZ ve ortak yükleme presign'ı
+    // Silver'a açık (satış AI'ı "Belgeden Fiyatla" onu kullanır) — kapı burada.
+    if (!tierAtLeast(user.tier, "GOLD")) {
+      throw entitlementForbidden(user.companyVerificationStatus);
+    }
 
     // IDOR: anahtarlar yalnız BU firmanın ai-extract klasöründen olabilir.
     for (const key of dto.fileKeys) {
       if (!isOwnAiExtractKey(key, user.companyId)) {
-        throw new BadRequestException("Geçersiz dosya anahtarı");
+        throw new BadRequestException(i18nMessage("api.ai.gecersizDosyaAnahtari"));
       }
     }
     if (dto.fileKeys.length === 0) {
-      throw new BadRequestException("En az bir dosya seçin");
+      throw new BadRequestException(i18nMessage("api.ai.enAzBirDosyaSecin"));
     }
     if (dto.fileKeys.length > this.config.maxPages) {
       throw new BadRequestException(
-        `Belge çok uzun (en fazla ${this.config.maxPages} dosya) — ilgili bölümü seçin`,
+        i18nMessage("api.ai.belgeCokUzunEnFazlaDosyaIlgiliBolumuSecin", { maxPages: this.config.maxPages }),
       );
     }
 
@@ -139,7 +190,7 @@ export class TenderExtractService {
     const callOptions = {
       feature: "tender_extract",
       prompt,
-      system: EXTRACT_SYSTEM_PROMPT,
+      system: extractSystemPrompt(currentLocale()),
       vision: routed.route !== "text",
       parts: routed.parts,
       responseSchema: EXTRACT_RESPONSE_SCHEMA as unknown as object,
@@ -204,20 +255,22 @@ export class TenderExtractService {
   ): Promise<AiTenderExtractResult> {
     this.ai.assertAiAccess(user);
     const message = (dto.message ?? "").trim();
-    if (!message) throw new BadRequestException("Mesaj boş olamaz");
+    if (!message) throw new BadRequestException(i18nMessage("api.ai.mesajBosOlamaz"));
 
     // Girdi taslak da sanitize edilir — istemciden gelen JSON'a güvenilmez.
     const incoming = sanitizeAiDraft(dto.draft, "refine");
     const result = await this.ai.callAi(user, {
       feature: "tender_extract",
       prompt: buildRefinePrompt(JSON.stringify(incoming.draft), message.slice(0, 2000)),
-      system: REFINE_SYSTEM_PROMPT,
+      system: refineSystemPrompt(currentLocale()),
       responseSchema: EXTRACT_RESPONSE_SCHEMA as unknown as object,
       metadata: { route: "refine" },
     });
 
     const parsed = this.tryParse(result.text);
     let sanitized = sanitizeAiDraft(parsed ?? incoming.draft, "refine");
+    // Kaynak işareti modelden alınmaz — gelen taslaktan taşınır.
+    sanitized.draft.fromDocument = incoming.draft.fromDocument === true;
     // Refine modeli suggestedCategoryIds üretmez — gelen taslaktaki öneri
     // korunur; hiç yoksa (eski taslak) kalemlerden yeniden önerilir.
     if (
@@ -231,7 +284,7 @@ export class TenderExtractService {
           suggestedCategoryIds: incoming.draft.suggestedCategoryIds,
         },
         missingRequired: sanitized.missingRequired.filter(
-          (m) => !m.startsWith("Kategori"),
+          (m) => m !== "category",
         ),
       };
     }
@@ -257,12 +310,12 @@ export class TenderExtractService {
     const named = items
       .map((i) => ({ ...i, name: (i.name ?? "").trim().slice(0, 300) }))
       .filter((i) => i.name.length >= 2);
-    if (named.length === 0) throw new BadRequestException("En az bir kalem adı gerekir");
+    if (named.length === 0) throw new BadRequestException(i18nMessage("api.ai.enAzBirKalemAdiGerekir"));
     try {
       const result = await this.ai.callAi(user, {
         feature: "tender_extract",
         prompt: buildTitlePrompt(named),
-        system: TITLE_SYSTEM_PROMPT,
+        system: titleSystemPrompt(currentLocale()),
         responseSchema: TITLE_RESPONSE_SCHEMA as unknown as object,
         metadata: { route: "title-suggest" },
       });

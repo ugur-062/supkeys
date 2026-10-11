@@ -108,6 +108,25 @@ describe("okuma tarafı — çan GÜNCEL izne göre süzer", () => {
     // Viewer verilmezse (eski çağıran) süzgeç yok.
     expect(await svc.unreadCount(u.id)).toBe(3);
   });
+
+  it("`before` imleci portal/izin süzgecini EZMEZ (MU-10)", async () => {
+    const svc = new NotificationService(prisma as never);
+    const co = await makeCompanyWithUser(prisma);
+    const u = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    await prisma.notification.createMany({
+      data: [
+        { companyUserId: u.id, companyId: co.company.id, type: "a", portal: "satinalma", title: "alım", body: "b" },
+        { companyUserId: u.id, companyId: co.company.id, type: "b", portal: "satis", title: "satış", body: "b" },
+        { companyUserId: u.id, companyId: co.company.id, type: "c", portal: null, title: "ortak", body: "b" },
+      ],
+    });
+    const viewer = subject(u.id, [], false, ["buy:view"]);
+    const before = { createdAt: new Date("2100-01-01T00:00:00Z"), id: "zzzz" };
+    expect((await svc.listForUser(u.id, { before }, viewer)).map((r) => r.title).sort()).toEqual(["alım", "ortak"]);
+    expect((await svc.listForUser(u.id, { portal: "satinalma", before }, viewer)).map((r) => r.title).sort()).toEqual(["alım", "ortak"]);
+    // İmleç yine uygulanır: gelecekteki damgadan eskiler döner, geçmişten eskisi yok.
+    expect(await svc.listForUser(u.id, { before: { createdAt: new Date("2000-01-01T00:00:00Z"), id: "a" } }, viewer)).toEqual([]);
+  });
 });
 
 describe("pickCompanyRecipients — e-posta alıcısı izinden", () => {

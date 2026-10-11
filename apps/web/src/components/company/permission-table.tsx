@@ -1,11 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { Description, Field, Label } from "@headlessui/react";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import type {
   PermissionCatalog,
   PermissionCatalogItem,
 } from "@/hooks/use-company-users";
+import { useRoleLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
+import { normalizePermissions } from "@rothern/shared";
+import { gatePreset } from "./permission-presets";
 import {
   ClipboardCheck,
   Eye,
@@ -29,12 +34,13 @@ const VIEW_OF: Partial<Record<PermissionCatalogItem["group"], string>> = {
 
 export type PresetKey = keyof PermissionCatalog["presets"];
 
-const PRESETS: { key: PresetKey; label: string; icon: LucideIcon; hint: string }[] = [
-  { key: "SATIN_ALMACI", label: "Satın Almacı", icon: ShoppingCart, hint: "Talep açar, kazandırır, alım siparişini yürütür" },
-  { key: "SATISCI", label: "Satışçı", icon: Store, hint: "Teklif verir, ürün yayımlar, satış siparişini yürütür" },
-  { key: "ONAYLAYICI", label: "Onaylayıcı", icon: ClipboardCheck, hint: "Yalnız onaylar" },
-  { key: "YONETICI", label: "Yönetici", icon: Settings2, hint: "Görür, yönetir, onaylar; işlem yapmaz" },
-  { key: "GORUNTULEYICI", label: "Görüntüleyici", icon: Eye, hint: "Yalnız görür, koltuk tüketmez" },
+/** Hazır set çipleri — etiket rol sözlüğünden (`useRoleLabel`), ipucu `presetHint.<KOD>`. */
+const PRESETS: { key: PresetKey; icon: LucideIcon }[] = [
+  { key: "SATIN_ALMACI", icon: ShoppingCart },
+  { key: "SATISCI", icon: Store },
+  { key: "ONAYLAYICI", icon: ClipboardCheck },
+  { key: "YONETICI", icon: Settings2 },
+  { key: "GORUNTULEYICI", icon: Eye },
 ];
 
 function sameSet(a: readonly string[], b: readonly string[]) {
@@ -80,6 +86,19 @@ export function PermissionTable({
   canGrantBuy?: boolean;
   disabled?: boolean;
 }) {
+  const t = useTranslations("web.panel.trade.permissionTable");
+  const roleLabel = useRoleLabel();
+  // Görüntüleyici bir rol değil, yalnız hazır set → etiketi bu ad alanında.
+  const presetLabel = (k: PresetKey) => (k === "GORUNTULEYICI" ? t("goruntuleyici") : roleLabel(k));
+  // İzin/grup adları API'den Türkçe gelir (paylaşılan katalog, i18n Faz 3'e
+  // dek); istek dilinde karşılığı `perm.<kod>`/`group.<kod>` anahtarında varsa
+  // o basılır, yoksa sunucu etiketi — yeni bir izin eklenince ekran kırılmasın.
+  const permLabel = (c: PermissionCatalogItem) => {
+    const k = `perm.${c.key.replace(/:/g, "_")}`;
+    return t.has(k as never) ? t(k as never) : c.label;
+  };
+  const groupLabel = (g: PermissionCatalogItem["group"]) =>
+    t.has(`group.${g}` as never) ? t(`group.${g}` as never) : catalog.groups[g];
   const has = (k: string) => value.includes(k);
   const groupHasOp = (g: "buy" | "sell") =>
     catalog.catalog.some((c) => c.group === g && c.seat && has(c.key));
@@ -94,13 +113,11 @@ export function PermissionTable({
     freeSeats - newGroupsTicked <= 0;
 
   const set = (next: Set<string>) => {
-    // İşlem tiki → grubun görüntülemesi örtük.
-    for (const c of catalog.catalog) {
-      if (c.seat && next.has(c.key)) {
-        const v = VIEW_OF[c.group];
-        if (v) next.add(v);
-      }
-    }
+    // İşlem tiki → grubun görüntülemesi örtük; Şablonlar/Bağlantılar da
+    // portal görüntülemesini getirir — kural TEK KAYNAK shared
+    // `normalizePermissions` (sunucu da aynısını yazar; arayüz testi T3).
+    const normalized = new Set(normalizePermissions([...next]));
+    for (const k of normalized) next.add(k);
     onChange(catalog.catalog.map((c) => c.key).filter((k) => next.has(k)));
   };
   const toggle = (key: string, on: boolean) => {
@@ -110,7 +127,14 @@ export function PermissionTable({
     set(next);
   };
   const applyPreset = (p: PresetKey) => {
-    const preset = catalog.presets[p] ?? [];
+    // Paket ve koltuk kapısı hazır sete de uygulanır (derin denetim MU-13):
+    // kilit yalnız işaretsiz tiki kilitlediği için çipin işaretlediği
+    // satınalma/koltuk tikleri kilitsiz kalıp kayıtta 400 alıyordu.
+    const preset = gatePreset(catalog, catalog.presets[p] ?? [], {
+      canGrantBuy,
+      freeSeats,
+      hadGroups,
+    });
     const next = new Set(preset);
     // Kurucu olmayan bir düzenleyici "kullanıcı ve yetki"yi veremez —
     // hazır set onu içerse de tik düşer (sunucu da reddeder).
@@ -129,7 +153,7 @@ export function PermissionTable({
 
   const groups = GROUP_ORDER.map((g) => ({
     key: g,
-    label: catalog.groups[g],
+    label: groupLabel(g),
     items: catalog.catalog.filter((c) => c.group === g),
   }));
 
@@ -138,38 +162,47 @@ export function PermissionTable({
       {!targetIsOwner ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Hazır setler
+            {t("hazirSetler")}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {PRESETS.map((p) => {
               const Icon = p.icon;
               const on = activePreset === p.key;
+              // Satın Almacı seti satınalma işlem yetkisidir; paket vermiyorsa
+              // (ve kişi zaten tutmuyorsa) çip seçilemez, sebebi ipucunda.
+              const tierLocked =
+                p.key === "SATIN_ALMACI" && !canGrantBuy && !hadGroups.buy;
+              const chipDisabled = disabled || tierLocked;
               return (
                 <button
                   key={p.key}
                   type="button"
-                  disabled={disabled}
-                  title={p.hint}
+                  disabled={chipDisabled}
+                  title={tierLocked ? t("dogrulamaGerekir") : t(`presetHint.${p.key}`)}
                   aria-pressed={on}
                   onClick={() => applyPreset(p.key)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition",
+                    // Seçim rengi ANLIK değişir: `transition` arka planı 150 ms
+                    // soldururken alt yazı hemen "Kişiye özel" diyordu — tik
+                    // kaldırıldığı anda çip hâlâ seçili görünüyordu (arayüz
+                    // testi son tur api-2). Yalnız hover kenarlığı yumuşar.
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-[border-color]",
                     on
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 text-zinc-600 hover:border-zinc-400",
-                    disabled && "cursor-not-allowed opacity-50",
+                    chipDisabled && "cursor-not-allowed opacity-50",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
-                  {p.label}
+                  {presetLabel(p.key)}
                 </button>
               );
             })}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
             {activePreset
-              ? "Hazır set uygulanıyor; aşağıdan kişiye özel değiştirebilirsiniz."
-              : "Kişiye özel yetki kümesi."}
+              ? t("hazirSetUygulaniyorAsagidanKisiye")
+              : t("kisiyeOzelYetkiKumesi")}
           </p>
         </div>
       ) : null}
@@ -187,8 +220,8 @@ export function PermissionTable({
                 {isSeatGroup ? (
                   <span className="ml-1.5 font-medium normal-case text-zinc-500">
                     {g.key === "buy" && !canGrantBuy
-                      ? "· Gold pakette açılır"
-                      : "· işlem tiki koltuk sayar"}
+                      ? t("islemTikleriDogrulamayla")
+                      : t("islemTikiKoltukSayar")}
                   </span>
                 ) : null}
               </legend>
@@ -204,12 +237,34 @@ export function PermissionTable({
                     !has(c.key);
                   // Paket kapısı koltuk kapısından AYRI: sorun "yer yok" değil,
                   // yetkinin o pakette karşılığı olmaması.
+                  // YALNIZ işlem (koltuk) tikleri: koltuksuz "Satınalma
+                  // görüntüleme" / "Satınalma raporları" her pakette verilebilir
+                  // — API (koltuk kapısı yalnız buy işlem iznine) ve Görüntüleyici
+                  // hazır seti de öyle; eskiden kilitliydi, çip işaretleyince
+                  // açılıp tik kaldırılınca geri verilemiyordu (arayüz testi T3).
                   const tierBlock =
-                    c.group === "buy" && !canGrantBuy && !has(c.key);
-                  const viewImplied =
+                    c.group === "buy" && c.seat && !canGrantBuy && !has(c.key);
+                  // İşaretli satınalma işlem tiki Gold dışı pakette kaldırılabilir
+                  // kalır ama sebebi yine yazılır (kişi yeni koltuk açamaz).
+                  const tierNote =
+                    c.group === "buy" &&
+                    c.seat &&
+                    !canGrantBuy &&
+                    has(c.key) &&
+                    !hadGroups.buy;
+                  const seatViewImplied =
                     !c.seat &&
                     VIEW_OF[c.group] === c.key &&
                     g.items.some((x) => x.seat && has(x.key));
+                  // Yönetim tikinin getirdiği görüntüleme (Şablonlar → satınalma,
+                  // yalnız Bağlantılar → satış): kaldırılsa normalize geri ekler.
+                  const mgmtViewImplied =
+                    !seatViewImplied &&
+                    !c.seat &&
+                    has(c.key) &&
+                    (c.key === "buy:view" || c.key === "sell:view") &&
+                    normalizePermissions(value.filter((k) => k !== c.key)).includes(c.key);
+                  const viewImplied = seatViewImplied || mgmtViewImplied;
                   const locked =
                     disabled ||
                     implicitOwner ||
@@ -219,43 +274,61 @@ export function PermissionTable({
                     viewImplied;
                   const checked = implicitOwner || has(c.key);
                   const reason = implicitOwner
-                    ? "Kurucuda örtük"
+                    ? t("kurucudaOrtuk")
                     : ownerOnly
-                      ? "Yalnız Kurucu verir"
-                      : tierBlock
-                        ? "Gold pakette"
+                      ? t("yalnizKurucuVerir")
+                      : tierBlock || tierNote
+                        ? t("dogrulamaGerekir")
                         : seatBlock
-                          ? "Koltuk dolu"
-                          : viewImplied
-                            ? "İşlem tiki ile birlikte gelir"
-                            : null;
+                          ? t("koltukDolu")
+                          : seatViewImplied
+                            ? t("islemTikiIleBirlikteGelir")
+                            : mgmtViewImplied
+                              ? t("yonetimTikiIleBirlikteGelir")
+                              : null;
                   return (
                     <li key={c.key}>
-                      <label
+                      {/* Headless Field: Label + Checkbox bağlı — satır yazısına
+                          tıklamak da kutuyu işaretler (yerel <label> Headless
+                          Checkbox'ı tetiklemiyordu, arayüz testi D-134). Ad
+                          kesilmez; sebep alt satırda (Description). */}
+                      <Field
+                        disabled={locked}
                         className={cn(
-                          "flex items-center gap-2 text-sm text-zinc-800",
-                          locked && "cursor-not-allowed opacity-60",
+                          "flex items-start gap-2 text-sm text-zinc-800",
+                          locked && "opacity-60",
                         )}
                       >
                         <Checkbox
+                          className="mt-0.5"
                           checked={checked}
                           disabled={locked}
                           onChange={(on) => toggle(c.key, on)}
-                          aria-label={c.label}
                         />
-                        <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                        <span className="min-w-0 flex-1">
+                          <Label
+                            className={cn(
+                              "break-words",
+                              locked ? "cursor-not-allowed" : "cursor-pointer",
+                            )}
+                          >
+                            {permLabel(c)}
+                          </Label>
+                          {reason ? (
+                            <Description className="block text-[11px] leading-4 text-zinc-500">
+                              {reason}
+                            </Description>
+                          ) : null}
+                        </span>
                         {c.seat ? (
                           <span
-                            className="rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
-                            title="Koltuk tüketir"
+                            className="mt-0.5 shrink-0 rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+                            title={t("koltukTuketir")}
                           >
-                            koltuk
+                            {t("koltuk")}
                           </span>
                         ) : null}
-                        {reason ? (
-                          <span className="text-[11px] text-zinc-400">{reason}</span>
-                        ) : null}
-                      </label>
+                      </Field>
                     </li>
                   );
                 })}

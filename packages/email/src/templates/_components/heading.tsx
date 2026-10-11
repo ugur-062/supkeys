@@ -12,11 +12,12 @@ export function Heading({ children, level = 1 }: HeadingProps) {
     level === 1
       ? {
           fontFamily: FONTS.display,
-          fontSize: "24px",
+          fontSize: "22px",
           fontWeight: 700,
           color: COLORS.brand900,
           margin: "0 0 16px 0",
-          lineHeight: "1.3",
+          lineHeight: "30px",
+          letterSpacing: "-0.2px",
         }
       : {
           fontFamily: FONTS.display,
@@ -24,8 +25,12 @@ export function Heading({ children, level = 1 }: HeadingProps) {
           fontWeight: 700,
           color: COLORS.brand900,
           margin: "0 0 8px 0",
-          lineHeight: "1.4",
+          lineHeight: "24px",
         };
 
-  return <ReHeading as={level === 1 ? "h1" : "h2"} style={styles}>{children}</ReHeading>;
+  return (
+    <ReHeading as={level === 1 ? "h1" : "h2"} className={level === 1 ? "r-h r-h1" : "r-h"} style={styles}>
+      {children}
+    </ReHeading>
+  );
 }

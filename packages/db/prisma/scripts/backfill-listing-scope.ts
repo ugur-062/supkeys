@@ -12,8 +12,9 @@
  * staging; canlı için `ENV_FILE=../../.env.prod.local`). `DRY=1` yalnız sayar.
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("backfill-listing-scope") });
 
 async function main() {
   const dry = process.env.DRY === "1";

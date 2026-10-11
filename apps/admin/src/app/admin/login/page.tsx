@@ -2,7 +2,7 @@ import { AdminLogo } from "@/components/brand/admin-logo";
 import { AdminLoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Admin Giriş — Rothern",
+  title: "Giriş",
   robots: { index: false, follow: false },
 };
 

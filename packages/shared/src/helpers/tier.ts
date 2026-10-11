@@ -7,8 +7,11 @@
  *   vitrini (PRODUCT_LIMITS tavanı; belge/video yok) + herkese açık profil +
  *   dizinde yer (paketlilerden SONRA sıralanır) + firmaları keşfetme;
  *   davetli/bağlantılı taleplere teklif, mesaj, sipariş takibi. PUBLIC
- *   talepleri GÖRMEZ (yalnız kilitli sayı), bağlantı daveti GÖNDEREMEZ (gelen
- *   daveti kabul eder), gelen bilgi taleplerini ANONİM görür (soru evet,
+ *   talepleri ALICI KİMLİĞİ GİZLİ görür (2026-10-03: Açık Talepler'de
+ *   davetli/bağlantılıların altında normal satır + panel içi maskeli görünüm,
+ *   herkese açık sitenin verdiği alanlarla); bunlara teklif, alıcı kimliği,
+ *   belge ve tam detay Silver ister. Bağlantı daveti GÖNDEREMEZ (gelen daveti
+ *   kabul eder), gelen bilgi taleplerini ANONİM görür (soru evet,
  *   kimlik/iletişim/yanıt hayır), profilinde "Doğrulanmamış" yazar. 2 koltuk.
  * - SILVER (tedarikçi paketi = SATIŞ paneli): öncelikli dizin sırası + sınırsız
  *   ürün + belge/video + PUBLIC talepleri görme ve teklif + bağlantı daveti +

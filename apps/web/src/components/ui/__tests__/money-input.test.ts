@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatMoneyDisplay, parseMoneyDisplay } from "../money-input";
+import {
+  INVALID_NUMBER_RAW,
+  formatMoneyDisplay,
+  hasInvalidNumber,
+  numberFromInputText,
+  padMoneyFraction,
+  parseMoneyDisplay,
+  parseNumberStrict,
+} from "../money-input";
 
 /**
  * Denetim 2026-08-26 Parça 10 #1 sözleşmesi.
@@ -99,5 +107,197 @@ describe("kontrollü input — ondalık hane fazlası ve virgül yolu", () => {
     expect(typeInto("1234567")).toBe("1234567");
     expect(typeInto("1234567,89")).toBe("1234567.89");
     expect(typeInto("1234567.89")).toBe("1234567.89");
+  });
+});
+
+/**
+ * 2026-09-27 — ARAYÜZ DİLİNİN ayraçları. Kural Türkçe sözleşmeye sabitken
+ * İngilizce arayüzde "12,500" yapıştıran satıcının birim fiyatı 12,50
+ * oluyordu (gönderilen teklif düzenlenemez → PARA KAYBI).
+ */
+describe("parseMoneyDisplay — İngilizce arayüz (virgül binlik, nokta ondalık)", () => {
+  it("REGRESYON: tek virgül + 3 hane binliktir (12,500 → 12500)", () => {
+    expect(parseMoneyDisplay("12,500", "en")).toBe("12500");
+    expect(parseMoneyDisplay("1,500", "en")).toBe("1500");
+    expect(parseMoneyDisplay("1,234,567", "en")).toBe("1234567");
+    expect(parseMoneyDisplay("12,500.75", "en")).toBe("12500.75");
+    expect(parseMoneyDisplay("$ 12,500", "en")).toBe("12500");
+  });
+
+  it("nokta ondalıktır (dilin sözleşmesi); fazla hane kırpılır", () => {
+    expect(parseMoneyDisplay("12.5", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("12.50", "en")).toBe("12.50");
+    expect(parseMoneyDisplay("0.125", "en")).toBe("0.12");
+    // Belirsiz: "12.500" İngilizcede on iki buçuktur (binlik okumak 1000× hata olurdu).
+    expect(parseMoneyDisplay("12.500", "en")).toBe("12.50");
+  });
+
+  it("virgül + ≤2 hane başka alışkanlıkla yazılmış ondalıktır (12,5 → 12.5)", () => {
+    expect(parseMoneyDisplay("12,5", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("12,50", "en")).toBe("12.50");
+    expect(parseMoneyDisplay("12,", "en")).toBe("12.");
+  });
+
+  it("iki ayraç türü varsa sonuncusu ondalık (yapıştırılan TR/DE biçimi)", () => {
+    expect(parseMoneyDisplay("1.234,56", "en")).toBe("1234.56");
+    expect(parseMoneyDisplay("1,234.56", "en")).toBe("1234.56");
+  });
+
+  it("boşluk binliktir; tam genişlikli (IME) rakam/ayraç okunur", () => {
+    expect(parseMoneyDisplay("1 234 567.5", "en")).toBe("1234567.5");
+    expect(parseMoneyDisplay("１２，５００", "en")).toBe("12500");
+    expect(parseMoneyDisplay("１２．５", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("1'234.50", "en")).toBe("1234.50");
+  });
+});
+
+describe("parseMoneyDisplay — Rusça arayüz (boşluk binlik, virgül ondalık)", () => {
+  it("bölünmez/dar boşluk ve düz boşluk binliktir", () => {
+    expect(parseMoneyDisplay("1 234,56", "ru")).toBe("1234.56");
+    expect(parseMoneyDisplay("1 234 567,5", "ru")).toBe("1234567.5");
+    expect(parseMoneyDisplay("1 234,56", "ru")).toBe("1234.56");
+  });
+
+  it("virgül ondalıktır; nokta TR'deki gibi ≤2 hane ondalık, 3 hane binlik", () => {
+    expect(parseMoneyDisplay("12,5", "ru")).toBe("12.5");
+    expect(parseMoneyDisplay("1500.50", "ru")).toBe("1500.50");
+    expect(parseMoneyDisplay("12.500", "ru")).toBe("12500");
+    // Belirsiz: "12,500" Rusçada on iki buçuktur.
+    expect(parseMoneyDisplay("12,500", "ru")).toBe("12.50");
+  });
+});
+
+describe("parseMoneyDisplay — Türkçe arayüzde yapıştırılan yabancı biçim", () => {
+  it("çoklu virgül düzgün binlik kalıbıysa binliktir (eskiden 1234.56 dönüyordu)", () => {
+    expect(parseMoneyDisplay("1,234,567", "tr")).toBe("1234567");
+    expect(parseMoneyDisplay("1,234,567.89", "tr")).toBe("1234567.89");
+  });
+
+  it("tek virgül dilin ondalığıdır (12,500 → 12,50 — Türkçe sözleşme)", () => {
+    expect(parseMoneyDisplay("12,500", "tr")).toBe("12.50");
+  });
+});
+
+describe("formatMoneyDisplay — dilin ayraçları", () => {
+  it("EN: 1,500.5 · RU: 1 500,5 (bölünmez boşluk) · TR: 1.500,5", () => {
+    expect(formatMoneyDisplay("1500.5", "en")).toBe("1,500.5");
+    expect(formatMoneyDisplay("1234567", "en")).toBe("1,234,567");
+    expect(formatMoneyDisplay("1500.5", "ru")).toBe("1 500,5");
+    expect(formatMoneyDisplay("1500.5", "tr")).toBe("1.500,5");
+  });
+
+  it("her dilde gidiş-dönüş kararlı", () => {
+    for (const locale of ["tr", "en", "ru"] as const) {
+      for (const raw of ["0.5", "12500", "1500.50", "1234567.89", "1500"]) {
+        expect(parseMoneyDisplay(formatMoneyDisplay(raw, locale), locale)).toBe(raw);
+      }
+    }
+  });
+});
+
+/**
+ * Miktar alanları (`maxDecimals` = 3, DB Decimal(18,3)) — arayüz testi son tur
+ * S-BUY: `type="number"` Türkçe tarayıcıda "1.500"ü 1,5 · "1.250,5"i 1,2505
+ * okuyor, katalog seçicide "2." ara durumu alanı 0'a sıfırlıyordu ("2.5" → 5).
+ */
+describe("parseMoneyDisplay — miktar (3 ondalık)", () => {
+  it("TR: nokta binlik, virgül ondalık", () => {
+    expect(parseMoneyDisplay("1.500", "tr", 3)).toBe("1500");
+    expect(parseMoneyDisplay("1.250,5", "tr", 3)).toBe("1250.5");
+    expect(parseMoneyDisplay("12,5", "tr", 3)).toBe("12.5");
+    expect(parseMoneyDisplay("0,125", "tr", 3)).toBe("0.125");
+  });
+
+  it("TR: başka alışkanlıkla yazılan nokta-ondalık da doğru okunur", () => {
+    expect(parseMoneyDisplay("2.5", "tr", 3)).toBe("2.5");
+    expect(parseMoneyDisplay("2.", "tr", 3)).toBe("2.");
+    expect(parseMoneyDisplay("0.125", "tr", 3)).toBe("0.125");
+    expect(parseMoneyDisplay("1.2505", "tr", 3)).toBe("1.250");
+  });
+
+  it("EN: virgül binlik, nokta ondalık; 3 ondalık korunur", () => {
+    expect(parseMoneyDisplay("1,500", "en", 3)).toBe("1500");
+    expect(parseMoneyDisplay("12.125", "en", 3)).toBe("12.125");
+    expect(parseMoneyDisplay("1,250.5", "en", 3)).toBe("1250.5");
+  });
+
+  it("para (varsayılan 2 hane) davranışı değişmez", () => {
+    expect(parseMoneyDisplay("1.2345")).toBe("12345");
+    expect(parseMoneyDisplay("0.125", "en")).toBe("0.12");
+  });
+});
+
+describe("padMoneyFraction (arayüz testi kapanış S-SELL NEW-1)", () => {
+  it("kesirli değeri 2 haneye tamamlar", () => {
+    expect(padMoneyFraction("1500.5")).toBe("1500.50");
+    expect(padMoneyFraction("0.5")).toBe("0.50");
+    expect(padMoneyFraction("12.50")).toBe("12.50");
+  });
+  it("tam sayı, yarım ondalık ve boş değer olduğu gibi", () => {
+    expect(padMoneyFraction("1500")).toBe("1500");
+    expect(padMoneyFraction("1500.")).toBe("1500.");
+    expect(padMoneyFraction("")).toBe("");
+  });
+  it("biçimle birlikte: '1.500,50' / EN '250.50'", () => {
+    expect(formatMoneyDisplay(padMoneyFraction("1500.5"), "tr")).toBe("1.500,50");
+    expect(formatMoneyDisplay(padMoneyFraction("250.5"), "en")).toBe("250.50");
+  });
+});
+
+/**
+ * Arayüz testi kapanış NUM (2026-10-03): doğrulanan sayı alanları (gün, ay,
+ * yüzde, nitelik) için KESİN ayrıştırma — kırpmaz, tahmin etmez.
+ */
+describe("parseNumberStrict — kesin yerel sayı", () => {
+  it("TR tam sayı alanı: '0,5' / '2.5' / '12,50' / '1.250,5' geçersiz; '1.500' 1500", () => {
+    expect(parseNumberStrict("0,5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("2.5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("12,50", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.250,5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.500", "tr")).toBe("1500");
+    expect(parseNumberStrict("05", "tr")).toBe("5");
+    expect(parseNumberStrict("12,0", "tr")).toBe("12");
+    expect(parseNumberStrict("", "tr")).toBe("");
+  });
+
+  it("EN tam sayı alanı: '1,500' 1500; '12.50' / '1,500.5' geçersiz", () => {
+    expect(parseNumberStrict("1,500", "en")).toBe("1500");
+    expect(parseNumberStrict("12.50", "en")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1,500.5", "en")).toBe(INVALID_NUMBER_RAW);
+    // EN "1.000" = 1,000 ondalık = 1 (kırpma değil, anlamsız sıfırlar).
+    expect(parseNumberStrict("1.000", "en")).toBe("1");
+  });
+
+  it("ondalıklı alan: dilin kuralı + başka alışkanlık; fazla ondalık kırpılmaz, reddedilir", () => {
+    expect(parseNumberStrict("2,5", "tr", 4)).toBe("2.5");
+    expect(parseNumberStrict("12,50", "tr", 2)).toBe("12.5");
+    expect(parseNumberStrict("1.250,5", "tr", 2)).toBe("1250.5");
+    expect(parseNumberStrict("2.5", "tr", 2)).toBe("2.5");
+    expect(parseNumberStrict("1,500.5", "en", 2)).toBe("1500.5");
+    expect(parseNumberStrict("0,125", "tr", 4)).toBe("0.125");
+    expect(parseNumberStrict("1.2505", "tr", 4)).toBe("1.2505");
+    expect(parseNumberStrict("1,234", "tr", 2)).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1 234,5", "ru", 2)).toBe("1234.5");
+  });
+
+  it("çöp, eksi ve düzensiz gruplama geçersiz", () => {
+    expect(parseNumberStrict("abc", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("-5", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.2.3", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("12.3.456", "tr")).toBe(INVALID_NUMBER_RAW);
+    expect(parseNumberStrict("1.234,5,6", "tr", 2)).toBe(INVALID_NUMBER_RAW);
+  });
+
+  it("numberFromInputText: boş → undefined, geçersiz → NaN, sayı aynen", () => {
+    expect(numberFromInputText("", "tr")).toBeUndefined();
+    expect(numberFromInputText("0,5", "tr")).toBeNaN();
+    expect(numberFromInputText("24", "tr")).toBe(24);
+    expect(numberFromInputText(12, "tr")).toBe(12);
+  });
+
+  it("hasInvalidNumber iç içe NaN ve geçersiz ham değeri bulur", () => {
+    expect(hasInvalidNumber({ items: [{ warrantyMonths: Number.NaN }] })).toBe(true);
+    expect(hasInvalidNumber({ a: { b: INVALID_NUMBER_RAW } })).toBe(true);
+    expect(hasInvalidNumber({ a: 1, b: "x", c: null, d: [2, 3] })).toBe(false);
   });
 });

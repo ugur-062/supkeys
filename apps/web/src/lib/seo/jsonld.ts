@@ -1,6 +1,8 @@
 import { OPERATOR } from "@/lib/company-info";
-import { absoluteUrl, SITE_NAME } from "@/lib/seo/meta";
+import { absoluteUrl, LANG_TAG, SITE_NAME } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 
 /**
  * YAPILANDIRILMIŞ VERİ TEK KAYNAĞI (2026-09-09).
@@ -73,41 +75,49 @@ export function organizationNode(): JsonLdNode {
       addressRegion: OPERATOR.addressParts.city,
       addressCountry: OPERATOR.addressParts.country,
     },
-    areaServed: { "@type": "Country", name: "Türkiye" },
+    /* Hizmet bölgesi DÜNYA GENELİ (2026-09-27: kayıt ABD ve yaptırım ülkeleri
+       dışında tüm ülkelere açık). ~235 ülkeyi tek tek yazmak şişirirdi. */
+    areaServed: "Worldwide",
     contactPoint: [
       {
         "@type": "ContactPoint",
         contactType: "customer support",
         email: OPERATOR.supportEmail,
-        availableLanguage: ["tr"],
+        // Destek üç dilde yanıt verir (site TR/EN/RU; i18n Faz 1).
+        availableLanguage: ["tr", "en", "ru"],
       },
     ],
   });
 }
 
-/** Site düğümü + arama eylemi (Google "sitelinks search box" ve AI keşfi). */
-export function webSiteNode(): JsonLdNode {
+/**
+ * Site düğümü + arama eylemi (Google "sitelinks search box" ve AI keşfi).
+ * Arama adresi sayfanın DİLİNDE (2026-09-27): EN sayfadan yapılan arama
+ * `/en/products?q=` açsın — Türkçe dizine düşmesin.
+ */
+export function webSiteNode(locale: Locale = DEFAULT_LOCALE): JsonLdNode {
   return compact({
     "@type": "WebSite",
     "@id": SITE_ID(),
     name: SITE_NAME,
     url: absoluteUrl("/"),
-    inLanguage: "tr-TR",
+    // Site üç dilde yayında (i18n Faz 1): tek dil yazmak EN/RU sayfalarda yanlış sinyal olurdu.
+    inLanguage: Object.values(LANG_TAG),
     publisher: { "@id": ORG_ID() },
     potentialAction: {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${absoluteUrl(MARKETPLACE_ROUTES.products)}?q={search_term_string}`,
+        urlTemplate: `${absoluteUrl(localizePath(MARKETPLACE_ROUTES.products, locale))}?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
   });
 }
 
-/** Her public sayfanın taşıdığı kimlik grafiği. */
-export function siteGraph(): JsonLdNode {
-  return graph([organizationNode(), webSiteNode()]);
+/** Her public sayfanın taşıdığı kimlik grafiği (arama eylemi sayfanın dilinde). */
+export function siteGraph(locale: Locale = DEFAULT_LOCALE): JsonLdNode {
+  return graph([organizationNode(), webSiteNode(locale)]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -120,14 +130,15 @@ export interface Crumb {
   path: string;
 }
 
-export function breadcrumbNode(items: Crumb[]): JsonLdNode {
+/** `locale` verilirse kırıntı adresleri o dilin ön ekini alır (`/en/urunler`); adlar çağırandan çevrili gelir. */
+export function breadcrumbNode(items: Crumb[], locale: Locale = DEFAULT_LOCALE): JsonLdNode {
   return {
     "@type": "BreadcrumbList",
     itemListElement: items.map((c, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: c.name,
-      item: absoluteUrl(c.path),
+      item: absoluteUrl(localizePath(c.path, locale)),
     })),
   };
 }
@@ -140,23 +151,32 @@ export function breadcrumbNode(items: Crumb[]): JsonLdNode {
  */
 export function itemListNode(input: {
   name: string;
+  /** İÇ (Türkçe) yol — kanonik liste adresi; dil ön eki `locale`den gelir. */
   path: string;
+  /** Öğe yolları da İÇ yol; hepsi sayfanın dilinde yazılır. */
   items: Array<{ name: string; path: string }>;
   startPosition?: number;
   totalItems?: number;
+  /**
+   * Sayfanın dili (2026-09-27 SEO denetimi): verilmezse Türkçe. Eskiden yol
+   * çevrilmeden yazılıyordu → `/en/products` sayfasının ItemList'i ve her öğe
+   * adresi Türkçe sayfayı gösteriyordu (kanonikle çelişen sinyal).
+   */
+  locale?: Locale;
 }): JsonLdNode {
   const start = input.startPosition ?? 1;
+  const locale = input.locale ?? DEFAULT_LOCALE;
   return compact({
     "@type": "ItemList",
     name: input.name,
-    url: absoluteUrl(input.path),
+    url: absoluteUrl(localizePath(input.path, locale)),
     numberOfItems: input.totalItems ?? input.items.length,
     itemListOrder: "https://schema.org/ItemListOrderAscending",
     itemListElement: input.items.map((it, i) => ({
       "@type": "ListItem",
       position: start + i,
       name: it.name,
-      url: absoluteUrl(it.path),
+      url: absoluteUrl(localizePath(it.path, locale)),
     })),
   });
 }

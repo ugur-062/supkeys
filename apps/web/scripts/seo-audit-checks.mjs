@@ -31,17 +31,49 @@ export function parseHead(html) {
     }
   });
   const h1 = (html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) ?? [])[1]?.replace(/<[^>]+>/g, "").trim() ?? null;
+  const lang = attr((html.match(/<html\b[^>]*>/i) ?? [""])[0], "lang");
+  // Next `hrefLang` (büyük L) basar; dil seçicinin <a hrefLang> bağlantıları <link> değil → karışmaz.
+  const hreflang = {};
+  for (const t of links) {
+    if (attr(t, "rel")?.toLowerCase() !== "alternate") continue;
+    const hl = attr(t, "hreflang");
+    const href = attr(t, "href");
+    if (hl && href) hreflang[hl] = href;
+  }
   return {
     title,
     description: meta("description"),
     canonical,
     robots: meta("robots"),
     ogImage: meta("og:image", "property"),
+    ogImageAlt: meta("og:image:alt", "property"),
     ogTitle: meta("og:title", "property"),
     twitterCard: meta("twitter:card"),
     jsonLd,
     h1,
+    lang,
+    hreflang,
+    ogLocale: meta("og:locale", "property"),
   };
+}
+
+/**
+ * Çevrilmemiş Türkçe sezgiseli (içerik çevirisi kapısıyla aynı kural):
+ * KÜÇÜK harfle başlayan Türkçe-harfli sözcük hiçbir zaman özel ad değildir
+ * ("şartlandırma", "ekipmanları"). Büyük harfli (Çerkezköy, A.Ş.) serbest.
+ */
+export function turkishLeftovers(text) {
+  return [...new Set((text ?? "").match(/(?<![\p{L}\d])\p{Ll}[\p{L}\d]*[çğışöü][\p{L}\d]*/gu) ?? [])];
+}
+
+/** Adresin dili — ön ek yoksa Türkçe (localePrefix "as-needed"). */
+export function localeOfUrl(u) {
+  try {
+    const m = /^\/(en|ru)(?:\/|$)/.exec(new URL(u).pathname);
+    return m ? m[1] : "tr";
+  } catch {
+    return "tr";
+  }
 }
 
 /** JSON-LD graph içindeki düğüm tiplerini düzleştirir. */
@@ -57,10 +89,18 @@ export function ldTypes(jsonLd) {
   return out;
 }
 
+/*
+ * `Product.offers` ZORUNLU DEĞİL (2026-09-27): fiyatsız ("teklif isteyin")
+ * üründe Offer hiç yazılmaz — fiyatsız Offer Rich Results hatasıdır; varsa
+ * fiyat taşımalı (aşağıda). Sayfa düğümü (ItemPage/ProfilePage) dil ve ana
+ * varlığı taşır; varlık düğümünde `inLanguage` geçersizdir.
+ */
 const REQUIRED = {
-  Product: ["name", "offers"],
+  Product: ["name"],
   Organization: ["name", "url"],
   Demand: ["name", "url"],
+  ItemPage: ["url", "inLanguage", "mainEntity"],
+  ProfilePage: ["url", "inLanguage", "mainEntity"],
   BreadcrumbList: ["itemListElement"],
   FAQPage: ["mainEntity"],
   ItemList: ["itemListElement"],
@@ -83,6 +123,7 @@ export function checkPage(url, html, expect = { indexable: true }) {
   if (!h.canonical) problems.push("canonical yok");
   else if (normalize(h.canonical) !== normalize(url)) problems.push(`canonical ≠ url (${h.canonical})`);
   if (!h.ogImage) problems.push("og:image yok");
+  else if (!h.ogImageAlt) problems.push("og:image:alt yok");
   if (h.twitterCard !== "summary_large_image") problems.push(`twitter:card ${h.twitterCard ?? "yok"}`);
   const noindex = /noindex/i.test(h.robots ?? "");
   if (expect.indexable && noindex) problems.push("beklenmedik noindex");
@@ -95,11 +136,54 @@ export function checkPage(url, html, expect = { indexable: true }) {
     const t = Array.isArray(n["@type"]) ? n["@type"][0] : n["@type"];
     for (const f of REQUIRED[t] ?? []) if (n[f] == null) problems.push(`${t}.${f} eksik`);
   }
+  for (const n of nodes) {
+    const offer = n["@type"] === "Product" ? n.offers : null;
+    if (offer && offer.price == null && offer.lowPrice == null) problems.push("Product.offers fiyatsız");
+    if (["Product", "Organization", "Demand"].includes(n["@type"]) && n.inLanguage) problems.push(`${n["@type"]}.inLanguage geçersiz özellik`);
+  }
   const want = { product: "Product", company: "Organization", listing: "Demand" }[expect.type];
   if (want && !nodes.some((n) => n["@type"] === want)) problems.push(`${want} düğümü yok`);
   // SAHİP ANONİM: Demand düğümünde seller/offeredBy olamaz.
   if (nodes.some((n) => n["@type"] === "Demand" && (n.seller || n.offeredBy))) problems.push("Demand düğümünde sahip kimliği");
+  problems.push(...localeProblems(url, h, nodes, html));
   return { ok: problems.length === 0, problems, head: h };
+}
+
+/**
+ * DİL KONTROLLERİ (i18n SEO 2026-09-26) — her dil sürümü kendi dilinde mi?
+ * html lang · og:locale · hreflang kendini içeriyor + x-default · ana JSON-LD
+ * düğümünün `inLanguage`i · EN/RU'da başlık/açıklama/h1'de çevrilmemiş Türkçe.
+ * Sözleşme sayfaları bilinçli Türkçe gövdeli (h1 `lang="tr"` taşır) → h1 muaf.
+ */
+function localeProblems(url, h, nodes, html) {
+  const locale = localeOfUrl(url);
+  const out = [];
+  if (h.lang !== locale) out.push(`html lang ${h.lang ?? "yok"} (${locale} bekleniyor)`);
+  if (!h.ogLocale || !h.ogLocale.toLowerCase().startsWith(locale)) out.push(`og:locale ${h.ogLocale ?? "yok"}`);
+  const self = h.hreflang[locale];
+  if (!self) out.push(`hreflang'de kendi dili (${locale}) yok`);
+  else if (normalize(self) !== normalize(url)) out.push(`hreflang ${locale} ≠ url (${self})`);
+  if (!h.hreflang["x-default"]) out.push("hreflang x-default yok");
+  else if (!Object.entries(h.hreflang).some(([k, v]) => k !== "x-default" && normalize(v) === normalize(h.hreflang["x-default"]))) {
+    out.push("hreflang x-default listedeki bir dile gitmiyor");
+  }
+  // Sözleşme sayfası (h1 `lang="tr"`): gövde bilinçli Türkçe, JSON-LD `inLanguage` tr-TR kalır.
+  const h1Tr = /<h1\b[^>]*\blang=["']tr["']/i.test(html);
+  // Sayfa düğümü önce (dil onun özelliği); yoksa liste/SSS düğümü.
+  const main =
+    nodes.find((n) => ["ItemPage", "ProfilePage", "WebPage", "CollectionPage"].includes(n["@type"])) ??
+    nodes.find((n) => ["FAQPage", "ItemList"].includes(n["@type"]));
+  if (!h1Tr && main?.inLanguage && typeof main.inLanguage === "string" && !main.inLanguage.toLowerCase().startsWith(locale)) {
+    out.push(`${main["@type"]}.inLanguage ${main.inLanguage}`);
+  }
+  if (locale !== "tr") {
+    const fields = { title: h.title, description: h.description, ...(h1Tr ? {} : { h1: h.h1 }) };
+    for (const [k, v] of Object.entries(fields)) {
+      const left = turkishLeftovers(v);
+      if (left.length) out.push(`${k}: çevrilmemiş Türkçe (${left.slice(0, 3).join(", ")})`);
+    }
+  }
+  return out;
 }
 
 function normalize(u) {

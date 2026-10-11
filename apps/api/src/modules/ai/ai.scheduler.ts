@@ -109,6 +109,10 @@ export class AiScheduler implements OnModuleInit {
     );
     let deleted = 0;
     for (const o of objects) {
+      // Savunma hattı: silme YALNIZ geçici AI alanında. Liste çağrısı zaten
+      // önekle süzer; yine de önek dışı bir anahtar (depolama katmanı hatası,
+      // ileride değişen liste davranışı) kalıcı firma belgesini silemesin.
+      if (!o.key.startsWith(AI_EXTRACT_KEY_PREFIX)) continue;
       if (o.lastModified && o.lastModified.getTime() < cutoff) {
         await this.storage
           .deleteObject("private", o.key)

@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { QA, apiGet, apiSession, gotoRetry, uiLogin } from "./staging-helpers";
+import { BUYING_WIND_DOWN_PATHS } from "../src/lib/company/portals";
 
 /**
  * ROL × EKRAN MATRİSİ — her rol tarayıcıda gezer, her sayfa dört durumdan
@@ -9,11 +10,12 @@ import { QA, apiGet, apiSession, gotoRetry, uiLogin } from "./staging-helpers";
  *   ok           → sayfa açıldı (h1 var)
  *   yetki        → PermissionGate ("Bu sayfa yetki gerektirir")
  *   portal       → PortalGuard ("… paneline erişim yetkiniz yok")
- *   paket        → PremiumGate ("Satınalma paneli (Gold)")
+ *   dogrulama    → VerificationGate ("Bu sayfa firma doğrulaması gerektirir";
+ *                  ücretsiz dönemde paket kapısının yerini aldı, 2026-10-07)
  * Beklenti izin modelinden türetilir; sapma = bulgu. Tablo
  * docs/qa-role-matrix.md'nin altına eklenir.
  */
-type State = "ok" | "yetki" | "portal" | "paket" | "hata";
+type State = "ok" | "yetki" | "portal" | "dogrulama" | "hata";
 
 const ROUTES: Array<{ path: string; needs: string[]; portal?: "buy" | "sell"; tier?: "SILVER" | "GOLD" }> = [
   { path: "/company/satinalma", needs: ["buy:view"], portal: "buy" },
@@ -36,7 +38,7 @@ const ROUTES: Array<{ path: string; needs: string[]; portal?: "buy" | "sell"; ti
   { path: "/company/ayarlar/adresler", needs: ["addresses:manage"] },
   { path: "/company/ayarlar/banka-hesaplari", needs: ["billing:manage"] },
   { path: "/company/ayarlar/dogrulama", needs: ["company:manage"] },
-  // Aktivite kaydı Silver+ (CompanyPaidTierGuard varsayılanı).
+  // Aktivite kaydı kademe kapılı (CompanyPaidTierGuard varsayılanı; ücretsiz dönemde = doğrulanmış firma).
   { path: "/company/ayarlar/aktivite", needs: ["users:manage", "company:manage"], tier: "SILVER" },
   { path: "/company/sirketim", needs: ["users:manage", "company:manage", "buy:view", "sell:view"] },
   { path: "/company/sirketim/ziyaretciler", needs: ["insights:view"] },
@@ -57,9 +59,10 @@ const rows: Array<{ user: string; states: Record<string, State> }> = [];
 
 async function classifyOnce(page: Page): Promise<State> {
   const body = await page.locator("body").innerText().catch(() => "");
-  // Paket kapısı 2026-09-15'ten beri yalnız paket kartlarını çizer; başlık
-  // cümlesi hangi paketin gerektiğini söyler (`PackagesView requiredTier`).
-  if (/Bu sayfa (Silver|Gold) paketiyle açılır/.test(body)) return "paket";
+  // Ücretsiz dönem: kademesi yetmeyen (= doğrulanmamış) firma doğrulama
+  // kapısını görür (`components/company/verification-gate.tsx`). Kapı da h1
+  // taşıdığı için "ok" denetiminden ÖNCE bakılır.
+  if ((await page.getByTestId("verification-gate").count()) > 0) return "dogrulama";
   if (/paneline erişim yetkiniz yok/.test(body)) return "portal";
   // PermissionGate başlığı sayfaya göre değişebiliyor ("Banka Hesapları yalnız
   // Kurucuya açık") → metne değil, kapının role="status" kabuğuna bak.
@@ -100,21 +103,25 @@ for (const u of USERS) {
       const state = await classify(page);
       states[r.path] = state;
 
-      // PortalGuard sırası: paket kapısı YALNIZ izni olup kademesi yetmeyene
-      // çıkar; izni olmayan her durumda portal kapısı görür.
+      // PortalGuard sırası: doğrulama kapısı YALNIZ izni olup kademesi yetmeyene
+      // çıkar; izni olmayan her durumda portal kapısı görür. `/me` EFEKTİF
+      // kademeyi döner: ücretsiz dönemde doğrulanmış her firma GOLD.
       const portalOk = !r.portal || (r.portal === "buy" ? has("buy:view") : has("sell:view"));
       const premiumLocked = r.portal === "buy" && has("buy:view") && tier !== "GOLD";
+      // Gold altında Taleplerim ve Siparişler BİLİNÇLİ açık (T-06, wind-down):
+      // mevcut işi sonuçlandırmak için liste + doğrulama bandı, kapı değil.
+      const windDown = premiumLocked && BUYING_WIND_DOWN_PATHS.includes(r.path);
       const routeTierOk = !r.tier || (r.tier === "SILVER" ? tier !== "STANDART" : tier === "GOLD");
       const permOk = r.needs.length === 0 || r.needs.some(has);
-      const expected: State = premiumLocked
-        ? "paket"
+      const expected: State = premiumLocked && !windDown
+        ? "dogrulama"
         : !portalOk
           ? "portal"
           : !permOk
             ? "yetki"
             : routeTierOk
               ? "ok"
-              : "paket";
+              : "dogrulama";
       if (state !== expected) problems.push(`${r.path}: beklenen "${expected}", gelen "${state}"`);
     }
     // Sol menüde YETKİSİ OLMAYAN sayfaya bağlantı kalmamalı: tıklayınca
@@ -139,13 +146,13 @@ test.afterAll(() => {
   mkdirSync(path.dirname(out), { recursive: true });
   const head = `| Sayfa | ${rows.map((r) => r.user).join(" | ")} |`;
   const sep = `|---|${rows.map(() => "---").join("|")}|`;
-  const icon = (s?: State) => (s === "ok" ? "✅" : s === "yetki" ? "🔒 yetki" : s === "portal" ? "⛔ portal" : s === "paket" ? "💳 paket" : "?");
+  const icon = (s?: State) => (s === "ok" ? "✅" : s === "yetki" ? "🔒 yetki" : s === "portal" ? "⛔ portal" : s === "dogrulama" ? "🛡 doğrulama" : "?");
   const body = ROUTES.map((r) => `| \`${r.path}\` | ${rows.map((x) => icon(x.states[r.path])).join(" | ")} |`).join("\n");
   writeFileSync(
     out,
     `# Rol × ekran matrisi (staging, otomatik)\n\n` +
       `\`pnpm --filter @rothern/web e2e:staging e2e/staging-role-screens.spec.ts\`\n\n` +
-      `✅ sayfa açıldı · 🔒 yetki uyarısı (PermissionGate) · ⛔ portal kapısı · 💳 paket kapısı (Gold).\n\n` +
+      `✅ sayfa açıldı · 🔒 yetki uyarısı (PermissionGate) · ⛔ portal kapısı · 🛡 doğrulama kapısı (ücretsiz dönem: doğrulanmamış firma).\n\n` +
       `${head}\n${sep}\n${body}\n`,
   );
   console.log(`ekran matrisi yazıldı: ${out}`);

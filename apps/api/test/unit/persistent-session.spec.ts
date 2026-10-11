@@ -21,7 +21,7 @@ import { AuthCookieInterceptor } from "../../src/common/auth/auth-cookie.interce
 describe("Kalıcı oturum jeton ömrü", () => {
   const jwt = new JwtService({ secret: "test-secret", signOptions: { expiresIn: "1h" } });
   const config = new ConfigService({ JWT_PERSISTENT_EXPIRES_IN: "7d" });
-  const interceptor = new AuthCookieInterceptor(config, jwt);
+  const interceptor = new AuthCookieInterceptor(config, jwt, { isRevoked: async () => false } as never);
 
   /** `withPersistentClaim` private — sözleşme davranışı üzerinden sınanır. */
   const imzala = (persistent: boolean): { iat: number; exp: number; persistent?: boolean } => {
@@ -52,7 +52,7 @@ describe("Kalıcı oturum jeton ömrü", () => {
   });
 
   it("ayar verilmezse güvenli bir varsayılana düşer (çerezle EŞİTLENMEZ)", () => {
-    const varsayilansiz = new AuthCookieInterceptor(new ConfigService({}), jwt);
+    const varsayilansiz = new AuthCookieInterceptor(new ConfigService({}), jwt, { isRevoked: async () => false } as never);
     const t = (
       varsayilansiz as unknown as {
         withPersistentClaim(t: string, p: boolean): string | null;

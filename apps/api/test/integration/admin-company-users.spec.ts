@@ -7,17 +7,22 @@ import { AdminCompanyUsersService } from "../../src/modules/admin-companies/admi
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
+import { makeAuthService } from "./make-auth-service";
+import { permissionsForRoles } from "@rothern/shared";
 
 function rig() {
   const passwordReset = {
     requestForCompany: jest.fn().mockResolvedValue({ success: true }),
+    requestAccountSetup: jest.fn().mockResolvedValue({ sent: true }),
   };
   const companyAuth = {
     adminResendVerificationCode: jest.fn().mockResolvedValue(undefined),
+    bindInvitationsOfProvenAddress: jest.fn().mockResolvedValue(undefined),
   };
   const supabase = {
     updateEmail: jest.fn().mockResolvedValue(undefined),
     createUser: jest.fn().mockResolvedValue({ authId: "auth-new-1" }),
+    deleteUser: jest.fn().mockResolvedValue(undefined),
   };
   const audit = new AuditService(prisma as never);
   const service = new AdminCompanyUsersService(
@@ -50,6 +55,43 @@ describe("kurtarma aksiyonları", () => {
       where: { action: "admin.user.password_reset_sent", entityId: co.user.id },
     });
     expect(log?.actorId).toBe("admin-1");
+  });
+
+  it("O-064: doğrulama kodu gönderilemezse (tavan/hata) hata yükselir ve audit YAZILMAZ", async () => {
+    const { service, companyAuth } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const capped = Object.assign(new Error("too many"), { status: 429 });
+    companyAuth.adminResendVerificationCode.mockRejectedValueOnce(capped);
+    await expect(
+      service.resendVerification(co.company.id, co.user.id, "admin-1"),
+    ).rejects.toBe(capped);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: "admin.user.verification_resent", entityId: co.user.id },
+      }),
+    ).toBe(0);
+    // Başarıda audit firma kimliğiyle (tenantId) yazılır.
+    await service.resendVerification(co.company.id, co.user.id, "admin-1");
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.user.verification_resent", entityId: co.user.id },
+    });
+    expect(log?.tenantId).toBe(co.company.id);
+  });
+
+  it("D-205: kullanıcı işlemleri firma kimliğiyle yazılır, firma id'siyle aramada bulunur", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const other = await makeCompanyWithUser(prisma, {});
+    await service.dropSessions(co.company.id, co.user.id, "admin-1");
+    await service.dropSessions(other.company.id, other.user.id, "admin-1");
+    const audit = new AuditService(prisma as never);
+    const res = await audit.query({ search: co.company.id });
+    const actions = res.items.map((i) => [i.action, i.entityId]);
+    expect(actions).toContainEqual(["admin.user.sessions_dropped", co.user.id]);
+    expect(actions).not.toContainEqual([
+      "admin.user.sessions_dropped",
+      other.user.id,
+    ]);
   });
 
   it("başka firmanın kullanıcısına işlem yapılamaz (scope)", async () => {
@@ -142,6 +184,142 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
     });
   });
 
+  /**
+   * Arayüz testi 2026-10 code-auth-1 devamı: admin doğrulanmamış kaydın
+   * e-postasını değiştirince hesap doğrulanmış sayılır ama bu yol
+   * `verifyEmail`den geçmediği için yeni adrese gönderilmiş davetler hiç
+   * bağlanmıyordu. Bağlama e-posta doğrulamasındaki AYNI fonksiyonla yapılır.
+   */
+  describe("changeEmail — doğrulanmamış kaydı doğrularken davetleri bağlar", () => {
+    /** Gerçek CompanyAuthService ile (bağlama kuralları gerçekten çalışsın). */
+    function realRig() {
+      const supabase = { updateEmail: jest.fn().mockResolvedValue(undefined) };
+      const service = new AdminCompanyUsersService(
+        prisma as never,
+        new AuditService(prisma as never),
+        {} as never,
+        makeAuthService().service,
+        supabase as never,
+      );
+      return { service };
+    }
+
+    /** Davet eden firma: adrese bağlantı daveti + açık talebine talep daveti. */
+    async function inviterWithInvites(email: string, token: string) {
+      const inviter = await makeCompanyWithUser(prisma, {});
+      const referral = await prisma.companyReferralInvite.create({
+        data: {
+          inviterCompanyId: inviter.company.id,
+          email,
+          invitedById: inviter.user.id,
+          token,
+          status: "PENDING",
+        },
+      });
+      const listing = await prisma.listing.create({
+        data: {
+          companyId: inviter.company.id,
+          createdById: inviter.user.id,
+          type: "ALIM",
+          title: "t",
+          status: "OPEN",
+          visibility: "PRIVATE",
+        },
+      });
+      await prisma.externalListingInvite.create({
+        data: {
+          listingId: listing.id,
+          inviterCompanyId: inviter.company.id,
+          referralInviteId: referral.id,
+          email,
+          locale: "tr",
+          state: "SENT",
+        },
+      });
+      return { inviter, referral, listing };
+    }
+
+    it("doğrulanmamış kayıt: YENİ adresin davetleri bağlanır, eski adresinkiler bağlanmaz", async () => {
+      const { service } = realRig();
+      const signup = await makeCompanyWithUser(prisma, {});
+      await prisma.companyUser.update({
+        where: { id: signup.user.id },
+        data: { email: "yanlis@firma.com", emailVerifiedAt: null },
+      });
+      const forNew = await inviterWithInvites("dogru@firma.com", "tok-yeni");
+      const forOld = await inviterWithInvites("yanlis@firma.com", "tok-eski");
+
+      await service.changeEmail(signup.company.id, signup.user.id, "Dogru@Firma.com", "admin-1");
+
+      const user = await prisma.companyUser.findUniqueOrThrow({ where: { id: signup.user.id } });
+      expect(user.email).toBe("dogru@firma.com");
+      expect(user.emailVerifiedAt).not.toBeNull();
+      // Bağlantı daveti → bekleyen bağlantı İSTEĞİ (e-posta eşleşmesi; rıza ayrı).
+      expect(
+        await prisma.companyConnection.findMany({
+          where: { inviteeCompanyId: signup.company.id },
+          select: { inviterCompanyId: true, status: true, origin: true },
+        }),
+      ).toEqual([{ inviterCompanyId: forNew.inviter.company.id, status: "PENDING", origin: "INVITE" }]);
+      expect(
+        await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: forNew.referral.id } }),
+      ).toMatchObject({ status: "ACCEPTED", acceptedCompanyId: signup.company.id });
+      // Talep daveti → platform içi davet.
+      expect(
+        (
+          await prisma.listingInvitation.findMany({
+            where: { invitedCompanyId: signup.company.id },
+            select: { listingId: true },
+          })
+        ).map((i) => i.listingId),
+      ).toEqual([forNew.listing.id]);
+      // Hiç kanıtlanmamış eski adresin daveti olduğu gibi bekler.
+      expect(
+        await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: forOld.referral.id } }),
+      ).toMatchObject({ status: "PENDING", acceptedCompanyId: null });
+    });
+
+    it("zaten doğrulanmış hesabın adres değişikliği davet BAĞLAMAZ (eski davranış)", async () => {
+      const { service } = realRig();
+      const member = await makeCompanyWithUser(prisma, {});
+      await prisma.companyUser.update({
+        where: { id: member.user.id },
+        data: { emailVerifiedAt: new Date("2026-01-01T00:00:00Z") },
+      });
+      const forNew = await inviterWithInvites("yeni-adres@firma.com", "tok-dogrulanmis");
+
+      await service.changeEmail(member.company.id, member.user.id, "yeni-adres@firma.com", "admin-1");
+
+      const user = await prisma.companyUser.findUniqueOrThrow({ where: { id: member.user.id } });
+      expect(user.email).toBe("yeni-adres@firma.com");
+      expect(user.emailVerifiedAt).not.toBeNull();
+      expect(await prisma.companyConnection.count({ where: { inviteeCompanyId: member.company.id } })).toBe(0);
+      expect(await prisma.listingInvitation.count({ where: { invitedCompanyId: member.company.id } })).toBe(0);
+      expect(
+        await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: forNew.referral.id } }),
+      ).toMatchObject({ status: "PENDING" });
+    });
+
+    it("bağlama yalnız 'doğrulanmamış → doğrulanmış' geçişinde, yeni adresle çağrılır", async () => {
+      const { service, companyAuth } = rig();
+      const signup = await makeCompanyWithUser(prisma, {});
+      await service.changeEmail(signup.company.id, signup.user.id, "ilk@firma.com", "admin-1");
+      expect(companyAuth.bindInvitationsOfProvenAddress).toHaveBeenCalledTimes(1);
+      expect(companyAuth.bindInvitationsOfProvenAddress).toHaveBeenCalledWith({
+        id: signup.user.id,
+        email: "ilk@firma.com",
+        companyId: signup.company.id,
+      });
+      // Artık doğrulanmış: ikinci değişiklik bağlamaz.
+      await service.changeEmail(signup.company.id, signup.user.id, "ikinci@firma.com", "admin-1");
+      expect(companyAuth.bindInvitationsOfProvenAddress).toHaveBeenCalledTimes(1);
+      // tokenVersion her değişiklikte artar (oturumlar düşer) — iki yol da.
+      const user = await prisma.companyUser.findUniqueOrThrow({ where: { id: signup.user.id } });
+      expect(user.email).toBe("ikinci@firma.com");
+      expect(user.tokenVersion).toBe(signup.user.tokenVersion + 2);
+    });
+  });
+
   it("changeEmail çakışan e-postayı reddeder", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {});
@@ -165,9 +343,10 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
       "admin-1",
     );
     expect(supabase.createUser).toHaveBeenCalled();
-    expect(passwordReset.requestForCompany).toHaveBeenCalledWith(
-      "eklenen@firma.com",
-    );
+    // O-124: sıfırlama değil "hesabınız açıldı" e-postası (yeni kullanıcı id'si).
+    expect(passwordReset.requestAccountSetup).toHaveBeenCalledWith(res.userId);
+    expect(passwordReset.requestForCompany).not.toHaveBeenCalled();
+    expect(res.emailSent).toBe(true);
     const user = await prisma.companyUser.findUniqueOrThrow({
       where: { id: res.userId },
       select: {
@@ -210,6 +389,136 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
   });
 });
 
+describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
+  it("Aktifleştir: dolu firmada koltuk taşıyan pasif kişi geri açılamaz; koltuksuz kişi açılır", async () => {
+    const { service } = rig();
+    // Ücretsiz dönem: koltuk sınırı yalnız DOĞRULANMAMIŞ firmada saklı kademeden
+    // gelir. Saklı SILVER limit 4: Kurucu ST (1; satınalma koltuğu en üst kademe
+    // altında sayılmaz) + üç satışçı (3) = 4/4.
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { membershipEndAt: new Date(Date.now() + 30 * 86400_000) },
+    });
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    const passive = await makeUser(prisma, co.company.id, ["SATISCI"], {
+      isActive: false,
+    });
+    await expect(
+      service.setActive(co.company.id, passive.id, true, "admin-1"),
+    ).rejects.toThrow(/Koltuk dolu \(4\/4\).*doğrulanmış firmalar daha fazla koltuk kullanır/);
+    const still = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: passive.id },
+      select: { isActive: true },
+    });
+    expect(still.isActive).toBe(false);
+    // Koltuksuz (yalnız onaylayıcı) kişi koltuk tüketmez → açılır.
+    const approver = await makeUser(prisma, co.company.id, ["ONAYLAYICI"], {
+      isActive: false,
+    });
+    await service.setActive(co.company.id, approver.id, true, "admin-1");
+    const re = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: approver.id },
+      select: { isActive: true },
+    });
+    expect(re.isActive).toBe(true);
+  });
+
+  it("Aktifleştir: doğrulanmamış firmada satın almacı geri açılamaz (doğrulama kapısı); doğrulanmış firmada açılır", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    const buyer = await makeUser(prisma, co.company.id, ["SATIN_ALMACI"], {
+      isActive: false,
+    });
+    const denied = service.setActive(co.company.id, buyer.id, true, "admin-1");
+    await expect(denied).rejects.toThrow(/yalnız doğrulanmış firmada verilebilir/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } })).isActive,
+    ).toBe(false);
+
+    // Doğrulanmış firma (saklı kademe STANDART olsa da) tam erişimli: satın almacı açılır.
+    const verified = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    const vBuyer = await makeUser(prisma, verified.company.id, ["SATIN_ALMACI"], {
+      isActive: false,
+    });
+    await service.setActive(verified.company.id, vBuyer.id, true, "admin-1");
+    expect(
+      (await prisma.companyUser.findUniqueOrThrow({ where: { id: vBuyer.id } })).isActive,
+    ).toBe(true);
+  });
+
+  it("addUser: doğrulanmamış firmaya Satın Almacı eklenemez; Supabase hesabı açılmaz", async () => {
+    const { service, supabase } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "PENDING",
+    });
+    const denied = service.addUser(
+      co.company.id,
+      { email: "alici@firma.com", firstName: "A", lastName: "B", role: "SATIN_ALMACI" },
+      "admin-1",
+    );
+    // PENDING: ret metni "inceleniyor" der; paket adı anmaz.
+    await expect(denied).rejects.toThrow(/Firma doğrulamanız inceleniyor/);
+    await expect(denied).rejects.not.toThrow(/Silver|Gold|paket/i);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    expect(
+      await prisma.companyUser.count({ where: { email: "alici@firma.com" } }),
+    ).toBe(0);
+  });
+
+  it("addUser: bekleyen koltuk daveti koltuk sayımına girer", async () => {
+    const { service, supabase } = rig();
+    // Doğrulanmamış firma saklı kademesiyle kalır — STANDART limit 2: Kurucu
+    // satış koltuğu (1) + bekleyen satışçı daveti (1).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    await prisma.companyUserInvitation.create({
+      data: {
+        companyId: co.company.id,
+        email: "davetli@firma.com",
+        roles: ["SATISCI"],
+        permissions: permissionsForRoles(["SATISCI"]),
+        token: "tok-mu04-" + Date.now(),
+        invitedById: co.user.id,
+        expiresAt: new Date(Date.now() + 86400_000),
+      },
+    });
+    await expect(
+      service.addUser(
+        co.company.id,
+        { email: "satis@firma.com", firstName: "S", lastName: "T", role: "SATISCI" },
+        "admin-1",
+      ),
+    ).rejects.toThrow(/bekleyen davet/);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    // Koltuksuz rol (Onaylayıcı) kapıya takılmaz.
+    await service.addUser(
+      co.company.id,
+      { email: "onay@firma.com", firstName: "O", lastName: "N", role: "ONAYLAYICI" },
+      "admin-1",
+    );
+    expect(supabase.createUser).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpıldı)", () => {
   it("phone anahtarı dönmez; email/ad döner", async () => {
     const { service } = rig();
@@ -226,5 +535,19 @@ describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpı
     expect(u.email).toBe(co.user.email);
     expect(u).toHaveProperty("firstName");
     expect(u).toHaveProperty("lastName");
+  });
+
+  // Arayüz testi son tur api-2: rolsüz Görüntüleyici üyenin izinleri döner —
+  // admin Rol sütunu "—" yerine "Görüntüleyici" yazabilsin.
+  it("permissions döner (rolsüz görüntüleyici ayırt edilir)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { roles: [], permissions: ["buy:view", "sell:view", "buy:reports:view"] },
+    });
+    const [u] = await service.list(co.company.id);
+    expect(u!.roles).toEqual([]);
+    expect(u!.permissions).toEqual(["buy:view", "sell:view", "buy:reports:view"]);
   });
 });

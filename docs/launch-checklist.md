@@ -95,6 +95,9 @@ Ayrıntı: `docs/r2-bucket-split.md` (Cloudflare kurulum + rollback).
 | `NEXT_PUBLIC_SITE_URL` | SEO canonical/sitemap/robots bozulur | **Vercel build-time — şart** |
 | `COOKIE_SAMESITE` | ⚠️ Boşsa prod'da `none` → **CsrfGuard komple bypass, CSRF açık** | **Same-site domain'de `lax`** (aşağıdaki sıralı adım) |
 | `CORS_ALLOW_VERCEL` | `true` ise **her `*.vercel.app`** credentials'lı istek atabilir (CSRF/veri sızıntısı) | Prod'da **boş/`false`**; yalnız preview/demo'da `true` |
+| `EMAIL_ALLOWLIST` | Doluysa listede olmayan **hiçbir müşteriye e-posta gitmez** (doğrulama kodu, davet, sipariş bildirimi sessizce kesilir) | Prod'da **tanımsız/boş**; yalnız `api-staging`de dolu |
+| `ALLOW_STAGING_ONLY_ENV` | Yukarıdaki iki açılış kapısını kaldırır | Prod'da **TANIMLANMAZ** (yalnız `*.rothern.com` altında koşan, canlı olmayan prova ortamı için bilinçli istisna) |
+| `THROTTLE_DEFAULT_LIMIT` / `THROTTLE_AUTH_LIMIT` / `THROTTLE_PUBLIC_LIMIT` | Boş / sayı değil / ≤ 0 değer **varsayılana** düşer (100 / 1000 / 600) ve açılışta `[Throttle]` uyarısı basar — eskiden boş değer 0 sınırı = tüm API 429 idi | Varsayılan için **silin**; değiştirmek için pozitif tam sayı |
 
 - [ ] `SENTRY_DSN`
 - [ ] `R2_PUBLIC_BASE_URL`
@@ -130,7 +133,11 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
       `assertProdConfigSanity` prod'da `none`/unset'i VE `COOKIE_DOMAIN`'siz `lax`'ı
       REDDEDER — yanlış kombinasyon deploy'da patlar; api canlıda ayakta ⇒ set edilmiş.)*
 - [ ] **4) `CORS_ALLOW_VERCEL` prod'da boş/`false`** (kod default false) — `*.vercel.app`
-      joker origin'i kapalı kalsın. (Render env'inden gözle doğrula.)
+      joker origin'i kapalı kalsın. *(2026-10-07'den beri AÇILIŞ KAPISI: `assertProdConfigSanity`
+      canlıda — `NODE_ENV=production` + `WEB_URL` alan adı `rothern.com` — `CORS_ALLOW_VERCEL=true`
+      ya da dolu `EMAIL_ALLOWLIST` görürse açılmayı REDDEDER; sebep Render günlüğünde
+      `[Bootstrap] Application failed to start: …` satırıyla yazılır. Staging (`supkeys.com`) etkilenmez.
+      Bilinçli istisna: `ALLOW_STAGING_ONLY_ENV=true` — canlıda tanımlanmaz.)*
 
 > ✅ **GEÇİŞ TAMAMLANDI (2026-07-25):** ham provider domain'leri
 > (`supkeys-web.vercel.app` + `rothern-api.onrender.com`, cross-site) fazı geride —
@@ -309,6 +316,10 @@ AYNI değer; boşsa kanal kapalı ve yalnız YAVAŞ (sitemap saatlik).
 
 - [ ] **`TRUST_CF_CONNECTING_IP=true`** (Render env): api Render'ın Cloudflare ön ucu arkasında → throttle/audit IP'si `cf-connecting-ip`'den okunur (aksi halde tüm kullanıcılar CF IP'sinde toplanır, ortak 429). Self-host/CF'siz kurulumda `false`.
 - [ ] **`TOTP_ENC_KEY`** (opsiyonel): TOTP sırrı şifreleme anahtarı; yoksa JWT_SECRET türevi kullanılır. **JWT_SECRET rotasyonundan ÖNCE** bu değişkeni ESKİ JWT_SECRET değeriyle sabitle (yoksa tüm authenticator girişleri kırılır).
-- [ ] **Supabase Auth dashboard sertleştirme:** Authentication → Sign In/Up → "Allow new users to sign up" **KAPAT** (kayıt bizim API'den admin createUser ile; anon key + GoTrue `/signup` yetim auth.users üretmesin), Rate Limits sıkılaştır, e-posta şablonları/SMTP kontrol. Anon key'i sır sınıfında tut (web/admin bundle'ında YOK — olmamalı).
+- [ ] **Supabase Auth dashboard sertleştirme:** Authentication → Sign In/Up → "Allow new users to sign up" **KAPAT** (kayıt bizim API'den admin createUser ile; anon key + GoTrue `/signup` yetim auth.users üretmesin), e-posta şablonları/SMTP kontrol. Anon key'i sır sınıfında tut (web/admin bundle'ında YOK — olmamalı).
+- [ ] **Supabase Auth → Rate Limits: "Sign-ups and sign-ins" kotasını sunucu trafiğine yetecek kadar YÜKSELT** (ör. 5 dakikada birkaç yüz; token yenileme kotası da). **SIKILAŞTIRMA** — tüm company/admin girişleri Supabase'e API sunucusundan gidiyor; düşük kota tek IP'de paylaşılırsa platform çapında giriş kilidi olur (derin denetim 2026-09-29 Y-11; eski "Rate Limits sıkılaştır" maddesi yanlıştı).
+- [ ] **`SUPABASE_SECRET_KEY`** (Render api-staging + rothern-api, yalnız API runtime; render.yaml'da `sync: false`): Supabase → Settings → API Keys → Secret key (`sb_secret_…`). Tanımlıysa parola doğrulaması bu anahtarla yapılır ve istemci IP'si `Sb-Forwarded-For` ile iletilir → kota **istemci IP'si başına** uygulanır. `sb_secret_` ile başlamayan değer (ör. service_role JWT'si) YOK SAYILIR, Sentry'e `supabase=auth_secret_key_invalid` warning düşer. Önce staging, sonra canlı.
+- [ ] **Staging doğrulaması (anahtar girildikten sonra):** company ve admin girişi — doğru şifre girer, yanlış şifre 401. Tek IP'den giriş kotası aşılınca yalnız o IP 429 alır, başka IP'den giriş sürer (Sb-Forwarded-For uygulanıyor demektir). Sentry'de `supabase=auth_misconfigured` / `auth_secret_key_invalid` OLMAMALI. Sorun olursa değişkeni sil → eski (IP iletmeyen) davranış.
+- [ ] **Sentry (rothern-api) uyarı kuralları:** `supabase:auth_misconfigured` (anahtar reddedildi, tüm girişler 503) → hemen bildirim; `supabase:auth_rate_limited` (paylaşılan kota) → tek olayda alarm; isteğe bağlı `supabase:auth_secret_key_invalid`. `auth_client_rate_limited` warning kalır, alarm kurulmaz.
 - [ ] **Admin oturum iptali:** parola değişimi / SUPER_ADMIN reset / 2FA değişimi `tokenVersion++` → eski admin cookie'leri düşer (migration 20260823100000).
 - [ ] Sentry: istek verisi (cookie/header/body) artık gönderilmiyor — DSN'i girince event'te `request.cookies` olmadığını bir kez doğrula.

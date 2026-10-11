@@ -17,10 +17,21 @@ export function setCompanyRemember(remember: boolean): void {
   window.localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
 }
 
-function rememberEnabled(): boolean {
+/**
+ * "Oturumumu açık bırak" açık mı (varsayılan açık)? Kapalıyken anlık görüntü
+ * sessionStorage'dadır, yani SEKMEYE özeldir: yeni sekmede anlık görüntü
+ * olmaması "oturum yok" demek DEĞİLDİR — bkz. `useCompanySessionProbe`.
+ */
+export function companyRememberEnabled(): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(REMEMBER_KEY) !== "0";
+  try {
+    return window.localStorage.getItem(REMEMBER_KEY) !== "0";
+  } catch {
+    return true;
+  }
 }
+
+const rememberEnabled = companyRememberEnabled;
 
 /** remember bayrağına göre localStorage ya da sessionStorage'a yazan depolama. */
 const rememberAwareStorage = {
@@ -51,11 +62,21 @@ interface CompanyAuthState {
   user: CompanyUserDto | null;
   company: CompanyProfile | null;
   isHydrated: boolean;
+  /**
+   * Bu sayfa yüklemesinde izinler sunucudan TAZE mi (arayüz testi D-299)?
+   * KALICI DEĞİL (partialize dışında): her tam yüklemede false başlar; giriş
+   * (`setAuth`) ya da `/me` (`setMe`) true yapar, `/me` hata verirse de
+   * anlık görüntü "bilinen en iyi" kabul edilir (`markPermissionsSynced`).
+   * İzinli sorgular bunu bekler — yoksa izni kaldırılmış kullanıcı ilk
+   * yüklemede bayat izinlerle istek atıp 403 tostları görüyordu.
+   */
+  permissionsSynced: boolean;
 
   setAuth: (data: { user: CompanyUserDto; company: CompanyProfile }) => void;
   setMe: (data: { user: CompanyUserDto; company: CompanyProfile }) => void;
   clear: () => void;
   setHydrated: () => void;
+  markPermissionsSynced: () => void;
 }
 
 export const useCompanyAuthStore = create<CompanyAuthState>()(
@@ -64,10 +85,12 @@ export const useCompanyAuthStore = create<CompanyAuthState>()(
       user: null,
       company: null,
       isHydrated: false,
-      setAuth: ({ user, company }) => set({ user, company }),
-      setMe: ({ user, company }) => set({ user, company }),
-      clear: () => set({ user: null, company: null }),
+      permissionsSynced: false,
+      setAuth: ({ user, company }) => set({ user, company, permissionsSynced: true }),
+      setMe: ({ user, company }) => set({ user, company, permissionsSynced: true }),
+      clear: () => set({ user: null, company: null, permissionsSynced: false }),
       setHydrated: () => set({ isHydrated: true }),
+      markPermissionsSynced: () => set({ permissionsSynced: true }),
     }),
     {
       name: "rothern-company-auth",

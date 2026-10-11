@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 export type DocKind =
   | "taxPlate"
@@ -11,39 +12,32 @@ export type DocKind =
   | "idFront"
   | "idBack";
 
-// TR belge etiketleri.
-const DOC_LABELS_TR: Record<DocKind, string> = {
-  taxPlate: "Vergi Levhası",
-  tradeRegistry: "Ticaret Sicil Gazetesi",
-  signatureCircular: "İmza Sirküleri",
-  activityCert: "Faaliyet Belgesi",
-  idFront: "Yetkili Kimlik (Ön)",
-  idBack: "Yetkili Kimlik (Arka)",
-};
-// Yabancı belge etiketleri (aynı alanlar, farklı anlam). Arayüz Türkçe;
-// resmî İngilizce ad parantezde — kullanıcı elindeki belgeyi tanısın.
-const DOC_LABELS_FOREIGN: Record<DocKind, string> = {
-  tradeRegistry: "Kuruluş / Sicil Belgesi (Certificate of Incorporation)",
-  taxPlate: "Vergi / KDV Kayıt Belgesi (Tax / VAT Certificate)",
-  idFront: "Yetkili Kimliği (Authorized Signatory ID)",
-  signatureCircular: "İmza Sirküleri (Signature Circular)",
-  activityCert: "Faaliyet Belgesi (Certificate of Activity)",
-  idBack: "Yetkili Kimliği — Arka (ID Back)",
-};
-
-/** Ülke + zorunlu kind listesine göre etiketli belge listesi. */
-export function docLabels(
+/**
+ * Ülke + zorunlu kind listesine göre etiketli belge listesi (dil bilir).
+ *
+ * Etiketler katalogda: `web.panel.settings.companyDocs.tr.<kind>` ve
+ * `…foreign.<kind>`. İki küme AYNI alanların farklı anlamıdır — yabancı
+ * kümede resmî İngilizce ad parantezde durur ki kullanıcı elindeki belgeyi
+ * tanısın.
+ */
+export function useDocLabels(): (
   country: string | null | undefined,
   required: DocKind[],
-): { key: DocKind; label: string }[] {
-  const map = (country ?? "TR").toUpperCase() === "TR" ? DOC_LABELS_TR : DOC_LABELS_FOREIGN;
-  return required.map((k) => ({ key: k, label: map[k] }));
+) => { key: DocKind; label: string }[] {
+  const t = useTranslations("web.panel.settings.companyDocs");
+  return (country, required) => {
+    const cc = (country ?? "TR").toUpperCase();
+    // KKTC kendi kümesi (2026-09-27): Türkçe ekranda iki dilli yabancı etiket
+    // ("Kuruluş / Sicil Belgesi (Certificate of Incorporation)") almasın.
+    const group = cc === "TR" ? "tr" : cc === "XN" ? "xn" : "foreign";
+    return required.map((k) => {
+      // Çin ve BAE'de sicil belgesinin yerel adı var (营业执照 / Trade License).
+      const special = `country.${cc}.${k}`;
+      const key = t.has(special as never) ? special : `${group}.${k}`;
+      return { key: k, label: t(key as never) };
+    });
+  };
 }
-
-// Geriye dönük uyumluluk (TR tam liste).
-export const DOC_LABELS: { key: DocKind; label: string }[] = (
-  ["taxPlate", "tradeRegistry", "signatureCircular", "activityCert", "idFront", "idBack"] as DocKind[]
-).map((k) => ({ key: k, label: DOC_LABELS_TR[k] }));
 
 export type VerificationStatus =
   | "UNVERIFIED"
@@ -59,6 +53,10 @@ export interface KycFields {
   tradeRegistryNo: string | null;
   iban: string | null;
   ibanHolder: string | null;
+  /** SWIFT/BIC — doğrulamada her ülkede zorunlu (2026-09-27). */
+  bankSwiftBic: string | null;
+  /** Banka adı — IBAN kullanmayan ülkede zorunlu. */
+  bankName: string | null;
 }
 
 /** Faz Y A-modeli — VERIFIED-sonrası belge güncellemesinin son revizyonu. */
@@ -70,6 +68,8 @@ export interface DocRevision {
 }
 
 export interface CompanyDocs extends KycFields {
+  /** Banka alanı IBAN mı (değilse hesap no) — API ülke kuralından. */
+  usesIban?: boolean;
   status: VerificationStatus;
   verifiedAt: string | null;
   rejectionReason: string | null;
@@ -95,6 +95,7 @@ export function useCompanyDocs() {
 
 export function useUploadDoc() {
   const qc = useQueryClient();
+  const t = useTranslations("web.panel.settings.companyDocs");
   return useMutation({
     mutationFn: async ({ kind, file }: { kind: DocKind; file: File }) => {
       const { data: presigned } = await companyApi.post<{
@@ -111,7 +112,7 @@ export function useUploadDoc() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Yükleme başarısız");
+      if (!put.ok) throw new Error(t("yuklemeBasarisiz"));
       const { data } = await companyApi.post("/company/docs/commit", {
         kind,
         key: presigned.key,
@@ -129,6 +130,12 @@ export function useSubmitDocs() {
       const { data } = await companyApi.post("/company/docs/submit", kyc);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-docs"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-docs"] });
+      // Ayarlar hub rozeti + Firma Bilgileri durumu store'daki
+      // company.companyVerificationStatus'u okur; o yalnız /me yenilenince
+      // güncellenir (refetchOnWindowFocus kapalı) — derin denetim LU-24.
+      qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+    },
   });
 }

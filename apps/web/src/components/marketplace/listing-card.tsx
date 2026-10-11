@@ -1,16 +1,18 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import {
-  STATE_LABEL,
-  listingPath,
+  listingHref,
   publicState,
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
-import { scopeLabel } from "@rothern/shared";
+import { ScopeBesideBuyer } from "@/components/tenders/target-scope";
+import { CountryLabel } from "@/components/ui/country-flag";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
   CalendarDaysIcon,
   DocumentTextIcon,
@@ -25,12 +27,12 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ClockIcon,
-  GlobeAltIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * Durum rengi Catalyst `Badge` paletinden. Marka monokrom (globals.css
@@ -83,8 +85,8 @@ export interface ListingCardData {
   chips?: ReactNode;
   /** Tile: firma · şehir · kalem sayısı satırı. */
   subtitle?: string | null;
-  /** Sabit sütunlar — sırayla. */
-  facts: { label: string; value: ReactNode }[];
+  /** Sabit sütunlar — sırayla. `icon` verilmezse etiketten (Türkçe) sezilir. */
+  facts: { label: string; value: ReactNode; icon?: FactIcon }[];
   /** Sağ alt metrik (Teklifler / Teklifim). */
   metric?: { label: string; value: ReactNode } | null;
   /** Sağ alt eylem bağlantısı ("Teklif ver"). */
@@ -98,6 +100,9 @@ export interface ListingCardData {
   /** Row: sağ üst ⋮ menüsü (isteğe bağlı). */
   menu?: ReactNode;
 }
+
+/** Sütun ikonu — etiket dilden bağımsız (i18n Faz 1: EN/RU etiket sezgiseli kırmasın). */
+export type FactIcon = "closing" | "company" | "items" | "scope" | "category" | "people" | "info";
 
 export const ROW_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
@@ -194,15 +199,29 @@ function PanelTile({
 /* ------------------------------------------------------------------ */
 
 /** Sütun etiketi → ikon + ton (mockup 2026-09-19: her metrik ikon karosuyla). */
-function factIcon(label: string): { Icon: typeof DocumentTextIcon; tone: string; value: string } {
-  const l = label.toLocaleLowerCase("tr");
-  if (l.includes("kapan")) return { Icon: CalendarDaysIcon, tone: "bg-rose-50 text-rose-600", value: "text-rose-600" };
-  if (l.includes("firma") || l.includes("alıcı") || l.includes("sahib")) return { Icon: BuildingOffice2Icon, tone: "bg-slate-100 text-slate-600", value: "" };
-  if (l.includes("kalem")) return { Icon: DocumentTextIcon, tone: "bg-slate-100 text-slate-600", value: "" };
-  if (l.includes("kapsam")) return { Icon: MapPinIcon, tone: "bg-slate-100 text-slate-600", value: "" };
-  if (l.includes("kategori")) return { Icon: TagIcon, tone: "bg-slate-100 text-slate-600", value: "text-blue-700" };
-  if (l.includes("davet") || l.includes("teklif")) return { Icon: UsersIcon, tone: "bg-slate-100 text-slate-600", value: "" };
-  return { Icon: InformationCircleIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+function factIcon(f: { label: string; icon?: FactIcon }): { Icon: typeof DocumentTextIcon; tone: string; value: string } {
+  // Etiket ASCII'ye katlanır (`foldSearchText`): sezgisel desenler Türkçe
+  // harf TAŞIMAZ, yoksa katalogdan gelen metinle birlikte burada da Türkçe
+  // sabit kalırdı. Sezgisel yalnız YEDEK — doğru yol `icon` vermektir.
+  const l = foldSearchText(f.label);
+  const kind: FactIcon =
+    f.icon ??
+    (l.includes("kapan") ? "closing"
+      : l.includes("firma") || l.includes("alici") || l.includes("sahib") ? "company"
+      : l.includes("kalem") ? "items"
+      : l.includes("kapsam") || l.includes("gorunurluk") ? "scope"
+      : l.includes("kategori") ? "category"
+      : l.includes("davet") || l.includes("teklif") ? "people"
+      : "info");
+  switch (kind) {
+    case "closing": return { Icon: CalendarDaysIcon, tone: "bg-rose-50 text-rose-600", value: "text-rose-600" };
+    case "company": return { Icon: BuildingOffice2Icon, tone: "bg-slate-100 text-slate-600", value: "" };
+    case "items": return { Icon: DocumentTextIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+    case "scope": return { Icon: MapPinIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+    case "category": return { Icon: TagIcon, tone: "bg-slate-100 text-slate-600", value: "text-blue-700" };
+    case "people": return { Icon: UsersIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+    default: return { Icon: InformationCircleIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+  }
 }
 
 /**
@@ -226,6 +245,7 @@ function PanelRow({
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
   const accent = useButtonAccent();
+  const t = useTranslations("web.marketplace.card");
   // TÜM SATIR tıklanır; başlık gerçek bağlantı (orta tık/klavye). Satır
   // üstündeki diğer etkileşimler yayılımı keser — favoriye tıklamak sayfayı
   // değiştirmesin.
@@ -237,7 +257,7 @@ function PanelRow({
       : { strip: "border-l-blue-500", tile: "bg-blue-50 text-blue-600" };
   // Kalan süre notu Kapanış sütununun ALTINA pil olarak iner (mockup); o
   // sütun yoksa durumun yanında kalır.
-  const closingIdx = d.facts.findIndex((f) => f.label.toLocaleLowerCase("tr").includes("kapan"));
+  const closingIdx = d.facts.findIndex((f) => f.icon === "closing" || (!f.icon && foldSearchText(f.label).includes("kapan")));
   const noteUnderClosing = !dense && closingIdx >= 0 && !!d.timeNote;
 
   if (dense) {
@@ -346,7 +366,7 @@ function PanelRow({
         {d.facts.length > 0 ? (
           <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-slate-100 pt-2.5 sm:grid-cols-3 lg:grid-cols-5 lg:gap-y-0 lg:divide-x lg:divide-slate-100">
             {d.facts.map((f, i) => {
-              const { Icon, tone: iconTone, value } = factIcon(f.label);
+              const { Icon, tone: iconTone, value } = factIcon(f);
               return (
                 // dl > div altında yalnız dt/dd olabilir (axe definition-list;
                 // 2026-09-19 incelemesinde 240 düğüm): ikon dt'nin içinde,
@@ -358,9 +378,12 @@ function PanelRow({
                     </span>
                     <span className="min-w-0">{f.label}</span>
                   </dt>
-                  <dd className={cn("-mt-2 min-w-0 pl-9 text-[13px] font-semibold leading-tight text-slate-800", value)}>{f.value}</dd>
+                  {/* Dar ekranda girinti YOK (arayüz testi D-316): iki sütunlu
+                      ızgarada 36 px girinti "3 kalem · 11.200 adet" değerini
+                      kırıyordu; değer etiketin altından başlar. */}
+                  <dd className={cn("mt-1 min-w-0 text-[13px] font-semibold leading-tight text-slate-800 sm:-mt-2 sm:pl-9", value)}>{f.value}</dd>
                   {noteUnderClosing && i === closingIdx ? (
-                    <dd className="mt-1 ml-9 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                    <dd className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 sm:ml-9">
                       <ClockIcon aria-hidden className="size-3" />
                       {d.timeNote}
                     </dd>
@@ -384,11 +407,13 @@ function PanelRow({
                   }}
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
-                  aria-label={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
+                  /* Erişilebilir ad GÖRÜNEN metin (arayüz testi D-278): ayrı
+                     `aria-label` "Kalemleri göster" diyordu, düğmede "Detayları
+                     göster" yazıyor — sesli komutla eşleşmiyordu. */
                   className={cn("inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[12px] text-slate-600 hover:bg-slate-100 hover:text-slate-900", ROW_FOCUS)}
                 >
                   <ChevronDownIcon aria-hidden strokeWidth={2.25} className={cn("size-5 transition-transform", expanded && "rotate-180")} />
-                  {expanded ? "Detayları gizle" : "Detayları göster"}
+                  {expanded ? t("hideDetails") : t("showDetails")}
                 </button>
               ) : null}
               {d.metric ? (
@@ -429,10 +454,15 @@ function PanelRow({
 /* ------------------------------------------------------------------ */
 
 function PublicTile({ listing }: { listing: PublicListingCard }) {
+  const t = useTranslations("web.marketplace.card");
+  const ts = useTranslations("web.marketplace.state");
+  const locale = useLocale();
+  const fmt = useFormatter();
   const state = publicState(listing.status);
-  const href = listingPath(listing.number, listing.title);
-  const primaryCategory =
-    listing.categories.find((c) => c.level >= 3) ?? listing.categories[0];
+  const href = listingHref(listing);
+  // Gizli segmentteki kategori adı karta basılmaz (2026-10-09).
+  const categories = visibleCategoryRefs(listing.categories);
+  const primaryCategory = categories.find((c) => c.level >= 3) ?? categories[0];
 
   return (
     <Link
@@ -447,7 +477,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
             {state === "open" ? (
               <span className="size-1.5 rounded-full bg-emerald-500" />
             ) : null}
-            {STATE_LABEL[state]}
+            {ts(state)}
           </Badge>
           <ChevronRightIcon
             aria-hidden
@@ -475,10 +505,10 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
               "bir şey" gösterir, boşluk bırakmaz. */}
           <div className="flex items-baseline justify-between gap-3 border-t border-zinc-950/5 pt-3">
             <p className="min-w-0 truncate text-sm font-medium text-zinc-700">
-              {listing.itemSummary.count} kalem
+              {t("itemsCount", { count: listing.itemSummary.count })}
               {listing.itemSummary.totalQuantity ? (
                 <span className="font-normal text-zinc-500">
-                  {" "}· {Number(listing.itemSummary.totalQuantity).toLocaleString("tr-TR")}{" "}
+                  {" "}· {fmt.number(Number(listing.itemSummary.totalQuantity))}{" "}
                   {listing.itemSummary.unit}
                 </span>
               ) : null}
@@ -489,30 +519,35 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
           <dl className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
             {listing.company.industry ? (
               <div className="flex min-w-0 items-center gap-1">
-                <dt className="sr-only">Sektör</dt>
+                <dt className="sr-only">{t("sector")}</dt>
                 <BuildingOffice2Icon aria-hidden className="size-3.5 shrink-0 text-zinc-300" />
                 <dd className="truncate">{listing.company.industry}</dd>
               </div>
             ) : null}
-            {listing.company.city ? (
-              <div className="flex items-center gap-1">
-                <dt className="sr-only">Konum</dt>
-                <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{listing.company.city}</dd>
+            {/* Talebin açıldığı ÜLKE (2026-10-04, kullanıcı: "İstanbul yerine
+                Türkiye"); alıcının şehri kartta gösterilmez. */}
+            {listing.company.country ? (
+              <div className="flex min-w-0 items-center gap-1">
+                <dt className="sr-only">{t("location")}</dt>
+                <dd className="min-w-0">
+                  <CountryLabel code={listing.company.country} />
+                </dd>
               </div>
             ) : null}
             {(listing.targetCountries ?? []).length > 0 ? (
               <div className="flex items-center gap-1">
-                <dt className="sr-only">Görünürlük</dt>
-                <GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{scopeLabel(listing.targetCountries ?? [])}</dd>
+                <dt className="sr-only">{t("visibility")}</dt>
+                {/* Hedef ülke(ler) bayrakla (son toparlama); alıcının ülkesiyle aynıysa ad tekrarlanmaz. */}
+                <dd className="min-w-0">
+                  <ScopeBesideBuyer targetCountries={listing.targetCountries} buyerCountry={listing.company.country} />
+                </dd>
               </div>
             ) : null}
             {listing.closesAt && state === "open" ? (
               <div className="flex items-center gap-1">
-                <dt className="sr-only">Son teklif</dt>
+                <dt className="sr-only">{t("lastBid")}</dt>
                 <ClockIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{formatDate(listing.closesAt, "short")}</dd>
+                <dd>{formatDate(listing.closesAt, "short", locale)}</dd>
               </div>
             ) : null}
           </dl>

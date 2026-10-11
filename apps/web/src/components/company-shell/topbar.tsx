@@ -1,6 +1,9 @@
 "use client";
 
-import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
+import { useNavLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
+import { useTranslations } from "next-intl";
+import { userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { RothernLogo } from "@/components/brand/logo";
 import { PortalSwitch } from "./portal-switch";
@@ -9,14 +12,19 @@ import {
   Dropdown,
   DropdownButton,
   DropdownDivider,
+  DropdownHeading,
   DropdownItem,
   DropdownLabel,
   DropdownMenu,
+  DropdownSection,
 } from "@/components/catalyst/dropdown";
+import { useAccountLocale, useLocaleSavedToast } from "@/hooks/use-account-locale";
+import { LOCALES, LOCALE_LABELS } from "@rothern/i18n";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
   COMPANY_AREA,
   COMPANY_AREA_BASE,
+  COMPANY_AREA_PERMISSIONS,
   PORTAL_ORDER,
   accessiblePortals,
   canUseMessaging,
@@ -26,17 +34,19 @@ import {
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
+  CheckIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
   BuildingOffice2Icon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 
 function initialsOf(first?: string | null, last?: string | null) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "?";
+  // Adın kendi diline göre büyük harf ("ivan" → "I", "ilker şahin" → "İŞ").
+  return upperForText(`${first?.[0] ?? ""}${last?.[0] ?? ""}`, `${first ?? ""} ${last ?? ""}`) || "?";
 }
 
 /**
@@ -51,6 +61,14 @@ export function CompanyTopbar({
   activePortal: PortalKey;
   onOpenMobileNav: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.topbar");
+  const tl = useTranslations("web.settings.language");
+  const tn = useNavLabel();
+  // Panel içi dil seçici (arayüz testi son tur S-BUY): panelin dili kayıtlı
+  // hesap dilini izler (`LocaleUrlSync`), bu yüzden seçim Ayarlar › Dil ile
+  // AYNI kaydı yapar; onay toast'ı yeni dilde, yönlendirmeden sonra.
+  const accountLocale = useAccountLocale();
+  useLocaleSavedToast();
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
   // Birleşik mesaj kutusu (2026-08-02): ikon, HERHANGİ bir işlem rolü
@@ -60,11 +78,10 @@ export function CompanyTopbar({
     canUseMessaging(user, "satis");
   const pathname = usePathname();
   const inCompanyArea = isCompanyAreaPath(pathname);
-  // Şirketim: yönetim ya da en az bir portalı görüntüleyen görür; onaylayıcı-
-  // only kabukta yalnız çan + hesap kalır (yetki tablosu Faz 2).
-  const showCompanyArea =
-    isManagementUser(user) ||
-    userHasPermission(user, ["buy:view", "sell:view"]);
+  // Şirketim: alan kapısıyla AYNI sabit (`COMPANY_AREA_PERMISSIONS`) — tek
+  // "Ziyaret edenler" ya da "Satınalma raporları" tikli kişi de girişi görür
+  // (arayüz testi O-062); onaylayıcı-only kabukta yalnız çan + hesap kalır.
+  const showCompanyArea = userHasPermission(user, COMPANY_AREA_PERMISSIONS);
   /**
    * Portal tuşunun verisi — HESAP SOL MENÜDEKİYLE BİREBİR (`sidebar.tsx`):
    * `visiblePortals` görüntüleme izni, `available` paket kapısı. İki yerde
@@ -76,33 +93,40 @@ export function CompanyTopbar({
   );
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-zinc-950/10 bg-white px-3 sm:gap-3 sm:px-4">
       {/* A11y (denetim §7.2): klavye kullanıcısı nav'ı atlayıp içeriğe geçer. */}
       <a
         href="#icerik"
         className="sr-only rounded-lg bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:left-3 focus:top-2.5 focus:z-50"
       >
-        İçeriğe geç
+        {t("icerigeGec")}
       </a>
       {/* Mobil: menü */}
       <button
         type="button"
         onClick={onOpenMobileNav}
-        aria-label="Menüyü aç"
+        aria-label={t("menuyuAc")}
         className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 lg:hidden"
       >
         <svg viewBox="0 0 20 20" className="size-5 fill-current" aria-hidden>
-          <path d="M2 6.75C2 6.33579 2.33579 6 2.75 6H17.25C17.6642 6 18 6.33579 18 6.75C18 7.16421 17.6642 7.5 17.25 7.5H2.75C2.33579 7.5 2 7.16421 2 6.75ZM2 13.25C2 12.8358 2.33579 12.5 2.75 12.5H17.25C17.6642 12.5 18 12.8358 18 13.25C18 13.6642 17.6642 14 17.25 14H2.75C2.33579 14 2 13.6642 2 13.25Z" />
+          <path d={t("m2675c2633579")} />
         </svg>
       </button>
 
-      {/* Logo — sol üst (açık-mod kilidi, plakasız) */}
+      {/* Logo — sol üst (açık-mod kilidi, plakasız). Dar ekranda yalnız
+          işaret (arayüz testi O-049): 360-390 px'te tam logo + portal tuşu +
+          sağ küme sığmıyor, portal tuşu Mesajlar'ın ALTINA taşıyordu. */}
       <Link href="/company" className="flex shrink-0 items-center">
+        <RothernLogo
+          variant="icon"
+          size="sm"
+          className="size-8 sm:hidden"
+        />
         <RothernLogo
           variant="full-light"
           size="sm"
           priority
-          className="h-8 w-auto"
+          className="hidden h-8 w-auto sm:block"
         />
       </Link>
 
@@ -111,7 +135,9 @@ export function CompanyTopbar({
           düğmeleriyle AYNI dili konuşur (h-12, ikon + 10 px etiket); portal
           tuşu aynı düzende ama renkli ikon + aç/kapa işareti + ayırıcıyla
           AYIRT EDİLİR (çerçeveli çip "çok farklı" bulundu). */}
-      <div className="ml-auto mr-1 flex min-w-0 items-center">
+      {/* shrink-0 (O-049): daralabilen sarmalayıcıda portal tuşu daralmayıp
+          sağ kümenin üstüne taşıyordu; yer logodan ve etiketlerden açılır. */}
+      <div className="ml-auto mr-1 flex shrink-0 items-center">
       {/* PORTAL DEĞİŞTİR — tek tuş, üstünde iki ikon ve değişim oku
           (2026-09-15, kullanıcı kararı). Sol menüdeki segmentli pilin YERİNE:
           aynı işe iki giriş bırakmak Ayarlar'daki Onay Akışları kartının
@@ -130,7 +156,7 @@ export function CompanyTopbar({
       {showCompanyArea ? (
       <Link
         href={COMPANY_AREA_BASE}
-        aria-label={COMPANY_AREA.label}
+        aria-label={tn(COMPANY_AREA.label)}
         aria-current={inCompanyArea ? "page" : undefined}
         // Bildirim/mesaj düğmesiyle BİREBİR: çerçeve ve dolgu yok, yalnız
         // ikon + etiket; hover'da aynı hafif zemin; aktifken koyu metin.
@@ -143,7 +169,7 @@ export function CompanyTopbar({
       >
         <BuildingOffice2Icon className="size-5" aria-hidden />
         <span className="text-[10px] leading-none font-semibold" aria-hidden>
-          {COMPANY_AREA.label}
+          {tn(COMPANY_AREA.label)}
         </span>
       </Link>
       ) : null}
@@ -151,7 +177,7 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="flex shrink-0 items-center gap-1 sm:gap-1">
-        {canMessage ? <MessagesPopover portal={activePortal} /> : null}
+        {canMessage ? <MessagesPopover /> : null}
 
         {/* Zil TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte,
             satır başına panel rozetiyle. */}
@@ -161,7 +187,7 @@ export function CompanyTopbar({
           <Dropdown>
             <DropdownButton
               plain
-              aria-label="Hesap menüsü"
+              aria-label={t("hesapMenusu")}
               className="!px-2"
             >
               <span className="flex items-center gap-3">
@@ -172,11 +198,16 @@ export function CompanyTopbar({
                   alt=""
                 />
                 <span className="hidden text-left md:block">
-                  <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900">
+                  {/* Ad tavanı genişliğe göre (kayıt denetimi 2026-10
+                      signup-enru-7): 768-1023 px'te üst çubukta yalnız ~12 px
+                      boşluk var → 160 px; 1024 px ve üstünde yüzlerce piksel
+                      boşken "Анастасия Воскресенская" 160 px'te kesiliyordu
+                      → 256 px. Daha uzun ad yine kısalır. */}
+                  <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900 lg:max-w-64">
                     {user.firstName} {user.lastName}
                   </span>
                   <span className="block text-xs leading-tight text-zinc-500">
-                    {user.isOwner ? "Kurucu" : (company?.name ?? "")}
+                    {user.isOwner ? t("kurucu") : (company?.name ?? "")}
                   </span>
                 </span>
                 <ChevronDownIcon className="hidden size-4 text-zinc-400 md:block" />
@@ -203,17 +234,37 @@ export function CompanyTopbar({
               {showCompanyArea ? (
               <DropdownItem href={COMPANY_AREA_BASE} className="sm:hidden">
                 <BuildingOffice2Icon data-slot="icon" />
-                <DropdownLabel>{COMPANY_AREA.label}</DropdownLabel>
+                <DropdownLabel>{tn(COMPANY_AREA.label)}</DropdownLabel>
               </DropdownItem>
               ) : null}
               <DropdownItem href="/company/ayarlar">
                 <Cog6ToothIcon data-slot="icon" />
-                <DropdownLabel>Ayarlar</DropdownLabel>
+                <DropdownLabel>{t("ayarlar")}</DropdownLabel>
               </DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => logout()}>
+              {/* Etiketler dilin KENDİ adıyla, çevrilmez (yanlış dilde kalan
+                  kullanıcı kendi dilini tanısın — LanguageSwitcher ile aynı). */}
+              <DropdownSection aria-label={tl("label")}>
+                <DropdownHeading>{tl("label")}</DropdownHeading>
+                {LOCALES.map((code) => (
+                  <DropdownItem
+                    key={code}
+                    lang={code}
+                    disabled={accountLocale.isPending}
+                    aria-current={code === accountLocale.value ? "true" : undefined}
+                    onClick={() => void accountLocale.switchTo(code)}
+                  >
+                    <DropdownLabel>{LOCALE_LABELS[code]}</DropdownLabel>
+                    {code === accountLocale.value ? (
+                      <CheckIcon className="col-start-5 row-start-1 size-4 justify-self-end text-zinc-500 group-data-focus:text-white" aria-hidden />
+                    ) : null}
+                  </DropdownItem>
+                ))}
+              </DropdownSection>
+              <DropdownDivider />
+              <DropdownItem onClick={() => void logout()}>
                 <ArrowRightStartOnRectangleIcon data-slot="icon" />
-                <DropdownLabel>Çıkış Yap</DropdownLabel>
+                <DropdownLabel>{t("cikisYap")}</DropdownLabel>
               </DropdownItem>
             </DropdownMenu>
           </Dropdown>

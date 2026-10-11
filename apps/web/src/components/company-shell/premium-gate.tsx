@@ -1,15 +1,16 @@
 "use client";
 
-import { PackagesView } from "@/components/company/packages/packages-view";
+import { VerificationGate } from "@/components/company/verification-gate";
 
 /**
- * Paket kapısı — kilitli sayfa ve `/company/premium` AYNI paket görünümünü
- * çizer (2026-09-15, kullanıcı kararı: "sadece paketlerde gözüksün").
+ * Sayfa kapısı — ücretsiz dönemde (2026-10-07) DOĞRULAMA kapısıdır: paket
+ * kartları, fiyat ve paket adı çizilmez; "firma doğrulaması gerekir" + duruma
+ * göre eylem (`VerificationGate`).
  *
- * Eskiden burada uzun bir "neler açılır" listesi, doğrulama kutusu ve
- * "Gold'a Geç" düğmesi vardı. Doğrulama ve satın alma kararı artık paket
- * kartındaki "satın al" tıklamasında verilir (`PackagesView`).
+ * @deprecated Ad geriye dönük; yeni kod `VerificationGate` kullanır.
+ * `requiredTier` kabul edilir ama metne yansımaz (eşik çağıranın kapı
+ * mantığındadır).
  */
-export function PremiumGate({ requiredTier }: { requiredTier?: "SILVER" | "GOLD" }) {
-  return <PackagesView requiredTier={requiredTier} />;
+export function PremiumGate({ title }: { requiredTier?: "SILVER" | "GOLD"; title?: string }) {
+  return <VerificationGate title={title} />;
 }

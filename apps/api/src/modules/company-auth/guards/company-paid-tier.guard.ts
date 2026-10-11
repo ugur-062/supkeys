@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { entitlementRequiredError } from "../../../common/company/entitlement-required";
 import {
   CanActivate,
   ExecutionContext,
@@ -8,12 +10,6 @@ import { Reflector } from "@nestjs/core";
 import { PAID_TIER, tierAtLeast, type TierName } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../strategies/company-jwt.strategy";
 import { COMPANY_TIER_KEY } from "../decorators/require-tier.decorator";
-
-const TIER_LABEL: Record<TierName, string> = {
-  STANDART: "Standart",
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
 
 /**
  * PAKET zorunlu — CompanyJwtAuthGuard'dan SONRA çalışır (request.user dolu).
@@ -30,19 +26,32 @@ export class CompanyPaidTierGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     const user = req.user as AuthenticatedCompanyUser | undefined;
-    if (!user) throw new ForbiddenException("Yetkisiz");
+    if (!user) throw new ForbiddenException(i18nMessage("api.companyAuth.yetkisiz"));
     const min =
       this.reflector.getAllAndOverride<TierName | undefined>(COMPANY_TIER_KEY, [
         context.getHandler(),
         context.getClass(),
       ]) ?? PAID_TIER;
     if (!tierAtLeast(user.tier, min)) {
-      throw new ForbiddenException(
-        min === "GOLD"
-          ? "Bu özellik Gold paket gerektirir (satınalma paneli)."
-          : `Bu özellik ${TIER_LABEL[min]} veya üzeri paket gerektirir.`,
-      );
+      throw tierRequiredError(min, user.companyVerificationStatus);
     }
     return true;
   }
+}
+
+/**
+ * Kademe kapısının 403'ü — `CompanyPermissionsGuard` da (paket önce kuralı)
+ * aynı gövdeyi atar.
+ * `TIER_REQUIRED` kodu (arayüz testi O-044): web yakalayıcısı bu kodla
+ * toast basmaz — kilitli sayfa zaten kilit kartını çiziyor; kodsuz
+ * 403 kartın üstüne gereksiz kırmızı hata toast'ı düşürüyordu.
+ *
+ * ÜCRETSİZ DÖNEM: metin paket adı anmaz, firma DOĞRULAMASI ister ve durumuna
+ * göre ayrışır (tek kaynak `entitlement-required.ts`).
+ */
+export function tierRequiredError(
+  min: TierName,
+  verificationStatus: string | null | undefined,
+): ForbiddenException {
+  return entitlementRequiredError(min, verificationStatus);
 }

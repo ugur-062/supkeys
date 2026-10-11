@@ -1,0 +1,19 @@
+{
+  "errors": {
+    "forbidden": "Bu işlem için yetkiniz yok",
+    "notFound": "Kayıt bulunamadı",
+    "badRequest": "Geçersiz istek",
+    "conflict": "Bu işlem mevcut durumda yapılamaz",
+    "unprocessable": "Geçersiz veri",
+    "server": "Sunucu hatası, lütfen tekrar deneyin",
+    "network": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "moreFields": "{n, plural, other {+# alan daha}}",
+    "uploadFailed": "Dosya yüklenemedi — lütfen tekrar deneyin",
+    "fileReadFailed": "Dosya okunamadı"
+  },
+  "globalError": {
+    "title": "Bir şeyler ters gitti",
+    "body": "Beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.",
+    "retry": "Tekrar dene"
+  }
+}

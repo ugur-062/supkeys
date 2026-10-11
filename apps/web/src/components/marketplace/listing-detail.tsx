@@ -1,41 +1,41 @@
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
+import type { ReactNode } from "react";
 import { PublicLayout } from "./public-layout";
-import { scopeLabel } from "@rothern/shared";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
 import { JsonLd } from "@/components/seo/json-ld";
+import { AutoTranslatedNote } from "./auto-translated-note";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
-import {
-  MARKETPLACE_LABELS,
-  MARKETPLACE_ROUTES,
-  STATE_LABEL,
-  listingPath,
-  publicState,
-} from "@/lib/public/marketplace";
+import { contentLangOf } from "@/lib/seo/meta";
+import type { Locale } from "@rothern/i18n";
+import { MARKETPLACE_ROUTES, listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { ListingTeaserRow } from "./listing-teaser-row";
-import { companyActivityLabel } from "@rothern/shared";
+import { ListingEligibilityNote } from "./listing-eligibility-note";
+import { ListingBidCta } from "./listing-bid-cta";
 import { resolveSiteUrl } from "@/lib/site-url";
-import {
-  DELIVERY_TERM_LABELS,
-  PAYMENT_CATEGORY_LABELS,
-  currencySymbol,
-} from "@/lib/tenders/labels";
-import type { DeliveryTerm, PaymentCategory } from "@/lib/tenders/types";
+import { currencySymbol } from "@/lib/tenders/labels";
 import {
   ArrowRightIcon,
   BanknotesIcon,
   BuildingOffice2Icon,
   CheckBadgeIcon,
-  GlobeAltIcon,
   LockClosedIcon,
-  MapPinIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
-import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
+
+/** Tarih geçmiş mi (çizim dışı yardımcı; `Date.now` bileşen gövdesinde okunmaz). */
+function isPast(iso: string): boolean {
+  return new Date(iso).getTime() <= Date.now();
+}
 
 /**
  * Tekil alım talebi sayfası — SUNUCU bileşeni. (Satış ilanı 2026-09-04'te
@@ -49,57 +49,78 @@ export function ListingDetail({
   /** "Benzer açık talepler" — kayıt sonrası ne bulacağını gösterir (3 kart). */
   similar?: PublicListingCard[];
 }) {
+  const t = useTranslations("web.marketplace.listing");
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const tl = useTranslations("web.marketplace.labels");
+  const tstate = useTranslations("web.marketplace.state");
+  const locale = useLocale();
+  const seoT = useSeoT();
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
+  const deliveryTermLabel = useDeliveryTermLabel();
+  const paymentCategoryLabel = usePaymentCategoryLabel();
+  const closingUrgency = useClosingUrgency();
   const state = publicState(listing.status);
   const urgency = closingUrgency(listing.status, listing.closesAt);
   const days = daysUntil(listing.closesAt) ?? 99;
   const site = resolveSiteUrl();
-  const canonical = `${site}${listingPath(listing.number, listing.title)}`;
+  const canonical = `${site}${listingHref(listing)}`;
   const indexBase = MARKETPLACE_ROUTES.demands;
-  const indexLabel = MARKETPLACE_LABELS.demands;
+  const indexLabel = tl("demands");
+  // Erken kapanan (değerlendirmedeki / kazandırılmış) talepte planlanan son
+  // teklif tarihi İLERİDE kalır; "Kapandı" rozetinin yanında "Son teklif
+  // tarihi 6 Eki" yanıltıyordu (arayüz testi D-073). Tarih yalnız açık
+  // talepte ya da gerçekten geçmişse gösterilir.
+  const showDeadline = !!listing.closesAt && (state === "open" || isPast(listing.closesAt));
+  // Gizli segmentteki kategori çip, ad ya da süzgeç bağlantısı olarak ÇİZİLMEZ
+  // (2026-10-09): eski talep durur, görünür kategorisi kalmadıysa çip satırı
+  // hiç açılmaz. API de süzer; burası ikinci kat.
+  const categories = visibleCategoryRefs(listing.categories);
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `listingSeo` hem sayfanın metasını hem bu grafiği üretir. Sahibin adı
      fonksiyona PARAMETRE OLARAK BİLE geçmez (`ListingSeoInput.buyer` yalnız
      şehir/ülke taşır) — sayfada gizlediğimiz kimliği yapılandırılmış veride
      vermek onu makine-okunur biçimde geri vermek olurdu. */
-  const seo = listingSeo(listingSeoInput(listing));
+  const seo = listingSeo(listingSeoInput(listing), { locale, t: seoT });
+  // Talep metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak)
+  // başlık, açıklama ve kalem adları kaynağın `lang`ını taşır (2026-09-27).
+  const contentLang = contentLangOf(listing, locale as Locale);
 
-  const facts: { label: string; value: string }[] = [
-    { label: "İlan numarası", value: listing.number },
-    ...(listing.closesAt
+  const facts: { label: string; value: ReactNode }[] = [
+    { label: t("number"), value: listing.number },
+    ...(showDeadline
       ? [
           {
-            label: "Son teklif tarihi",
-            value: formatDate(listing.closesAt, "datetime"),
+            label: t("closesAtLabel"),
+            value: formatDate(listing.closesAt, "datetime", locale),
           },
         ]
       : []),
     ...(listing.publishedAt
-      ? [{ label: "Yayın", value: formatDate(listing.publishedAt, "long") }]
+      ? [{ label: t("published"), value: formatDate(listing.publishedAt, "short", locale) }]
       : []),
     {
-      label: "Görünürlük",
-      value: scopeLabel(listing.targetCountries ?? []),
+      label: t("visibility"),
+      // Hedef ülke(ler) bayrakla; küre yalnız "Tüm ülkeler" (son toparlama).
+      value: <TargetScope targetCountries={listing.targetCountries} />,
     },
-    { label: "Para birimi", value: listing.primaryCurrency },
+    { label: t("currency"), value: listing.primaryCurrency },
     ...(listing.deliveryTerm
       ? [
           {
-            label: "Teslim şekli",
-            value:
-              DELIVERY_TERM_LABELS[listing.deliveryTerm as DeliveryTerm] ??
-              listing.deliveryTerm,
+            label: t("deliveryTerm"),
+            value: deliveryTermLabel(listing.deliveryTerm),
           },
         ]
       : []),
     {
-      label: "Ödeme",
-      value:
-        PAYMENT_CATEGORY_LABELS[listing.paymentCategory as PaymentCategory] ??
-        listing.paymentCategory,
+      label: t("payment"),
+      value: paymentCategoryLabel(listing.paymentCategory),
     },
     ...(listing.paymentDays
-      ? [{ label: "Vade", value: `${listing.paymentDays} gün` }]
+      ? [{ label: t("paymentDays"), value: t("days", { n: listing.paymentDays }) }]
       : []),
   ];
 
@@ -108,11 +129,11 @@ export function ListingDetail({
       <JsonLd data={seo.jsonLd} />
 
       <div className="mx-auto max-w-6xl px-6 pt-28 pb-20 lg:px-8">
-        <nav aria-label="Yol" className="text-sm text-zinc-500">
+        <nav aria-label={t("breadcrumb")} className="text-sm text-zinc-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
               <Link href="/" className="hover:text-zinc-900">
-                Anasayfa
+                {t("home")}
               </Link>
             </li>
             <li aria-hidden>/</li>
@@ -122,7 +143,7 @@ export function ListingDetail({
               </Link>
             </li>
             <li aria-hidden>/</li>
-            <li className="line-clamp-1 text-zinc-900">{listing.title}</li>
+            <li className="line-clamp-1 text-zinc-900" lang={contentLang}>{listing.title}</li>
           </ol>
         </nav>
 
@@ -147,10 +168,10 @@ export function ListingDetail({
                 )}
               >
                 {state === "open" ? <span className="size-1.5 rounded-full bg-emerald-500" /> : null}
-                {STATE_LABEL[state]}
+                {tstate(state)}
               </span>
               <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200">
-                {MARKETPLACE_LABELS.demandOne}
+                {tl("demandOne")}
               </span>
               <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-500">
                 {listing.number}
@@ -159,15 +180,21 @@ export function ListingDetail({
             <Heading
               level={1}
               className="mt-4 text-3xl font-bold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+              lang={contentLang}
             >
               {listing.title}
             </Heading>
-            {listing.categories.length > 0 ? (
+            <AutoTranslatedNote from={listing.translatedFrom} className="mt-2" />
+            {categories.length > 0 ? (
               <ul className="mt-4 flex flex-wrap gap-2">
-                {listing.categories.map((c) => (
+                {categories.map((c) => (
                   <li key={c.id}>
                     <Link
-                      href={`${indexBase}?kategori=${c.id.slice(0, 2)}000000`}
+                      // Çip adıyla AYNI kategoriye gider (arayüz testi D-061):
+                      // eskiden segmente yuvarlanıyordu, "Vidalar" bütün
+                      // "Üretim Bileşenleri" segmentini açıyordu. Dizin yaprağı
+                      // önekle süzer; aktif çip adı facet'in `selectedCategory`sinden.
+                      href={`${indexBase}?kategori=${c.id}`}
                       className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200 transition hover:text-zinc-950 hover:ring-zinc-900/30"
                     >
                       {c.name}
@@ -181,18 +208,20 @@ export function ListingDetail({
                 yapmasın diye burada, kategorinin hemen yanında. */}
             {(listing.preferredActivities?.length ?? 0) > 0 ? (
               <p className="mt-3 text-sm text-zinc-600">
-                <span className="font-medium text-zinc-900">Aranan tedarikçi tipi:</span>{" "}
-                {listing.preferredActivities.map(companyActivityLabel).join(" · ")}
+                <span className="font-medium text-zinc-900">{t("preferredActivities")}</span>{" "}
+                {listing.preferredActivities.map((a) => activityLabel(a)).join(" · ")}
               </p>
             ) : null}
           </div>
           <dl className="grid grid-cols-2 gap-px border-t border-zinc-950/5 bg-zinc-950/5 sm:grid-cols-4">
             {[
               {
-                label: "Kapanış",
+                label: t("closing"),
                 value: (
                   <>
-                    <span className="block">{listing.closesAt ? formatDate(listing.closesAt, "short") : "—"}</span>
+                    <span className="block">
+                      {showDeadline ? formatDate(listing.closesAt, "short", locale) : state === "open" ? "—" : tstate(state)}
+                    </span>
                     {urgency ? (
                       <span
                         className={cn(
@@ -211,22 +240,22 @@ export function ListingDetail({
                 ),
               },
               {
-                label: "Kalem",
+                label: t("items"),
                 value: (
                   <>
-                    <span className="block">{listing.itemCount} kalem</span>
+                    <span className="block">{t("itemsCount", { count: listing.itemCount })}</span>
                     {listing.itemSummary.totalQuantity && listing.itemSummary.unit ? (
                       <span className="mt-0.5 block text-xs font-medium text-zinc-500">
-                        toplam {Number(listing.itemSummary.totalQuantity).toLocaleString("tr-TR")} {listing.itemSummary.unit}
+                        {t("totalQty", { qty: quantity(listing.itemSummary.totalQuantity, listing.itemSummary.unit) })}
                       </span>
                     ) : null}
                   </>
                 ),
               },
-              { label: "Görünürlük", value: scopeLabel(listing.targetCountries ?? []) },
+              { label: t("visibility"), value: <TargetScope targetCountries={listing.targetCountries} /> },
               {
-                label: "Format",
-                value: listing.format === "ENGLISH_AUCTION" ? "Pazarlık (Eksiltme)" : "Teklif Toplama",
+                label: t("format"),
+                value: listing.format === "ENGLISH_AUCTION" ? t("formatAuction") : t("formatRfq"),
               },
             ].map((f) => (
               <div key={f.label} className="bg-white px-5 py-4">
@@ -241,8 +270,8 @@ export function ListingDetail({
           <div>
             {listing.description ? (
               <section className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/5">
-                <h2 className="text-lg font-semibold text-zinc-950">Açıklama</h2>
-                <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-700">
+                <h2 className="text-lg font-semibold text-zinc-950">{t("description")}</h2>
+                <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-700" lang={contentLang}>
                   {listing.description}
                 </p>
               </section>
@@ -254,11 +283,10 @@ export function ListingDetail({
             {listing.itemCount > 0 ? (
               <section className="mt-12">
                 <h2 className="text-lg font-semibold text-zinc-950">
-                  Kalemler ({listing.itemCount})
+                  {t("itemsHeading", { count: listing.itemCount })}
                   {listing.itemSummary.totalQuantity ? (
                     <span className="ml-2 text-base font-normal text-zinc-500">
-                      toplam {Number(listing.itemSummary.totalQuantity).toLocaleString("tr-TR")}{" "}
-                      {listing.itemSummary.unit}
+                      {t("totalQty", { qty: quantity(listing.itemSummary.totalQuantity, listing.itemSummary.unit) })}
                     </span>
                   ) : null}
                 </h2>
@@ -266,26 +294,38 @@ export function ListingDetail({
                   {listing.items.map((row) => (
                     <li key={row.lineNo} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
                       <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{row.name || `Kalem ${row.lineNo}`}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900" lang={row.name ? contentLang : undefined}>{row.name || t("itemFallback", { n: row.lineNo })}</span>
                       <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
-                        {Number(row.quantity).toLocaleString("tr-TR")} {row.unit}
+                        {quantity(row.quantity, row.unit)}
                       </span>
                     </li>
                   ))}
                 </ul>
-                <GatedField
-                  className="mt-4"
-                  size="box"
-                  label="Alıcı firma, şartname ve ekli belgeler"
-                  hint="Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok."
-                  redirect={PANEL_TARGET.listing(listing.number)}
-                />
+                {/* Kapanmış talepte teklif çağrısı yok (D-073): ipucu teklifsiz,
+                    dönüş adresi yok (panel karşılığı yalnız AÇIK talepleri arar). */}
+                {state === "open" ? (
+                  /* Oturumlu üyeye kayıt/giriş kutusu yerine paket kapısı
+                     (Silver değilse tek satır; tam açıklama kenar kartında). */
+                  <ListingBidCta number={listing.number} compact className="mt-4">
+                    <GatedField
+                      className="mt-4"
+                      size="box"
+                      label={t("gateLabel")}
+                      title={t("gateTitle")}
+                      hint={t("gateHint")}
+                      redirect={PANEL_TARGET.listing(listing.number)}
+                      signup={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
+                    />
+                  </ListingBidCta>
+                ) : (
+                  <GatedField className="mt-4" size="box" label={t("gateLabel")} title={t("gateTitle")} hint={t("gateHintClosed")} />
+                )}
               </section>
             ) : null}
 
             <section className="mt-12">
               <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
-                İlan bilgileri
+                {t("infoHeading")}
               </h2>
               {/* Application UI — Data display / Description lists /
                   "left-aligned striped". Zebra satır, uzun değerlerde (teslim
@@ -317,11 +357,7 @@ export function ListingDetail({
                   aria-hidden
                   className="mt-0.5 size-4 shrink-0 text-zinc-400"
                 />
-                <span>
-                  Şartname metni, ödeme notu ve ekli belgeler yalnızca kayıtlı
-                  firmalara açıktır. Teklifler kapalı zarf esasıyla toplanır —
-                  gelen teklifleri yalnızca ilan sahibi görür.
-                </span>
+                <span>{t("membersNote")}</span>
               </p>
             </section>
           </div>
@@ -329,7 +365,7 @@ export function ListingDetail({
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                Alıcı
+                {t("buyer")}
               </h2>
               {/* Firma ADI ve LOGOSU gösterilmez — ilan sahibi anonimdir.
                   Ziyaretçiye eksik bir şey değil, KURAL olduğunu söylüyoruz;
@@ -343,11 +379,11 @@ export function ListingDetail({
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-zinc-950">
-                    {listing.company.verified ? "Doğrulanmış alıcı" : "Alıcı firma"}
+                    {listing.company.verified ? t("verifiedBuyer") : t("buyerCompany")}
                   </p>
                   {listing.company.activities.length > 0 ? (
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      {listing.company.activities.slice(0, 2).map(companyActivityLabel).join(" · ")}
+                      {listing.company.activities.slice(0, 2).map((a) => activityLabel(a)).join(" · ")}
                     </p>
                   ) : null}
                   {listing.company.industry ? (
@@ -355,65 +391,69 @@ export function ListingDetail({
                       {listing.company.industry}
                     </p>
                   ) : null}
-                  {listing.company.city ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                      <MapPinIcon aria-hidden className="size-3.5" />
-                      {listing.company.city}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                    <GlobeAltIcon aria-hidden className="size-3.5" />
-                    {scopeLabel(listing.targetCountries ?? [])}
-                  </p>
+                  {/* Talebin açıldığı ÜLKE (2026-10-04, şehir yerine) + hedef
+                      kapsamı bayrakla; ikisi aynı ülkeyse tek satır. */}
+                  <BuyerCountryScope
+                    buyerCountry={listing.company.country}
+                    targetCountries={listing.targetCountries}
+                    lineClassName="mt-1 text-xs text-zinc-500"
+                  />
                 </div>
               </div>
               <p className="mt-4 text-xs/5 text-zinc-500">
-                Firma kimliği yalnız kayıtlı kullanıcılara açıktır.
+                {t("identityNote")}
               </p>
 
               <div className="mt-5 border-t border-zinc-950/5 pt-5">
                 {state === "open" ? (
                   <>
-                    {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
-                    <AccentLink
-                      href={signupHref("teklif", listingPath(listing.number, listing.title))}
-                      className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
-                    >
-                      Bu talebe teklif vermek için ücretsiz kaydol
-                    </AccentLink>
-                    <p className="mt-2 text-center text-xs text-zinc-500">2 dakika · kredi kartı yok</p>
-                    <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
-                      {[
-                        "Alıcı adı, şartname ve ekli belgeler",
-                        "Kapalı zarf teklif — rakipler görmez",
-                        "Kategorinle eşleşen yeni talepler e-postana",
-                      ].map((t) => (
-                        <li key={t} className="flex gap-2">
-                          <CheckBadgeIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-3 text-center text-xs text-zinc-500">
-                      Hesabınız var mı?{" "}
-                      <Link
-                        href={loginHref(PANEL_TARGET.listing(listing.number))}
-                        className="font-medium text-zinc-700 hover:underline"
+                    {/* Yalnız belirli ülkelere açık talepte kimin teklif
+                        verebileceği KAYITTAN ÖNCE söylenir (2026-09-27). */}
+                    <ListingEligibilityNote targetCountries={listing.targetCountries} />
+                    {/* Oturumlu üye kayıt çağrısı yerine paket kapısını görür:
+                        PUBLIC talebe teklif Silver ister (arayüz testi webA-02
+                        yeniden doğrulama); misafir kayıt akışını aynen görür. */}
+                    <ListingBidCta number={listing.number}>
+                      {/* Kayıt sonrası AYNI talebin PANEL karşılığına döner
+                          (intent=teklif + redirect; arayüz testi O-113). */}
+                      <AccentLink
+                        href={signupHref("teklif", PANEL_TARGET.listing(listing.number))}
+                        className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
                       >
-                        Giriş yapın
-                      </Link>
-                    </p>
+                        {t("signupCta")}
+                      </AccentLink>
+                      <p className="mt-2 text-center text-xs text-zinc-500">{t("twoMinutes")}</p>
+                      {/* Ücretsiz kayıt teklif SÖZÜ vermez: tanımadan teklif Silver. */}
+                      <p className="mt-2 text-center text-xs/5 text-zinc-500">{t("verifyNote")}</p>
+                      <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
+                        {[t("perk1"), t("perk2"), t("perk3")].map((perk) => (
+                          <li key={perk} className="flex gap-2">
+                            <CheckBadgeIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                            {perk}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-3 text-center text-xs text-zinc-500">
+                        {t("haveAccount")}{" "}
+                        <Link
+                          href={loginHref(PANEL_TARGET.listing(listing.number))}
+                          className="font-medium text-zinc-700 hover:underline"
+                        >
+                          {t("login")}
+                        </Link>
+                      </p>
+                    </ListingBidCta>
                   </>
                 ) : (
                   <>
                     <p className="text-sm text-zinc-600">
-                      Bu talep teklife kapalı.
+                      {t("closed")}
                     </p>
                     <Link
                       href={indexBase}
                       className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
                     >
-                      Açık olanları gör
+                      {t("seeOpen")}
                       <ArrowRightIcon aria-hidden className="size-4" />
                     </Link>
                   </>
@@ -429,30 +469,30 @@ export function ListingDetail({
               {[
                 {
                   icon: LockClosedIcon,
-                  title: "Kapalı zarf",
-                  body: "Teklifinizi yalnız ilan sahibi görür; rakipler ne teklifinizi ne kimliğinizi görebilir.",
+                  title: t("trust1Title"),
+                  body: t("trust1Body"),
                 },
                 {
                   icon: CheckBadgeIcon,
-                  title: "Doğrulanmış firmalar",
-                  body: "Talep yayımlayan ve kazandıran firmalar kimlik doğrulamasından geçer.",
+                  title: t("trust2Title"),
+                  body: t("trust2Body"),
                 },
                 {
                   icon: BanknotesIcon,
-                  title: "Komisyon yok",
-                  body: "Platform alım-satım bedelinden pay almaz.",
+                  title: t("trust3Title"),
+                  body: t("trust3Body"),
                 },
-              ].map((t) => (
-                <li key={t.title} className="flex gap-3">
-                  <t.icon
+              ].map((item) => (
+                <li key={item.title} className="flex gap-3">
+                  <item.icon
                     aria-hidden
                     className="mt-0.5 size-4 shrink-0 text-zinc-400"
                   />
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">
-                      {t.title}
+                      {item.title}
                     </p>
-                    <p className="mt-0.5 text-xs/5 text-zinc-500">{t.body}</p>
+                    <p className="mt-0.5 text-xs/5 text-zinc-500">{item.body}</p>
                   </div>
                 </li>
               ))}
@@ -463,7 +503,7 @@ export function ListingDetail({
         {/* Benzer açık talepler — kayıt sonrası ne bulacağını gösterir. */}
         {similar.length > 0 ? (
           <section className="mt-16">
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">Benzer açık talepler</h2>
+            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">{t("similar")}</h2>
             {/* SATIR düzeni (2026-09-18, kullanıcı: "kategori fotoğrafı olmasın,
                 farklı göster"): anasayfa/dizinle aynı `ListingTeaserRow` —
                 görselsiz, sütunlu, alt alta. */}

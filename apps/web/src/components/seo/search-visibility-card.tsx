@@ -1,8 +1,16 @@
 "use client";
 
-import type { AiSeoEnrichResult, SeoReadiness } from "@rothern/shared";
+import type { AiSeoEnrichResult, SeoCheck, SeoReadiness } from "@rothern/shared";
+import {
+  COMPANY_SEO_ABOUT,
+  PRODUCT_SEO_ATTRIBUTES,
+  PRODUCT_SEO_DESCRIPTION,
+  PRODUCT_SEO_IMAGES,
+  PRODUCT_SEO_KEYWORDS,
+} from "@rothern/shared";
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +24,10 @@ import { cn } from "@/lib/utils";
  *
  * Yönlendirir, ZORLAMAZ: yayın kapısı burada değil. Renk ÇAĞIRANDAN gelir
  * (`accent`): satınalma mavi, diğerleri siyah — bileşen portal bilmez.
+ *
+ * AD ALANI: `web.shared.*` — dosya `components/seo` altında ve o dizin
+ * herkese açık yüzeyle paylaşılan sayılıyor (`client-messages.test`),
+ * bu yüzden `web.panel` OKUNAMAZ.
  */
 
 export interface SnippetPreview {
@@ -32,10 +44,30 @@ export interface EnrichControls {
   unavailableReason?: string;
 }
 
-const LEVEL_LABEL: Record<SeoReadiness["level"], string> = {
-  weak: "Zayıf",
-  fair: "Orta",
-  good: "İyi",
+const LEVEL_KEY: Record<SeoReadiness["level"], "levelWeak" | "levelFair" | "levelGood"> = {
+  weak: "levelWeak",
+  fair: "levelFair",
+  good: "levelGood",
+};
+
+/**
+ * Madde metinleri `@rothern/shared` `seo-readiness.ts` içinde KODLA üretilir
+ * (eşik sayıları oradan gelir). Kart onları `key` üzerinden katalogda arar;
+ * anahtar yoksa shared'in Türkçe metnine düşer — böylece yeni bir madde
+ * eklendiğinde ekran boş kalmaz. Eşikler ANAHTARA göre geçilir: aynı `{n}`
+ * yer tutucusu maddeden maddeye farklı sabiti gösterir.
+ *
+ * NOT: burada yalnız ÜRÜN ve FİRMA maddeleri var — kartı çizen tek yer bu
+ * ikisi (`product-showcase-form`, `profile-editor`). Alım talebi maddeleri
+ * kendi yüzeyinde (`quick-request` → `kaliteIpucu.<key>`) çevrilir; oradaki
+ * `title`/`description`/`category` anahtarları BAŞKA metinlerdir.
+ */
+const CHECK_N: Record<string, number> = {
+  description: PRODUCT_SEO_DESCRIPTION,
+  images: PRODUCT_SEO_IMAGES,
+  keywords: PRODUCT_SEO_KEYWORDS,
+  attributes: PRODUCT_SEO_ATTRIBUTES,
+  about: COMPANY_SEO_ABOUT,
 };
 
 export function SearchVisibilityCard({
@@ -51,6 +83,8 @@ export function SearchVisibilityCard({
   accent?: "zinc" | "blue";
   className?: string;
 }) {
+  const t = useTranslations("web.shared.searchVisibilityCard");
+  const tc = useTranslations("web.domain.seoReadiness");
   const [draft, setDraft] = useState<AiSeoEnrichResult | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -61,6 +95,11 @@ export function SearchVisibilityCard({
       ? "bg-blue-600 text-white hover:bg-blue-700"
       : "bg-zinc-900 text-white hover:bg-zinc-800";
 
+  const checkText = (m: SeoCheck, field: "label" | "hint"): string => {
+    const key = `${m.key}.${field}`;
+    return tc.has(key as never) ? tc(key as never, { n: CHECK_N[m.key] ?? 0 } as never) : m[field];
+  };
+
   const runEnrich = async () => {
     if (!enrich || busy) return;
     setBusy(true);
@@ -70,7 +109,7 @@ export function SearchVisibilityCard({
     } catch (err) {
       const msg =
         (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(", ") : msg || "AI taslak üretemedi — tekrar deneyin.");
+      setError(Array.isArray(msg) ? msg.join(", ") : msg || t("enrichError"));
     } finally {
       setBusy(false);
     }
@@ -78,30 +117,29 @@ export function SearchVisibilityCard({
 
   return (
     <section
-      aria-label="Arama görünürlüğü"
+      aria-label={t("title")}
       className={cn("rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5", className)}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold text-zinc-950">Arama görünürlüğü</h3>
+        <h3 className="text-sm font-semibold text-zinc-950">{t("title")}</h3>
         <p className="text-sm text-zinc-600">
-          <span className="text-lg font-semibold text-zinc-950">%{readiness.score}</span> · {LEVEL_LABEL[readiness.level]}
+          <span className="text-lg font-semibold text-zinc-950">{t("yuzde", { n: readiness.score })}</span> ·{" "}
+          {t(LEVEL_KEY[readiness.level])}
         </p>
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
         <div className={cn("h-full rounded-full transition-[width] duration-500", bar)} style={{ width: `${readiness.score}%` }} />
       </div>
-      <p className="mt-2 text-xs/5 text-zinc-500">
-        Arama motorları ve yapay zekâ asistanları bu sayfayı ne kadar kolay bulur ve alıntılar. Yayını engellemez, yönlendirir.
-      </p>
+      <p className="mt-2 text-xs/5 text-zinc-500">{t("lead")}</p>
 
       {readiness.missing.length > 0 ? (
         <ul className="mt-4 space-y-2">
           {(showAll ? readiness.missing : readiness.missing.slice(0, 4)).map((m) => (
             <li key={m.key} className="text-sm">
               <p className="font-medium text-zinc-900">
-                {m.label} <span className="text-xs font-normal text-zinc-500">+{m.points}</span>
+                {checkText(m, "label")} <span className="text-xs font-normal text-zinc-500">+{m.points}</span>
               </p>
-              <p className="text-xs/5 text-zinc-600">{m.hint}</p>
+              <p className="text-xs/5 text-zinc-600">{checkText(m, "hint")}</p>
             </li>
           ))}
           {readiness.missing.length > 4 ? (
@@ -114,7 +152,7 @@ export function SearchVisibilityCard({
                 aria-expanded={showAll}
                 className="text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950"
               >
-                {showAll ? "Daha az göster" : `+${readiness.missing.length - 4} madde daha`}
+                {showAll ? t("showLess") : t("showMore", { n: readiness.missing.length - 4 })}
               </button>
             </li>
           ) : null}
@@ -122,13 +160,13 @@ export function SearchVisibilityCard({
       ) : (
         <p className="mt-4 flex items-center gap-2 text-sm text-emerald-700">
           <CheckCircleIcon aria-hidden className="size-4" />
-          Arama için hazır
+          {t("ready")}
         </p>
       )}
 
       {/* Parçacık önizlemesi — sayfanın gerçek şablonundan (aynı fonksiyon). */}
       <div className="mt-5 border-t border-zinc-950/5 pt-4">
-        <p className="text-xs font-medium text-zinc-600">Google'da böyle görünür</p>
+        <p className="text-xs font-medium text-zinc-600">{t("snippetTitle")}</p>
         <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
           <p className="truncate text-xs text-emerald-800">{snippet.url}</p>
           <p className="mt-0.5 line-clamp-2 text-base/6 text-blue-800">{snippet.title}</p>
@@ -140,10 +178,10 @@ export function SearchVisibilityCard({
         <div className="mt-5 border-t border-zinc-950/5 pt-4">
           {draft ? (
             <div className="space-y-3">
-              <p className="text-xs font-medium text-zinc-600">AI taslağı — kontrol edin, uygun görürseniz uygulayın</p>
+              <p className="text-xs font-medium text-zinc-600">{t("draftTitle")}</p>
               {draft.titleSuggestion ? (
                 <p className="text-sm text-zinc-800">
-                  <span className="text-xs text-zinc-500">Ad önerisi: </span>
+                  <span className="text-xs text-zinc-500">{t("nameSuggestion")}</span>{" "}
                   {draft.titleSuggestion}
                 </p>
               ) : null}
@@ -161,7 +199,7 @@ export function SearchVisibilityCard({
               ) : null}
               {draft.missingFacts.length ? (
                 <p className="text-xs/5 text-zinc-600">
-                  <span className="font-medium">Ekleyebileceğiniz olgular:</span> {draft.missingFacts.join(" · ")}
+                  <span className="font-medium">{t("missingFacts")}</span> {draft.missingFacts.join(" · ")}
                 </p>
               ) : null}
               <div className="flex gap-2">
@@ -173,14 +211,14 @@ export function SearchVisibilityCard({
                   }}
                   className={cn("rounded-lg px-3 py-1.5 text-sm font-medium", button)}
                 >
-                  Uygula
+                  {t("apply")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setDraft(null)}
                   className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
                 >
-                  Vazgeç
+                  {t("cancel")}
                 </button>
               </div>
             </div>
@@ -194,15 +232,13 @@ export function SearchVisibilityCard({
                 className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <SparklesIcon aria-hidden className="size-4" />}
-                {busy ? "Taslak hazırlanıyor…" : "AI ile açıklamayı güçlendir"}
+                {busy ? t("drafting") : t("enrichCta")}
               </button>
               {!enrich.available && enrich.unavailableReason ? (
                 <p className="mt-1.5 text-xs text-zinc-500">{enrich.unavailableReason}</p>
               ) : null}
               {error ? <p className="mt-1.5 text-xs text-red-700">{error}</p> : null}
-              <p className="mt-1.5 text-xs/5 text-zinc-500">
-                Yalnız yazdığınız olguları tam cümlelere çevirir; ölçü, standart ya da fiyat uydurmaz. Kaydetmeden önce siz onaylarsınız.
-              </p>
+              <p className="mt-1.5 text-xs/5 text-zinc-500">{t("enrichNote")}</p>
             </>
           )}
         </div>

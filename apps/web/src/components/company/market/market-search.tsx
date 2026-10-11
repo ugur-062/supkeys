@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { useEffect, useState } from "react";
 import { useFilters } from "@/components/marketplace/filter-shell";
@@ -15,11 +16,13 @@ import { useFilters } from "@/components/marketplace/filter-shell";
  */
 export function MarketSearch<S extends { q?: string; page: number }>({
   placeholder,
-  label = "Ara",
+  label,
 }: {
   placeholder: string;
   label?: string;
 }) {
+  const t = useTranslations("web.panel.market.marketSearch");
+  const labelText = label ?? t("ara");
   const { state, update } = useFilters<S>();
   const [value, setValue] = useState(state.q ?? "");
   // URL dışarıdan değişirse (çip kaldırma, geri tuşu) kutu da güncellenir.
@@ -43,7 +46,7 @@ export function MarketSearch<S extends { q?: string; page: number }>({
       <MagnifyingGlassIcon aria-hidden className="ml-2 size-5 shrink-0 text-zinc-400" />
       <input
         type="search"
-        aria-label={label}
+        aria-label={labelText}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
@@ -59,14 +62,14 @@ export function MarketSearch<S extends { q?: string; page: number }>({
           className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
         >
           <XMarkIcon aria-hidden className="size-4" />
-          <span className="sr-only">Aramayı temizle</span>
+          <span className="sr-only">{t("aramayiTemizle")}</span>
         </button>
       ) : null}
       <button
         type="submit"
         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
       >
-        {label}
+        {labelText}
       </button>
     </form>
   );

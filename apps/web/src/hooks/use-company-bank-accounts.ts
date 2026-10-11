@@ -7,7 +7,11 @@ export interface CompanyBankAccount {
   id: string;
   title: string;
   accountHolder: string;
-  iban: string;
+  /** IBAN ülkesinde dolu; IBAN kullanmayan ülkede boş → hesap no + SWIFT. */
+  iban: string | null;
+  accountNumber: string | null;
+  swiftBic: string | null;
+  bankCountry: string | null;
   bankName: string | null;
   isDefault: boolean;
 }
@@ -15,7 +19,10 @@ export interface CompanyBankAccount {
 export interface UpsertBankAccountInput {
   title: string;
   accountHolder: string;
-  iban: string;
+  iban?: string;
+  accountNumber?: string;
+  swiftBic?: string;
+  bankCountry?: string;
   bankName?: string;
   isDefault?: boolean;
 }

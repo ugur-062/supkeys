@@ -1,5 +1,8 @@
 import {
   COMPANY_ACTIVITY_CODES,
+  COMPANY_PROFILE_LIMITS,
+  COMPANY_SERVICE_MAX_LENGTH,
+  COMPANY_SERVICES_MAX,
   MAX_COMPANY_ACTIVITIES,
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
@@ -18,6 +21,7 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export class UpdateCompanyProfileDto {
   @IsOptional()
@@ -32,7 +36,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(100)
+  @MaxLength(COMPANY_PROFILE_LIMITS.industry)
   industry?: string;
 
   /**
@@ -48,7 +52,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(COMPANY_PROFILE_LIMITS.website)
   website?: string;
 
   @IsOptional()
@@ -56,10 +60,21 @@ export class UpdateCompanyProfileDto {
   @MaxLength(80)
   city?: string;
 
+  /** Dünya şehir listesi kaydı (2026-09-27) — seçiciden; yoksa metinden eşlenir. */
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)
   district?: string;
+
+  /** Eyalet/bölge (TR dışı; onboarding DTO'suyla aynı tavan). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  stateRegion?: string;
 
   @IsOptional()
   @IsString()
@@ -73,7 +88,7 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  @MaxLength(COMPANY_PROFILE_LIMITS.aboutText)
   aboutText?: string;
 
   @IsOptional()
@@ -98,12 +113,12 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
+  @MaxLength(COMPANY_PROFILE_LIMITS.linkedinUrl)
   linkedinUrl?: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(150)
+  @MaxLength(COMPANY_PROFILE_LIMITS.instagramUrl)
   instagramUrl?: string;
 
   @IsOptional()
@@ -113,15 +128,17 @@ export class UpdateCompanyProfileDto {
 
   @IsOptional()
   @IsInt()
-  @Min(1800)
-  @Max(2100)
+  @Min(COMPANY_PROFILE_LIMITS.foundedYearMin)
+  @Max(COMPANY_PROFILE_LIMITS.foundedYearMax)
   foundedYear?: number;
 
   // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4). IBAN/KEP geçerliliği
   // serviste doğrulanır (boş string = temizle).
   @IsOptional()
   @IsString()
-  @Matches(/^$|^\d{16}$/, { message: "MERSİS No 16 haneli olmalı" })
+  @Matches(/^$|^\d{16}$/, {
+    message: () => tApi("api.dto.updateCompanyProfile.mersisNo16HaneliOlmali"),
+  })
   mersisNo?: string;
 
   @IsOptional()
@@ -144,11 +161,23 @@ export class UpdateCompanyProfileDto {
   @MaxLength(120)
   ibanHolder?: string;
 
+  /** SWIFT/BIC (doğrulamada her ülkede zorunlu; KYC kilidinde). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(15)
+  bankSwiftBic?: string;
+
+  /** Banka adı (IBAN kullanmayan ülkede zorunlu; KYC kilidinde). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bankName?: string;
+
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(COMPANY_SERVICES_MAX)
   @IsString({ each: true })
-  @MaxLength(60, { each: true })
+  @MaxLength(COMPANY_SERVICE_MAX_LENGTH, { each: true })
   services?: string[];
 
   @IsOptional()

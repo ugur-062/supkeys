@@ -1,12 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { PanelCompanyCard } from "@/components/company/market/panel-company-index";
 import { MarketGridSkeleton } from "@/components/company/market/market-list-layout";
+import { ErrorState } from "@/components/ui/error-state";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { marketCompaniesPath } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ANASAYFA FİRMA LİSTESİ (2026-09-10, kullanıcı kararı): hero'daki kapsam
@@ -17,9 +19,11 @@ import Link from "next/link";
  * açık (buy:view | sell:view).
  */
 export function HomeCompanyList({ portal }: { portal: PortalKey }) {
+  const t = useTranslations("web.marketplace.panelHome.homeCompanyList");
   // Dizinin ilk sayfası (sunucu sayfa boyu); anasayfada ilk 12 satır yeter.
   const result = useCompanySearch({});
   const data = result.data;
+  // Yalnız `data` varken çizilir (aşağıda) — okunamayan toplam 0 diye yazılmaz.
   const total = data?.total ?? 0;
   const all = marketCompaniesPath(portal);
   return (
@@ -27,22 +31,28 @@ export function HomeCompanyList({ portal }: { portal: PortalKey }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 id="home-company-list-title" className="text-xl font-semibold tracking-tight text-zinc-950">
-            Firmalar
+            {t("firmalar")}
           </h2>
-          {data ? <span className="tnum text-sm text-zinc-500">{total.toLocaleString("tr-TR")} firma</span> : null}
+          {data ? <span className="tnum text-sm text-zinc-500">{t("firmaSayisi", { n: total })}</span> : null}
         </span>
         <Link
           href={all}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
         >
-          Tümünü gör
+          {t("tumunuGor")}
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
-      {result.isLoading ? (
+      {/* LİSTE DURUMLARI: "Henüz listelenen firma yok" yalnız BAŞARILI ve boş
+          yanıtta. Yanıt yokken iskelet (`isPending` — çevrimdışı duraklama
+          dahil); dizin okunamadıysa hata kartı (eskiden kesintide iki panel
+          anasayfasında "henüz firma yok" yazıyordu). */}
+      {result.isPending ? (
         <MarketGridSkeleton count={4} variant="company" />
-      ) : !data || data.items.length === 0 ? (
-        <p className="text-sm text-zinc-500">Henüz listelenen firma yok.</p>
+      ) : !data ? (
+        <ErrorState onRetry={() => void result.refetch()} />
+      ) : data.items.length === 0 ? (
+        <p className="text-sm text-zinc-500">{t("henuzListelenenFirmaYok")}</p>
       ) : (
         <ul className="space-y-4">
           {data.items.slice(0, 12).map((c) => (

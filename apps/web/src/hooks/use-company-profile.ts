@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -11,7 +12,11 @@ export interface CompanyProfile {
   website: string | null;
   country: string;
   city: string | null;
+  /** Dünya şehir listesi kaydı (2026-09-27). */
+  cityId?: number | null;
   district: string | null;
+  /** Eyalet/bölge (TR dışı). */
+  stateRegion?: string | null;
   addressLine: string | null;
   postalCode: string | null;
   aboutText: string | null;
@@ -37,7 +42,9 @@ export interface CompanyProfile {
   activities: string[];
   taxNumber: string | null;
   taxOffice: string | null;
-  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | null;
+  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER" | null;
+  /** Hukuki yapının yerel adı (GmbH, ООО…): kayıtta seçilen yapı ya da "Diğer"de yazılan metin; her türde dolu olabilir. */
+  legalFormLocal?: string | null;
   authorizedTckn: string | null;
   authorizedTitle: string | null;
   mersisNo: string | null;
@@ -52,6 +59,12 @@ export interface CompanyProfile {
   tier: "STANDART" | "SILVER" | "GOLD";
   companyVerificationStatus: string;
   onboardingCompletedAt: string | null;
+  /**
+   * Üyelik süresi (arayüz testi D-029): `endsAt` ücretli paketin bitişi
+   * (süresizde null); `expiredAt` paket son 30 gün içinde süresi dolup
+   * düştüyse bitiş tarihi. Eski API yanıtında alan yok.
+   */
+  membership?: { endsAt: string | null; expiredAt: string | null };
 }
 
 export type CompanyProfileUpdate = Partial<
@@ -63,6 +76,7 @@ export type CompanyProfileUpdate = Partial<
     | "website"
     | "city"
     | "district"
+    | "stateRegion"
     | "addressLine"
     | "postalCode"
     | "aboutText"
@@ -113,7 +127,7 @@ export function useUploadProfileImage() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+      if (!put.ok) throw new Error(tRuntime("common.errors.uploadFailed"));
       const { data: res } = await companyApi.post<{ url: string }>(
         "/company/profile/image/commit",
         { kind, key: data.key },
@@ -123,9 +137,14 @@ export function useUploadProfileImage() {
   });
 }
 
-export function useCompanyProfile() {
+/**
+ * `enabled=false`: profil ucunu okuma izni olmayan kişide (`GET company/profile`
+ * = company:manage | buy:view | sell:view) istek atılmaz — 403 tostu çıkmasın.
+ */
+export function useCompanyProfile(enabled = true) {
   return useQuery({
     queryKey: ["company-profile"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyProfile>("/company/profile");
       return data;

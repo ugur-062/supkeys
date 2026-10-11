@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { applyUserLocale } from "../../../common/i18n/locale-context";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -9,6 +11,7 @@ import type {
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
+import { SessionRevocationService } from "../../../common/auth/session-revocation.service";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { AUTH_COMPANY_SELECT } from "../../../common/company/auth-company-select";
 import { effectivePermissions } from "../permissions/company-permissions.constants";
@@ -21,6 +24,12 @@ export interface CompanyJwtPayload {
   companyId: string;
   /** Oturum sürümü — parola değişince artar; eski token'lar geçersizleşir. */
   tv?: number;
+  /**
+   * Oturum kimliği — kayan yenilemede KORUNUR; çıkışta `revoked_sessions`a
+   * yazılır (yalnız o oturum düşer). Eski jetonlarda yok → iptal edilemez
+   * ama geçerli kalır. Bkz. SessionRevocationService.
+   */
+  jti?: string;
   /**
    * "Oturumumu açık bırak" — kayan yenilemede cookie tipini belirler
    * (true/eksik → 30g kalıcı, false → tarayıcı-kapanınca-biten session).
@@ -46,6 +55,57 @@ export interface AuthenticatedCompanyUser {
    * eski anahtarlar eşlenmiş). Kapılar ve servisler yalnız bunu okur.
    */
   permissions: string[];
+  /** Kullanıcının seçtiği arayüz dili (`CompanyUser.locale`, varsayılan tr). */
+  locale: string;
+}
+
+/**
+ * DB satırından `AuthenticatedCompanyUser` — TEK KAYNAK. İstek yolu (`validate`)
+ * ve kullanıcı ADINA koşan sistem işleri (yayın sonrası AI keşfinin talebi
+ * yayınlayan kişi adına yaptığı davetler — `DiscoveryRunsService`) aynı
+ * eşlemeyi kullanır: efektif paket, efektif izinler, sahiplik normalizasyonu.
+ * Etkinlik denetimi (kullanıcı/firma pasif, askıda) ÇAĞIRANDA.
+ */
+export function toAuthenticatedCompanyUser(user: {
+  id: string;
+  companyId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: CompanyRole[];
+  permissions: string[];
+  locale: string;
+  company: {
+    ownerUserId: string | null;
+    tier: CompanyTier;
+    membershipEndAt: Date | null;
+    companyVerificationStatus: CompanyVerificationStatus;
+    country: string;
+  };
+}): AuthenticatedCompanyUser {
+  const isOwner = user.company.ownerUserId === user.id;
+  const effectiveRoles =
+    isOwner && !user.roles.includes("SAHIP")
+      ? (["SAHIP", ...user.roles] as typeof user.roles)
+      : user.roles;
+  return {
+    userId: user.id,
+    companyId: user.companyId,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    roles: effectiveRoles,
+    tier: effectiveTier(user.company.tier, user.company.membershipEndAt, user.company.companyVerificationStatus),
+    companyVerificationStatus: user.company.companyVerificationStatus,
+    country: user.company.country,
+    isOwner,
+    permissions: effectivePermissions({
+      isOwner,
+      permissions: user.permissions,
+      roles: user.roles,
+    }),
+    locale: user.locale,
+  };
 }
 
 @Injectable()
@@ -56,6 +116,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaBypassService,
+    private readonly sessions: SessionRevocationService,
   ) {
     super({
       // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).
@@ -72,28 +133,39 @@ export class CompanyJwtStrategy extends PassportStrategy(
     payload: CompanyJwtPayload,
   ): Promise<AuthenticatedCompanyUser> {
     if (payload.type !== "company") {
-      throw new UnauthorizedException("Geçersiz token tipi");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.gecersizTokenTipi"));
     }
 
     // Roller + tier + sahiplik DB'den taze okunur (token'a güvenmeyiz).
-    const user = await this.prisma.companyUser.findUnique({
-      where: { id: payload.userId },
-      // Tam `company` satırı DEĞİL — yalnız kapının kullandığı 7 alan.
-      // TEK KAYNAK: AUTH_COMPANY_SELECT (P12 #12; gerekçe orada).
-      include: { company: { select: AUTH_COMPANY_SELECT } },
-    });
+    // Oturum iptali (çıkış) kullanıcı sorgusuyla PARALEL okunur — ek gidiş
+    // dönüş süresi eklemez.
+    const [user, revoked] = await Promise.all([
+      this.prisma.companyUser.findUnique({
+        where: { id: payload.userId },
+        // Tam `company` satırı DEĞİL — yalnız kapının kullandığı 7 alan.
+        // TEK KAYNAK: AUTH_COMPANY_SELECT (P12 #12; gerekçe orada).
+        include: { company: { select: AUTH_COMPANY_SELECT } },
+      }),
+      this.sessions.isRevoked(payload.jti),
+    ]);
+    // Çıkış yapılmış oturum: çerezin kopyası da artık geçmez (H2).
+    if (revoked) {
+      throw new UnauthorizedException(
+        i18nMessage("api.companyAuth.oturumGecersizLutfenYenidenGirisYapin"),
+      );
+    }
 
     if (!user || !user.isActive || user.deletedAt) {
-      throw new UnauthorizedException("Kullanıcı geçersiz");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.kullaniciGecersiz"));
     }
     if (!user.company.isActive || user.company.isBlocked) {
-      throw new UnauthorizedException("Firma hesabı pasif veya engellenmiş");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.firmaHesabiPasifVeyaEngellenmis"));
     }
     // Oturum sürümü: parola değişiminden önce kesilmiş token'lar reddedilir
     // (tv'siz eski token = 0 varsayılır — sürüm hiç artmadıysa geçerli kalır).
     if ((payload.tv ?? 0) !== user.tokenVersion) {
       throw new UnauthorizedException(
-        "Oturum geçersiz — lütfen yeniden giriş yapın",
+        i18nMessage("api.companyAuth.oturumGecersizLutfenYenidenGirisYapin"),
       );
     }
 
@@ -104,27 +176,9 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // veride firma sahibi SAHIP etiketini taşımayabiliyordu (rol dizisi ayrı
     // yazılmış) — bu, portal erişimi/rol düzenleme/etiketleri sessizce
     // kırıyordu. Sahipse SAHIP etiketi HER ZAMAN efektif rollerde bulunur.
-    const isOwner = user.company.ownerUserId === user.id;
-    const effectiveRoles =
-      isOwner && !user.roles.includes("SAHIP")
-        ? (["SAHIP", ...user.roles] as typeof user.roles)
-        : user.roles;
-    return {
-      userId: user.id,
-      companyId: user.companyId,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      roles: effectiveRoles,
-      tier: effectiveTier(user.company.tier, user.company.membershipEndAt),
-      companyVerificationStatus: user.company.companyVerificationStatus,
-      country: user.company.country,
-      isOwner,
-      permissions: effectivePermissions({
-        isOwner,
-        permissions: user.permissions,
-        roles: user.roles,
-      }),
-    };
+    // İstek dili: Accept-Language yoksa kullanıcının kayıtlı dili (i18n Faz 0).
+    applyUserLocale(user.locale);
+
+    return toAuthenticatedCompanyUser(user);
   }
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PRODUCT_LIMITS } from "@rothern/shared";
-import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * EŞZAMANLILIK (2026-09-12) — çift tıklama ve yarış durumları.
@@ -20,14 +20,12 @@ test("aynı anda iki kazandırma → tek sipariş", async () => {
   const buyer = await apiSession(QA.aliciSatinalmaci);
   const seller = await apiSession(QA.tedarikciSatisci);
 
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT", title: `QA Yarış ${stamp}`, addressLine: "Sanayi Cad. No 1",
-    city: "İstanbul", district: "Tuzla", country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM", format: "RFQ", title: `QA Yarış Talebi ${stamp}`,
     description: "Eşzamanlı kazandırma denemesi — QA.",
-    visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addr.body.id,
+    visibility: "PUBLIC", categoryIds: [CATEGORY], deliveryAddressId: addressId,
     closesAt: daysFromNow(5), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
     items: [{ name: "Yarış Kalemi", quantity: 10, unit: "adet" }],
   });
@@ -109,19 +107,19 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
     }
   };
   /**
-   * TEMİZLİK E-POSTA ÜRETİR: "düzeltmeye gönder" kararı firmaya bildirim
-   * yollar. İlk sürümde her koşum 10 ürünü reddediyordu ve staging'in Resend
-   * günlük kotası doldu (2026-09-13 CI koşumu). Artık: bekleyen KAÇ TANE varsa
-   * o kadar karar verilir (yarış sonrası normalde 1), gerisi sessizce
-   * arşivlenir ve ürünler koşumlar arasında YENİDEN KULLANILIR.
+   * TEMİZLİK E-POSTA ÜRETİR: admin kararı firmaya bildirim yollar. Ücretsiz
+   * tavan 50 olunca her koşum ~50 ürünü onaya bırakıyor; tek tek "düzeltmeye
+   * gönder" 50 e-posta demekti (staging Resend kotası günde 100 — yayın
+   * denetimi 2026-09-28 Bölüm 7'de yerel koşuda ölçüldü). Artık bekleyenler
+   * TOPLU ONAYLA kapatılır (bildirim FİRMA başına tek e-posta,
+   * `approveMany`), sonra sahibi vitrinden çeker (e-posta yok). Ürünler
+   * koşumlar arasında YENİDEN KULLANILIR.
    */
   const temizle = async () => {
-    for (const r of await listele()) {
-      if (r.reviewStatus === "PENDING") {
-        await apiPost(admin, `/admin/products/${r.id}/reject`, {
-          reason: "QA otomasyon temizliği — tavan yarışı testinin bıraktığı kayıt.",
-        });
-      }
+    const bekleyen = (await listele()).filter((r) => r.reviewStatus === "PENDING").map((r) => r.id);
+    for (let i = 0; i < bekleyen.length; i += 100) {
+      const res = await apiPost(admin, "/admin/products/bulk-approve", { ids: bekleyen.slice(i, i + 100) });
+      expect(res.status, `toplu onay: ${JSON.stringify(res.body)}`).toBeLessThan(300);
     }
     for (const r of await listele()) {
       if (r.isPublic) await apiPost(free, `/company/items/${r.id}/unpublish`);
@@ -159,9 +157,9 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
   ]);
   expect(okCount(race), `tavan yarışı: ${JSON.stringify(race.map((r) => r.status))}`).toBe(1);
 
-  const after = (await apiGet(free, "/company/items?limit=100")).body as { items?: Array<{ isPublic: boolean; reviewStatus: string }> } | Array<{ isPublic: boolean; reviewStatus: string }>;
-  const afterRows = Array.isArray(after) ? after : (after.items ?? []);
-  const occupied = afterRows.filter((x) => x.isPublic || x.reviewStatus === "PENDING").length;
+  // Uç `limit` tanımaz (take/skip, varsayılan 50): tek sayfa en fazla 50 satır
+  // döndüğü için iddia hiç kırılamıyordu. Sayfalı okuma tüm ürünleri sayar.
+  const occupied = (await listele()).filter((x) => x.isPublic || x.reviewStatus === "PENDING").length;
   expect(occupied, "yayında + onayda toplam tavanı aşmamalı").toBeLessThanOrEqual(LIMIT);
 
   // Bu turun ürünlerini temizle: bir sonraki koşum temiz başlasın.

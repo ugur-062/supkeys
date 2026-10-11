@@ -34,22 +34,19 @@ describe("ProductCard", () => {
   });
 
   it("ROZET HİYERARŞİSİ: kapakta EN FAZLA BİR rozet, firma sinyalleri firma satırında", () => {
-    // 2026-09-07 (kullanıcı bulgusu): "Gold Üye" METİN rozeti paketli firma
-    // çok olduğu için neredeyse her kartta çıkıyor, ayırt ediciliğini
-    // yitiriyordu — metin olarak kaldırıldı.
-    // Aynı gün ikinci tur: "Doğrulanmış" da kapaktan indi. Firma özelliği,
+    // Ücretsiz dönem (2026-10-07): paket rozeti ("Gold Üye") hiçbir biçimde
+    // çizilmez — API `gold: true` döndürse bile (ikon/sr-only dahil).
+    // 2026-09-07 ikinci tur: "Doğrulanmış" da kapaktan indi. Firma özelliği,
     // firma satırında ikon olarak duruyor; kapakta da basmak aynı olguyu
     // iki kez yazmaktı. Kapak artık ürüne ait tek sinyali taşır (çağıranın
     // rozeti ya da "Yeni").
     const { container } = render(<ProductCard product={product} companySlug="d" company={company} />);
-    // GÖRÜNEN metin rozeti yok — ikisi de yalnız ikon (+ sr-only etiket).
+    // GÖRÜNEN metin rozeti yok — yalnız ikon (+ sr-only etiket).
     const verified = screen.getByText("Doğrulanmış firma");
-    const gold = screen.getByText("Gold Üye");
     expect(verified.className).toContain("sr-only");
-    expect(gold.className).toContain("sr-only");
+    expect(container.textContent).not.toMatch(/Gold|Silver/);
     const cover = container.querySelector("article > div:first-child");
     expect(cover?.contains(verified)).toBe(false);
-    expect(cover?.contains(gold)).toBe(false);
     expect(screen.getByText(company.name).parentElement?.contains(verified)).toBe(true);
   });
 
@@ -147,9 +144,77 @@ describe("CompanyCard", () => {
     expect(screen.getByText("3 ürün · Kuruluş 2008 · 50-100 çalışan")).toBeTruthy();
   });
 
+  it("tile görünümü de bayrak + ülke adı + şehir basar (wide ile aynı)", () => {
+    const { container } = render(<CompanyCard company={base} />);
+    const img = container.querySelector('img[src="/flags/4x3/tr.svg"]');
+    expect(img).toBeTruthy();
+    expect(img!.getAttribute("alt")).toBe("");
+    expect(screen.getByText("Türkiye, Kocaeli")).toBeTruthy();
+  });
+
+  // Arayüz testi D-04 (profil başlığıyla aynı ad): tek sözcüklü uzun ad kartta da
+  // kesilmesin / kartın dışına taşmasın. Tile: iki satır kutusu taşanı keser →
+  // sözcük bölünebilmeli. Wide: ad sarılan flex satırının öğesi → daralabilmeli.
+  it("D-04: uzun tek sözcüklü ad kartın içinde bölünür (tile iki satır, wide sınırsız)", () => {
+    const long = { ...base, name: "ООО «Уралсварпромкабель»" };
+    const { unmount } = render(<CompanyCard company={long} />);
+    const tile = screen.getByRole("link", { name: long.name });
+    expect(tile.className).toMatch(/(^|\s)line-clamp-2(\s|$)/);
+    expect(tile.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(tile.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap)(\s|$)/);
+    unmount();
+
+    render(<CompanyCard company={long} variant="wide" />);
+    const wideLink = screen.getByRole("link", { name: long.name });
+    expect(wideLink.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    expect(wideLink.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(wideLink.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap|line-clamp-\d+)(\s|$)/);
+    // Başlık satırı sarılır; kimlik sütunu daralabilir.
+    expect((wideLink.parentElement as HTMLElement).className).toContain("flex-wrap");
+    expect((wideLink.closest("h3")?.parentElement as HTMLElement).className).toMatch(/(^|\s)min-w-0(\s|$)/);
+  });
+
   it("eski dizin yanıtında yeni alanlar yoksa çökmez", () => {
     render(<CompanyCard company={base} />);
     expect(screen.getByText("3 ürün")).toBeTruthy();
     expect(screen.queryByText("Gold Üye")).toBeNull();
+  });
+
+  describe("wide (dizin satırı)", () => {
+    const wide = {
+      ...base,
+      productCount: 39,
+      productPreview: [
+        { slug: "vida-m8", name: "Vida M8", image: null, priceMode: "ON_REQUEST", priceAmount: null, priceCurrency: "TRY", moq: null, unit: "adet" },
+      ],
+      topCategories: [{ id: "31160000", name: "Vidalar", count: 10 }],
+    };
+
+    it("O-034: eylem kutusu daralabilir — `shrink-0` yok, `max-w-full` + `flex-wrap` var", () => {
+      render(<CompanyCard company={wide} variant="wide" cta={{ label: "İletişime geçin", href: "/x" }} />);
+      const actions = screen.getByText("İletişime geçin").closest("a")?.parentElement;
+      expect(actions?.className).not.toContain("shrink-0");
+      expect(actions?.className).toContain("min-w-0");
+      expect(actions?.className).toContain("max-w-full");
+      expect(actions?.className).toContain("flex-wrap");
+    });
+
+    it("D-072: ürün mini kartı KENDİ ürününe gider (firma örtüsünün üstünde), kategori satırında ok yok", () => {
+      const { container } = render(<CompanyCard company={wide} variant="wide" />);
+      const link = screen.getByText("Vida M8").closest("a");
+      expect(link?.getAttribute("href")).toContain("/firma/demir-metal/urun/vida-m8");
+      expect(link?.getAttribute("target")).toBe("_blank");
+      expect(link?.closest("li")?.className).toContain("z-10");
+      // Kategori satırı bağlantı değil; "git" vaat eden ok da çizilmez.
+      const row = screen.getByText("Vidalar").closest("li");
+      expect(row?.querySelector("a")).toBeNull();
+      expect(row?.querySelector("svg")).toBeNull();
+      expect(container.querySelectorAll("article a[href$='#urunler']").length).toBeGreaterThan(0);
+    });
+
+    it("D-072: panel ürün hedefini kendisi verir", () => {
+      render(<CompanyCard company={wide} variant="wide" productHref={(p) => `/company/satinalma/urunler/demir-metal/${p}`} />);
+      expect(screen.getByText("Vida M8").closest("a")?.getAttribute("href")).toContain("/company/satinalma/urunler/demir-metal/vida-m8");
+    });
   });
 });

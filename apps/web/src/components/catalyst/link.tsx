@@ -1,20 +1,18 @@
-/**
- * Catalyst Link — Next.js App Router'a bağlandı.
- * Catalyst bileşenleri (Button href, Sidebar, Dropdown, Pagination vb.) bu
- * Link'i kullanır; Headless.DataInteractive data-* attribute'lerini korur.
- */
-
 import * as Headless from "@headlessui/react";
-import NextLink, { type LinkProps } from "next/link";
+import { Link as IntlLink } from "@/i18n/navigation";
 import React, { forwardRef } from "react";
 
+/**
+ * Catalyst bağlantısı — `next/link` yerine dil farkında `Link` (i18n Faz 1):
+ * aktif dilin ön eki otomatik eklenir, Headless UI etkileşim verisi korunur.
+ */
 export const Link = forwardRef(function Link(
-  props: LinkProps & React.ComponentPropsWithoutRef<"a">,
+  props: React.ComponentPropsWithoutRef<typeof IntlLink>,
   ref: React.ForwardedRef<HTMLAnchorElement>,
 ) {
   return (
     <Headless.DataInteractive>
-      <NextLink {...props} ref={ref} />
+      <IntlLink {...props} ref={ref} />
     </Headless.DataInteractive>
   );
 });

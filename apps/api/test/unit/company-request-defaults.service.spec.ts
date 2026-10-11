@@ -1,10 +1,12 @@
 import { BadRequestException } from "@nestjs/common";
 import { CompanyRequestDefaultsService, requestDefaultsSchema } from "../../src/modules/company-request-defaults/company-request-defaults.service";
 
-function rig(opts: { saved?: unknown; last?: Record<string, unknown> | null; address?: boolean } = {}) {
+function rig(
+  opts: { saved?: unknown; last?: Record<string, unknown> | null; address?: boolean; country?: string | null } = {},
+) {
   const prisma = {
     company: {
-      findUnique: jest.fn().mockResolvedValue({ requestDefaults: opts.saved ?? null }),
+      findUnique: jest.fn().mockResolvedValue({ requestDefaults: opts.saved ?? null, country: opts.country ?? null }),
       update: jest.fn().mockResolvedValue({}),
     },
     listing: { findFirst: jest.fn().mockResolvedValue(opts.last ?? null) },
@@ -75,6 +77,39 @@ describe("CompanyRequestDefaultsService", () => {
     expect((await bad.svc.get("c1")).source).toBe("none");
   });
 
+  it("kayda kapalı ülke (US/IR) şartta kalmaz; liste boşalırsa firma ülkesine daralır (MU-09)", async () => {
+    const saved = { ...VALID, isInternational: undefined, targetCountries: ["DE", "US"] };
+    expect((await rig({ saved, country: "TR" }).svc.get("c1")).defaults?.targetCountries).toEqual(["DE"]);
+    const onlyBlocked = { ...VALID, isInternational: undefined, targetCountries: ["us", "IR"] };
+    expect((await rig({ saved: onlyBlocked, country: "TR" }).svc.get("c1")).defaults?.targetCountries).toEqual(["TR"]);
+    expect((await rig({ saved: onlyBlocked }).svc.get("c1")).defaults?.targetCountries).toEqual([]);
+    const last = {
+      targetCountries: ["US"],
+      visibility: "PUBLIC",
+      deliveryTerm: "FOB",
+      paymentCategory: "ADVANCE",
+      paymentDays: null,
+      advancePercent: 100,
+      lcType: null,
+      primaryCurrency: "USD",
+      allowedCurrencies: ["USD"],
+      isSealedBid: true,
+      bidVisibility: "OWN_ONLY",
+      requireAllItems: false,
+      requireBidDocument: false,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      closesAt: new Date("2026-09-11T00:00:00Z"),
+      deliveryAddressId: null,
+      billingAddressId: null,
+    };
+    const derived = await rig({ last, country: "TR" }).svc.get("c1");
+    expect(derived.source).toBe("last_listing");
+    expect(derived.defaults?.targetCountries).toEqual(["TR"]);
+    const { svc, prisma } = rig();
+    await svc.save({ ...(user as object), country: "TR" } as never, { ...VALID, targetCountries: ["SY", "IT"] });
+    expect(prisma.company.update.mock.calls[0][0].data.requestDefaults.targetCountries).toEqual(["IT"]);
+  });
+
   it("save: şema doğrular (kapsam-ödeme tutarlılığı), audit yazar", async () => {
     const { svc, prisma, audit } = rig();
     const r = await svc.save(user, VALID);
@@ -84,5 +119,81 @@ describe("CompanyRequestDefaultsService", () => {
     await expect(svc.save(user, { ...VALID, paymentCategory: "LETTER_OF_CREDIT" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(svc.save(user, { ...VALID, allowedCurrencies: ["USD"] })).rejects.toThrow(/Ana para birimi/);
     expect(requestDefaultsSchema.safeParse({ ...VALID, closeDays: 0 }).success).toBe(false);
+  });
+
+  it("save: aralık ihlalleri alana özgü Türkçe metinle döner, ham zod mesajı yok (arayüz testi D-007/D-046)", async () => {
+    const { svc, prisma } = rig();
+    const message = async (patch: Record<string, unknown>) => {
+      try {
+        await svc.save(user, { ...VALID, ...patch });
+      } catch (e) {
+        expect(e).toBeInstanceOf(BadRequestException);
+        return ((e as BadRequestException).getResponse() as { message: string }).message;
+      }
+      throw new Error("save should have rejected");
+    };
+    expect(await message({ paymentDays: -5 })).toMatch(/Vade günü 1 ile 365 arasında olmalı/);
+    expect(await message({ paymentDays: 400 })).toMatch(/Vade günü 1 ile 365/);
+    expect(await message({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: 101 })).toMatch(/Peşin yüzdesi 1 ile 100/);
+    const nine = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "CNY", "RUB", "AED"];
+    expect(await message({ allowedCurrencies: nine })).toMatch(/en fazla 8 kabul edilen para birimi/);
+    for (const m of [await message({ paymentDays: 400 }), await message({ allowedCurrencies: nine })]) {
+      expect(m).not.toMatch(/Number must|Array must/);
+    }
+    expect(prisma.company.update).not.toHaveBeenCalled();
+  });
+
+  it("save: tam sayı olmayan ya da 1–60 dışı teklif süresi alan hatasıyla reddedilir (arayüz testi kalanlar NUM)", async () => {
+    const { svc, prisma } = rig();
+    const response = async (patch: Record<string, unknown>) => {
+      try {
+        await svc.save(user, { ...VALID, ...patch });
+      } catch (e) {
+        expect(e).toBeInstanceOf(BadRequestException);
+        return (e as BadRequestException).getResponse() as { message: string; errors?: Record<string, string> };
+      }
+      throw new Error("save should have rejected");
+    };
+    // "12,50" istemcide önek 12'ye düşmemeli; sunucuya ham metin ya da kesir gelirse de kaydedilmez.
+    for (const closeDays of [12.5, 0, 61, -3, "12,50", "12", null, 1.5e3]) {
+      const r = await response({ closeDays });
+      expect(r.errors).toEqual({ closeDays: "Teklif toplama süresi 1 ile 60 gün arasında olmalı" });
+      expect(r.message).toMatch(/Teklif toplama süresi 1 ile 60 gün arasında olmalı/);
+    }
+    // Birden çok alan: her alan kendi metniyle.
+    const both = await response({ closeDays: 0, paymentDays: 400 });
+    expect(both.errors).toEqual({
+      closeDays: "Teklif toplama süresi 1 ile 60 gün arasında olmalı",
+      paymentDays: "Vade günü 1 ile 365 arasında olmalı",
+    });
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    // Sınırlar geçerli.
+    for (const closeDays of [1, 60]) await expect(svc.save(user, { ...VALID, closeDays })).resolves.toMatchObject({ source: "saved" });
+  });
+
+  it("save: aktivite loguna yalnız gerçekten değişen alanlar yazılır (arayüz testi O-107)", async () => {
+    const first = rig();
+    await first.svc.save(user, VALID);
+    const saved = first.prisma.company.update.mock.calls[0][0].data.requestDefaults;
+    const second = rig({ saved });
+    await second.svc.save(user, { ...VALID, closeDays: 14 });
+    expect(second.audit.log.mock.calls[0][0].metadata).toEqual({ changedFields: ["closeDays"] });
+    const third = rig({ saved });
+    await third.svc.save(user, VALID);
+    expect(third.audit.log.mock.calls[0][0].metadata).toEqual({ changedFields: [] });
+  });
+
+  it("şema buildPaymentPlan aynası: yüzdesiz peşin, vadesiz usance ve CUSTOM reddedilir (MU-10)", async () => {
+    const ok = (patch: Record<string, unknown>) => requestDefaultsSchema.safeParse({ ...VALID, ...patch }).success;
+    expect(ok({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: null })).toBe(false);
+    expect(ok({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: 30 })).toBe(true);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: null })).toBe(false);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: 90 })).toBe(true);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT", paymentDays: null })).toBe(true);
+    expect(ok({ paymentCategory: "CUSTOM", paymentDays: null })).toBe(false);
+    const { svc } = rig();
+    await expect(svc.save(user, { ...VALID, paymentCategory: "CUSTOM", paymentDays: null })).rejects.toBeInstanceOf(BadRequestException);
+    // Kaydedilmiş eski CUSTOM profil hızlı kartı kilitlemez: yedeğe düşer.
+    expect((await rig({ saved: { ...VALID, paymentCategory: "CUSTOM" } }).svc.get("c1")).source).toBe("none");
   });
 });

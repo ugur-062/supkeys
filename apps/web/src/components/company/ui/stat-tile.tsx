@@ -3,7 +3,7 @@
 import { TrendBadge } from "@/components/dashboard/analytics-primitives";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**
@@ -47,16 +47,25 @@ export function StatTile({
   }[tone];
   const body = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          {Icon ? (
-            <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", iconCls)}>
-              <Icon aria-hidden className="size-4.5" />
-            </span>
-          ) : null}
-          <p className="text-sm font-medium text-zinc-600">{label}</p>
-        </div>
-        <TrendBadge pct={deltaPct} periodLabel={deltaLabel} />
+      {/* Dar kartta (390 px mobilde iki sütunlu ızgara, ~130 px içerik) ikonun
+          yanındaki ~80 px'lik sütun "görüntülenme" gibi tek sözcüğü ortadan
+          bölüyordu (arayüz testi son tur webC-1 NEW-2). Kartın KENDİ
+          genişliğine göre (container query): dar kartta ikon + eğilim rozeti
+          üst satırda, etiket alt satırda tam genişlik; genişte eskisi gibi
+          ikon | etiket | rozet tek satır. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-2.5 gap-y-2">
+        {Icon ? (
+          <span className={cn("order-1 flex size-9 shrink-0 items-center justify-center rounded-xl", iconCls)}>
+            <Icon aria-hidden className="size-4.5" />
+          </span>
+        ) : null}
+        {/* Uzun tek sözcük (RU "Идентифицированные") dar kartta taşmasın: hecele, gerekirse kır. */}
+        <p className="order-3 min-w-0 basis-full text-sm font-medium break-words hyphens-auto text-zinc-600 @[13rem]:order-2 @[13rem]:flex-1 @[13rem]:basis-0 @[13rem]:self-center">
+          {label}
+        </p>
+        <span className="order-2 shrink-0 @[13rem]:order-3">
+          <TrendBadge pct={deltaPct} periodLabel={deltaLabel} />
+        </span>
       </div>
       <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums text-zinc-950">{value}</p>
       {hint ? <div className="mt-1 text-xs text-zinc-500">{hint}</div> : null}
@@ -70,7 +79,7 @@ export function StatTile({
     </>
   );
   const cls = cn(
-    "group relative flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition",
+    "@container group relative flex flex-col rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition",
     href && "hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/10",
     attention && "ring-amber-300",
     className,

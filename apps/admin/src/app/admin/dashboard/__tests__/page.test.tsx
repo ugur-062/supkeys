@@ -1,18 +1,27 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false },
   complaints: { data: undefined as unknown, isLoading: false },
   stats: { data: undefined as unknown, isLoading: false },
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
+  companiesOpts: [] as unknown[],
+}));
+
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
 }));
 
 vi.mock("@/hooks/use-admin-products", () => ({
   useAdminProductStats: () => ({ data: { pending: 2, rejected: 0, oldestPendingSince: null }, isLoading: false }),
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
-  useAdminCompanies: () => h.companies,
+  useAdminCompanies: (_p: unknown, opts?: unknown) => {
+    h.companiesOpts.push(opts);
+    return h.companies;
+  },
   useAdminComplaints: () => h.complaints,
   useAdminCompanyStats: () => h.stats,
 }));
@@ -59,6 +68,8 @@ beforeEach(() => {
   h.companies = { data: undefined, isLoading: false };
   h.complaints = { data: undefined, isLoading: false };
   h.stats = { data: undefined, isLoading: false };
+  h.admin = { role: "SUPER_ADMIN" };
+  h.companiesOpts = [];
 });
 
 describe("AdminDashboardPage — DashboardContent", () => {
@@ -76,8 +87,12 @@ describe("AdminDashboardPage — DashboardContent", () => {
     // "3" hem Açık Şikayet KPI'sında hem ülke dağılımında (TR=3) geçer.
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
-    // Tier breakdown alt yazısı
-    expect(screen.getByText(/1 gold · 0 silver · 3 standart/)).toBeInTheDocument();
+    // Toplam Firma alt yazısı doğrulama kırılımıdır (ücretsiz dönem: üyelik
+    // kademesi kırılımı API'den gelse de basılmaz).
+    expect(
+      screen.getByText("2 doğrulanmış · 1 doğrulanmamış · 1 reddedildi"),
+    ).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/gold|silver|standart|üyelik/i);
     // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
     expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
     expect(screen.getByText("Kayıt tamamlandı")).toBeInTheDocument();
@@ -121,13 +136,14 @@ describe("AdminDashboardPage — DashboardContent", () => {
     ).toBeInTheDocument();
   });
 
-  it("süresi yaklaşan üyelikler gün rozeti ile listelenir", () => {
+  it("ücretsiz dönem: 'Süresi Yaklaşan Üyelikler' paneli yok (API alanı gelse de)", () => {
     const in10d = new Date(Date.now() + 10 * 86_400_000).toISOString();
     h.stats = {
       data: statsFixture({
         expiringMemberships: [
           { id: "e1", name: "Bitecek A.Ş.", rothernId: "SK-E1", membershipEndAt: in10d },
         ],
+        expiringMembershipsCount: 1,
       }),
       isLoading: false,
     };
@@ -135,11 +151,12 @@ describe("AdminDashboardPage — DashboardContent", () => {
     h.complaints = { data: { items: [], total: 0 }, isLoading: false };
     render(<AdminDashboardPage />);
 
-    expect(screen.getByText("Bitecek A.Ş.")).toBeInTheDocument();
-    expect(screen.getByText("10 gün")).toBeInTheDocument();
+    expect(screen.queryByText("Bitecek A.Ş.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Süresi Yaklaşan Üyelikler")).not.toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain("expiring=30");
   });
 
-  it("boş durum → 'Firma yok' + 'Açık şikayet yok' + üyelik boş mesajı", () => {
+  it("boş durum → 'Firma yok' + 'Açık şikayet yok'", () => {
     h.stats = { data: statsFixture({ countryBreakdown: [] }), isLoading: false };
     h.companies = { data: { items: [], total: 0 }, isLoading: false };
     h.complaints = { data: { items: [], total: 0 }, isLoading: false };
@@ -147,9 +164,6 @@ describe("AdminDashboardPage — DashboardContent", () => {
 
     expect(screen.getByText("Firma yok")).toBeInTheDocument();
     expect(screen.getByText("Açık şikayet yok")).toBeInTheDocument();
-    expect(
-      screen.getByText("30 gün içinde bitecek üyelik yok"),
-    ).toBeInTheDocument();
   });
 
   it("yükleniyor durumu → panellerde 'Yükleniyor…'", () => {
@@ -158,7 +172,51 @@ describe("AdminDashboardPage — DashboardContent", () => {
     h.complaints = { data: undefined, isLoading: true };
     render(<AdminDashboardPage />);
 
-    // 4 panel: üyelikler, ülke dağılımı, son firmalar, açık şikayetler.
-    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(4);
+    // 3 panel: ülke dağılımı, son firmalar, açık şikayetler.
+    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(3);
+  });
+
+  it("İnceleme Bekleyen kartı Başvurular kuyruğuna gider (queue=kyc evreni) — LU-11", () => {
+    h.stats = { data: statsFixture(), isLoading: false };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false };
+    h.complaints = { data: { items: [], total: 0 }, isLoading: false };
+    render(<AdminDashboardPage />);
+    const card = screen.getByText("İnceleme Bekleyen").closest("a");
+    expect(card).toHaveAttribute("href", "/admin/basvurular");
+    expect(h.companiesOpts.at(-1)).toEqual({ enabled: true });
+  });
+
+  it("SUPPORT: firma listesi istenmez, Son Firmalar gizli, 403 veren sayfalara bağlantı yok — LU-11", () => {
+    h.admin = { role: "SUPPORT" };
+    h.stats = { data: statsFixture(), isLoading: false };
+    h.companies = { data: undefined, isLoading: false };
+    h.complaints = {
+      data: {
+        items: [
+          {
+            id: "x1",
+            against: { id: "a1", name: "Kötü Firma" },
+            reason: "spam",
+            complainant: { name: "Şikayetçi" },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+    };
+    render(<AdminDashboardPage />);
+
+    expect(h.companiesOpts.at(-1)).toEqual({ enabled: false });
+    expect(screen.queryByText("Son Firmalar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Firma yok")).not.toBeInTheDocument();
+    expect(screen.getByText("Toplam Firma").closest("a")).toBeNull();
+    expect(screen.getByText("İnceleme Bekleyen").closest("a")).toBeNull();
+    for (const a of screen.getAllByRole("link")) {
+      expect(a.getAttribute("href") ?? "").not.toMatch(/^\/admin\/(firmalar|basvurular)/);
+    }
+    expect(screen.getByText("Kötü Firma").closest("a")).toHaveAttribute(
+      "href",
+      "/admin/sikayetler",
+    );
   });
 });

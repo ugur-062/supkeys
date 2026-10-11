@@ -36,3 +36,57 @@ export const MIN_QUANTITY = 0.001;
  * yaşam döngüsü kırılır. bidsOpenAt zaten closesAt'ten önce zorunlu → transitif.
  */
 export const MAX_LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * Firma profili hizmet çipi uzunluk tavanı — PATCH /company/profile DTO'su,
+ * AI tanıtım önerisi ucunun gövdesi (taslak hizmetler) ve web ChipEditor aynı
+ * sabiti okur (derin denetim S069: iki taraf ayrı tavan kullanınca Kaydet 400
+ * düşüyordu).
+ */
+export const COMPANY_SERVICE_MAX_LENGTH = 60;
+
+/** Profil hizmet çipi adedi (DTO `@ArrayMaxSize` ve web ChipEditor sayacı). */
+export const COMPANY_SERVICES_MAX = 20;
+
+/**
+ * Profilim'in serbest metin alanlarının uzunluk tavanları — PATCH
+ * /company/profile DTO'su ve web profil düzenleyicisi (`maxLength`, sayaç,
+ * alan adlı hata) aynı sabiti okur (arayüz testi D-054: istemcide sınır yoktu,
+ * sunucu hatası hangi alan olduğunu söylemiyordu).
+ */
+export const COMPANY_PROFILE_LIMITS = {
+  industry: 100,
+  aboutText: 2000,
+  website: 200,
+  linkedinUrl: 150,
+  instagramUrl: 150,
+  foundedYearMin: 1800,
+  foundedYearMax: 2100,
+} as const;
+
+/**
+ * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
+ * ve web talep formu aynı sabiti okur. "Bağlantılarım" kipinde liste alıcının
+ * TÜM bağlantılarıdır; tavan bu listeyi tek gövdede taşıyacak kadar geniş
+ * tutulur (derin denetim S083/S095: 200'lük tavan taşan bağlantıları kayıt
+ * sonrası ayrı davet çağrısına itiyordu — canlı düzenlemede sunucu davetleri
+ * yeniden yazdığı için taşan firmalar her kayıtta yeniden davet e-postası
+ * alıyordu). 5000 × kısa kod ≈ 60 KB — 5 MB gövde sınırının çok altında.
+ */
+export const MAX_LISTING_INVITATIONS = 5000;
+
+/**
+ * Ürün görseli tavanı — API vitrin DTO'su (`images` `@ArrayMaxSize`), web
+ * görsel yükleyici ve herkese açık galeri AYNI sayıyı okur (arayüz testi
+ * O-100: yükleyici ve API 8'e izin verirken galeri ilk 6'yı kesiyordu, 7. ve
+ * 8. görsel hiçbir yerde görünmüyordu).
+ */
+export const MAX_PRODUCT_IMAGES = 8;
+
+/**
+ * Şablon (soru seti / tedarikçi grubu) ad uzunluğu ve soru seti soru adedi —
+ * API DTO'ları ve web şablon pencereleri (`maxLength`, pasif "Soru Ekle") aynı
+ * sabiti okur (arayüz testi D-261).
+ */
+export const TEMPLATE_NAME_MAX_LENGTH = 120;
+export const QUESTION_TEMPLATE_MAX_ITEMS = 20;

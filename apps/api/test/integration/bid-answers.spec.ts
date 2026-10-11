@@ -259,3 +259,60 @@ describe("placeBid — davetli kuralı hizalaması", () => {
     expect(bid.status).toBe("SUBMITTED");
   });
 });
+
+/**
+ * Arayüz testi kapanış NUM (2026-10-03): eski web `type="number"` Türkçe
+ * "12,50" cevabını "1250" gönderiyordu; web artık yerel biçimi çevirir, sunucu
+ * sayısal soruya biçimsiz değer (virgüllü, "NaN") saklamaz.
+ */
+describe("placeBid — sayısal soru cevabı biçimi (NUM)", () => {
+  async function numberSetup() {
+    const base = await setup();
+    const numQ = await prisma.listingItemQuestion.create({
+      data: { itemId: base.item.id, text: "Et kalınlığı (mm)?", answerType: "NUMBER", required: false },
+    });
+    return { ...base, numQ };
+  }
+
+  it("kanonik ondalık ('12.5') kabul edilir", async () => {
+    const { service, seller, listing, item, question, numQ } = await numberSetup();
+    await service.placeBid(seller.auth, listing.id, {
+      ...bidBase,
+      items: [
+        {
+          itemId: item.id,
+          unitPrice: 100,
+          answers: [
+            { questionId: question.id, value: "TR" },
+            { questionId: numQ.id, value: "12.5" },
+          ],
+        },
+      ],
+    } as never);
+    const ans = await prisma.listingBidAnswer.findFirstOrThrow({ where: { questionId: numQ.id } });
+    expect(ans.value).toBe("12.5");
+  });
+
+  it.each(["12,50", "NaN", "1.2.3", "abc"])("biçimsiz cevap '%s' → 400, taslakta da", async (value) => {
+    const { service, seller, listing, item, question, numQ } = await numberSetup();
+    for (const asDraft of [false, true]) {
+      await expect(
+        service.placeBid(seller.auth, listing.id, {
+          ...bidBase,
+          asDraft,
+          items: [
+            {
+              itemId: item.id,
+              unitPrice: 100,
+              answers: [
+                { questionId: question.id, value: "TR" },
+                { questionId: numQ.id, value },
+              ],
+            },
+          ],
+        } as never),
+      ).rejects.toThrow(/geçerli bir sayı/);
+    }
+  });
+});
+

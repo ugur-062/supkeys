@@ -2,8 +2,28 @@ import type { ListingType } from "@rothern/db";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
-export const LISTING_MANAGE_DENY_MESSAGE =
-  "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir";
+/**
+ * İlan yönetim reddinin KATALOG ANAHTARI — iki çağrı yeri (ilan servisi ve
+ * ilan-belgeleri servisi) aynı mesajı basmak zorunda; metin `tr/api.json`da.
+ */
+export const LISTING_MANAGE_DENY_KEY =
+  "api.companyListings.buIlaniYonetmeYetkinizYok" as const;
+
+/**
+ * Red nedenine göre katalog anahtarı: izin eksikse "yalnız talebi açan
+ * yönetebilir" demek yanıltıcıydı — talebi açan kişiye de aynı mesaj gidiyordu
+ * (arayüz testi T3). İzin eksik → eksik iznin adı; açan başkası → mevcut metin.
+ */
+export const LISTING_MANAGE_PERMISSION_DENY_KEY =
+  "api.companyListings.talepYonetmeIzniGerekir" as const;
+
+export function listingManageDenyKey(
+  reason: "missing_permission" | "not_creator",
+): typeof LISTING_MANAGE_DENY_KEY | typeof LISTING_MANAGE_PERMISSION_DENY_KEY {
+  return reason === "missing_permission"
+    ? LISTING_MANAGE_PERMISSION_DENY_KEY
+    : LISTING_MANAGE_DENY_KEY;
+}
 
 /** Talep (ALIM ilanı) yönetim izni — TEK anahtar (satış ilanı 2026-09-04'te kalktı). */
 export const LISTING_MANAGE_PERMISSION = "buy:listing:manage";

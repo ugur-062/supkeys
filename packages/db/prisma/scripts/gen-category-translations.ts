@@ -26,6 +26,11 @@
  *
  * ÇALIŞMA ZAMANI DEĞİL: firma AI bütçesine dokunmaz, AiUsage yazmaz.
  *
+ * GİZLİ DAL ÇEVRİLMEZ: gizli bir önekin altındaki düğüm modele gitmez
+ * (`lib/seed-category-guard.ts` `visiblePromptNodes`). Ertelenen segmentler
+ * (85 / 50 / 51 / 10) bugün gizli olduğundan `--all` onlar gizli kaldıkça bir
+ * şey eklemez.
+ *
  * Çalıştırma:
  *   pnpm --filter @rothern/db gen-category-translations                  # Faz 1
  *   pnpm --filter @rothern/db gen-category-translations -- --all         # + 85/50/51/10
@@ -34,6 +39,7 @@
  * Sürdürülebilir: çıktıda kodu olan düğüm atlanır, yarıda kesilen koşu devam eder.
  */
 import { generateJson, priceOf, readGeminiKey } from "./lib/gemini";
+import { visiblePromptNodes } from "./lib/seed-category-guard";
 import { CATEGORY_NAME_CHARS, normalizeName } from "./lib/tr-charset";
 import * as fs from "fs";
 import * as path from "path";
@@ -183,7 +189,10 @@ function main0(): { nodes: Node[]; limit: number } {
     }
     nodes.push({ code, level: row.level, name: row.name, path: parts.join(" › ") });
   }
-  return { nodes, limit };
+  // GİZLİ DAL İSTEME GİRMEZ (`visiblePromptNodes`): gizli bir dalın (segment,
+  // aile ya da sınıf) adı hiçbir model istemine yazılmaz; o dallar arayüzde
+  // görünmediği için çevirinin okuyucusu da yoktur.
+  return { nodes: visiblePromptNodes(nodes), limit };
 }
 
 async function main() {

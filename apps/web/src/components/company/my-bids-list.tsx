@@ -1,8 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useBidDeliveryTimeLabel, useFormatDate, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
-import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
-import { formatDate } from "@/lib/format-date";
 import {
   ActiveFilterChips,
   FilterMultiSelect,
@@ -15,10 +15,13 @@ import {
   SearchInput,
 } from "@/components/list";
 import { CountdownFull } from "@/components/tenders/countdown-full";
-import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
+import { useMyBids, type MyBid, type MyBidSort } from "@/hooks/use-company-listings";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useReadFailed } from "@/hooks/use-read-failed";
+import { ErrorState } from "@/components/ui/error-state";
 import { closingUrgency } from "@/lib/tenders/seller-state";
-import { formatMoney } from "@/components/ui/money";
-import { bidDeliveryTimeLabel } from "@rothern/shared";
+import { lostBidOutcome, type LostBidOutcome } from "@/lib/tenders/lost-bid-outcome";
+import { useFormatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import {
   ArrowUpDown,
@@ -31,23 +34,25 @@ import {
   ListFilter,
 } from "lucide-react";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const PAGE_SIZE = 10;
 
+// Etiketler katalog anahtarı (`status.<KOD>`), çizim yerinde `t(key)`.
 const STATUS: Record<
   string,
-  { label: string; color: "amber" | "green" | "zinc" | "red" | "violet" }
+  { key: string; color: "amber" | "green" | "zinc" | "red" | "violet" }
 > = {
-  DRAFT: { label: "Taslak", color: "amber" },
-  SUBMITTED: { label: "Değerlendirmede", color: "violet" },
-  WON: { label: "Kazandı", color: "green" },
-  AWARDED_PARTIAL: { label: "Kısmen Kazandı", color: "green" },
-  LOST: { label: "Elendi", color: "zinc" },
+  DRAFT: { key: "status.DRAFT", color: "amber" },
+  SUBMITTED: { key: "status.SUBMITTED", color: "violet" },
+  WON: { key: "status.WON", color: "green" },
+  AWARDED_PARTIAL: { key: "status.AWARDED_PARTIAL", color: "green" },
+  LOST: { key: "status.LOST", color: "zinc" },
   // Nötr kullanıcı eylemi — kırmızı hata/tehlike imasıydı (detay paneliyle uyum).
-  WITHDRAWN: { label: "Geri çekildi", color: "zinc" },
+  WITHDRAWN: { key: "status.WITHDRAWN", color: "zinc" },
 };
 /** C52: statü → sol şerit rengi (rozet renkleriyle aynı aile). */
 const STATUS_STRIP: Record<string, string> = {
@@ -58,46 +63,55 @@ const STATUS_STRIP: Record<string, string> = {
   LOST: "bg-gradient-to-b from-zinc-400 to-zinc-300",
   WITHDRAWN: "bg-gradient-to-b from-zinc-400 to-zinc-300",
 };
+// LOST tek durumda üç olayı saklar: yalnız alıcının elediği "Elendi";
+// kazandırmada kaybeden "Kaybetti", kazanansız/iptal kapanan ayrı (arayüz
+// testi D-102 — talep detayı ve teklif paneliyle aynı `lostBidOutcome`).
+const LOST_OUTCOME_KEY: Record<LostBidOutcome, string> = {
+  orderRejected: "lostOutcome.orderRejected",
+  eliminated: "lostOutcome.eliminated",
+  lost: "lostOutcome.lost",
+  cancelled: "lostOutcome.cancelled",
+  closed: "lostOutcome.closed",
+};
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
-const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
+const STATUS_FALLBACK = { key: "status.UNKNOWN", color: "zinc" as const };
 
 // Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
+// `labelKey` katalog anahtarı — seçenek listeleri bileşende `t(labelKey)` ile çizilir.
 const STATUS_FILTER_OPTIONS = [
-  { value: "DRAFT", label: "Taslak" },
-  { value: "SUBMITTED", label: "Değerlendirmede" },
-  { value: "WON", label: "Kazandı" },
-  { value: "AWARDED_PARTIAL", label: "Kısmen Kazandı" },
-  { value: "LOST", label: "Elendi" },
-  { value: "WITHDRAWN", label: "Geri çekildi" },
+  { value: "DRAFT", labelKey: "status.DRAFT" },
+  { value: "SUBMITTED", labelKey: "status.SUBMITTED" },
+  { value: "WON", labelKey: "status.WON" },
+  { value: "AWARDED_PARTIAL", labelKey: "status.AWARDED_PARTIAL" },
+  { value: "LOST", labelKey: "status.LOST" },
+  { value: "WITHDRAWN", labelKey: "status.WITHDRAWN" },
 ];
 
-const SORT_OPTIONS = [
-  { value: "newest", label: "En Yeni" },
-  { value: "oldest", label: "En Eski" },
-  { value: "amount", label: "Tutar (Yüksek → Düşük)" },
+const SORT_OPTIONS: { value: MyBidSort; labelKey: string }[] = [
+  { value: "newest", labelKey: "sort.newest" },
+  { value: "oldest", labelKey: "sort.oldest" },
+  { value: "amount", labelKey: "sort.amount" },
 ];
 
 const RANGE_OPTIONS = [
-  { value: "all", label: "Tüm Zamanlar" },
-  { value: "7", label: "Son 7 Gün" },
-  { value: "30", label: "Son 30 Gün" },
-  { value: "90", label: "Son 3 Ay" },
-  { value: "365", label: "Son 1 Yıl" },
+  { value: "all", labelKey: "range.all" },
+  { value: "7", labelKey: "range.d7" },
+  { value: "30", labelKey: "range.d30" },
+  { value: "90", labelKey: "range.d90" },
+  { value: "365", labelKey: "range.d365" },
 ];
-
-function matchesSearch(b: MyBid, q: string) {
-  if (!q) return true;
-  const needle = q.toLocaleLowerCase("tr");
-  return (
-    b.listing.title.toLocaleLowerCase("tr").includes(needle) ||
-    (b.listing.number ?? "").toLocaleLowerCase("tr").includes(needle) ||
-    b.listing.ownerName.toLocaleLowerCase("tr").includes(needle)
-  );
-}
 
 /** Teklif kartı — Açık Talepler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
+  const t = useTranslations("web.panel.trade.myBidsList");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const formatDate = useFormatDate();
+  const { money: formatMoney } = useFormatMoney();
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
+  const statusKey =
+    b.status === "LOST"
+      ? LOST_OUTCOME_KEY[lostBidOutcome(b, b.listing.status)]
+      : st.key;
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
   const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
   const urgency =
@@ -133,7 +147,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               {b.listing.number ?? "—"}
             </span>
             <span aria-hidden className="h-5 w-px bg-zinc-200" />
-            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">Açık Talep</span>
+            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">{t("acikTalep")}</span>
           </div>
           <span
             className={cn(
@@ -145,7 +159,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               st.color === "zinc" && "bg-zinc-100 text-zinc-600",
             )}
           >
-            {st.label}
+            {t(statusKey as never)}
           </span>
         </div>
         <h3
@@ -155,7 +169,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           )}
         >
           <Link
-            href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
+            href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(MODULE_LABELS.satis.teklifler)}`}
             className="after:absolute after:inset-0 after:content-['']"
           >
             {b.listing.title}
@@ -168,8 +182,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               <Building2 className="size-4 text-zinc-600" aria-hidden="true" />
             </span>
             <span className="truncate">
-              {"Alıcı: "}
-              {b.listing.ownerName}
+              {t("alici", { name: b.listing.ownerName })}
             </span>
           </span>
           <span aria-hidden className="hidden h-7 w-px bg-zinc-200 sm:block" />
@@ -183,40 +196,39 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
             <span className="text-zinc-600">
-              Taahhüt teslim:{" "}
-              {bidDeliveryTimeLabel(b.deliveryTime) ??
-                (b.deliveryDate
-                  ? formatDate(b.deliveryDate, "short")
-                  : "")}
+              {t("taahhutTeslim", {
+                value:
+                  bidDeliveryTimeLabel(b.deliveryTime) ??
+                  (b.deliveryDate ? formatDate(b.deliveryDate, "short") : ""),
+              })}
             </span>
           ) : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
-            <span className="text-xs text-zinc-500">Tur {b.round}</span>
+            <span className="text-xs text-zinc-500">{t("tur", { round: b.round })}</span>
           ) : null}
-          {b.version > 1 ? (
+          {/* Revizyon = GÖNDERİM sayısı (O-036): `version` eşzamanlılık
+              sayacıdır, taslak kaydında da artar. */}
+          {b.submitCount > 1 ? (
             <span
               className="text-xs text-zinc-500"
-              title={`Bu teklifin ${b.version}. revizyonu`}
+              title={t("buTeklifinRevizyonu", { version: b.submitCount })}
             >
-              Revizyon {b.version}
+              {t("revizyon", { version: b.submitCount })}
             </span>
           ) : null}
         </div>
 
         {canRebid ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            Talep hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
+            {t("talepHalaAcikGuncellenmisTeklifle")}
           </p>
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-sm">
           <div className="flex items-center gap-2 text-zinc-600">
             <Calendar className="size-4" aria-hidden="true" />
-            <span>
-              Verildi{" "}
-              {formatDate(b.createdAt, "short")}
-            </span>
+            <span>{t("verildi", { date: formatDate(b.createdAt, "short") })}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {b.listing.status === "OPEN" && b.listing.closesAt ? (
@@ -227,17 +239,17 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 )}
               >
                 <Clock className="size-4" aria-hidden="true" />
-                Kapanışa{" "}
+                {t("kapanisa")}{" "}
                 <CountdownFull
                   deadline={b.listing.closesAt}
-                  endedLabel="Kapandı"
+                  endedLabel={t("kapandi")}
                 />
               </span>
             ) : !won ? (
               <span className="text-zinc-500">
                 {/* C51: Değerlendirmede rozetiyle "kapandı" çelişkili okunuyordu —
                     gönderilmiş teklifte süreç dili. */}
-                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Talep kapandı"}
+                {b.status === "SUBMITTED" ? t("sonucBekleniyor") : t("talepKapandi")}
               </span>
             ) : null}
             {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
@@ -246,7 +258,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 href={`/company/siparis/${b.orderId}`}
                 className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Siparişe Git
+                {t("sipariseGit")}
                 <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : canRebid ? (
@@ -254,7 +266,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 href={`/company/ilan/${b.listing.id}/teklif-ver`}
                 className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Yeniden Teklif Ver
+                {t("yenidenTeklifVer")}
                 <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : null}
@@ -264,80 +276,155 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   );
 }
 
+/**
+ * `?status=` değerinden başlangıç süzgeci; bilinmeyen kodlar atılır. URL'deki
+ * küme OLDUĞU GİBİ geri yüklenir (arayüz testi D-120): eskiden `WON` her zaman
+ * `AWARDED_PARTIAL` ile genişletiliyordu, yalnız "Kazandı" seçip teklife girip
+ * dönen kullanıcı "Kazandı + Kısmen Kazandı" görüyordu. "Kısmi kazanım dahil"
+ * KPI'ları bunun yerine `MY_BIDS_WON_KPI_HREF` (lib/company/my-bids-links) ile iki kodu açıkça taşır.
+ */
+export function parseStatusParam(raw: string | null): MyBid["status"][] {
+  const picked = (raw ?? "")
+    .split(",")
+    .filter((v): v is MyBid["status"] => STATUS_FILTER_OPTIONS.some((o) => o.value === v));
+  return [...new Set(picked)];
+}
+
+/**
+ * Tekliflerim süzgeç durumu — URL'de yaşar (arayüz testi D-120): teklife girip
+ * geri dönünce ya da adresi paylaşınca süzgeç/sıralama/sayfa korunur; Şirketim
+ * KPI'ları (`?status=WON,AWARDED_PARTIAL`, `?pending=1`) buraya doğrudan bağlanır.
+ */
+export interface MyBidsUrlState {
+  status: MyBid["status"][];
+  /** Karar bekleyen (sunucunun `counts.active` kümesi). */
+  pending: boolean;
+  q: string;
+  sort: MyBidSort;
+  range: string;
+  page: number;
+}
+
+export function parseMyBidsUrl(sp: URLSearchParams): MyBidsUrlState {
+  const sort = sp.get("sort");
+  const range = sp.get("range");
+  const page = Number(sp.get("page"));
+  return {
+    status: parseStatusParam(sp.get("status")),
+    pending: sp.get("pending") === "1",
+    q: (sp.get("q") ?? "").slice(0, 120),
+    sort: SORT_OPTIONS.some((o) => o.value === sort) ? (sort as MyBidSort) : "newest",
+    range: RANGE_OPTIONS.some((o) => o.value === range) ? (range as string) : "all",
+    page: Number.isInteger(page) && page > 1 ? page : 1,
+  };
+}
+
+export function buildMyBidsQuery(s: MyBidsUrlState): string {
+  const sp = new URLSearchParams();
+  if (s.status.length) sp.set("status", s.status.join(","));
+  if (s.pending) sp.set("pending", "1");
+  if (s.q) sp.set("q", s.q);
+  if (s.sort !== "newest") sp.set("sort", s.sort);
+  if (s.range !== "all") sp.set("range", s.range);
+  if (s.page > 1) sp.set("page", String(s.page));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+const BASE_HREF = "/company/satis/tekliflerim";
+
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
+  const t = useTranslations("web.panel.trade.myBidsList");
+  const tn = useNavLabel();
   const accent = useButtonAccent();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string[]>([]);
-  const [sort, setSort] = useState("newest");
-  const [range, setRange] = useState("all");
-  const [page, setPage] = useState(1);
-
-  const { data, isLoading } = useMyBids();
-
-  const description = "Açık taleplere verdiğiniz tüm teklifler ve sonuçları.";
-  const emptyHint =
-    "Açık Talepler ekranından bir talebe teklif verdiğinizde burada görünür.";
-  const fromHref = "/company/satis/tekliflerim";
-
-  const all = useMemo(() => data ?? [], [data]);
-
-  const filtered = useMemo(() => {
-    const rangeMs = range === "all" ? null : Number(range) * 86_400_000;
-    const now = Date.now();
-    const rows = all.filter((b) => {
-      if (!matchesSearch(b, search)) return false;
-      if (status.length > 0 && !status.includes(b.status)) return false;
-      if (rangeMs !== null && now - new Date(b.createdAt).getTime() > rangeMs)
-        return false;
-      return true;
-    });
-    const out = [...rows];
-    if (sort === "oldest") {
-      out.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    } else if (sort === "amount") {
-      // Çoklu birimde adil kıyas: TRY karşılığı varsa onunla, yoksa ham tutar.
-      const val = (x: MyBid) => Number(x.amountTry ?? x.amount);
-      out.sort((a, b) => val(b) - val(a));
-    } else {
-      out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    }
-    return out;
-  }, [all, search, status, sort, range]);
-
-  const isFiltered = search !== "" || status.length > 0 || range !== "all";
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
+  // KPI drill-down (Şirketim / İş Analizi): `?status=WON,AWARDED_PARTIAL`
+  // (MY_BIDS_WON_KPI_HREF) ya da `?pending=1` — süzgeç, sıralama ve sayfa URL'de.
+  const sp = useSearchParams();
+  const [state, setState] = useState<MyBidsUrlState>(() =>
+    parseMyBidsUrl(new URLSearchParams(sp?.toString() ?? "")),
   );
+  const [search, setSearch] = useState(state.q);
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
 
-  function resetToFirstPage<T>(setter: (v: T) => void) {
-    return (v: T) => {
-      setPage(1);
-      setter(v);
-    };
-  }
+  // Süzme/sıralama/sayfalama SUNUCUDA (arayüz testi O-005): eskiden uç en yeni
+  // 200 teklifi döndürüyor, istemci o kesik listede süzüp sayıyordu.
+  // İskelet `isPending`e bağlı, `isLoading`e değil (gözden geçirme REV-2):
+  // çevrimdışı cihazda sorgu DURAKLAR (istek yok, hata yok, veri yok) ve
+  // `isLoading` false kalır — "0 teklif" + "Henüz teklif vermediniz" çiziliyordu.
+  // Süzgeç değişiminde önceki sayfa yer tutucudur (`keepPreviousData`): pending değil.
+  const bids = useMyBids({
+    status: state.status,
+    pending: state.pending,
+    q: state.q || undefined,
+    days: state.range === "all" ? undefined : Number(state.range),
+    sort: state.sort,
+    page: state.page,
+    pageSize: PAGE_SIZE,
+  });
+  const { data, isPending } = bids;
+  // Okunamayan liste: hata kartı 15 sn'lik yoklamayla iskelete DÖNMEZ, veri
+  // gelene dek durur (`useReadFailed`, son canlı kontrol OUTF-1). Yer tutucu
+  // (önceki süzgecin sayfası) "veri" sayılmaz: kesintide süzgeç değiştirenin
+  // kartı yoklamada başka süzgecin satırlarına dönmez (gözden geçirme REV-OUTF-1).
+  const { failed, retry } = useReadFailed(bids);
+
+  /** Durumu güncelle + adres çubuğuna yaz (geçmiş girdisi açmadan). */
+  const update = (patch: Partial<MyBidsUrlState>, resetPage = true) => {
+    const next = { ...state, ...patch, ...(resetPage ? { page: 1 } : {}) };
+    setState(next);
+    try {
+      const u = new URL(window.location.href);
+      u.search = buildMyBidsQuery(next);
+      window.history.replaceState(window.history.state, "", u.toString());
+    } catch {
+      /* adres yazılamadı — durum yine güncellenir */
+    }
+  };
+
+  useEffect(() => {
+    if (debouncedSearch !== state.q) update({ q: debouncedSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const description = t("acikTaleplereVerdiginizTumTeklifler");
+  const emptyHint = t("acikTaleplerEkranindanBirTalebe");
+  // Detaydan "geri" süzgeçli listeye dönsün.
+  const fromHref = `${BASE_HREF}${buildMyBidsQuery(state)}`;
+
+  const rows = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const counts = data?.counts;
+  const isFiltered =
+    state.q !== "" || state.status.length > 0 || state.pending || state.range !== "all";
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage = Math.min(data?.page ?? state.page, totalPages);
+
+  const optionLabel = (o: { labelKey: string } | undefined, fallback: string) =>
+    o ? t(o.labelKey as never) : fallback;
+
+  const clearAll = () => {
+    setSearch("");
+    update({ q: "", status: [], pending: false, range: "all" });
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={MODULE_LABELS.satis.teklifler}
+        title={tn(MODULE_LABELS.satis.teklifler)}
         description={description}
       />
-      {/* Sayaçlar panodaki KPI ile AYNI seçiciden (kpi-selectors) — iki sayfa
-          iki farklı sayı gösteriyordu. */}
-      {all.length > 0 ? (
-        <p className="text-sm text-zinc-500" aria-label="Teklif özeti">
-          <span className="font-semibold text-zinc-900">
-            {selectActiveOffers(all).length}
-          </span>{" "}
-          karar bekleyen ·{" "}
-          <span className="font-semibold text-zinc-900">
-            {selectWonOffers(all).length}
-          </span>{" "}
-          kazanılan (kısmi dahil)
+      {/* Sayaçlar SUNUCUDAN (süzgeçten bağımsız) — Şirketim KPI'ları ile aynı
+          sayım; eskiden en yeni 200 teklifte sayılıyordu. Liste okunamadıysa
+          çizilmez: yoklama sırasında yer tutucunun sayaçları kartın üstünde
+          belirip kaybolurdu (REV-OUTF-1). */}
+      {!failed && counts && counts.all > 0 ? (
+        <p className="text-sm text-zinc-500" aria-label={t("teklifOzeti")}>
+          {t.rich("ozet", {
+            active: counts.active,
+            won: counts.won,
+            b: (c) => <span className="font-semibold text-zinc-900">{c}</span>,
+          })}
         </p>
       ) : null}
 
@@ -347,105 +434,114 @@ export function MyBidsList() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <SearchInput
             value={search}
-            onChange={resetToFirstPage(setSearch)}
-            placeholder="Talep adı, numarası veya alıcı ara…"
+            onChange={setSearch}
+            placeholder={t("talepAdiNumarasiVeyaAlici")}
             className="flex-1"
           />
           <FilterSelect
             icon={ArrowUpDown}
-            value={sort}
-            onChange={resetToFirstPage(setSort)}
-            options={SORT_OPTIONS}
-            ariaLabel="Sıralama"
-            active={sort !== "newest"}
+            value={state.sort}
+            onChange={(v) => update({ sort: v as MyBidSort })}
+            options={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("siralama")}
+            active={state.sort !== "newest"}
             className="sm:min-w-[160px]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <FilterMultiSelect
             icon={ListFilter}
-            value={status}
-            onChange={resetToFirstPage(setStatus)}
-            options={STATUS_FILTER_OPTIONS}
-            allLabel="Tüm Durumlar"
-            ariaLabel="Duruma göre filtrele"
+            value={state.status}
+            onChange={(v) => update({ status: v as MyBid["status"][] })}
+            options={STATUS_FILTER_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            allLabel={t("tumDurumlar")}
+            ariaLabel={t("durumaGoreFiltrele")}
           />
           <FilterSelect
             icon={CalendarRange}
-            value={range}
-            onChange={resetToFirstPage(setRange)}
-            options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
-            active={range !== "all"}
+            value={state.range}
+            onChange={(v) => update({ range: v })}
+            options={RANGE_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("tarihAraligi")}
+            active={state.range !== "all"}
           />
-          <ResultCount
-            total={filtered.length}
-            isFiltered={isFiltered}
-            unit="teklif"
-            className="ml-auto"
-          />
+          {failed ? (
+            // Okunamayan toplam "0 teklif" diye basılmaz (canlı doğrulama OUT-2;
+            // Siparişlerim'deki D-259 ile aynı kural) — hata kartı aşağıda.
+            <span className="ml-auto" />
+          ) : (
+            <ResultCount
+              total={total}
+              isFiltered={isFiltered}
+              kind="teklif"
+              isLoading={isPending}
+              className="ml-auto"
+            />
+          )}
         </div>
         <ActiveFilterChips
           filters={[
-            ...(search
+            ...(state.q
               ? [
                   {
                     key: "search",
-                    label: `Arama: "${search}"`,
-                    onRemove: () => resetToFirstPage(setSearch)(""),
+                    label: t("arama", { search: state.q }),
+                    onRemove: () => {
+                      setSearch("");
+                      update({ q: "" });
+                    },
                   },
                 ]
               : []),
-            ...status.map((s) => ({
+            ...(state.pending
+              ? [
+                  {
+                    key: "pending",
+                    label: t("kararBekleyen"),
+                    onRemove: () => update({ pending: false }),
+                  },
+                ]
+              : []),
+            ...state.status.map((s) => ({
               key: `status:${s}`,
-              label: STATUS_FILTER_OPTIONS.find((f) => f.value === s)?.label ?? s,
-              onRemove: () => resetToFirstPage(setStatus)(status.filter((x) => x !== s)),
+              label: optionLabel(STATUS_FILTER_OPTIONS.find((f) => f.value === s), s),
+              onRemove: () => update({ status: state.status.filter((x) => x !== s) }),
             })),
-            ...(range !== "all"
+            ...(state.range !== "all"
               ? [
                   {
                     key: "range",
-                    label:
-                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
-                      range,
-                    onRemove: () => resetToFirstPage(setRange)("all"),
+                    label: optionLabel(RANGE_OPTIONS.find((r) => r.value === state.range), state.range),
+                    onRemove: () => update({ range: "all" }),
                   },
                 ]
               : []),
           ]}
-          onClearAll={() => {
-            setSearch("");
-            setStatus([]);
-            setRange("all");
-            setPage(1);
-          }}
+          onClearAll={clearAll}
         />
       </div>
 
-      {isLoading ? (
+      {failed ? (
+        <ErrorState onRetry={retry} />
+      ) : isPending ? (
         <ListSkeleton rows={5} />
-      ) : filtered.length === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={isFiltered ? CircleSlash : Gavel}
           variant={isFiltered ? "no-results" : "no-data"}
-          title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermediniz"}
+          title={isFiltered ? t("eslesenTeklifYok") : t("henuzTeklifVermediniz")}
           description={
-            isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
+            isFiltered ? t("filtreleriDegistiripTekrarDene") : emptyHint
           }
           action={
             isFiltered ? (
               /* P2 (denetim §5): filtre yüzünden boşsa TEK TIK temizleme. */
               <button
                 type="button"
-                onClick={() => {
-                  setSearch("");
-                  setStatus([]);
-                  setRange("all");
-                  setPage(1);
-                }}
+                onClick={clearAll}
                 className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
-                Filtreleri Temizle
+                {t("filtreleriTemizle")}
               </button>
             ) : (
               <Link
@@ -455,7 +551,7 @@ export function MyBidsList() {
                   accentFillClass(accent),
                 )}
               >
-                Açık Taleplere Göz At
+                {t("acikTaleplereGozAt")}
               </Link>
             )
           }
@@ -463,7 +559,7 @@ export function MyBidsList() {
       ) : (
         <>
           <div className="flex flex-col gap-3">
-            {pageRows.map((b) => (
+            {rows.map((b) => (
               <MyBidCard key={b.id} b={b} fromHref={fromHref} />
             ))}
           </div>
@@ -472,9 +568,9 @@ export function MyBidsList() {
               variant="bare"
               page={safePage}
               totalPages={totalPages}
-              total={filtered.length}
+              total={total}
               pageSize={PAGE_SIZE}
-              onPageChange={setPage}
+              onPageChange={(p) => update({ page: p }, false)}
             />
           ) : null}
         </>

@@ -1,6 +1,8 @@
 import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+import { localizedRedirectDestination } from "@rothern/i18n";
 
 // V2-7+ güvenlik (OWASP A05) — tamamlayıcı header'lar.
 // CSP burada DEĞİL: nonce tabanlı script-src per-request üretilir → src/
@@ -17,6 +19,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // `x-powered-by: Next.js` çerçeve bilgisini sızdırıyordu (G3) — kapalı.
+  poweredByHeader: false,
   // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (node_modules izlenip
   // .next/standalone'a kopyalanır → ~150MB imaj, `next start` yerine `node
   // server.js`). Monorepo'da workspace bağımlılıkları (@rothern/shared) repo
@@ -35,7 +39,7 @@ const nextConfig: NextConfig = {
   // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
   // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne
   // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.
-  transpilePackages: ["@rothern/shared"],
+  transpilePackages: ["@rothern/shared", "@rothern/i18n"],
 
   /**
    * GÖRSEL OPTİMİZASYONU (Faz 3c).
@@ -121,7 +125,33 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
+    // i18n Faz 1: her yönlendirmenin `/en/…` ve `/ru/…` kopyası — eski adres
+    // hangi dilde açıldıysa aynı dilde yeni adrese gitsin (Türkçe ön eksiz).
+    // Hedef o dilin DIŞ yolu (2026-09-27): eskiden Türkçe iç yol yazılıyordu →
+    // `/ru/giris` → `/ru/company/login` → `/ru/kompaniya/vhod` zinciri (next-intl
+    // ikinci 308'i atıyordu). Tek sıçrama: `localizedRedirectDestination`.
+    const withLocales = (
+      rules: { source: string; destination: string; permanent: boolean }[],
+    ) => [
+      ...rules,
+      ...(["en", "ru"] as const).flatMap((l) =>
+        rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: localizedRedirectDestination(r.destination, l) })),
+      ),
+    ];
     return [
+      // Paketler ve paket satın alma ekranları KALDIRILDI (ücretsiz dönem,
+      // 2026-10-07): doğrulanan firma tam erişimlidir, satın alınacak paket
+      // yok. Eski adresler (e-posta CTA'ları, yer imleri) doğrulama sayfasına
+      // gider. EN/RU DIŞ adresleri rota haritasından silindiği için burada
+      // açıkça yazılır (yoksa 404 olurdu); Türkçe iç yol aşağıdaki listede
+      // (`withLocales` `/en/company/premium` biçimini de kapsar).
+      { source: "/en/company/plans", destination: "/en/company/settings/verification", permanent: true },
+      { source: "/en/company/plans/checkout", destination: "/en/company/settings/verification", permanent: true },
+      { source: "/ru/kompaniya/tarify", destination: "/ru/kompaniya/nastroyki/verifikatsiya", permanent: true },
+      { source: "/ru/kompaniya/tarify/oformlenie", destination: "/ru/kompaniya/nastroyki/verifikatsiya", permanent: true },
+      ...withLocales([
+      { source: "/company/premium", destination: "/company/ayarlar/dogrulama", permanent: true },
+      { source: "/company/premium/satin-al", destination: "/company/ayarlar/dogrulama", permanent: true },
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
       // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
       // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
@@ -142,6 +172,20 @@ const nextConfig: NextConfig = {
       { source: "/alim-talepleri/:number(rot-\\d+)", destination: "/talep/:number", permanent: true },
       // Detaylı sihirbaz KALDIRILDI (2026-09-19): eski adres hızlı karta (sorgu korunur).
       { source: "/company/satinalma/taleplerim/yeni/detayli", destination: "/company/satinalma/taleplerim/yeni", permanent: true },
+      // Herkese açık FİYAT bölümü KALDIRILDI (ücretsiz dönem, 2026-10-07):
+      // platform ilk dönemde ücretsiz, fiyat/paket sayfası yok. Ziyaretçinin
+      // elle yazdığı ya da dışarıda paylaşılmış fiyat adresleri her dilde
+      // anasayfaya döner (`withLocales` `/en/…` ve `/ru/…` kopyalarını üretir).
+      // GEÇİCİ (307): ücretli dönem geri geldiğinde bu adresler yeniden sayfa
+      // olabilir, tarayıcı/arama motoru yönlendirmeyi kalıcı önbelleğe almasın.
+      // `#fiyatlar` / `#pricing` / `#tarify` çapaları sunucuya gitmez; onları
+      // "Nasıl çalışır" sayfası istemcide anasayfaya çevirir (anchors.ts).
+      { source: "/fiyatlar", destination: "/", permanent: false },
+      { source: "/fiyatlandirma", destination: "/", permanent: false },
+      { source: "/paketler", destination: "/", permanent: false },
+      { source: "/pricing", destination: "/", permanent: false },
+      { source: "/plans", destination: "/", permanent: false },
+      { source: "/tarify", destination: "/", permanent: false },
       { source: "/giris", destination: "/company/login", permanent: true },
       { source: "/kayit", destination: "/company/kayit", permanent: true },
       {
@@ -211,6 +255,7 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/raporlar",
         permanent: true,
       },
+      ]),
     ];
   },
 };
@@ -222,8 +267,14 @@ const nextConfig: NextConfig = {
  * mevcut Vercel derlemeleri etkilenmez. Hata yakalama sarmalayıcıdan BAĞIMSIZ
  * çalışır (`instrumentation-client.ts`).
  */
+// Çok dillilik (i18n Faz 0): `src/i18n/request.ts` istek dilini ve katalogları
+// verir. Faz 0'da YÖNLENDİRME YOK (middleware/[locale] segmenti Faz 1) — bkz.
+// docs/plan-i18n.md. Sentry sarmalayıcısı EN DIŞTA kalır.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+const configWithIntl = withNextIntl(nextConfig);
+
 export default process.env.SENTRY_AUTH_TOKEN
-  ? withSentryConfig(nextConfig, {
+  ? withSentryConfig(configWithIntl, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       // SESSİZ DEĞİL (2026-09-16): `silent: true` yükleme HATASINI da yutuyordu.
@@ -237,4 +288,4 @@ export default process.env.SENTRY_AUTH_TOKEN
       // Kaynak haritaları YÜKLENİR ama sunucuya SERVİS EDİLMEZ (gizli kalır).
       sourcemaps: { deleteSourcemapsAfterUpload: true },
     })
-  : nextConfig;
+  : configWithIntl;

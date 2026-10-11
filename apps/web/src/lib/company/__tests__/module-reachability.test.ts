@@ -14,7 +14,7 @@ import { COMPANY_AREA, MODULE_LABELS, PORTALS, allPortalRoutes } from "../portal
  * Dosya sistemi üzerinden gider: yeni bir sayfa eklenip menüye bağlanmazsa
  * test kırılır. Menü DIŞI kalması bilinçli olanlar açıkça listelenir.
  */
-const APP_DIR = path.join(process.cwd(), "src/app/company/(authed)");
+const APP_DIR = path.join(process.cwd(), "src/app/[locale]/company/(authed)");
 
 /** Menüde OLMAMASI bilinçli olan rotalar — her biri gerekçesiyle. */
 const NOT_IN_MENU: Record<string, string> = {

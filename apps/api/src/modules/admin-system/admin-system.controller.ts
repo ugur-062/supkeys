@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Body,
@@ -11,14 +12,15 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Type } from "class-transformer";
+import { FOREIGN_CURRENCY_CODES } from "@rothern/shared";
 import {
-  IsEmail,
   IsIn,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Max,
+  Matches,
   MaxLength,
   Min,
 } from "class-validator";
@@ -43,16 +45,8 @@ class ResolveCategoryMissDto {
   note!: string;
 }
 
-const MANUAL_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-];
+// TEK KAYNAK `@rothern/shared` (TRY hariç — TRY=1 sabit).
+const MANUAL_CURRENCIES: readonly string[] = FOREIGN_CURRENCY_CODES;
 
 class ManualRateDto {
   @IsIn(MANUAL_CURRENCIES)
@@ -65,8 +59,12 @@ class ManualRateDto {
 }
 
 class ClearSuppressionDto {
-  @IsEmail()
-  @MaxLength(200)
+  // Derin denetim LU-04: IsEmail DEĞİL — liste EmailLog.toEmail'deki ham adresi
+  // gösterir; doğrulanmadan yazılmış eski bir adres (billingEmail) de
+  // aklanabilmeli. Boş/boşluk-only reddedilir.
+  @IsString()
+  @MaxLength(320)
+  @Matches(/\S/)
   email!: string;
 }
 
@@ -179,16 +177,22 @@ export class AdminSystemController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     // Fat-finger koruması: mevcut kurdan 10x sapma reddedilir.
-    const current = await this.exchangeRates
-      .getCurrentRate(dto.currency as never)
-      .catch(() => null);
-    if (current && (dto.rate > current * 10 || dto.rate < current / 10)) {
+    // Tablo boşken kıyas YEDEK kura göre yapılır (getCurrentRate → FALLBACK).
+    // Kur okunamazsa hata YUTULMAZ: eskiden `.catch(() => null)` korumayı
+    // sessizce atlatıyordu (para yolu → fail-closed).
+    const current = await this.exchangeRates.getCurrentRate(dto.currency as never);
+    if (!(current > 0) || dto.rate > current * 10 || dto.rate < current / 10) {
       throw new BadRequestException(
-        `Girilen kur mevcut değerden (${current}) aşırı sapıyor — kontrol edin`,
+        i18nMessage("api.adminSystem.girilenKurMevcutDegerdenAsiriSapiyor", { current: current }),
       );
     }
-    const rateDate = new Date();
-    rateDate.setHours(0, 0, 0, 0);
+    // Gün anahtarı UTC gece yarısı — TCMB satırıyla AYNI anahtar
+    // (`new Date("YYYY-AA-GG")`); kolon `@db.Date`, Prisma UTC gününü yazar.
+    // Eski `setHours(0,0,0,0)` sunucunun YEREL gece yarısıydı: UTC+3 süreçte
+    // satır DÜNE yazılıyor, bugünün TCMB satırı varken elle kur "ok" dönüp
+    // hiçbir etki yapmıyordu (en güncel satır olmuyordu).
+    const now = new Date();
+    const rateDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     await this.prisma.exchangeRate.upsert({
       where: {
         currency_rateDate: {
@@ -204,6 +208,8 @@ export class AdminSystemController {
       },
       update: { rate: dto.rate, source: "MANUAL", fetchedAt: new Date() },
     });
+    // Bellek içi kur tablosu + ürün fiyat tabanı yeni kurla tazelensin.
+    await this.exchangeRates.onRatesChanged();
     await this.audit.log({
       action: "admin.system.manual_rate_set",
       actorType: "admin",
@@ -237,19 +243,10 @@ export class AdminSystemController {
     @Body() dto: ClearSuppressionDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    const email = dto.email.trim().toLowerCase();
-    await this.prisma.emailLog.create({
-      data: {
-        template: "suppression_clear",
-        toEmail: email,
-        subject: "suppression clear (admin)",
-        provider: "internal",
-        status: "SENT",
-        sentAt: new Date(),
-        contextType: "suppression_clear",
-        contextId: admin.id,
-      },
-    });
+    // Derin denetim LU-04: marker kayıtlardaki her büyük/küçük harf yazımı
+    // için yazılır (eşleşme birebir) — tek kaynak EmailSuppressionService.
+    const email = dto.email.trim();
+    await this.suppression.clear(email, admin.id);
     await this.audit.log({
       action: "admin.system.suppression_cleared",
       actorType: "admin",
@@ -316,7 +313,7 @@ export class AdminSystemController {
       where: { id },
       select: { id: true, query: true },
     });
-    if (!row) throw new BadRequestException("Kayıt bulunamadı");
+    if (!row) throw new BadRequestException(i18nMessage("api.adminSystem.kayitBulunamadi"));
 
     await this.prisma.categorySearchMiss.update({
       where: { id },

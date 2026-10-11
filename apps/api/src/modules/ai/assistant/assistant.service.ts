@@ -1,4 +1,9 @@
+import { entitlementForbidden } from "../../../common/company/entitlement-required";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -6,7 +11,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { Prisma } from "@rothern/db";
+import { Prisma, type AiChatSession } from "@rothern/db";
 import type {
   AiAssistantReply,
   AiChatSessionDetailDto,
@@ -14,6 +19,7 @@ import type {
   AiTenderDraft,
   AiTenderExtractResult,
 } from "@rothern/shared";
+import { tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyConnectionsService } from "../../company-connections/services/company-connections.service";
@@ -23,16 +29,19 @@ import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai.config";
 import { AiBudgetService, costFromUsage } from "../ai-budget.service";
 import { AiService } from "../ai.service";
 import {
+  AiProviderError,
   BaseAiProvider,
   type AiHistoryTurn,
   type AiTokenUsage,
   type AiToolCall,
 } from "../providers/ai-provider.interface";
 import {
-  ASSISTANT_SYSTEM_PROMPT,
-  SUMMARY_SYSTEM_PROMPT,
+  assistantClockContext,
+  assistantSystemPrompt,
+  summarySystemPrompt,
   buildDraftContext,
   buildSummaryPrompt,
+  missingFieldsForPrompt,
 } from "./assistant.prompts";
 import {
   TOOL_NAMES,
@@ -40,14 +49,19 @@ import {
   canListMyBids,
   canListMyTenders,
   canSearchOpen,
+  connectionsForModel,
+  localizeToolCodes,
+  redactHiddenCategories,
   toolDefsForUser,
   trimList,
+  type ToolStatusKind,
   type Portal,
 } from "./assistant-tools";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 import { CategorySuggestService } from "../tender-extract/category-suggest.service";
 import { TenderExtractService } from "../tender-extract/tender-extract.service";
 import { AssistantActionsService } from "./assistant-actions.service";
+import { listingIdOfRef, orderIdOfRef } from "./record-ref";
 import { SUGGEST_NEW_CHAT_AFTER, planWindow, type StoredMessage } from "./window";
 
 const MAX_TOOL_ITERATIONS = 4;
@@ -64,8 +78,17 @@ const MAX_OUTPUT_TOKENS = 4096;
 /** Asistan turlarında düşünme kısılır: gecikme + thought-token israfı azalır,
  *  thought signature akışı (Gemini 3 zorunluluğu) aynen korunur. */
 const THINKING_LEVEL = "low" as const;
-/** Araç hatası (403/404/timeout/beklenmeyen) → hep bu nötr sonuç (bilgi sızmaz). */
+/** Araç hatası (timeout/beklenmeyen, izinsiz araç ya da liste) → hep bu nötr sonuç (bilgi sızmaz). */
 const NEUTRAL_ERROR = { error: "unavailable" } as const;
+/**
+ * A DETAIL tool found no record the user may see (live check 2026-10-10,
+ * NEW-PF-1). 403 and 404 share this one answer - whether the record exists and
+ * whether the user may see it is still not told apart. It is NOT the outage
+ * answer: the model read "unavailable" as a temporary failure and told the user
+ * to try again later, for a request number that simply was not found.
+ */
+const NOT_FOUND = { error: "not_found" } as const;
+const DETAIL_TOOLS: ReadonlySet<string> = new Set([TOOL_NAMES.getTenderDetail, TOOL_NAMES.getOrderDetail]);
 
 @Injectable()
 export class AssistantService {
@@ -90,34 +113,72 @@ export class AssistantService {
     dto: { sessionId?: string; message: string; fileKeys?: string[] },
   ): Promise<AiAssistantReply> {
     this.ai.assertAiAccess(user); // AI-0 kapısı: SA/ST + Silver+
-    const provider = this.provider!;
     const text = (dto.message ?? "").trim().slice(0, MAX_TURN_MESSAGE_LEN);
     if (!text && !(dto.fileKeys && dto.fileKeys.length > 0)) {
-      throw new ForbiddenException("Mesaj boş olamaz");
+      // Boş mesaj yetki değil girdi hatasıdır (arayüz testi O-067: 403 dönüyordu).
+      throw new BadRequestException(i18nMessage("api.ai.mesajBosOlamaz"));
     }
 
+    // Belge eki kapıları oturum AÇILMADAN önce (derin denetim A4): reddedilen
+    // istek geride boş "taslak" başlıklı öksüz oturum bırakmasın. Belge →
+    // talep taslağı yalnız satın alma portalı + GOLD (extract kendi kapısını
+    // da korur; burası erken ret).
+    const hasFiles = !!(dto.fileKeys && dto.fileKeys.length > 0);
+    if (hasFiles) {
+      // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
+      if (!allowedPortals(user).has("satinalma")) {
+        throw new ForbiddenException(i18nMessage("api.ai.belgedenTalepTaslagiYalnizSatinAlma"));
+      }
+      if (!tierAtLeast(user.tier, "GOLD")) {
+        throw entitlementForbidden(user.companyVerificationStatus);
+      }
+    }
+
+    const createdSession = !dto.sessionId;
     const session = dto.sessionId
       ? await this.loadOwnSession(user, dto.sessionId)
       : await this.prisma.aiChatSession.create({
           data: {
             companyId: user.companyId,
             userId: user.userId,
-            title: (text || "Satın Alma Talebi taslağı").slice(0, 60),
+            // Belgeyle açılan sohbetin başlığı arayüz dilinde (sohbet listesinde görünür).
+            title: (text || tApi("api.ai.assistant.draftSessionTitle")).slice(0, 60),
           },
         });
 
+    try {
+      return await this.runTurn(user, dto, session, text, hasFiles);
+    } catch (err) {
+      // Derin denetim LU-04: ilk mesajda açılan oturum, tur mesajları yazılmadan
+      // düşerse (portal/belge/bütçe/sağlayıcı hatası) silinir — istemci hata
+      // yanıtında sessionId almadığı için her yeniden deneme listede boş bir
+      // "hayalet" oturum bırakıyordu. turnCount=0 koşulu: mesajları yazılmış
+      // (tur tamamlanmış) oturuma asla dokunulmaz.
+      if (createdSession) {
+        await this.prisma.aiChatSession
+          .deleteMany({ where: { id: session.id, turnCount: 0 } })
+          .catch(() => undefined);
+      }
+      throw err;
+    }
+  }
+
+  private async runTurn(
+    user: AuthenticatedCompanyUser,
+    dto: { sessionId?: string; message: string; fileKeys?: string[] },
+    session: AiChatSession,
+    text: string,
+    hasFiles: boolean,
+  ): Promise<AiAssistantReply> {
+    const provider = this.provider!;
     // AI-3: oturumda biriken taslak (belge + konuşma birleşiminin kaynağı).
     let draft: AiTenderExtractResult | null = this.reviveDraft(session.tenderDraft);
     let draftTouched = false;
 
     // Belge yüklendiyse ihale çıkarımı yap, mevcut taslakla birleştir.
-    if (dto.fileKeys && dto.fileKeys.length > 0) {
-      // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
-      if (!allowedPortals(user).has("satinalma")) {
-        throw new ForbiddenException("Belgeden talep taslağı yalnız satın alma portalında çıkarılır");
-      }
+    if (hasFiles) {
       const extracted = await this.tenderExtract.extract(user, {
-        fileKeys: dto.fileKeys,
+        fileKeys: dto.fileKeys!,
         listingType: "ALIM",
       });
       draft = draft ? this.mergeDrafts(draft, extracted) : extracted;
@@ -128,28 +189,47 @@ export class AssistantService {
     const plan = planWindow(stored, session.summary, session.summarizedThroughSeq);
 
     const portals = allowedPortals(user);
-    const toolDefs = toolDefsForUser(portals);
+    const toolDefs = toolDefsForUser(portals, user.tier);
+    // Beyaz-liste kullanıcıya göre (arayüz testi O-054): bu kullanıcıya
+    // SUNULMAYAN bir araç adı (taslak/yayın/eleme önerisi dahil) model
+    // uydursa da yürütülmez — öneri fonksiyonu kendi rol/paket kapısını
+    // taşımadığı için kapı burada.
+    const offeredTools = new Set(toolDefs.map((d) => d.name));
 
+    // i18n Faz 3: asistan İSTEK DİLİNDE yanıtlar (Accept-Language → ALS;
+    // başlık yoksa JWT'deki kullanıcı dili). Dil adı prompt'a açıkça yazılır.
+    const locale = currentLocale();
+    // MU-07: bugunun tarihi + saat dilimi her turda (goreli/yilsiz kapanis tarihi).
+    const basePrompt = `${assistantSystemPrompt(locale)}\n\n${assistantClockContext()}`;
     // AI-3: taslak varsa modele context ver (system prompt'a eklenir).
     const systemPrompt = draft
-      ? `${ASSISTANT_SYSTEM_PROMPT}\n\n${buildDraftContext(
+      ? `${basePrompt}\n\n${buildDraftContext(
           JSON.stringify(draft.draft),
           draft.missingRequired,
         )}`
-      : ASSISTANT_SYSTEM_PROMPT;
+      : basePrompt;
 
     // Bütçe rezervasyonu ÇAĞRIDAN ÖNCE (fail-closed worst-case tahmin: araç
     // döngüsü + çıktı). Gerçek maliyet settle'da düzeltilir.
-    const estInputChars =
-      ASSISTANT_SYSTEM_PROMPT.length +
+    // Derin denetim LU-04: tur en fazla MAX_TOOL_ITERATIONS araç çağrısı + bir
+    // araçsız kapanış çağrısı yapar ve HER çağrı sistem istemini (taslak
+    // bağlamı dahil — basePrompt değil systemPrompt), araç tanımlarını ve
+    // geçmişi yeniden gönderir; k. çağrı önceki k araç sonucunu da taşır.
+    // Eski tahmin girdiyi tek çağrı sayıyor, taslağı hiç saymıyordu → settle
+    // tavanları (istek/gün/kullanıcı) tahminin birkaç katı aşabiliyordu.
+    const MAX_CALLS = MAX_TOOL_ITERATIONS + 1;
+    const estInputCharsPerCall =
+      systemPrompt.length +
       JSON.stringify(toolDefs).length +
       plan.history.reduce((n, t) => n + JSON.stringify(t).length, 0) +
       text.length;
+    const toolResultTokens = MAX_TOOL_RESULT_CHARS / 4;
     const estUsage: AiTokenUsage = {
       inputTokens:
-        Math.ceil(estInputChars / 4) +
-        MAX_TOOL_ITERATIONS * (MAX_TOOL_RESULT_CHARS / 4),
-      outputTokens: MAX_OUTPUT_TOKENS * MAX_TOOL_ITERATIONS,
+        MAX_CALLS * Math.ceil(estInputCharsPerCall / 4) +
+        // Birikimli araç sonuçları: 0 + 1 + … + MAX_TOOL_ITERATIONS.
+        toolResultTokens * ((MAX_TOOL_ITERATIONS * (MAX_TOOL_ITERATIONS + 1)) / 2),
+      outputTokens: MAX_OUTPUT_TOKENS * MAX_CALLS,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
@@ -232,11 +312,25 @@ export class AssistantService {
         });
         const responseParts = [];
         for (const call of result.toolCalls) {
+          if (!offeredTools.has(call.name)) {
+            responseParts.push({
+              functionResponse: { name: call.name, response: { ...NEUTRAL_ERROR } },
+            });
+            continue;
+          }
           toolsUsed.push(call.name);
           // AI-3: taslak toplama aracı — yürütme YOK, argümanlar sanitize edilip
           // taslağa dönüşür (BAĞLAYICI DEĞİL; ihale açılmaz).
           if (call.name === TOOL_NAMES.proposeTenderDraft) {
             const s = sanitizeAiDraft(call.args, "refine");
+            // Belge sayfa özetleri modelden istenmez (araç şemasında yok) —
+            // önceki taslaktan taşınır: refine bağlamı ve onay kartındaki
+            // "belgeden geldi" uyarısının kaynağı kaybolmasın.
+            if (s.draft.pageSummaries.length === 0 && draft?.draft.pageSummaries.length) {
+              s.draft.pageSummaries = draft.draft.pageSummaries;
+            }
+            // Kaynak işareti modelden alınmaz — önceki taslaktan taşınır.
+            s.draft.fromDocument = draft?.draft.fromDocument === true;
             draft = {
               ...s,
               route: "text",
@@ -247,7 +341,7 @@ export class AssistantService {
             responseParts.push({
               functionResponse: {
                 name: call.name,
-                response: { status: "ok", missingRequired: s.missingRequired },
+                response: { status: "ok", missingRequired: missingFieldsForPrompt(s.missingRequired) },
               },
             });
             continue;
@@ -257,7 +351,17 @@ export class AssistantService {
           // .bind patlaması olmasın — test stub'ları kısmi olabilir).
           const proposeFn = this.resolveProposeFn(call.name);
           if (proposeFn) {
-            const outcome = await proposeFn(user, session.id, call.args).catch(
+            // Bu turda toplanan taslak henüz oturuma yazılmadı (tur sonunda
+            // yazılır) — yayın önerisine bellekteki güncel taslak verilir,
+            // kategori önerisi de önden üretilir; yoksa "hazırla ve yayınla"
+            // tek mesajı "taslak yok"/bayat taslakla takılırdı (derin denetim
+            // canlı AI). Öneri yine YÜRÜTMEZ: yalnız onay kartı.
+            let turnDraft: AiTenderExtractResult["draft"] | undefined;
+            if (call.name === TOOL_NAMES.requestPublishTender && draftTouched && draft) {
+              draft = await this.withSuggestedCategories(user, draft);
+              turnDraft = draft.draft;
+            }
+            const outcome = await proposeFn(user, session.id, call.args, turnDraft).catch(
               () => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }),
             );
             if (outcome.ok && outcome.pending) pendingAction = outcome.pending;
@@ -299,6 +403,8 @@ export class AssistantService {
       await this.budget.fail(reservation.id, {
         errorCode: "provider_error",
         usage: sumHasTokens(totalUsage) ? totalUsage : undefined,
+        // Temizlenmiş sebep kullanım kaydına (metadata.providerReason).
+        reason: err instanceof AiProviderError ? err.reason : undefined,
       });
       const raw = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Asistan sağlayıcı hatası: ${raw}`);
@@ -312,41 +418,30 @@ export class AssistantService {
       const detail = raw.match(/"message"\s*:\s*"([^"]{1,160})/)?.[1];
       throw new ServiceUnavailableException(
         code
-          ? `Asistan şu an yanıt veremedi (sağlayıcı hatası ${code}${detail ? `: ${detail}` : ""}) — birkaç saniye sonra tekrar deneyin.`
-          : "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+          ? i18nMessage("api.ai.asistanYanitVeremediSaglayiciHatasi", {
+              code,
+              detail: detail ? `: ${detail}` : "",
+            })
+          : i18nMessage("api.ai.asistanYanitVeremedi"),
       );
     }
 
     // Konuşmayla toplanan taslakta kalem var ama kategori önerisi yoksa üret
     // (belge yolu extract() içinde zaten önerir). suggest() hata yutar — turu
     // asla düşürmez.
-    if (
-      draftTouched &&
-      draft &&
-      draft.draft.suggestedCategoryIds.length === 0 &&
-      draft.draft.items.some((i) => i.name)
-    ) {
-      const ids = await this.categorySuggest.suggest(user, draft.draft.items);
-      if (ids.length > 0) {
-        draft = {
-          ...draft,
-          draft: { ...draft.draft, suggestedCategoryIds: ids },
-          missingRequired: draft.missingRequired.filter(
-            (m) => !m.startsWith("Kategori"),
-          ),
-        };
-      }
+    if (draftTouched && draft) {
+      draft = await this.withSuggestedCategories(user, draft);
     }
 
     const settled = await this.budget.settle(reservation.id, totalUsage);
     if (!reply.trim()) {
-      reply = "Şu an bu isteğe yanıt oluşturamadım. Farklı bir şekilde sorabilir misiniz?";
+      reply = tApi("api.ai.assistant.fallbackReply");
     }
 
     // Mesajları kaydet + pencere taşıyorsa özetle + tur sayacı + AI-3 taslak.
     const nextSeq = stored.length > 0 ? stored[stored.length - 1]!.seq : 0;
     const userContent =
-      text || (dto.fileKeys && dto.fileKeys.length > 0 ? "[belge yüklendi]" : "");
+      text || (dto.fileKeys && dto.fileKeys.length > 0 ? tApi("api.ai.assistant.documentUploaded") : "");
     await this.prisma.$transaction([
       this.prisma.aiChatMessage.create({
         data: { sessionId: session.id, seq: nextSeq + 1, role: "USER", content: userContent },
@@ -397,6 +492,26 @@ export class AssistantService {
     };
   }
 
+  /**
+   * Taslakta kalem var ama kategori önerisi yoksa üret (belge yolu extract()
+   * içinde zaten önerir). suggest() hata yutar — turu asla düşürmez.
+   */
+  private async withSuggestedCategories(
+    user: AuthenticatedCompanyUser,
+    draft: AiTenderExtractResult,
+  ): Promise<AiTenderExtractResult> {
+    if (draft.draft.suggestedCategoryIds.length > 0 || !draft.draft.items.some((i) => i.name)) {
+      return draft;
+    }
+    const ids = await this.categorySuggest.suggest(user, draft.draft.items);
+    if (ids.length === 0) return draft;
+    return {
+      ...draft,
+      draft: { ...draft.draft, suggestedCategoryIds: ids },
+      missingRequired: draft.missingRequired.filter((m) => m !== "category"),
+    };
+  }
+
   /** AI-4: araç adı → aksiyon önerici (yoksa null → normal araç akışı). */
   private resolveProposeFn(
     name: string,
@@ -405,13 +520,14 @@ export class AssistantService {
         u: AuthenticatedCompanyUser,
         sessionId: string,
         args: Record<string, unknown>,
+        turnDraft?: AiTenderExtractResult["draft"],
       ) => ReturnType<AssistantActionsService["proposeSendInvites"]>)
     | null {
     switch (name) {
       case TOOL_NAMES.requestSendInvites:
         return (u, s, a) => this.actions.proposeSendInvites(u, s, a);
       case TOOL_NAMES.requestPublishTender:
-        return (u, s, a) => this.actions.proposePublishTender(u, s, a);
+        return (u, s, a, d) => this.actions.proposePublishTender(u, s, a, d);
       case TOOL_NAMES.requestEliminateBid:
         return (u, s, a) => this.actions.proposeEliminateBid(u, s, a);
       case TOOL_NAMES.requestAwardTender:
@@ -461,6 +577,7 @@ export class AssistantService {
         n.suggestedCategoryIds.length > 0
           ? n.suggestedCategoryIds
           : b.suggestedCategoryIds,
+      fromDocument: b.fromDocument === true || n.fromDocument === true,
     };
     // missingRequired'ı birleşik taslaktan yeniden hesapla (sanitize üzerinden).
     const re = sanitizeAiDraft(merged, "refine");
@@ -480,46 +597,70 @@ export class AssistantService {
     portals: Set<Portal>,
     call: AiToolCall,
   ): Promise<Record<string, unknown>> {
+    // D-357: durum/teslim/ödeme kodları istek dilinde etikete çevrilir —
+    // model ham kodu ("OPEN") görüp kendi çevirisini uydurmasın.
+    const locale = currentLocale();
+    // Gizli segmentteki kategori modele gitmez (kod / ad / referans) — boyut
+    // tavanından (`capObject` metne çevirir) ÖNCE.
+    const shown = <T>(rows: T) => redactHiddenCategories(rows) as T;
+    const labeled = <T>(rows: T, kind: ToolStatusKind) =>
+      localizeToolCodes(shown(rows), kind, locale) as T;
     try {
       switch (call.name) {
         case TOOL_NAMES.listMyTenders: {
           const type = "ALIM" as const;
           if (!canListMyTenders(portals, type)) return { ...NEUTRAL_ERROR };
-          return trimList(await this.listings.listTenders(user.companyId, type));
+          return trimList(labeled(await this.listings.listTenders(user.companyId, type), "listing"));
         }
         case TOOL_NAMES.searchOpenTenders: {
           const type = "ALIM" as const;
           if (!canSearchOpen(portals, type)) return { ...NEUTRAL_ERROR };
           const res = (await this.listings.sellerTenders(user, type)) as unknown;
-          return this.capObject(res);
+          return this.capObject(labeled(res, "listing"));
         }
         case TOOL_NAMES.listMyBids: {
           if (!canListMyBids(portals)) return { ...NEUTRAL_ERROR };
-          return trimList(await this.listings.listMyBids(user.companyId));
+          // Uç sayfalı (arayüz testi O-005): en yeni 30 teklif + GERÇEK toplam.
+          const res = await this.listings.listMyBids(user.companyId, { pageSize: 30 });
+          return {
+            items: labeled(res.items, "bid"),
+            total: res.total,
+            truncated: res.total > res.items.length,
+          };
         }
         case TOOL_NAMES.getTenderDetail: {
-          const id = String(call.args.id ?? "");
-          if (!id) return { ...NEUTRAL_ERROR };
-          return this.capObject(await this.listings.getOne(user, id));
+          const ref = String(call.args.id ?? "");
+          if (!ref.trim()) return { ...NEUTRAL_ERROR };
+          // The reference is the internal id or the request NUMBER (`record-ref.ts`);
+          // what the user may see is decided by `getOne`, as for an id.
+          const id = await listingIdOfRef(this.prisma, ref);
+          if (!id) return { ...NOT_FOUND };
+          return this.capObject(labeled(await this.listings.getOne(user, id), "listing"));
         }
         case TOOL_NAMES.listMyOrders:
-          return trimList(await this.orders.list(user));
+          return trimList(labeled(await this.orders.list(user), "order"));
         case TOOL_NAMES.getOrderDetail: {
-          const id = String(call.args.id ?? "");
-          if (!id) return { ...NEUTRAL_ERROR };
-          return this.capObject(await this.orders.getOne(user, id));
+          const ref = String(call.args.id ?? "");
+          if (!ref.trim()) return { ...NEUTRAL_ERROR };
+          const id = await orderIdOfRef(this.prisma, ref);
+          if (!id) return { ...NOT_FOUND };
+          return this.capObject(labeled(await this.orders.getOne(user, id), "order"));
         }
         case TOOL_NAMES.listMyConnections:
-          return trimList(await this.connections.list(user.companyId));
+          // The partner's declaration goes to the model as it is SHOWN, not as
+          // it is stored (`connectionsForModel`), then through the same filter.
+          return trimList(shown(connectionsForModel(await this.connections.list(user.companyId))));
         default:
           return { ...NEUTRAL_ERROR };
       }
     } catch (err) {
-      // 403/404/timeout/beklenmeyen — AYRIM YAPMA (varlık/yetki bilgisi sızmasın).
-      if (
-        !(err instanceof ForbiddenException) &&
-        !(err instanceof NotFoundException)
-      ) {
+      // 403 ile 404 arasında AYRIM YAPMA (varlık/yetki bilgisi sızmasın).
+      const refused = err instanceof ForbiddenException || err instanceof NotFoundException;
+      // Detay aracında ret = "bu kullanıcının görebildiği böyle bir kayıt yok";
+      // kesintiden AYRI söylenir (model "daha sonra deneyin" demesin). Liste
+      // araçlarının reddi (yetki / doğrulama kapısı) eskisi gibi nötr kalır.
+      if (refused && DETAIL_TOOLS.has(call.name)) return { ...NOT_FOUND };
+      if (!refused) {
         this.logger.warn(
           `Araç hatası (${call.name}): ${err instanceof Error ? err.message : String(err)}`,
         );
@@ -554,9 +695,11 @@ export class AssistantService {
       .map((m) => `${m.role === "USER" ? "Kullanıcı" : "Asistan"}: ${m.content}`)
       .join("\n");
     const prompt = buildSummaryPrompt(session.summary, overflowText);
+    // Özet sonraki turlarda modele geri beslenir → sohbetin dilinde yazılır.
+    const summarySystem = summarySystemPrompt(currentLocale());
 
     const est: AiTokenUsage = {
-      inputTokens: Math.ceil((SUMMARY_SYSTEM_PROMPT.length + prompt.length) / 4),
+      inputTokens: Math.ceil((summarySystem.length + prompt.length) / 4),
       outputTokens: 2048,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
@@ -578,7 +721,7 @@ export class AssistantService {
     try {
       const result = await this.provider.complete({
         model: this.config.models.default,
-        system: SUMMARY_SYSTEM_PROMPT,
+        system: summarySystem,
         prompt,
         // Thought token'ları da tavandan yer — 512'de özet boş kalabiliyordu.
         maxOutputTokens: 2048,
@@ -657,7 +800,7 @@ export class AssistantService {
         archivedAt: null,
       },
     });
-    if (!session) throw new NotFoundException("Sohbet bulunamadı");
+    if (!session) throw new NotFoundException(i18nMessage("api.ai.sohbetBulunamadi"));
     return session;
   }
 

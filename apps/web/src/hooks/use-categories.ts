@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CategoryCatalog } from "@rothern/shared";
+import { isHiddenCategory, visibleCategoryIds, type CategoryCatalog } from "@rothern/shared";
 import { api } from "@/lib/api";
 
 /**
@@ -22,6 +22,8 @@ export interface CategoryNode {
   id: string;
   code: string;
   nameTr: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — yalnız `segments` ucu verir (i18n Faz 4). */
+  slug?: string;
   level: number;
   parentId?: string | null;
   segmentLetter?: string | null;
@@ -44,6 +46,33 @@ const HOUR_MS = 60 * 60 * 1000;
 const FIVE_MIN_MS = 5 * 60 * 1000;
 
 /**
+ * Hatayı KENDİ satırında "Yeniden dene" ile gösteren çağıranlar için sorgu
+ * seçeneği (kategori penceresi, firma kategori seçicisi).
+ *
+ * İki şeyi değiştirir:
+ *  - `skipErrorToast`: satır içi hata + genel toast aynı hatayı iki kez
+ *    gösteriyordu.
+ *  - yeniden deneme: varsayılan politika 429 dahil 3 kez dener (1+2+4 sn);
+ *    kullanıcı ~7 sn dönen simgeye bakıyor, kısıtlanan uç üstüne dört kat yük
+ *    biniyordu (ölçüm: üç sektör açılırken 175 istek, 157'si 429). Elle
+ *    yeniden deneme düğmesi varken 4xx hiç, ağ/5xx bir kez denenir.
+ */
+export interface CategoryQueryOptions {
+  inlineError?: boolean;
+}
+
+function inlineErrorRetry(failureCount: number, error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  if (status && status >= 400 && status < 500) return false;
+  return failureCount < 1;
+}
+
+const inlineErrorQuery = (on: boolean | undefined) =>
+  on ? ({ retry: inlineErrorRetry } as const) : ({} as const);
+const inlineErrorRequest = (on: boolean | undefined) =>
+  on ? ({ skipErrorToast: true } as const) : ({} as const);
+
+/**
  * Ağacın ÜST katmanı tek fetch: L1 segmentler + L2 aileler (~616 satır /
  * ~90 KB). Segment açıldığında aileler in-memory gelir; sınıf ve emtia
  * `/children` ile açıldıkça inilir.
@@ -54,14 +83,22 @@ const FIVE_MIN_MS = 5 * 60 * 1000;
  *
  * staleTime 5 dk: kategori güncellemesi max 5 dk'da görünsün.
  * refetchOnMount: modal her açıldığında stale olabilirse yeniden çek.
+ *
+ * Hata politikası KOŞULSUZ satır içi: tek tüketici `useChildren`'ın L1 dalı
+ * (sektör açılınca aileler) ve o dal hatayı "Bu bölüm yüklenemedi · Yeniden
+ * dene" ile kendi çizer. Varsayılan politikada 429'da dört istek (~7 sn dönen
+ * simge), 5xx'te dört genel toast + satır içi hata çıkıyordu; `/children`
+ * dalı ise tek istekle bitiyordu (aynı ağaç, iki ayrı davranış).
  */
 export function useCategoryTree() {
   return useQuery<CategoryNode[]>({
     queryKey: ["category-tree"],
-    queryFn: () => api.get("/categories/all").then((r) => r.data),
+    queryFn: () =>
+      api.get("/categories/all", inlineErrorRequest(true)).then((r) => r.data),
     staleTime: 5 * 60 * 1000,
     gcTime: 24 * HOUR_MS,
     refetchOnMount: true,
+    ...inlineErrorQuery(true),
   });
 }
 
@@ -79,16 +116,27 @@ const withCount = (c: CategoryNode): CategoryNode => ({
  * girilmeyen ekranlarda bu tamamen boşa trafik. Artık `/categories/segments`
  * (yalnız L1). Ağaca gerçekten inen tek yüzey seçim modalı; o drill-down
  * sırasında `useChildren`/`useCategoryTree` ile zaten kendi verisini çekiyor.
+ *
+ * `inlineError`: hatayı kendi satırında gösteren (ya da sektör adını `by-ids`
+ * yedeğinden okuyan) çağıran geçer — kategori pencereleri ve firma seçicisi.
+ * Sorgu anahtarı ortak olduğu için isteği HANGİ gözlemci başlatırsa onun
+ * politikası uygulanır.
  */
-export function useRoots() {
-  const { data, isLoading, isError, refetch } = useQuery<CategoryNode[]>({
+export function useRoots(options: CategoryQueryOptions = {}) {
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<CategoryNode[]>({
     queryKey: ["category-segments"],
-    queryFn: () => api.get("/categories/segments").then((r) => r.data),
+    queryFn: () =>
+      api
+        .get("/categories/segments", inlineErrorRequest(options.inlineError))
+        .then((r) => r.data),
     staleTime: 5 * 60 * 1000,
     gcTime: 24 * HOUR_MS,
+    ...inlineErrorQuery(options.inlineError),
   });
   const mapped = useMemo(() => data?.map(withCount), [data]);
-  return { data: mapped, isLoading, isError, refetch };
+  // `isFetching`: "Yeniden dene"den sonra hata satırı yerine dönen simge
+  // gösterebilmek için (hata durumundaki sorguda `isLoading` false kalır).
+  return { data: mapped, isLoading, isError, isFetching, refetch };
 }
 
 /**
@@ -108,36 +156,70 @@ export function useChildren(
   parentLevel: 1 | 2 | 3,
   catalog: CategoryCatalog = "full",
 ) {
-  const { data: tree, isLoading } = useCategoryTree();
+  const {
+    data: tree,
+    isLoading,
+    isError: treeError,
+    isFetching: treeFetching,
+    refetch: refetchTree,
+  } = useCategoryTree();
   const lazyNeeded = parentLevel >= 2;
 
   // L1 parent → aileler in-memory. Katalog süzgeci GEREKMEZ: aileler (L2) iki
   // katalogda birebir aynı; ayrışma yalnız L4'te.
+  //
+  // GİZLİ DAL (2026-10-10): görünür bir sektörün gizli ailesi / görünür bir
+  // ailenin gizli sınıfı listeye HİÇ girmez (satırı yok → işaretlenemez). API
+  // aynı süzgeci uygular; burası ikinci kat (`visibleRows`).
   const memoryChildren = useMemo(() => {
     if (!tree || !parentId || lazyNeeded) return undefined;
-    return tree.filter((c) => c.parentId === parentId).map(withCount);
+    return visibleRows(tree.filter((c) => c.parentId === parentId)).map(withCount);
   }, [tree, parentId, lazyNeeded]);
 
   // L2/L3 parent → sınıf/emtia lazy. `catalog` query anahtarında ŞART: aksi
   // hâlde firma seçiminde açılan bir sınıfın 13 fazla yaprağı, aynı sınıfı
   // talep formunda açan kullanıcıya önbellekten servis edilirdi.
+  // Tek çağıran kategori penceresi; hatayı dalın içinde "Yeniden dene" ile
+  // gösterir → genel toast yok, 429'da otomatik tekrar yok (bkz. üstteki not).
   const lazy = useQuery<CategoryNode[]>({
     queryKey: ["category-children", parentId, catalog],
     queryFn: () =>
       api
-        .get("/categories/children", { params: { parentId, catalog } })
+        .get("/categories/children", {
+          params: { parentId, catalog },
+          ...inlineErrorRequest(true),
+        })
         .then((r) => r.data),
     enabled: !!parentId && lazyNeeded,
     staleTime: FIVE_MIN_MS,
     gcTime: HOUR_MS,
+    ...inlineErrorQuery(true),
   });
   const lazyChildren = useMemo(
-    () => lazy.data?.map(withCount),
+    () => (lazy.data ? visibleRows(lazy.data).map(withCount) : undefined),
     [lazy.data],
   );
 
-  if (lazyNeeded) return { data: lazyChildren, isLoading: lazy.isLoading };
-  return { data: memoryChildren, isLoading };
+  // `isError` yalnız GÖSTERİLECEK veri yokken: başarısız arka plan tazelemesi
+  // eldeki listeyi "yüklenemedi"ye çevirmesin. Boş liste ≠ hata — çağıran
+  // ikisini ayrı dallarda çizer. Yeniden deneme sürerken (veri yok + istek
+  // yolda) durum "yükleniyor"dur: hata satırı yerine dönen simge görünür.
+  if (lazyNeeded) {
+    const retrying = lazy.isFetching && lazy.data === undefined;
+    return {
+      data: lazyChildren,
+      isLoading: lazy.isLoading || retrying,
+      isError: lazy.isError && lazy.data === undefined && !retrying,
+      refetch: lazy.refetch,
+    };
+  }
+  const retrying = treeFetching && tree === undefined;
+  return {
+    data: memoryChildren,
+    isLoading: isLoading || retrying,
+    isError: treeError && tree === undefined && !retrying,
+    refetch: refetchTree,
+  };
 }
 
 export interface SearchTreeCommodity {
@@ -153,7 +235,13 @@ export interface SearchTreeClass {
   code: string;
   nameTr: string;
   level: number;
+  /** Sınıfın KENDİ adı eşleşti. Seçilebilirliği belirlemez — her sınıf seçilebilir. */
   isMatch: boolean;
+  /**
+   * Ailesi ya da sektörü eşleştiği için listede (eski API bu alanı vermez).
+   * Arayüz buna bakmaz: dönen her sınıf işaretlenebilir satırdır.
+   */
+  parentMatch?: boolean;
   commodities: SearchTreeCommodity[];
 }
 
@@ -162,6 +250,8 @@ export interface SearchTreeFamily {
   code: string;
   nameTr: string;
   level: number;
+  /** Ailenin kendisi sorguyla eşleşti (eski API vermez). */
+  isMatch?: boolean;
   classes: SearchTreeClass[];
 }
 
@@ -170,7 +260,10 @@ export interface SearchTreeSegment {
   code: string;
   nameTr: string;
   level: number;
+  /** Ariba'nın iç segment harfi — arayüzde GÖSTERİLMEZ. */
   segmentLetter: string | null;
+  /** Sektörün kendi adı sorguyla eşleşti (eski API vermez). */
+  isMatch?: boolean;
   families: SearchTreeFamily[];
 }
 
@@ -181,17 +274,63 @@ export interface SearchTreeSegment {
 export function useCategorySearchTree(
   query: string,
   catalog: CategoryCatalog = "full",
+  options: CategoryQueryOptions = {},
 ) {
   const trimmed = query.trim();
   return useQuery<{ segments: SearchTreeSegment[]; truncated?: boolean }>({
     queryKey: ["category-search-tree", trimmed, catalog],
     queryFn: () =>
       api
-        .get("/categories/search-tree", { params: { q: trimmed, catalog } })
+        .get("/categories/search-tree", {
+          params: { q: trimmed, catalog },
+          ...inlineErrorRequest(options.inlineError),
+        })
         .then((r) => r.data),
     enabled: trimmed.length >= 2,
     staleTime: FIVE_MIN_MS,
+    select: visibleSearchTree,
+    ...inlineErrorQuery(options.inlineError),
   });
+}
+
+type SearchTreeResult = { segments: SearchTreeSegment[]; truncated?: boolean };
+
+/**
+ * Arama ağacından gizli dalları budar (2026-10-10): gizli sektör, görünür
+ * sektörün gizli ailesi, görünür ailenin gizli sınıfı ve altındaki emtialar.
+ * API aynı süzgeci uygular; burası ikinci kat — pencere ve kalem adından öneri
+ * (`CategorySuggest`) aynı kancayı okur. Gizli satır yoksa AYNI nesne döner.
+ *
+ * BUDAMANIN BOŞALTTIĞI ATA DA DÜŞER: sonuçta yalnız gizli torunu eşleştiği
+ * için bulunan görünür aile / sektör ("silah" → 4618 → 461825) altı boş bir
+ * satır olarak kalmaz — sektörün de işaretlenebildiği firma penceresinde
+ * "silah" araması "İş Güvenliği ve Yangın Ekipmanları"nı sonuç diye çizerdi.
+ * KENDİ adı eşleşen (`isMatch`) ata kalır; altı baştan boş gelen satıra
+ * dokunulmaz (onu budama boşaltmadı).
+ */
+function visibleSearchTree(res: SearchTreeResult): SearchTreeResult {
+  const anyHidden = (res.segments ?? []).some(
+    (s) =>
+      isHiddenCategory(s.id) ||
+      s.families.some(
+        (f) =>
+          isHiddenCategory(f.id) ||
+          f.classes.some((c) => isHiddenCategory(c.id) || c.commodities.some((m) => isHiddenCategory(m.id))),
+      ),
+  );
+  if (!anyHidden) return res;
+  const segments: SearchTreeSegment[] = [];
+  for (const s of visibleRows(res.segments)) {
+    const families: SearchTreeFamily[] = [];
+    for (const f of visibleRows(s.families)) {
+      const classes = visibleRows(f.classes).map((c) => ({ ...c, commodities: visibleRows(c.commodities) }));
+      if (classes.length === 0 && f.classes.length > 0 && !f.isMatch) continue;
+      families.push({ ...f, classes });
+    }
+    if (families.length === 0 && s.families.length > 0 && !s.isMatch) continue;
+    segments.push({ ...s, families });
+  }
+  return { ...res, segments };
 }
 
 /**
@@ -201,20 +340,50 @@ export function useCategorySearchTree(
  * ve uzun süreli "yükleniyor" hissini önlemek için:
  *   - placeholderData: önceki cevap korunur, yeni fetch arka planda
  *   - gcTime: HOUR_MS — cache entry'leri çabuk düşmesin
+ *
+ * GİZLİ KATEGORİ (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
+ * yerde de gösterilmesin"; 2026-10-10: kuralın birimi kod ÖNEKİ — gizli sektör,
+ * görünür sektörün gizli ailesi, görünür ailenin gizli sınıfı): gizli bir
+ * önekin altındaki kod bu kancadan AD
+ * ALAMAZ — istek ona hiç sorulmaz (`visibleCategoryIds`) ve cevapta gelse de
+ * düşer (`select`; eski API ya da önbellekteki cevap). Yani eski bir kayıttaki
+ * gizli kod için DÖNEN SATIR YOKTUR; satırı olmayan kimliği çizen tüketici
+ * (çip, kırıntı, sayaç) onu hiç çizmemelidir — ham kod ya da bitmeyen
+ * "yükleniyor" çipi göstermek aynı kuralın ihlalidir. Yardımcı:
+ * `resolvedCategoryIds` (`@/lib/visible-categories`).
  */
-export function useCategoriesByIds(ids: string[]) {
-  const key = [...ids].sort().join(",");
+export function useCategoriesByIds(
+  ids: string[],
+  options: CategoryQueryOptions = {},
+) {
+  const visible = visibleCategoryIds(ids);
+  const key = [...visible].sort().join(",");
   return useQuery<CategoryWithBreadcrumb[]>({
     queryKey: ["category-by-ids", key],
     queryFn: () => {
-      if (ids.length === 0) return Promise.resolve([]);
+      if (visible.length === 0) return Promise.resolve([]);
       return api
-        .get("/categories/by-ids", { params: { ids: ids.join(",") } })
+        .get("/categories/by-ids", {
+          params: { ids: visible.join(",") },
+          ...inlineErrorRequest(options.inlineError),
+        })
         .then((r) => r.data);
     },
-    enabled: ids.length > 0,
+    enabled: visible.length > 0,
     staleTime: FIVE_MIN_MS,
     gcTime: HOUR_MS,
     placeholderData: (prev) => prev,
+    select: visibleRows,
+    ...inlineErrorQuery(options.inlineError),
   });
 }
+
+/**
+ * Gizli bir önekin (sektör, aile ya da sınıf) altındaki satırlar düşer; gizli
+ * satır yoksa AYNI dizi döner. `select` kimliği sabit kalsın diye modül
+ * düzeyinde (her çizimde yeni işlev = her çizimde yeniden seçim).
+ */
+function visibleRows<T extends { id: string }>(rows: T[]): T[] {
+  return rows.some((r) => isHiddenCategory(r.id)) ? rows.filter((r) => !isHiddenCategory(r.id)) : rows;
+}
+

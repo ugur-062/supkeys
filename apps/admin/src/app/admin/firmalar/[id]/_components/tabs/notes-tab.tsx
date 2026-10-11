@@ -13,6 +13,7 @@ import { canAdminDo } from "@/lib/admin-permissions";
 import { StickyNote, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /** Dahili notlar — "aradı, X sözü verildi" kayıtları. Müşteri ASLA görmez. */
 export function NotesTab({ companyId }: { companyId: string }) {
@@ -26,8 +27,7 @@ export function NotesTab({ companyId }: { companyId: string }) {
   // Silme kurumsal hafızayı yok eder — iki adımlı onay (id bazlı).
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <div className="space-y-4">
@@ -45,7 +45,7 @@ export function NotesTab({ companyId }: { companyId: string }) {
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             maxLength={2000}
-            placeholder="Örn. 10 Tem — telefonla aradı, KYC belgesini yarın yükleyecek; premium teklifi iletildi."
+            placeholder="Örn. 10 Tem — telefonla aradı, KYC belgesini yarın yükleyecek."
           />
         </label>
         <div className="mt-2 flex justify-end">
@@ -72,7 +72,21 @@ export function NotesTab({ companyId }: { companyId: string }) {
       </section>
 
       <section className="space-y-2">
-        {(notes.data ?? []).length === 0 ? (
+        {notes.isError && (notes.data ?? []).length === 0 ? (
+          // Hata "Henüz not yok" gibi görünmesin — admin geçmiş görüşmeleri
+          // bilmeden aynı teklifi yinelemesin (derin denetim LU-12).
+          <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-12 text-center text-sm">
+            <StickyNote className="h-6 w-6" aria-hidden="true" />
+            <span>Notlar alınamadı — lütfen tekrar deneyin</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void notes.refetch()}
+            >
+              Tekrar dene
+            </Button>
+          </div>
+        ) : (notes.data ?? []).length === 0 ? (
           <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-12 text-center text-sm">
             <StickyNote className="h-6 w-6" aria-hidden="true" />
             {notes.isLoading ? "Yükleniyor..." : "Henüz not yok"}

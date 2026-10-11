@@ -7,6 +7,13 @@
  * doldurun.").
  */
 
+import {
+  TAX_ID_LABEL_PREFIXES,
+  getCountryProfile,
+  type TaxIdRule,
+} from "../data/country-profiles";
+import { normalizeDigits } from "../data/phone-codes";
+
 /** Sadece rakam içeren n-haneli kontrolü. */
 function isDigits(value: string, length: number): boolean {
   return new RegExp(`^[0-9]{${length}}$`).test(value);
@@ -51,16 +58,97 @@ export function isValidTaxId(
 /**
  * Yabancı (TR dışı) firma vergi/sicil no — gevşek format. Her ülkenin VAT/EIN/
  * şirket numarası farklı olduğu için checksum yapılmaz; sadece makul biçim:
- * 3-30 karakter, alfanümerik + yaygın ayraçlar. Asıl doğrulama belge + admin
- * onayı (+ ileride VIES gibi resmi servisler) ile yapılır.
+ * 4-30 karakter, alfanümerik + yaygın ayraçlar. Asıl doğrulama belge + admin
+ * onayı (+ AB'de VIES) ile yapılır.
+ *
+ * Harfler Latin alfabesinin TAMAMI (aksanlılar dahil) + "&": Meksika RFC'si
+ * "Ñ" ve "&" taşır ("AÑ&850101AB1"), eskiden reddediliyordu (2026-09-27).
+ * TR kuralı ayrı (`isValidTaxId`) — bu gevşetmeden etkilenmez.
+ *
+ * Alt sınır 4 (2026-09-27): fonksiyon 3 karakteri kabul ederken API DTO'su
+ * `@Length(4, …)` istiyordu → formda geçerli görünen numara sunucuda 400
+ * alıyordu. İkisi artık aynı alt sınırda.
  */
 export function isValidForeignTaxId(value: string): boolean {
-  return /^[A-Za-z0-9][A-Za-z0-9.\- /]{2,29}$/.test(value.trim());
+  return /^[\p{Script=Latin}0-9&][\p{Script=Latin}0-9&.\- /]{3,29}$/u.test(value.trim().normalize("NFC"));
 }
 
 /**
- * Ülke-farkında vergi/sicil no doğrulaması.
+ * Vergi/sicil no normalizasyonu — web (form) ve API (kayıt) AYNI fonksiyonu
+ * kullanır, saklanan değer bunun çıktısıdır (2026-09-27):
+ *  · Latin dışı rakamlar ASCII'ye (Arap-Hint "٧٧٠٧…" eskiden sessizce düşüyordu),
+ *  · baştaki etiket(ler) atılır ("ИНН 7707083893" → "7707083893"),
+ *  · firmanın ülke kodu öneki (Yunanistan'da ayrıca "EL") ardından RAKAM
+ *    geliyorsa atılır ("DE811569869" → "811569869"; İsviçre "CHE-…" gibi
+ *    kodun parçası olan harfler dokunulmaz),
+ *  · özel kurallı ülkelerde (INN/BIN/USCC/TRN…) boşluk ve ayraçlar atılır.
+ */
+export function normalizeTaxId(value: string, country?: string | null): string {
+  let v = normalizeDigits(value ?? "").normalize("NFC").trim();
+  const cc = (country ?? "").toUpperCase();
+  for (let pass = 0; pass < 2; pass++) {
+    const upper = v.toUpperCase();
+    const label = TAX_ID_LABEL_PREFIXES.find(
+      (p) => upper.startsWith(p) && !/\p{L}/u.test(upper.charAt(p.length)),
+    );
+    if (!label) break;
+    v = v.slice(label.length).replace(/^[\s.:#№-]+/u, "");
+  }
+  if (cc && cc !== "TR") {
+    for (const prefix of cc === "GR" ? ["GR", "EL"] : [cc]) {
+      const m = new RegExp(`^${prefix}[\\s-]?(?=\\d)`, "i").exec(v);
+      if (m) {
+        v = v.slice(m[0].length);
+        break;
+      }
+    }
+  }
+  const rule = cc === "TR" ? "TR_VKN" : (getCountryProfile(cc)?.taxIdRule ?? "GENERIC");
+  if (rule !== "GENERIC") v = v.replace(/[\s.\-/]/g, "").toUpperCase();
+  return v.trim();
+}
+
+/** USCC karakter kümesi: rakam + I/O/S/V/Z HARİÇ büyük harfler (GB 32100-2015). */
+const USCC_RE = /^[0-9A-HJ-NP-RTUW-Y]{2}[0-9]{6}[0-9A-HJ-NP-RTUW-Y]{10}$/;
+
+/**
+ * Özel kurallı ülkelerde biçim (uzunluk + karakter kümesi) — normalize
+ * edilmiş değer üzerinde. Sağlama (checksum) bilinçli olarak YOK: asıl
+ * doğrulama belge + admin incelemesi; burada amaç yazım hatasını yakalamak.
+ *  · RU: ИНН 10 (tüzel) / 12 (şahıs) ya da ОГРН 13 / ОГРНИП 15 hane.
+ *  · KZ: БИН/ИИН 12 hane · AZ: VÖEN 10 hane.
+ *  · AE: KDV mükellefinde TRN 15 hane; serbest bölge şirketlerinin çoğunda TRN
+ *    YOK (profil vergi belgesini bu yüzden istemiyor) → ticaret ruhsatı no da
+ *    kabul (genel biçim).
+ *  · UZ: СТИР 9 hane (şahıs girişimci ПИНФЛ 14 hane de kabul).
+ *  · CN: USCC 18 karakter.
+ */
+export function isValidTaxIdForRule(value: string, rule: TaxIdRule): boolean {
+  const v = value.trim();
+  switch (rule) {
+    case "RU_INN":
+      return /^(\d{10}|\d{12}|\d{13}|\d{15})$/.test(v);
+    case "KZ_BIN":
+      return /^\d{12}$/.test(v);
+    case "AZ_TIN":
+      return /^\d{10}$/.test(v);
+    case "AE_TRN":
+      return /^\d{15}$/.test(v) || isValidForeignTaxId(v);
+    case "UZ_INN":
+      return /^(\d{9}|\d{14})$/.test(v);
+    case "CN_USCC":
+      return USCC_RE.test(v.toUpperCase());
+    case "TR_VKN":
+      return isValidVkn(v) || isValidTckn(v);
+    default:
+      return isValidForeignTaxId(v);
+  }
+}
+
+/**
+ * Ülke-farkında vergi/sicil no doğrulaması (değer önce `normalizeTaxId`).
  * - TR → strict VKN(10)/TCKN(11) (firma türüne göre).
+ * - Özel kurallı ülke → uzunluk/karakter kümesi (`isValidTaxIdForRule`).
  * - Diğer → gevşek yabancı format.
  */
 export function isValidTaxIdForCountry(
@@ -68,8 +156,11 @@ export function isValidTaxIdForCountry(
   country: string,
   isSoleProprietor: boolean,
 ): boolean {
-  if ((country || "TR") === "TR") return isValidTaxId(value, isSoleProprietor);
-  return isValidForeignTaxId(value);
+  const cc = (country || "TR").toUpperCase();
+  const v = normalizeTaxId(value, cc);
+  if (cc === "TR") return isValidTaxId(v.replace(/\s+/g, ""), isSoleProprietor);
+  const rule = getCountryProfile(cc)?.taxIdRule ?? "GENERIC";
+  return isValidTaxIdForRule(v, rule);
 }
 
 /** MERSİS — boş VEYA tam 16 hane. */
@@ -146,9 +237,18 @@ export function maskNationalId(value: string): string {
   return v.slice(0, 3) + "*".repeat(v.length - 5) + v.slice(-2);
 }
 
+/**
+ * E-posta adresinin üst sınırı (RFC 5321). Biçim regex'lerinden ÖNCE
+ * denetlenir: `[^\s@]+@[^\s@]+\.[^\s@]+` kalıbı ikinci dereceden geri izler
+ * (20.000 karakter ≈ 0,2 sn, 1 MB ≈ dakikalar — gövde sınırı 5 MB). Sınır,
+ * geri izlemeyi de sınırlar (ReDoS).
+ */
+export const EMAIL_MAX_LENGTH = 254;
+
 /** KEP / e-posta — basit e-posta format kontrolü. */
 export function isValidEmailLike(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const v = value.trim();
+  return v.length <= EMAIL_MAX_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
 /** Faaliyet sektörü seçimi — min 1, max 3 (ilk = ana sektör). */

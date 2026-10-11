@@ -10,6 +10,33 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
+
+/**
+ * Alıcı ülkesi listesi (`TR,de, XX1`) → büyük harf, yalnız iki harfli kodlar,
+ * tekrarsız, en çok 10 (`["TR","DE"]`). Bozuk parça 400 değil sessizce düşer:
+ * elle düzenlenmiş bağlantı ziyaretçiye hata sayfası çizdirmesin (web
+ * ayrıştırıcısı da aynı kuralı uygular). DTO dönüşümü ve servis AYNI işlevi
+ * okur (servis doğrudan çağrıldığında da — testler, iç kullanım).
+ */
+export function buyerCountryList(value: unknown): string[] {
+  if (typeof value !== "string") return [];
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((x) => x.trim().toUpperCase())
+        .filter((x) => /^[A-Z]{2}$/.test(x)),
+    ),
+  ].slice(0, 10);
+}
+
+/** DTO dönüşümü: geçerli kod kalmazsa süzgeç yok (undefined). */
+function normalizeBuyerCountries(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const codes = buyerCountryList(value);
+  return codes.length ? codes.join(",") : undefined;
+}
 
 /**
  * Pazar yeri liste sorgusu — TAMAMEN anonim, hiçbir alan kimliğe bağlı değil.
@@ -33,14 +60,28 @@ export class PublicListQueryDto {
 
   /** Tam 8 haneli kategori kodu (Category.id). */
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, { message: () => tApi("api.dto.publicListQuery.kategoriKodu8HaneliOlmali") })
   category?: string;
 
-  /** Şehir — virgüllü çoklu (PROMPT 4, 2026-09-06; tek değer geriye uyumlu). */
+  /**
+   * ALICI ÜLKESİ (talebin açıldığı ülke) — virgüllü çoklu ISO alpha-2
+   * (`TR,DE`). 2026-10-04 sahip kararı: talep dizininde alıcının ŞEHRİ
+   * süzgeci kalktı, yerine bu geldi.
+   */
   @IsOptional()
   @IsString()
   @MaxLength(400)
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @Transform(({ value }) => normalizeBuyerCountries(value))
+  buyerCountry?: string;
+
+  /**
+   * ESKİ alıcı şehri süzgeci — 2026-10-04'ten beri YOK SAYILIR. Kabul
+   * edilmeye devam eder ki dağıtım sırasında eski istemci / önbellekteki
+   * sayfa `forbidNonWhitelisted` ile 400 almasın (süzülmemiş liste döner).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
   city?: string;
 
   /**
@@ -101,13 +142,20 @@ export class PublicListFacetQueryDto {
   q?: string;
 
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, { message: () => tApi("api.dto.publicListQuery.kategoriKodu8HaneliOlmali") })
   category?: string;
 
+  /** Alıcı ülkesi — liste ile aynı biçim ve anlam. */
   @IsOptional()
   @IsString()
   @MaxLength(400)
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @Transform(({ value }) => normalizeBuyerCountries(value))
+  buyerCountry?: string;
+
+  /** ESKİ şehir süzgeci — yok sayılır (liste DTO'sundaki not). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
   city?: string;
 
   @IsOptional()

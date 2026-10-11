@@ -1,26 +1,35 @@
+import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
-import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
+import { OpenRequestLink } from "./member-cta";
+import { ActiveFilterChips, ProductFilters, SortControl, ViewPreferenceSync, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
-import { IndexIntro } from "./index-intro";
+import { CountryLinks } from "./country-links";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
-import { categoryPath } from "@/lib/public/marketplace";
+import { canonicalProductListPage } from "@/lib/seo/landing";
+import { pageQuery } from "@/lib/seo/meta";
+import { categoryHref } from "@/lib/public/marketplace";
+import { cityProductPath, countryProductPath, currencyForLocale } from "@rothern/shared";
 import {
   buildProductFilterQuery,
+  PAGE_LIMIT,
+  productSearchCarry,
   parseProductFilters,
+  toProductFacetParams,
   toProductListParams,
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
-import { signupHref } from "@/lib/public/visibility";
-import Link from "next/link";
+import { pastEndLastPage } from "@/lib/public/filter-param-utils";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**
@@ -38,47 +47,115 @@ interface Props {
   title: string;
   lead: string;
   searchParams: SearchParamsLike;
-  /** Kategori yol sayfasında sabit kod. */
-  category?: { id: string; name: string };
+  /**
+   * Kategori yol sayfasında sabit kod. `slug` (Türkçe ad, API) ŞART: yoksa
+   * adres okuyucunun dilindeki addan üretilir ve kanonikle ayrışır (EN
+   * sayfalama bağlantısı 308'e düşüp `?sayfa=`yı kaybediyordu).
+   */
+  category?: { id: string; name: string; slug?: string };
   /** Kategori sayfası: segment fotoğrafı (başlık yanında). */
   image?: string | null;
   /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
   fixedCity?: string;
+  /** Ülke sayfası (2026-09-27): satıcı ülkesi YOLDAN gelir. */
+  fixedCountry?: string;
+  /**
+   * Şehir/ülke açılış sayfasının kırıntı zinciri ("Ürünler"den SONRAKİ
+   * halkalar; İÇ yol + okuyucunun dilinde ad): ülke sayfası [Almanya], şehir
+   * sayfası [Almanya, Münih]. Hem görünür kırıntı hem `BreadcrumbList`.
+   */
+  trail?: Array<{ name: string; path: string }>;
   /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
-  intro?: ReactNode;
   /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
   footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, intro, footer }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, fixedCountry, trail, footer }: Props) {
+  const t = await getTranslations("web.marketplace.index");
+  const tl = await getTranslations("web.marketplace.labels");
+  const tt = await getTranslations("web.marketplace.typeahead");
+  const tm = await getTranslations("web.marketing");
+  const te = await getTranslations("web.marketplace.empty");
+  const locale = await getLocale();
   const state = parseProductFilters(
-    fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
+    {
+      ...searchParams,
+      ...(fixedCity ? { sehir: fixedCity } : {}),
+      ...(fixedCountry ? { ulke: fixedCountry } : {}),
+    },
     category?.id,
+    // Herkese açık uç en çok 200. sayfayı kabul eder (panel ucu sınırsız).
+    { pageLimit: PAGE_LIMIT },
   );
-  const params = toProductListParams(state);
+  // Fiyat süzgecinin varsayılan birimi arayüz dilinden (tr TRY · ru RUB · en
+  // USD) — AÇIKÇA gönderilir: uç kenar önbelleğinde, dile göre değişen örtük
+  // varsayılan önbellek anahtarında görünmezdi.
+  const params = toProductListParams(state, { defaultCurrency: currencyForLocale(locale) });
   const basePath = MARKETPLACE_ROUTES.products;
 
+  // Dinamik çizim (sayfa `searchParams` okuyor): önbelleği ıskalayan çağrı API'de
+  // ziyaretçi başına SSR kovasına sayılsın (derin denetim MU-12/RM-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor();
   const [page, facets, otherCounts] = await Promise.all([
     fetchProducts(params),
-    fetchProductFacets({ category: params.category, q: params.q, city: params.city, activity: params.activity, verified: params.verified, price: params.price }),
+    // Facet sayımı listeyle AYNI süzgeçleri görür (2026-09-27: ülke, "Yakınımda",
+    // sertifika, çalışan ve hızlı yanıt eskiden facet çağrısına hiç gitmiyordu).
+    fetchProductFacets(toProductFacetParams(params)),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "products"),
   ]);
+  /* AÇILIŞ SAYFASI YOLU (2026-09-27 SEO denetimi): kategori/şehir/ülke
+     sayfasının kanonik İÇ yolu. Sayfalama ve JSON-LD buradan okur — eskiden
+     şehir sayfasının 2. sayfası `/urunler?sehir=…&sayfa=2` idi (kanoniği
+     `/urunler`), ItemList adresi de `/urunler` yazıyordu. Yoldan gelen süzgeç
+     sorguya YAZILMAZ (yol zaten taşıyor). */
+  const landingPath = category
+    ? categoryHref(category)
+    : fixedCity
+      ? cityProductPath(fixedCity)
+      : fixedCountry
+        ? countryProductPath(fixedCountry)
+        : basePath;
+  const landingQuery = (p: number) =>
+    buildProductFilterQuery({
+      ...state,
+      category: category ? undefined : state.category,
+      cities: fixedCity ? state.cities.filter((c) => c !== fixedCity) : state.cities,
+      countries: fixedCountry ? state.countries.filter((c) => c !== fixedCountry) : state.countries,
+      page: p,
+    });
+  const crumbs = category ? [{ name: category.name, path: landingPath }] : (trail ?? []);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
-  const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
+  // Son sayfanın ötesi: kriterler eşleşiyor, yalnız bu sayfa boş — "bulunamadı"
+  // yerine son sayfaya bağlantı (arayüz testi webA-05, yeniden doğrulama).
+  const lastPage = pastEndLastPage(
+    { itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize },
+    PAGE_LIMIT,
+  );
+  // "Talep aç" (boş durum + yüzen düğme) `OpenRequestLink`: misafir kaydı
+  // DÖNÜŞ ADRESİ TAŞIMAZ (Y-03), oturumlu üyeye Gold kapısını önceden söyler.
+  // Telefonda KÜÇÜK ve köşeye yakın (arayüz testi D-071): 390 px'te tam boy
+  // hap kart görselini ve "Bilgi iste"yi örtüyordu. Listenin sonuna düğme
+  // boyu kadar boşluk konur (aşağıda) — son satır hiçbir zaman altında kalmaz.
+  const floatCls =
+    "fixed right-3 bottom-3 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:right-5 sm:bottom-5 sm:px-5 sm:py-3 sm:text-sm";
 
   /* ITEMLIST (2026-09-09, Parça 2): liste sayfası onsuz motorlar için
      "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
      SAYFALAMAYI yansıtır (2. sayfa 13'ten devam eder), yoksa her sayfa
      "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
-     Kanonik yol kategori sayfasında kategoriye, dizinde köke işaret eder —
-     süzgeçli varyantlar kendi kanoniğini zaten `/urunler` olarak bildiriyor. */
-  const listPath = category ? categoryPath(category.id, category.name) : basePath;
+     Kanonik yol açılış sayfasında (kategori/şehir/ülke) o sayfaya, dizinde
+     köke işaret eder — süzgeçli varyantlar kanoniğini `/urunler` bildiriyor.
+     Sayfalanmış sayfa (yalnız `?sayfa=N`) kendi adresini söyler — sayfa
+     metasındaki kanonikle aynı kural (`canonicalProductListPage`).
+     Adresler sayfanın dilinde (`locale`). */
+  const listPage = canonicalProductListPage(searchParams);
   const listLd = graph([
     itemListNode({
+      locale,
       name: title,
-      path: listPath,
+      path: `${landingPath}${pageQuery(listPage)}`,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
       items: page.items.map((p) => ({
@@ -86,13 +163,16 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         path: `/firma/${p.company.slug}/urun/${p.slug}`,
       })),
     }),
-    ...(category
+    ...(crumbs.length
       ? [
-          breadcrumbNode([
-            { name: "Anasayfa", path: "/" },
-            { name: "Ürünler", path: basePath },
-            { name: category.name, path: listPath },
-          ]),
+          breadcrumbNode(
+            [
+              { name: tm("breadcrumbHome"), path: "/" },
+              { name: tl("products"), path: basePath },
+              ...crumbs,
+            ],
+            locale,
+          ),
         ]
       : []),
   ]);
@@ -100,16 +180,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   return (
     <>
     <JsonLd data={listLd} />
-    {/* Giriş paragrafı: kategori ve şehir sayfalarında VERİDEN türetilir
-        (Parça 4). Ana dizinde çizilmez — orada özne yok, cümle "Rothern'de
-        57 ürün var" gibi boş bir tekrar olurdu. */}
-    {intro ??
-      (category ? (
-        <IndexIntro subject={category.name} total={page.total} facets={facets} kind="category" />
-      ) : fixedCity ? (
-        <IndexIntro subject={fixedCity} total={page.total} facets={facets} kind="city" />
-      ) : null)}
-    <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
+    {/* Giriş paragrafı (kategori/şehir özeti) KALDIRILDI — 2026-09-24,
+        kullanıcı: "rothern header alt kısmındaki bilgiyi kaldır, diğer tüm
+        dillerde de". Özet cümle JSON-LD `ItemList` ve meta açıklamasında
+        yaşamaya devam eder; sayfada tekrar çizilmez. */}
+    <FilterShell basePath={basePath} fixedCategory={category?.id} fixedCity={fixedCity} fixedCountry={fixedCountry} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
+      {/* Kayıtlı ızgara/liste tercihini URL'e taşır (arayüz testi D-318: tercih
+          yazılıyor ama herkese açık dizinde hiç okunmuyordu). */}
+      <ViewPreferenceSync />
       <PublicListPage
           tabs={
             <PublicSearchTabs active="products" q={state.q} counts={{ ...otherCounts, products: page.total }} />
@@ -118,24 +196,27 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         lead={lead}
         image={image}
         breadcrumb={
-          category ? (
-            <nav aria-label="Konum" className="mb-3 text-sm text-zinc-500">
-              <Link href={basePath} className="hover:text-zinc-900">Ürünler</Link>
-              <span aria-hidden className="mx-2">/</span>
-              <span className="text-zinc-900">{category.name}</span>
+          crumbs.length ? (
+            <nav aria-label={t("breadcrumb")} className="mb-3 text-sm text-zinc-500">
+              <Link href={basePath} className="hover:text-zinc-900">{tl("products")}</Link>
+              {crumbs.map((c, i) => (
+                <span key={c.path}>
+                  <span aria-hidden className="mx-2">/</span>
+                  {i === crumbs.length - 1 ? (
+                    <span className="text-zinc-900">{c.name}</span>
+                  ) : (
+                    <Link href={c.path} className="hover:text-zinc-900">{c.name}</Link>
+                  )}
+                </span>
+              ))}
             </nav>
           ) : undefined
         }
         search={{
           action: basePath,
           defaultValue: state.q,
-          hidden: {
-            kategori: state.category, sehir: state.cities.join(",") || undefined, faaliyet: state.activities.join(",") || undefined,
-            dogrulanmis: state.verified ? "1" : undefined, fiyat: state.price, sirala: state.sort,
-            gorunum: state.view,
-          },
-          hiddenList: { nitelik: state.attrs },
-          placeholder: "Ürün, marka veya parça numarası arayın",
+          hiddenList: productSearchCarry(state),
+          placeholder: tt("productsPlaceholder"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -145,7 +226,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun="ürün" />
+              <ResultCount kind="product" />
             </span>
             <span className="flex items-center gap-2">
               <SortControl />
@@ -155,16 +236,21 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         }
       >
         <FilterResults>
-          {page.items.length === 0 ? (
+          {lastPage != null ? (
             <PublicEmptyState
-              noun="Bu kriterlerle ürün"
+              title={te("pageEmpty")}
+              extra={{ label: te("lastPage"), href: `${landingPath}${landingQuery(lastPage)}` }}
+            />
+          ) : page.items.length === 0 ? (
+            <PublicEmptyState
+              title={t("productsEmptyTitle")}
               clearHref={hasFilter || category ? basePath : undefined}
-              extra={{ label: "Talep aç — tedarikçiler teklif versin", href: talepHref }}
+              openRequest={{ label: t("openRequestCta"), prefill: state.q }}
             />
           ) : (
             <ResultGrid
               count={page.items.length}
-              heading="Ürün sonuçları"
+              heading={t("productResults")}
               layout={state.view === "liste" ? "list" : "grid"}
             >
               {page.items.map((p, i) => (
@@ -174,8 +260,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
                   companySlug={p.company.slug}
                   company={p.company}
                   product={p}
-                  cta="Bilgi iste"
-                  compare
+                  cta={t("inquire")}
                   priority={i < 3}
                 />
               ))}
@@ -184,33 +269,35 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         </FilterResults>
         <Pagination
           page={page.page}
-          total={page.total}
+          // Herkese açık uç 200. sayfadan ötesini kabul etmez: daha fazla
+          // sayfa gösterilirse 201. bağlantı 200. sayfayı açardı.
+          total={Math.min(page.total, PAGE_LIMIT * page.pageSize)}
           pageSize={page.pageSize}
           className="mt-10 border-t border-zinc-950/5 pt-6"
-          // Kategori yol sayfasında yol korunur, sorgu `kategori` taşımaz; 7 yuva,
-          // gerçek bağlantılar (bot izler, rel=prev/next).
-          hrefBuilder={(p) =>
-            `${category ? `/urunler/kategori/${category.id}` : basePath}${buildProductFilterQuery({
-              ...state,
-              category: category ? undefined : state.category,
-              page: p,
-            })}`
-          }
+          // Açılış sayfasında (kategori/şehir/ülke) KANONİK yol korunur, sorgu
+          // yoldaki süzgeci taşımaz (`landingQuery`); 7 yuva, gerçek bağlantılar
+          // (bot izler, rel=prev/next). Kategoride eskiden çıplak kod
+          // (`/urunler/kategori/<kod>`) yazılıyordu → sayfa kanoniğe 308'leyip
+          // `?sayfa=` düşürüyordu (2. sayfa 1. sayfayı açıyordu).
+          hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
         />
-        {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
-        <Link
-          href={talepHref}
-          className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
-        >
-          Talep aç
-        </Link>
+        {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil.
+            Öndeki boşluk düğmenin yüksekliği kadar: listenin son kartı ve
+            sayfalama kaydırınca düğmenin altından çıkar (D-071). */}
+        <div aria-hidden className="h-14 sm:h-20" />
+        <OpenRequestLink label={t("openRequest")} prefill={state.q} className={floatCls} />
       </PublicListPage>
     </FilterShell>
     {/* Şehir şeridi VARSAYILAN (2026-09-09, Parça 3): şehir sayfalarına iç
         bağlantı olmadan sitemap tek başına otorite aktarmaz. Şehir sayfası
         kendi şeridini `footer` ile verir (orada facet, o şehre daralmış
         olurdu ve şerit boş çıkardı). */}
-    {footer ?? <CityLinks cities={facets.cities} kind="products" activeCity={fixedCity} />}
+    {footer ?? (
+      <>
+        <CityLinks cities={facets.cities} kind="products" activeCity={fixedCity} />
+        <CountryLinks countries={facets.countries} activeCountry={fixedCountry} />
+      </>
+    )}
     </>
   );
 }

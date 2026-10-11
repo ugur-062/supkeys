@@ -1,33 +1,38 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { PreferredActivitiesField } from "@/components/tenders/preferred-activities-field";
 import { NumberedSection } from "@/components/ui/numbered-section";
 import { AddressInline } from "./address-inline";
 import { RecentRequests } from "./recent-requests";
 import { StagedDocuments, type StagedListingDoc } from "@/components/tenders/wizard/staged-documents";
-import { uploadListingDocument } from "@/hooks/use-listing-documents";
+import { uploadListingDocument, useListingDocuments } from "@/hooks/use-listing-documents";
+import { FilesTab } from "@/components/tenders/files-tab";
+import { DateTimeInput } from "@/components/ui/date-time-input";
 import { useConnections } from "@/hooks/use-company-connections";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { useAiRequestDraftSuggest } from "@/hooks/use-ai-tender-import";
-import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
-import Link from "next/link";
+import { BUYING_TIER, isHiddenCategory, tierAtLeast, visibleCategoryIds } from "@rothern/shared";
+import { Link } from "@/i18n/navigation";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
 import { Step2Items } from "@/components/tenders/wizard/step-2-items";
+import { CloseDaysInput, useCloseDaysGuard } from "@/components/tenders/close-days-input";
+import { hasInvalidNumber } from "@/components/ui/money-input";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
-import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { TermsPanel } from "./terms-panel";
-import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
-import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
-import type { PaymentCategory } from "@/lib/tenders/types";
+import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
+import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { useAddresses } from "@/hooks/use-company-addresses";
+import { useAddresses, type CompanyAddress } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
 import { useSaveTemplate } from "@/hooks/use-listing-templates";
@@ -35,22 +40,49 @@ import { SaveTemplateDialog } from "@/components/tenders/wizard/save-template-di
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
 import { formatDate } from "@/lib/format-date";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { DEFAULT_FORM_VALUES, tenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
+import { DEFAULT_FORM_VALUES, makeTenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { parseAppWallClockInput, toAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
+import { seedHasRetiredCategory } from "@/lib/tenders/map-detail-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
-import { QUICK_DRAFT_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
-import { titleFromItems } from "@/lib/tenders/quick-parse";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
+import {
+  MAX_PENDING_EXTERNAL_INVITES,
+  QUICK_DRAFT_KEY,
+  clearSession,
+  normalizeExternalInvites,
+  normalizeMemberInvites,
+  pendingInvitesKey,
+  pendingMemberInvitesKey,
+  readSession,
+  writeSession,
+  type QuickDraft,
+} from "@/lib/tenders/quick-draft";
+import {
+  useExternalTenderInvite,
+  useInviteDiscoveredMembers,
+  type ExternalInviteResult,
+  type ExternalInviteTarget,
+  type MemberInviteResult,
+  type MemberInviteTarget,
+} from "@/hooks/use-supplier-discovery";
+import { inviteWillLeave } from "@/lib/tenders/external-invite-status";
+import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
+import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, withVisibleCategories, type QuickSeedKind } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
-import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
+import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
+import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
+
+/** Üye daveti sonucu + ad (yayın paneli satır satır gösterir). */
+export type NamedMemberResult = MemberInviteResult & { name: string };
 
 /**
  * HIZLI TALEP — tek ekran, üç numaralı bölüm + sağda özet (2026-09-09 v2).
@@ -72,21 +104,112 @@ import { toast } from "sonner";
  * Form modeli ve doğrulama SİHİRBAZLA AYNI (`tenderFormSchema`), gövde AYNI
  * (`mapToInput`); yeni backend akışı yok. Renk satınalma: mavi.
  */
+/** Varsayılan teslimat adresi: varsayılan TESLİMAT → ilk TESLİMAT → FATURA dışı ilk adres. */
+function pickDeliveryAddress(list: CompanyAddress[]): CompanyAddress | undefined {
+  return (
+    list.find((a) => a.isDefault && a.type === "TESLIMAT") ??
+    list.find((a) => a.type === "TESLIMAT") ??
+    list.find((a) => a.type !== "FATURA")
+  );
+}
+
 export function QuickRequest({
   initialValues,
   mode = "new",
   listingId,
+  listingStatus,
+  invitationsAsOf,
+  seedTerms = false,
+  retiredCategory = false,
 }: {
   initialValues?: Partial<TenderFormData>;
-  /** `edit`: mevcut TASLAĞI günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
+  /** `edit`: mevcut talebi günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
   mode?: "new" | "edit";
   listingId?: string;
+  /**
+   * Düzenlenen talebin durumu. DRAFT dışı (teklifsiz OPEN) talepte birincil
+   * düğme "Değişiklikleri kaydet" olur ve yayın ucu ÇAĞRILMAZ (derin denetim
+   * Y-20: `publish` yalnız taslağı kabul eder, 400 dönüyordu).
+   */
+  listingStatus?: string;
+  /**
+   * Düzenleme: `initialValues`in geldiği talep detayının `invitationsAsOf`
+   * alanı (davetli listesinin sunucuda okunduğu an). Kayıtta aynen geri
+   * gönderilir: form listesini bir kez okur; açıkken otomatik tedarikçi
+   * aramasının davet ettiği üyeyi bilemez ve kaydederken sildirmemelidir.
+   */
+  invitationsAsOf?: string;
+  /** Tohum (kopya/şablon) kendi ticari şartlarını taşır — profil varsayılanı onları EZMEZ. */
+  seedTerms?: boolean;
+  /**
+   * Tohumun geldiği kayıt artık sunulmayan (gizli segment) bir kategori
+   * taşıyordu. Detay eşleyicisi gizli kodu forma hiç vermez (`mapDetailToForm`)
+   * → form bunu `initialValues`ten göremez, sayfa söyler. Ham kod taşıyan
+   * tohumu (şablon, oturum taslağı) form kendisi tanır. Etkisi yalnız NOT:
+   * kategori alanı boşken "önceki kategori artık kullanılmıyor" çizilir —
+   * kategorinin adı anılmaz.
+   */
+  retiredCategory?: boolean;
 }) {
+  const tr = useTranslations("web.panel.requests.quickRequest");
+  // Şema mesajları (`formSchema.*`, `closesAt.*`) ve üretilen başlık sözcükleri
+  // (`quickParse.*`) üst ad alanından — form kullanıcının diliyle kurulur.
+  const tReq = useTranslations("web.panel.requests");
+  const tAi = useTranslations("web.panel.requests.aiSuppliers");
+  const locale = useLocale() as Locale;
+  const formatPaymentPlan = useFormatPaymentPlan();
+  const missingLabel = useAiMissingFieldLabel();
+  const paymentCategoryLabel = usePaymentCategoryLabel();
+  const cityLabel = useCityLabel();
+  // Görünürlük kartı etiketleri Talep Şartları formuyla AYNI kaynaktan (`requestDefaultsForm.visibility.*`).
+  const visibilityLabels = useVisibilityLabels();
+  const titleT: TitleTranslate = (key, values) => tReq(`quickParse.${key}` as never, values as never);
+  const makeTitle = (items: { name: string }[]) => titleFromItems(items, titleT, locale);
   const isEdit = mode === "edit" && !!listingId;
+  // Yayındaki (teklifsiz) talebi düzenleme: kaydet = PATCH + bekleyen davetler.
+  const isLiveEdit = isEdit && !!listingStatus && listingStatus !== "DRAFT";
+  /**
+   * KATEGORİSİZ AÇILAN YAYINDAKİ TALEP (2026-10-09, gözden geçirme R-WEB-01).
+   * Sahip kuralı: değişmeyen eski değer ilgisiz bir düzenlemeyi ENGELLEMEZ.
+   * Yayındaki talebin tek kategorisi gizli segmentteyse form kategorisiz açılır
+   * (gizli kod forma girmez — `withVisibleCategories`); "Değişiklikleri kaydet"
+   * yeni talebin "en az 1 kategori" kuralına takılır, kapanış tarihi kategori
+   * seçmeden uzatılamazdı. Bu formda kategori ZORUNLU DEĞİL: boş kalırsa boş
+   * gider, seçilirse o gider. Karar formun AÇILDIĞI andaki tohumdan (bir kez):
+   * görünür kategoriyle açılan talepte hepsini kaldırmak değişikliktir, kural
+   * durur. Taslak ve yeni talep hiç etkilenmez (yayın kapısı kategori ister).
+   */
+  const [seededWithoutCategory] = useState(() => visibleCategoryIds(initialValues?.categoryIds).length === 0);
+  const categoryOptional = isLiveEdit && seededWithoutCategory;
+  const schema = useMemo(
+    () => makeTenderFormSchema((key, values) => tReq(key as never, values as never), { categoryRequired: !categoryOptional }),
+    [tReq, categoryOptional],
+  );
+  /**
+   * Tohum kullanımdan kalkmış bir kategori taşıyordu: sayfa söyledi
+   * (`retiredCategory`), tohum öyle bir talepten üretildi (kopya — eşleyici
+   * işaretler, `seedHasRetiredCategory`; canlı doğrulama CP-05), ham tohumda
+   * gizli kod vardı (şablon) ya da geri yüklenen oturum taslağında vardı
+   * (aşağıdaki efekt). Kod forma girmez; alan boşken nedenini
+   * `CategorySelectorButton` notu söyler.
+   */
+  const [retiredSeed, setRetiredSeed] = useState(
+    () => seedHasRetiredCategory(initialValues) || (initialValues?.categoryIds ?? []).some((id) => isHiddenCategory(id)),
+  );
+  const hadRetiredCategory = retiredCategory || retiredSeed;
+  // Düzenleme/kopya/şablon talebin KENDİ şartlarıyla açılır (derin denetim Y-19).
+  const seedKind: QuickSeedKind = isEdit ? "edit" : seedTerms && initialValues ? "seed" : "blank";
   const router = useRouter();
   const { company } = useCompanyAuth();
   const canManage = useHasCompanyPermission("buy:listing:manage");
+  // Adres ekleme ve şablon kaydı API'de ayrı izin ister — izinsiz kullanıcıya
+  // kontrol gösterilip 403 yedirilmez (arayüz testi D-042).
+  const canManageAddresses = useHasCompanyPermission("addresses:manage");
+  const canManageTemplates = useHasCompanyPermission("templates:manage");
   const defaultsQ = useRequestDefaults();
+  // Kayıtlı şart yoksa platform varsayılanı firmanın ülkesine göre (para
+  // birimi: yabancı alıcı TRY ile başlamasın — 2026-09-27).
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country);
   const saveDefaults = useSaveRequestDefaults();
   const addresses = useAddresses();
   const create = useCreateListing();
@@ -94,27 +217,54 @@ export function QuickRequest({
   const publishExisting = usePublishListing(listingId ?? "");
   const saveTemplate = useSaveTemplate();
   const [templateOpen, setTemplateOpen] = useState(false);
-  const busy = create.isPending || update.isPending || publishExisting.isPending;
+  const sendExternal = useExternalTenderInvite();
+  const sendMembers = useInviteDiscoveredMembers();
+  // Yayın/taslak akışı mutation'lar ARASINDA da sürer (belge yükleme düz
+  // async) → `submitting` tüm akışı kapsar; yalnız pending'e bakınca yükleme
+  // sırasında "Taslak kaydet" açılıyor, her tık yeni talep açıyordu (derin denetim S083).
+  const [submitting, setSubmitting] = useState(false);
+  const busy = submitting || create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending || sendMembers.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
-  // "AI ile daha fazla tedarikçiye eriş" — 3. bölümde (Kimler görsün?),
-  // 2026-09-17 kullanıcı kararı; kalem adları + kategori bağlamıyla arar.
-  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // AI ile başlık + kategori (2026-09-17): kalemlerden; başlık ve kategori
   // ÜZERİNE yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa.
   const draftSuggest = useAiRequestDraftSuggest();
-  const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
+  const [published, setPublished] = useState<{
+    id: string;
+    title: string;
+    categoryIds: string[];
+    itemNames: string[];
+    inviteResults: ExternalInviteResult[] | "error" | null;
+    memberResults: NamedMemberResult[] | "error" | null;
+  } | null>(null);
+  // ESKİ TASLAKTAN KALAN AI SEÇİMLERİ (2026-10-08): form artık kendisi tedarikçi
+  // aramıyor (kalemlerin altındaki AI paneli kaldırıldı; yayın sonrası tur
+  // bulduğunu kendisi davet eder). Bu iki liste yalnız daha önce saklanmış
+  // taslaktan (`QuickDraft.externalInvites`/`memberInvites`, kayıtlı taslakta
+  // `pendingInvitesKey`/`pendingMemberInvitesKey`) dolar; alıcının o zaman
+  // seçtiği firmalar YAYINDA eskisi gibi davet edilir (dış adres: talebe özel
+  // e-posta daveti, dil satırda değiştirilebilir; üye: doğrudan talebe).
+  const [externalInvites, setExternalInvites] = useState<ExternalInviteTarget[]>([]);
+  const [memberInvites, setMemberInvites] = useState<MemberInviteTarget[]>([]);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const connections = useConnections();
   const seoEnrich = useAiSeoEnrich();
+  // Düzenlemede talebin MEVCUT belgeleri (O-087) — 4. bölüm `FilesTab` ile
+  // listeler/yükler/siler; sayaç aynı sorgudan (tek istek).
+  const existingDocs = useListingDocuments(listingId ?? "", isEdit);
+  // Taslak kaydedilip sayfadan çıkılırken otomatik saklama durur (O-084):
+  // `finally`'deki durum güncellemesi yeniden çizim tetikleyip silinen oturum
+  // taslağını geri yazıyor, yeni form aynı içerikle açılıyordu.
+  const leavingRef = useRef(false);
 
   const form = useForm<TenderFormData>({
-    resolver: zodResolver(tenderFormSchema),
-    defaultValues: { ...DEFAULT_FORM_VALUES, ...initialValues },
+    resolver: zodResolver(schema),
+    // Gizli segmentteki kod forma hiç girmez (2026-10-09) — bkz. `withVisibleCategories`.
+    defaultValues: withVisibleCategories({ ...DEFAULT_FORM_VALUES, ...initialValues }),
     mode: "onTouched",
   });
   const { watch, setValue, getValues, reset } = form;
@@ -141,20 +291,68 @@ export function QuickRequest({
 
   /* Profil yüklenince şartları forma uygula (bir kez); taslak varsa geri getir. */
   const appliedRef = useRef(false);
+  // Formun tohumlandığı ANDAKİ detayın okuma zamanı — sayfa detayı sonradan
+  // yeniden çekse de form eski listeyle kalır; damga da onunla kalmalı.
+  const seededInvitationsAsOf = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!defaultsQ.data || appliedRef.current) return;
     appliedRef.current = true;
-    const d = defaultsQ.data.defaults ?? REQUEST_DEFAULTS_FALLBACK;
-    setTerms(d);
+    seededInvitationsAsOf.current = invitationsAsOf;
+    const d = defaultsQ.data.defaults ?? requestDefaultsFallbackFor(companyCountry);
     const draft = initialValues ? null : readSession<QuickDraft>(QUICK_DRAFT_KEY);
-    const base = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...initialValues }, d);
-    reset(draft ? { ...base, ...draft, bidsCloseAt: base.bidsCloseAt } : base);
+    const base = initialRequestFormValues(seedKind, initialValues, d);
+    // Şartlar paneli formdaki şartları gösterir: düzenleme/kopya/şablonda
+    // talebin kendisi, boş kartta profil.
+    setTerms(seedKind === "blank" ? d : defaultsFromForm(base, d.closeDays));
+    const { externalInvites: draftInvites, memberInvites: draftMembers, ...draftFields } = draft ?? {};
+    // Oturum taslağı eşleyiciden geçmez → gizli kod burada düşer (2026-10-09).
+    reset(draft ? withVisibleCategories({ ...base, ...draftFields, bidsCloseAt: base.bidsCloseAt }) : base);
     if (draft) setRestoredDraft(true);
-    if (!d.deliveryAddressId && addresses.data?.length) {
-      const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
-      if (pick) setValue("deliveryAddressId", pick.id);
-    }
-  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue]);
+    // Düşen kodun yerinde boş alan kalır — nedenini alan notu söyler (R-WEB-01).
+    if ((draft?.categoryIds ?? []).some((id) => isHiddenCategory(id))) setRetiredSeed(true);
+    // Bekleyen dış davetler: yeni kartta taslaktan, düzenlemede taslak
+    // kaydında bırakılan listeden.
+    // Eski taslak düz adres dizisi taşıyabilir — dil kuralla türetilir.
+    const pending = normalizeExternalInvites(
+      isEdit && listingId ? readSession<unknown>(pendingInvitesKey(listingId)) : draftInvites,
+      locale,
+    );
+    if (pending.length) setExternalInvites(pending.slice(0, MAX_PENDING_EXTERNAL_INVITES));
+    const pendingMembers = normalizeMemberInvites(
+      isEdit && listingId ? readSession<unknown>(pendingMemberInvitesKey(listingId)) : draftMembers,
+    );
+    if (pendingMembers.length) setMemberInvites(pendingMembers.slice(0, MAX_PENDING_EXTERNAL_INVITES));
+  }, [defaultsQ.data, initialValues, invitationsAsOf, reset, isEdit, listingId, companyCountry, locale, seedKind]);
+
+  /* Bağlantısız firma (D-246): platform varsayılanı "Bağlantılarım" talebi
+     kimseye göstermez → bağlantılar yüklenince bir kez "Herkese açık"a çekilir.
+     Kayıtlı şart / son talep / düzenleme / kopya / geri getirilen taslak
+     DOKUNULMAZ (kullanıcının seçimi). */
+  const zeroConnChecked = useRef(false);
+  useEffect(() => {
+    if (zeroConnChecked.current || !terms || !connections.data) return;
+    zeroConnChecked.current = true;
+    if (seedKind !== "blank" || defaultsQ.data?.source !== "none" || restoredDraft) return;
+    const cur = getValues("visibility");
+    const next = fallbackVisibilityFor(cur, connections.data.length) as TenderFormData["visibility"];
+    if (next === cur) return;
+    setValue("visibility", next, { shouldDirty: false });
+    setTerms((t) => (t ? { ...t, visibility: next } : t));
+  }, [terms, connections.data, seedKind, defaultsQ.data, restoredDraft, getValues, setValue]);
+
+  /* Varsayılan teslimat adresi — şartlar uygulandıktan SONRA ve adresler
+     yüklenince, formda adres YOKSA bir kez (düzenlenen talebin adresi ezilmez).
+     Ayrı efekt: sorgular hangi sırayla dönerse dönsün seçilir (derin denetim
+     S083; eskiden şartlar önce gelirse hiç seçilmiyordu). FATURA adresi
+     teslimat seçicisinde görünmez → geri düşüşte de seçilmez. */
+  const addressPickedRef = useRef(false);
+  useEffect(() => {
+    if (!appliedRef.current || addressPickedRef.current || !addresses.data) return;
+    addressPickedRef.current = true;
+    if (getValues("deliveryAddressId")) return;
+    const pick = pickDeliveryAddress(addresses.data);
+    if (pick) setValue("deliveryAddressId", pick.id);
+  }, [defaultsQ.data, addresses.data, getValues, setValue]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
   const updateTerms = (next: RequestDefaults) => {
@@ -176,14 +374,16 @@ export function QuickRequest({
     );
   };
 
-  /* Taslak otomatik saklama (niyet alanları). */
+  /* Taslak otomatik saklama (niyet alanları). Düzenlemede YAZILMAZ: yeni
+     talep taslağıdır; düzenlenen talebin içeriği sonraki boş "Yeni talep"
+     formuna sızıyordu (bekleyen davetler düzenlemede kendi anahtarında). */
   const watched = watch();
   useEffect(() => {
-    if (!appliedRef.current || published) return;
+    if (isEdit || !appliedRef.current || published || leavingRef.current) return;
     const { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } = watched;
     if (!title && items.every((i) => !i.name)) return;
-    writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } satisfies QuickDraft);
-  }, [watched, published]);
+    writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt, externalInvites, memberInvites } satisfies QuickDraft);
+  }, [watched, published, externalInvites, memberInvites, isEdit]);
 
   const items = watched.items ?? [];
   const namedItems = items.filter((i) => i.name.trim().length > 0);
@@ -198,7 +398,10 @@ export function QuickRequest({
       }),
     [watched.title, watched.description, watched.categoryIds, items],
   );
-  const { data: catRows = [] } = useCategoriesByIds(watched.categoryIds ?? []);
+  // Kategori düğmesiyle (`CategorySelectorButton`) aynı sorgu anahtarı → aynı
+  // seçenek: ad hatasını düğme kendi satırında gösterir; seçeneksiz ikinci
+  // gözlemci aynı hataya genel toast da basıyordu (kayıt denetimi 2026-10 webcat-5).
+  const { data: catRows = [] } = useCategoriesByIds(watched.categoryIds ?? [], { inlineError: true });
   const selectedAddress = (addresses.data ?? []).find((a) => a.id === watched.deliveryAddressId) ?? null;
   // Hook'lar erken dönüşlerden (yayın sonrası / iskelet) ÖNCE — sıra değişmez.
   const publicCount = useCompanySearch({ category: (watched.categoryIds ?? []).join(",") || undefined }, watched.visibility === "PUBLIC");
@@ -209,7 +412,7 @@ export function QuickRequest({
     const cur = getValues();
     const merged = [...cur.items.filter((i) => i.name.trim()), ...next];
     setValue("items", merged.length ? merged : cur.items, { shouldDirty: true, shouldValidate: true });
-    if (!cur.title.trim()) setValue("title", titleFallback || titleFromItems(merged), { shouldDirty: true });
+    if (!cur.title.trim()) setValue("title", titleFallback || makeTitle(merged), { shouldDirty: true });
   };
   const applyDocument = (r: AiTenderExtractResult) => {
     const mapped = mapAiDraftToForm(r.draft, getValues());
@@ -217,11 +420,14 @@ export function QuickRequest({
     const cur = getValues();
     if (!cur.description?.trim() && mapped.description) setValue("description", mapped.description, { shouldDirty: true });
     if (!cur.categoryIds.length && mapped.categoryIds.length) setValue("categoryIds", mapped.categoryIds, { shouldDirty: true, shouldValidate: true });
-    if (r.missingRequired?.length) toast.warning(`Belgeden okunamayan alanlar: ${r.missingRequired.join(", ")}`);
-    else toast.success("Belgeden dolduruldu — kalemleri kontrol edin");
+    if (r.missingRequired?.length) toast.warning(tr("belgedenOkunamayanAlanlar", { join: r.missingRequired.map(missingLabel).join(", ") }));
+    else toast.success(tr("belgedenDoldurulduKalemleriKontrolEdin"));
   };
 
   /* --- Süre */
+  // Hazır seçenek / tarih seçici "Özel gün" kutusunun geçersiz metnini atar
+  // (aynı süre yeniden seçilince `value` değişmez — CloseDaysInput.resetSignal).
+  const [closeReset, setCloseReset] = useState(0);
   const setCloseDays = (days: number) => {
     setValue("bidsCloseAt", closesAtFromDays(days), { shouldDirty: true, shouldValidate: true });
     if (terms) setTerms({ ...terms, closeDays: days });
@@ -229,83 +435,196 @@ export function QuickRequest({
   const currentCloseDays = useMemo(() => {
     const v = watched.bidsCloseAt;
     if (!v) return closeDays;
-    const d = Math.round((new Date(v).getTime() - Date.now()) / 86_400_000);
+    const d = Math.round(((parseAppWallClockInput(v)?.getTime() ?? NaN) - Date.now()) / 86_400_000);
     return d > 0 ? d : closeDays;
   }, [watched.bidsCloseAt, closeDays]);
 
   /* --- Yayın / taslak / detaylı */
+  /**
+   * Gövde TEK çağrıda tüm davet listesini taşır ("Bağlantılarım" kipinde tüm
+   * bağlantılar; tavan `MAX_LISTING_INVITATIONS`, API ile ortak). Kayıt
+   * sonrası ayrı davet çağrısı YAPILMAZ: sunucu düzenlemede davetleri gövdeden
+   * yeniden yazar, ayrı çağrı taşan firmaları her kayıtta "yeni davetli"
+   * sayıp yeniden e-posta attırıyordu (derin denetim MU-26 gözden geçirme).
+   */
+  const buildInput = (values: TenderFormData) => mapToInput(applyConnectionsScope(values, connectionIds));
+  /** Düzenleme gövdesi: formun davetli listesini okuduğu an da gider (yoksa alan hiç yazılmaz). */
+  const buildEditInput = (values: TenderFormData) => ({
+    ...buildInput(values),
+    ...(seededInvitationsAsOf.current ? { invitationsAsOf: seededInvitationsAsOf.current } : {}),
+  });
   const submitLock = useRef(false);
+  // Geçersiz "Özel gün" kutusu kaydı/yayını durdurur, kutuya odaklanır
+  // (arayüz testi kalanlar NUM:NEW-7 — kutu kırmızıyken taslak öneki kaydediyordu).
+  const closeDaysOk = useCloseDaysGuard();
   const publish = async () => {
     if (submitLock.current) return;
+    if (!closeDaysOk()) return;
     submitLock.current = true;
+    setSubmitting(true);
     try {
       ensureTitle();
       const ok = await form.trigger();
       if (!ok) {
         const errs = form.formState.errors;
         const first = Object.keys(errs)[0];
-        if (first === "deliveryTerm" || first === "paymentCategory" || first === "paymentDays") {
-          toast.error("Sağdaki Ticari şartlar panelinde teslim şekli / ödeme eksik — 'seç' ile tamamlayın");
+        if (["deliveryTerm", "paymentCategory", "paymentDays", "advancePercent", "lcType", "paymentNote"].includes(first)) {
+          toast.error(tr("sagdakiTicariSartlarPanelindeTeslim"));
           document.getElementById("sartlar-baslik")?.scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
         const section = ["items", "title", "categoryIds", "description"].includes(first) ? "talep-ne" : ["deliveryAddressId", "bidsCloseAt", "billingAddressId"].includes(first) ? "talep-nereye" : "talep-kime";
         document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
         const msg = (errs[first as keyof typeof errs] as { message?: string } | undefined)?.message;
-        toast.error(msg ? `Eksik: ${msg}` : "Eksik alanlar var — ilgili bölüme kaydırıldı");
+        toast.error(msg ? tr("eksik", { msg }) : tr("eksikAlanlarVarIlgiliBolume"));
         return;
       }
       const values = getValues();
       if (isEdit && listingId) {
-        // Düzenleme: önce içerik güncellenir, sonra taslak yayına alınır.
-        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+        // Düzenleme: önce içerik güncellenir; TASLAK ise sonra yayına alınır.
+        // Yayındaki talep zaten açık — yayın ucu yalnız taslağı kabul eder.
+        const input = buildEditInput(values);
+        await update.mutateAsync(input);
         await uploadStaged(listingId);
-        await publishExisting.mutateAsync({});
-        toast.success("Talep yayımlandı");
+        if (isLiveEdit) {
+          toast.success(tr("degisikliklerKaydedildi"));
+        } else {
+          await publishExisting.mutateAsync({});
+          toast.success(tr("talepYayimlandi"));
+        }
+        const memberResults = await sendPendingMembers(listingId);
+        const inviteResults = await sendPendingInvites(listingId);
+        clearSession(pendingInvitesKey(listingId));
+        clearSession(pendingMemberInvitesKey(listingId));
+        if (memberResults === "error") toast.warning(tr("uyeDavetleriGonderilemedi"));
+        else if (memberResults) {
+          const invited = memberResults.filter((r) => r.status === "INVITED").length;
+          if (invited > 0) toast.success(tr("uyeDavetEdildi", { n: invited }));
+        }
+        if (inviteResults === "error") toast.warning(tr("disDavetlerGonderilemedi"));
+        else if (inviteResults) {
+          const sent = inviteResults.filter((r) => inviteWillLeave(r)).length;
+          if (sent > 0) toast.success(tr("disDavetSirayaAlindi", { n: sent }));
+          if (sent < inviteResults.length) toast.warning(tr("disDavetGonderilmedi", { n: inviteResults.length - sent }));
+        }
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+      const input = buildInput(values);
+      const listing = await create.mutateAsync(input);
       await uploadStaged(listing.id);
+      const memberResults = await sendPendingMembers(listing.id);
+      const inviteResults = await sendPendingInvites(listing.id);
       clearSession(QUICK_DRAFT_KEY);
-      setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name) });
+      setPublished({
+        id: listing.id,
+        title: values.title,
+        categoryIds: values.categoryIds,
+        itemNames: values.items.map((i) => i.name),
+        inviteResults,
+        memberResults,
+      });
       window.scrollTo({ top: 0 });
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Talep yayımlanamadı"));
+      toast.error(extractErrorMessage(err, isLiveEdit ? tr("degisikliklerKaydedilemedi") : tr("talepYayimlanamadi")));
     } finally {
       submitLock.current = false;
+      setSubmitting(false);
+    }
+  };
+  /**
+   * Bekleyen dış davetler — talep YAYINLANDIKTAN sonra, talebe özel davet
+   * ucuyla (kayıtlı talepteki akışla aynı gövde). Hata yayını geri almaz:
+   * sonuç yayın panelinde (ya da toast'ta) gösterilir.
+   */
+  const sendPendingInvites = async (id: string): Promise<ExternalInviteResult[] | "error" | null> => {
+    if (externalInvites.length === 0) return null;
+    try {
+      const results = await sendExternal.mutateAsync({
+        listingId: id,
+        invites: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES),
+        source: "AI_FORM",
+      });
+      setExternalInvites([]);
+      return results;
+    } catch {
+      return "error";
+    }
+  };
+  /**
+   * Seçilen Rothern üyeleri — talep YAYINLANDIKTAN sonra doğrudan talebe davet
+   * (bağlantı şartı yok, günlük tavan e-posta davetleriyle ortak). Hata yayını
+   * geri almaz.
+   */
+  const sendPendingMembers = async (id: string): Promise<NamedMemberResult[] | "error" | null> => {
+    if (memberInvites.length === 0) return null;
+    try {
+      const results = await sendMembers.mutateAsync({ listingId: id, companyIds: memberInvites.map((m) => m.companyId) });
+      const nameOf = new Map(memberInvites.map((m) => [m.companyId, m.name]));
+      setMemberInvites([]);
+      return results.map((r) => ({ ...r, name: nameOf.get(r.companyId) ?? "" }));
+    } catch {
+      return "error";
     }
   };
   /** Başlık boşsa kalemlerden türet — satırlar elle girildiğinde otomatik başlık yok. */
   const ensureTitle = () => {
     const v = getValues();
     if (!v.title.trim()) {
-      const t = titleFromItems(v.items.filter((i) => i.name.trim()));
+      const t = makeTitle(v.items.filter((i) => i.name.trim()));
       if (t) setValue("title", t, { shouldDirty: true });
     }
   };
   const saveDraft = async () => {
+    // Yayınla ile AYNI kilit: biri sürerken öteki yeni kayıt açamaz.
+    if (submitLock.current) return;
+    if (!closeDaysOk()) return;
     ensureTitle();
     const values = getValues();
-    if (values.title.trim().length < 3) {
-      toast.error("Taslak için en az bir başlık gerekli");
+    const titleLen = values.title.trim().length;
+    if (titleLen < 3) {
+      // Boş başlık ile kısa başlık ayrı söylenir (D-094): "ab" yazana "başlık gerekli" yanlıştı.
+      toast.error(titleLen === 0 ? tr("taslakIcinEnAzBir") : tReq("formSchema.titleMin"));
       return;
     }
+    // Taslak kaydı şema doğrulamasından geçmez: geçersiz sayı girişi (NaN)
+    // JSON'da null olur ve alan SESSİZCE boşalırdı (arayüz testi kapanış NUM).
+    if (hasInvalidNumber(values) || hasInvalidNumber(terms)) {
+      toast.error(tr("gecersizSayiAlani"));
+      return;
+    }
+    submitLock.current = true;
+    setSubmitting(true);
     try {
       if (isEdit && listingId) {
-        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+        // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
+        // yeni taslak yoluyla aynı). Yayındaki talepte bu düğme çizilmez.
+        const input = buildEditInput(values);
+        await update.mutateAsync({ ...input, asDraft: true });
         await uploadStaged(listingId);
-        toast.success("Taslak güncellendi");
+        // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
+        if (externalInvites.length) writeSession(pendingInvitesKey(listingId), externalInvites);
+        else clearSession(pendingInvitesKey(listingId));
+        if (memberInvites.length) writeSession(pendingMemberInvitesKey(listingId), memberInvites);
+        else clearSession(pendingMemberInvitesKey(listingId));
+        toast.success(tr("taslakGuncellendi"));
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
+      const input = buildInput(values);
+      const listing = await create.mutateAsync({ ...input, asDraft: true });
       await uploadStaged(listing.id);
+      if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
+      if (memberInvites.length) writeSession(pendingMemberInvitesKey(listing.id), memberInvites);
+      leavingRef.current = true;
       clearSession(QUICK_DRAFT_KEY);
-      toast.success("Taslak kaydedildi");
+      toast.success(tr("taslakKaydedildi"));
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
     }
   };
   /** Şartname/teknik resim: kayıt oluşunca sırayla yüklenir (sihirbazla aynı). */
@@ -318,7 +637,7 @@ export function QuickRequest({
         failed += 1;
       }
     }
-    if (failed > 0) toast.warning(`${failed} dosya yüklenemedi — talep sayfasından tekrar ekleyebilirsiniz`);
+    if (failed > 0) toast.warning(tr("dosyaYuklenemediTalepSayfasindanTekrar", { failed: failed }));
   };
 
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
@@ -334,17 +653,19 @@ export function QuickRequest({
         })),
       );
       if (r.failed) {
-        toast.error("AI önerisi alınamadı — tekrar deneyin");
+        toast.error(tr("aiOnerisiAlinamadiTekrarDeneyin"));
         return;
       }
       if (r.title) setValue("title", r.title, { shouldDirty: true, shouldValidate: true });
-      if (r.categoryIds.length > 0) setValue("categoryIds", r.categoryIds.slice(0, 3), { shouldDirty: true, shouldValidate: true });
+      // AI önerisi de aynı süzgeçten (2026-10-09): gizli segment kodu forma yazılmaz.
+      const suggested = visibleCategoryIds(r.categoryIds);
+      if (suggested.length > 0) setValue("categoryIds", suggested.slice(0, 3), { shouldDirty: true, shouldValidate: true });
       if (r.keywords.length > 0 && (getValues("keywords") ?? []).length === 0) {
         setValue("keywords", r.keywords.map((k) => k.trim().slice(0, 50)).filter(Boolean).slice(0, 10));
       }
-      if (!r.title && r.categoryIds.length === 0) toast.info("AI uygun bir öneri bulamadı");
+      if (!r.title && suggested.length === 0) toast.info(tr("aiUygunBirOneriBulamadi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "AI önerisi alınamadı"));
+      toast.error(extractErrorMessage(err, tr("aiOnerisiAlinamadi")));
     }
   };
   // Tedarikçi keşfi API kapısı GOLD (`company/ai/supplier-discovery`).
@@ -355,16 +676,16 @@ export function QuickRequest({
     try {
       const r = await seoEnrich.mutateAsync({
         kind: "listing",
-        name: v.title || titleFromItems(v.items),
+        name: v.title || makeTitle(v.items),
         description: v.description ?? null,
         categoryName: catRows[0]?.nameTr ?? null,
         facts: v.items.filter((i) => i.name.trim()).map((i) => `${i.name} — ${i.quantity} ${i.unit}${i.description ? `: ${i.description}` : ""}`),
         city: selectedAddress?.city ?? null,
       });
       setValue("description", r.description, { shouldDirty: true });
-      toast.success("Açıklama taslağı yazıldı — kontrol edin");
+      toast.success(tr("aciklamaTaslagiYazildiKontrolEdin"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "AI açıklama yazamadı"));
+      toast.error(extractErrorMessage(err, tr("aiAciklamaYazamadi")));
     }
   };
 
@@ -376,19 +697,61 @@ export function QuickRequest({
       delete payload.bidsOpenAt;
       delete payload.invitedSupplierIds;
       await saveTemplate.mutateAsync({ name, payload });
-      toast.success(`"${name}" şablonu kaydedildi`);
+      toast.success(tr("sablonuKaydedildi", { name: name }));
       setTemplateOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("sablonKaydedilemedi")));
     }
   };
-  const persistDefaults = async (next: RequestDefaults) => {
+  /** Profil şartlarını kaydeder; başarıyı döner (kurulum kartı yalnız başarıda kapanır — D-243). */
+  const persistDefaults = async (next: RequestDefaults): Promise<boolean> => {
+    // Şartlar kapanış gününü de taşır: kutu geçersizken eski değer kaydedilmez.
+    if (!closeDaysOk()) return false;
+    if (hasInvalidNumber(next)) {
+      toast.error(tr("gecersizSayiAlani"));
+      return false;
+    }
     try {
       await saveDefaults.mutateAsync(next);
-      toast.success("Talep şartları kaydedildi — sonraki taleplerde sorulmaz");
+      toast.success(tr("talepSartlariKaydedildiSonrakiTaleplerde"));
+      return true;
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şartlar kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("sartlarKaydedilemedi")));
+      return false;
     }
+  };
+
+  /**
+   * BOŞ YENİ TALEP (arayüz testi O-083): yayın sonrası "Yeni talep aç" ve taslak
+   * bandındaki "Temizle, sıfırdan başla" AYNI yoldan geçer — profil şartları,
+   * varsayılan teslimat adresi, bağlantısız firmada görünürlük geri düşüşü ve
+   * "Bağlantılarım"da tüm bağlantıların işaretlenmesi yeniden kurulur. Eskiden
+   * "Temizle" yalnız formu sıfırlıyor, adres boşalıyor ve talep kimseye
+   * gösterilmeden (PRIVATE) kaydediliyordu. Otomatik doldurma efektleri tek
+   * seferlik olduğundan değerler burada DOĞRUDAN hesaplanır.
+   */
+  const resetToBlank = () => {
+    const d = defaultsQ.data?.defaults ?? requestDefaultsFallbackFor(companyCountry);
+    const base = initialRequestFormValues("blank", undefined, d);
+    const pick = base.deliveryAddressId ? null : pickDeliveryAddress(addresses.data ?? []);
+    let visibility = base.visibility;
+    if (connections.data && defaultsQ.data?.source === "none") {
+      visibility = fallbackVisibilityFor(visibility, connections.data.length) as TenderFormData["visibility"];
+    }
+    zeroConnChecked.current = !!connections.data;
+    autoFilled.current = visibility === "CONNECTIONS" && connectionIds.length > 0;
+    setTerms(visibility === d.visibility ? d : { ...d, visibility });
+    setExternalInvites([]);
+    setMemberInvites([]);
+    setStagedDocs([]);
+    setRestoredDraft(false);
+    setRetiredSeed(false);
+    reset({
+      ...base,
+      visibility,
+      invitedSupplierIds: visibility === "CONNECTIONS" ? connectionIds : base.invitedSupplierIds,
+      deliveryAddressId: pick ? pick.id : base.deliveryAddressId,
+    });
   };
 
   if (published) {
@@ -398,56 +761,90 @@ export function QuickRequest({
         title={published.title}
         categoryIds={published.categoryIds}
         itemNames={published.itemNames}
+        inviteResults={published.inviteResults}
+        memberResults={published.memberResults}
         onNew={() => {
+          // Yeni boş talep: profil şartları + varsayılan adres yeniden uygulanır
+          // (derin denetim S083 — eskiden çıplak varsayılanlarla açılıyor, şartsız
+          // yayın hatası veriyor ve taslak saklama duruyordu).
+          resetToBlank();
           setPublished(null);
-          appliedRef.current = false;
-          reset({ ...DEFAULT_FORM_VALUES });
         }}
       />
     );
   }
 
+  // Talep şartları OKUNAMADI (son canlı kontrol OUTF-2): `terms` yalnız o yanıtla
+  // dolar → form kesinti boyunca iskelette kalıyordu, ne hata ne yeniden deneme
+  // vardı. Öteki sayfalarla aynı durum: hata + "Tekrar dene" (yeniden deneme
+  // sürerken yine iskelet).
+  if (!terms && defaultsQ.data === undefined && defaultsQ.isError) {
+    return <ErrorState title={tr("talepFormuYuklenemedi")} onRetry={() => void defaultsQ.refetch()} />;
+  }
   if (defaultsQ.isLoading || !terms) return <Skeleton />;
 
-  const showSetup = defaultsQ.data?.source === "none" && !setupDone;
+  // Kurulum kartı yalnız boş kartta — düzenleme/kopya/şablon kendi şartlarını taşır.
+  const showSetup = seedKind === "blank" && defaultsQ.data?.source === "none" && !setupDone;
   const verified = company?.companyVerificationStatus === "VERIFIED";
+  // İncelemedeki firmaya "belgeleri yükleyin" denmez (arayüz testi O-068).
+  const verificationPending = company?.companyVerificationStatus === "PENDING";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
-  const closeLabel = watched.bidsCloseAt ? formatDate(watched.bidsCloseAt, "datetime") : null;
-  const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
+  // "Bağlantılarım"da en az bir bağlantı çıkarıldıysa talep ÖZEL olarak yayınlanır
+  // (`applyConnectionsScope`) → otomatik AI araması + daveti de gitmez
+  // (`mapToInput`). Kutu bunu AÇIKÇA gösterir: işaretli görünüp sessizce
+  // kapanmaz (kutu artık "bulsun ve davet etsin" diyor).
+  const scopedPrivate = applyConnectionsScope({ visibility, invitedSupplierIds: invited }, connectionIds).visibility !== visibility;
+  const aiInviteOff = visibility === "PRIVATE" || scopedPrivate;
+  // Form değeri ürün saat diliminin duvar saati → önce ana çevrilir.
+  const closeLabel = watched.bidsCloseAt ? formatDate(parseAppWallClockInput(watched.bidsCloseAt), "datetime", locale) : null;
+  const hasCategory = (watched.categoryIds?.length ?? 0) > 0;
+  const ready = hasItems && (hasCategory || categoryOptional) && (watched.title?.trim().length ?? 0) >= 3;
 
-  const audience =
+  // Eski taslaktan kalan AI seçimleri (üye + dış davet) de YAYINDA gider (D-092) —
+  // "Kime" özeti ve rozet onları da sayar.
+  const aiInviteCount = memberInvites.length + externalInvites.length;
+  const pickerAudience =
     visibility === "PUBLIC"
       ? publicCount.data
-        ? `Pazar yerinde listelenir; ${catRows[0] ? `bu kategoride ${publicCount.data.total} firma` : `${publicCount.data.total} firma`} dizinde, kayıtlı her tedarikçi teklif verebilir.`
+        ? catRows[0]
+          ? tr("pazarYerindeListelenirBuKategoride", { total: publicCount.data.total })
+          : tr("pazarYerindeListelenir", { total: publicCount.data.total })
         : null
       : visibility === "CONNECTIONS"
         ? (() => {
             const total = connectionIds.length;
             const on = invited.filter((id) => connectionIds.includes(id)).length;
-            if (total === 0) return "Bağlantınız olmadığı için bu talebi kimse görmez — “Herkese açık” seçin ya da önce bağlantı kurun.";
+            // AI davetleri varken "kimse görmez" yanlış — yalnız davet cümlesi kalır.
+            if (total === 0) return aiInviteCount > 0 ? null : tr("baglantinizOlmadigiIcinBuTalebi");
             return on === total
-              ? `${total} bağlantınızın tamamı görecek ve davet alacak.`
-              : `${total} bağlantınızdan ${on} firma görecek; çıkardığınız ${total - on} firma talebi görmez, bildirim almaz.`;
+              ? tr("baglantinizinTamamiGorecekVeDavet", { total: total })
+              : tr("baglantinizdanFirmaGorecekCikardiginiz", { total, on, off: total - on });
           })()
-        : invited.length
-          ? `Yalnız davet ettiğiniz ${invited.length} firma görecek.`
-          : "Henüz kimse davet edilmedi — en az bir firma seçin ya da görünürlüğü genişletin.";
+        : invited.length + aiInviteCount
+          ? tr("yalnizDavetEttiginizFirmaGorecek", { length: invited.length + aiInviteCount })
+          : tr("henuzKimseDavetEdilmediEn");
+  const audience =
+    visibility !== "PRIVATE" && aiInviteCount > 0
+      ? [pickerAudience, tr("aiDavetleriYayindaGider", { n: aiInviteCount })].filter(Boolean).join(" ")
+      : pickerAudience;
+  const inviteCount = (visibility !== "PUBLIC" ? invited.length : 0) + aiInviteCount;
+  const docCount = isEdit ? (existingDocs.data?.length ?? 0) : stagedDocs.length;
 
   const paymentLabel =
     formatPaymentPlan({
-      paymentCategory: terms.paymentCategory as PaymentCategory,
+      paymentCategory: terms.paymentCategory,
       advancePercent: terms.advancePercent,
       paymentDays: terms.paymentDays,
-      lcType: terms.lcType as "SIGHT" | "USANCE" | null,
+      lcType: terms.lcType,
       lcConfirmed: false,
-    }) || PAYMENT_CATEGORY_LABELS[terms.paymentCategory as PaymentCategory];
+    }) || paymentCategoryLabel(terms.paymentCategory);
 
   const summary = {
-    what: hasItems ? `${namedItems.length} kalem${catRows[0] ? ` · ${catRows[0].nameTr}` : ""}` : null,
-    where: selectedAddress ? `${selectedAddress.title}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}` : null,
-    when: closeLabel ? `${currentCloseDays} gün · ${closeLabel}` : null,
-    who: `${VISIBILITY_LABELS[visibility]?.label ?? visibility}${visibility !== "PUBLIC" && invited.length ? ` · ${invited.length} davet` : ""}`,
+    what: hasItems ? [tr("kalemSayisi", { n: namedItems.length }), catRows[0]?.nameTr].filter(Boolean).join(" · ") : null,
+    where: selectedAddress ? [selectedAddress.title, selectedAddress.city ? cityLabel(selectedAddress.city) : null].filter(Boolean).join(", ") : null,
+    when: closeLabel ? tr("gun", { currentCloseDays: currentCloseDays, closeLabel: closeLabel }) : null,
+    who: [visibilityLabels[visibility].label, inviteCount ? tr("davetSayisi", { n: inviteCount }) : null].filter(Boolean).join(" · "),
   };
 
   return (
@@ -460,8 +857,10 @@ export function QuickRequest({
               onChange={updateTerms}
               saving={saveDefaults.isPending}
               onDone={() => {
-                setSetupDone(true);
-                void persistDefaults(terms);
+                // Kart yalnız kayıt BAŞARILIYSA kapanır (D-243); hata toast'ta, kart açık kalır.
+                void persistDefaults(terms).then((ok) => {
+                  if (ok) setSetupDone(true);
+                });
               }}
             />
           ) : null}
@@ -471,39 +870,40 @@ export function QuickRequest({
             id="talep-ne"
             n={1}
             accent="blue"
-            title="Ne lazım?"
-            lead="Kalemleri satır satır girin; kataloğunuzdan, Excel'den ya da belgeden ekleyin."
-            status={hasItems ? <Done>{namedItems.length} kalem</Done> : null}
+            title={tr("neLazim")}
+            lead={tr("kalemleriSatirSatirGirinKatalogunuzdan")}
+            status={hasItems ? <Done>{tr("kalemSayisi", { n: namedItems.length })}</Done> : null}
           >
             <div className="space-y-6">
               {restoredDraft && !initialValues ? (
                 <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900 ring-1 ring-blue-600/20">
-                  Kaldığınız taslak geri yüklendi.
+                  {tr("kaldiginizTaslakGeriYuklendi")}
                   <button
                     type="button"
                     onClick={() => {
                       clearSession(QUICK_DRAFT_KEY);
-                      setRestoredDraft(false);
-                      reset(applyRequestDefaults({ ...DEFAULT_FORM_VALUES }, terms));
+                      resetToBlank();
                     }}
                     className="font-semibold underline-offset-2 hover:underline"
                   >
-                    Temizle, sıfırdan başla
+                    {tr("temizleSifirdanBasla")}
                   </button>
                 </p>
               ) : null}
               {/* AI-1 — belgeden doldurma girişi (sihirbaz sayfasındaki kartın aynısı) */}
-              <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              {/* Dar ekranda düğme alta, tam genişlik (375 px'te metin ~50 px'lik
+                  sütuna sıkışıyordu — yayın denetimi Bölüm 12). */}
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-900">Belgeden otomatik doldur</p>
-                  <p className="text-xs text-zinc-500">Şartname, teklif talebi veya fotoğraf yükleyin — AI kalemleri sizin için doldursun.</p>
+                <div className="min-w-[12rem] flex-1">
+                  <p className="text-sm font-semibold text-zinc-900">{tr("belgedenOtomatikDoldur")}</p>
+                  <p className="text-xs text-zinc-500">{tr("sartnameTeklifTalebiVeyaFotograf")}</p>
                 </div>
-                <Button variant="primary" onClick={() => setDocOpen(true)}>
+                <Button variant="primary" className="w-full sm:w-auto" onClick={() => setDocOpen(true)}>
                   <Sparkles className="h-4 w-4" />
-                  Belgeden Doldur
+                  {tr("belgedenDoldur")}
                 </Button>
               </div>
               <AiImportDialog
@@ -520,7 +920,11 @@ export function QuickRequest({
                     setValue("items", f.items, { shouldDirty: true, shouldValidate: true });
                     setValue("title", f.title, { shouldDirty: true });
                     setValue("description", f.description ?? "", { shouldDirty: true });
-                    setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: true });
+                    // Kopyalanan talebin görünür kategorisi kalmadıysa alan BOŞ gelir:
+                    // kullanıcı hiçbir şeye dokunmadan kırmızı "en az 1 kategori"
+                    // çıkmaz (doğrulama yayında koşar), nedenini alan notu söyler (CP-05).
+                    setValue("categoryIds", f.categoryIds, { shouldDirty: true, shouldValidate: f.categoryIds.length > 0 });
+                    if (seedHasRetiredCategory(f)) setRetiredSeed(true);
                     setValue("keywords", f.keywords);
                   }}
                 />
@@ -529,21 +933,26 @@ export function QuickRequest({
               {/* Kalem satırları — sihirbazın Kalemler adımıyla BİREBİR aynı bileşen. */}
               <Step2Items />
 
+              {/* Kalemlerin altındaki AI tedarikçi paneli KALDIRILDI (2026-10-08,
+                  sahip: "bir daha soru sormasın, kutu gelmesine gerek yok") —
+                  form kendisi aramaz; 3. bölümdeki kutu açıksa yayın sonrası
+                  tur arka planda arar ve bulduğunu kendisi davet eder. */}
+
               {/* BAŞLIK → AI → KATEGORİ tek sütun (2026-09-17, kullanıcı kararı:
                   "kategori seçimi talep başlığının altında olmalı; AI ile
                   kategori bul geri gelsin; AI başlığı da oluştursun"). */}
               <div className="space-y-5">
                     <div>
                       <label htmlFor="talep-baslik" className="mb-1.5 block text-sm font-medium text-zinc-950">
-                        Talep başlığı <span className="text-red-600">*</span>
+                        {tr("talepBasligi")} <span className="text-red-600">*</span>
                       </label>
                       <input
                         id="talep-baslik"
                         {...form.register("title")}
-                        placeholder="Örn. 3/4 inç dikişsiz çelik boru alımı — 1.200 m"
+                        placeholder={tr("orn34IncDikissiz")}
                         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                       />
-                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">Boş bırakırsanız kalemlerden türetilir.</p>}
+                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">{tr("bosBirakirsanizKalemlerdenTuretilir")}</p>}
                       <div className="mt-2">
                         <button
                           type="button"
@@ -551,33 +960,55 @@ export function QuickRequest({
                           disabled={!aiAvailable || draftSuggest.isPending || namedItems.length === 0}
                           title={
                             !aiAvailable
-                              ? "AI önerisi Silver ve üzeri paketlerde"
+                              ? tr("aiOnerisiDogrulama")
                               : namedItems.length === 0
-                                ? "Önce en az bir kalem adı girin"
+                                ? tr("onceEnAzBirKalem")
                                 : undefined
                           }
                           className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
                         >
                           <SparklesIcon aria-hidden className="size-3.5" />
-                          {draftSuggest.isPending ? "AI kalemleri analiz ediyor…" : "AI ile başlık ve kategori bul"}
+                          {draftSuggest.isPending ? tr("aiKalemleriAnalizEdiyor") : tr("aiIleBaslikVeKategori")}
                         </button>
                       </div>
                     </div>
                     <div>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
-                        Kategori <span className="text-red-600">*</span>
+                        {tr("kategori")}
+                        {/* Kategorisiz açılan yayındaki talepte zorunlu değil (R-WEB-01). */}
+                        {categoryOptional ? null : <span className="text-red-600"> *</span>}
                       </p>
                       <Controller
                         control={form.control}
                         name="categoryIds"
                         render={({ field }) => (
-                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder="Kategori seçin (en fazla 3)" modalTitle="Talep kategorisi" />
+                          <CategorySelectorButton
+                            value={field.value}
+                            onChange={(ids) => field.onChange(ids.slice(0, 3))}
+                            mode="multi"
+                            maxSelection={3}
+                            catalog="discovery"
+                            placeholder={tr("kategoriSecinEnFazla3")}
+                            modalTitle={tr("talepKategorisi")}
+                            modalDescription={tr("talepKategorisiAciklama")}
+                            // Gizli kod değere hiç girmedi → alan kendi başına bilemez.
+                            retiredHint={hadRetiredCategory && (field.value?.length ?? 0) === 0}
+                            // Yayındaki talepte kategori zorunlu değil: not seçim İSTEMEZ.
+                            retiredOptional={categoryOptional}
+                          />
                         )}
                       />
+                      {/* ALANIN ALTINDA TEK NOT (canlı doğrulama CP-04): eski kategori
+                          notu çizilirken formun kendi yardım satırı çizilmez — "güncel
+                          bir kategori seçin" ile "seçmeden de kaydedebilirsiniz" alt
+                          alta duruyordu. Durumu alan notu tek cümlede anlatır (yayındaki
+                          talepte isteğe bağlı, taslak / kopya / yeni talepte zorunlu). */}
                       {form.formState.errors.categoryIds ? (
                         <p className="mt-1 text-xs text-red-700">{form.formState.errors.categoryIds.message as string}</p>
+                      ) : hadRetiredCategory && !hasCategory ? null : categoryOptional && !hasCategory ? (
+                        <p className="mt-1 text-xs text-zinc-500">{tr("buTalebinGuncelKategorisiYok")}</p>
                       ) : (
-                        <p className="mt-1 text-xs text-zinc-500">Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.</p>
+                        <p className="mt-1 text-xs text-zinc-500">{tr("eslestirmeVeTedarikciBildirimiKategoriden")}</p>
                       )}
                       {(watched.categoryIds?.length ?? 0) < 3 ? (
                         <CategorySuggest
@@ -588,7 +1019,7 @@ export function QuickRequest({
                       ) : null}
                       {/* İkinci eksen: kategori "ne", bu "kimden". */}
                       <div className="mt-3">
-                        <span className="block text-xs font-medium text-zinc-700">Aranan tedarikçi tipi (isteğe bağlı)</span>
+                        <span className="block text-xs font-medium text-zinc-700">{tr("arananTedarikciTipiIstegeBagli")}</span>
                         <div className="mt-1.5">
                           <PreferredActivitiesField
                             value={watched.preferredActivities ?? []}
@@ -601,14 +1032,14 @@ export function QuickRequest({
 
                   <div>
                     <label htmlFor="talep-aciklama" className="mb-1.5 block text-sm font-medium text-zinc-950">
-                      Açıklama <span className="text-xs font-normal text-zinc-500">isteğe bağlı</span>
+                      {tr("aciklama")} <span className="text-xs font-normal text-zinc-500">{tr("istegeBagli")}</span>
                     </label>
                     <textarea
                       id="talep-aciklama"
                       {...form.register("description")}
                       rows={3}
                       maxLength={5000}
-                      placeholder="Kullanım amacı, teknik şart, teslim beklentisi — tedarikçi daha isabetli teklif verir."
+                      placeholder={tr("kullanimAmaciTeknikSartTeslim")}
                       className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -616,11 +1047,11 @@ export function QuickRequest({
                         type="button"
                         onClick={() => void writeDescription()}
                         disabled={!aiAvailable || seoEnrich.isPending}
-                        title={aiAvailable ? undefined : "AI ile açıklama Silver ve üzeri paketlerde"}
+                        title={aiAvailable ? undefined : tr("aiIleAciklamaDogrulama")}
                         className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
                       >
                         <SparklesIcon aria-hidden className="size-3.5" />
-                        {seoEnrich.isPending ? "Yazılıyor…" : "AI ile açıklamayı yaz"}
+                        {seoEnrich.isPending ? tr("yaziliyor") : tr("aiIleAciklamayiYaz")}
                       </button>
                     </div>
                   </div>
@@ -632,19 +1063,19 @@ export function QuickRequest({
             id="talep-nereye"
             n={2}
             accent="blue"
-            title="Nereye, ne zamana, nasıl ödeme?"
-            lead="Teslimat adresi, teklif toplama süresi ve ödeme şekli."
-            status={selectedAddress && closeLabel ? <Done>{selectedAddress.title} · {currentCloseDays} gün · {paymentLabel}</Done> : null}
+            title={tr("nereyeNeZamanaNasilOdeme")}
+            lead={tr("teslimatAdresiTeklifToplamaSuresi")}
+            status={selectedAddress && closeLabel ? <Done>{tr("gun2", { title: selectedAddress.title, currentCloseDays: currentCloseDays, paymentLabel: paymentLabel })}</Done> : null}
           >
             <div className="space-y-6">
               <div>
-                <p className="mb-2 text-sm font-medium text-zinc-950">Teslimat adresi</p>
+                <p className="mb-2 text-sm font-medium text-zinc-950">{tr("teslimatAdresi")}</p>
                 {addresses.isLoading ? (
-                  <p className="text-sm text-zinc-500">Adresler yükleniyor…</p>
+                  <p className="text-sm text-zinc-500">{tr("adreslerYukleniyor")}</p>
                 ) : (
-                  <AddressPicker addresses={addresses.data ?? []} value={watched.deliveryAddressId ?? ""} onChange={(id) => setValue("deliveryAddressId", id, { shouldDirty: true })} onAdd={() => setAddingAddress(true)} />
+                  <AddressPicker addresses={addresses.data ?? []} value={watched.deliveryAddressId ?? ""} onChange={(id) => setValue("deliveryAddressId", id, { shouldDirty: true })} onAdd={() => setAddingAddress(true)} canAdd={canManageAddresses} />
                 )}
-                {addingAddress ? (
+                {addingAddress && canManageAddresses ? (
                   <AddressInline
                     onCreated={(id) => {
                       setAddingAddress(false);
@@ -653,31 +1084,47 @@ export function QuickRequest({
                     onCancel={() => setAddingAddress(false)}
                   />
                 ) : null}
-                {(addresses.data ?? []).length === 0 && !addingAddress ? <p className="mt-2 text-xs text-zinc-500">Adres yoksa hizmet/lojistik talebi için boş bırakabilirsiniz.</p> : null}
+                {(addresses.data ?? []).length === 0 && !addingAddress ? <p className="mt-2 text-xs text-zinc-500">{tr("adresYoksaHizmetLojistikTalebi")}</p> : null}
               </div>
 
               <div>
                 <p className="mb-2 text-sm font-medium text-zinc-950">
-                  Teklif toplama süresi <span className="text-red-600">*</span>
+                  {tr("teklifToplamaSuresi")} <span className="text-red-600">*</span>
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
-                    <button key={d} type="button" aria-pressed={currentCloseDays === d} onClick={() => setCloseDays(d)} className={cn("rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition", currentCloseDays === d ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
-                      {d} gün
+                    <button key={d} type="button" aria-pressed={currentCloseDays === d} onClick={() => {
+                      setCloseDays(d);
+                      setCloseReset((n) => n + 1);
+                    }} className={cn("rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition", currentCloseDays === d ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
+                      {tr("gun3", { d: d })}
                     </button>
                   ))}
-                  <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-                    <input type="number" min={1} max={60} value={currentCloseDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} aria-label="Özel gün" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
-                    gün
-                  </label>
+                  <CloseDaysInput value={currentCloseDays} max={REQUEST_CLOSE_DAYS_MAX} onChange={setCloseDays} resetSignal={closeReset} ariaLabel={tr("ozelGun")} suffix={tr("gun4")} labelClassName="flex items-center gap-1.5 text-sm text-zinc-600" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
+                </div>
+                {/* Belirli gün + saat (D-095, DN-10): çipler "şimdi + N gün" verir
+                    (o anki dakika); kapanışı belli bir saate koymak isteyen
+                    buradan seçer. Değer formun duvar saati biçimiyle aynı. */}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-zinc-600">{tr("belirliTarihSaat")}</span>
+                  <DateTimeInput
+                    idPrefix="talep-kapanis"
+                    value={watched.bidsCloseAt ?? ""}
+                    min={toAppWallClockInput(new Date())}
+                    onChange={(v) => {
+                      setValue("bidsCloseAt", v, { shouldDirty: true, shouldValidate: true });
+                      setCloseReset((n) => n + 1);
+                    }}
+                    hasError={!!form.formState.errors.bidsCloseAt}
+                    dateAriaLabel={tr("kapanisGunu")}
+                    timeAriaLabel={tr("kapanisSaati")}
+                  />
                 </div>
                 <p className="mt-2 text-xs text-zinc-600">
                   {closeLabel ? (
-                    <>
-                      Kapanış: <span className="font-medium text-zinc-900">{closeLabel}</span> — tedarikçiler o ana kadar teklif verir; sonra değerlendirme başlar.
-                    </>
+                    tr.rich("kapanisTedarikcilerOAnaKadar", { date: closeLabel, strong: (c) => <span className="font-medium text-zinc-900">{c}</span> })
                   ) : (
-                    "Kapanış tarihi seçin."
+                    tr("kapanisTarihiSecin")
                   )}
                 </p>
                 {form.formState.errors.bidsCloseAt ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.bidsCloseAt.message}</p> : null}
@@ -687,12 +1134,12 @@ export function QuickRequest({
                   Şartlar paneliyle AYNI değer (`terms`), iki yerde de düzenlenebilir. */}
               <div>
                 <p className="mb-2 text-sm font-medium text-zinc-950">
-                  Ödeme şekli <span className="text-red-600">*</span>
+                  {tr("odemeSekli")} <span className="text-red-600">*</span>
                 </p>
                 <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
                   <RequestDefaultsForm value={terms} onChange={updateTerms} compact bare only={["payment"]} />
                 </div>
-                <p className="mt-1.5 text-xs text-zinc-500">Tedarikçi teklifini bu koşula göre verir; sağdaki Ticari şartlar panelinde de görünür. Kalıcı yapmak için orada “Şartları kaydet”.</p>
+                <p className="mt-1.5 text-xs text-zinc-500">{tr("tedarikciTeklifiniBuKosulaGore")}</p>
               </div>
             </div>
           </NumberedSection>
@@ -702,34 +1149,118 @@ export function QuickRequest({
             id="talep-kime"
             n={3}
             accent="blue"
-            title="Kimler görsün?"
-            lead="Kapalı zarf her durumda geçerli — tedarikçiler birbirinin teklifini görmez."
+            title={tr("kimlerGorsun")}
+            lead={tr("kapaliZarfHerDurumdaGecerli")}
             status={<Done>{summary.who}</Done>}
           >
-            {/* AI KEŞİF (2026-09-17, kullanıcı kararı: "daha fazla tedarikçiye
-                eriş tuşu 3. kısımda olmalı, kalemleri analiz ederek tedarikçi
-                bulmalı"): kategori + kalem adları modala gider; platform
-                önerisi kategoriden, web araması kalemlerden bağlam alır. */}
-            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Sparkles className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-zinc-900">AI ile daha fazla tedarikçiye eriş</p>
-                <p className="text-xs text-zinc-500">
-                  Kalemlerinizi ve kategoriyi analiz eder; platformdaki uygun firmaları ve web&apos;deki adayları bulur, tek tıkla davet edersiniz.
-                </p>
-              </div>
-              <Button
-                type="button"
-                onClick={() => setDiscoveryOpen(true)}
-                disabled={!discoveryAvailable}
-                title={discoveryAvailable ? undefined : "AI ile tedarikçi bulma Gold pakette"}
-                iconLeft={<Sparkles />}
-              >
-                Keşfet
-              </Button>
+            {/* AI AYARLARI: yayın sonrası otomatik arama + DAVET (2026-10-08: tur
+                bulduğunu arka planda kendisi davet eder, onay istemez; özel
+                talepte kapalı) ve davette firma adı — iki anahtar. */}
+            <div className="mb-4 space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <Controller
+                control={form.control}
+                name="aiDiscovery"
+                render={({ field }) => (
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                      checked={!aiInviteOff && !!field.value}
+                      disabled={aiInviteOff || !discoveryAvailable}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      {/* Dar ekranda başlık üç satıra sarar: simge küçülmez (shrink-0),
+                          ilk satırla hizalı kalır (canlı doğrulama AI-UI-4). */}
+                      <span className="flex items-start gap-1.5 text-sm font-medium text-zinc-900">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden />
+                        <span className="min-w-0">{tAi("aiDiscoveryToggle")}</span>
+                      </span>
+                      <span className="mt-0.5 block text-xs text-zinc-600">
+                        {!discoveryAvailable
+                          ? tAi("verifiedOnly")
+                          : visibility === "PRIVATE"
+                            ? // Neden, kullanıcının az önce tıkladığı seçeneğin KENDİ adını
+                              // söyler ("Seçtiklerim"; form bu seçeneğe "Özel" demez — AI-UI-3).
+                              tAi("aiDiscoveryPrivateOff", { option: visibilityLabels.PRIVATE.label })
+                            : scopedPrivate
+                              ? tAi("aiDiscoveryScopedOff")
+                              : tAi("aiDiscoveryHint")}
+                      </span>
+                    </span>
+                  </label>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="inviteShowName"
+                render={({ field }) => (
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                      checked={!!field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-zinc-900">{tAi("showNameToggle")}</span>
+                      <span className="mt-0.5 block text-xs text-zinc-600">{tAi("showNameHint")}</span>
+                    </span>
+                  </label>
+                )}
+              />
             </div>
+            {/* Eski taslaktan kalan seçimler — yayında talebe DOĞRUDAN davet edilecek Rothern üyeleri. */}
+            {memberInvites.length > 0 ? (
+              <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
+                <p className="text-sm font-medium text-zinc-900">{tr("bekleyenUyeDavetleri", { n: memberInvites.length })}</p>
+                <p className="mt-0.5 text-xs text-zinc-600">{tr("bekleyenUyeDavetleriAciklama")}</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {memberInvites.map(({ companyId, name }) => (
+                    <li key={companyId} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white py-1 pr-1 pl-2.5 text-xs text-zinc-800 ring-1 ring-zinc-200">
+                      <span className="truncate">{name}</span>
+                      <button
+                        type="button"
+                        aria-label={tr("uyeDavetiniKaldir", { name })}
+                        onClick={() => setMemberInvites((cur) => cur.filter((m) => m.companyId !== companyId))}
+                        className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      >
+                        <XMarkIcon aria-hidden className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {/* Eski taslaktan kalan seçimler — yayında talebe özel davet gidecek adresler. */}
+            {externalInvites.length > 0 ? (
+              <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
+                <p className="text-sm font-medium text-zinc-900">{tr("bekleyenDisDavetler", { n: externalInvites.length })}</p>
+                <p className="mt-0.5 text-xs text-zinc-600">{tr("bekleyenDisDavetlerAciklama")}</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {externalInvites.map(({ email, locale: inviteLocale }) => (
+                    <li key={email} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white py-1 pr-1 pl-2.5 text-xs text-zinc-800 ring-1 ring-zinc-200">
+                      <span className="truncate">{email}</span>
+                      {/* Davet e-postasının dili — yayında bu dilde gider. */}
+                      <InviteLocaleSelect
+                        value={inviteLocale}
+                        onChange={(l) => setExternalInvites((cur) => cur.map((i) => (i.email === email ? { ...i, locale: l } : i)))}
+                        label={tr("disDavetDili", { email })}
+                        className="rounded-full py-0.5"
+                      />
+                      <button
+                        type="button"
+                        aria-label={tr("disDavetAdresiniKaldir", { email })}
+                        onClick={() => setExternalInvites((cur) => cur.filter((i) => i.email !== email))}
+                        className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      >
+                        <XMarkIcon aria-hidden className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(
                 [
@@ -751,8 +1282,8 @@ export function QuickRequest({
                     <Icon aria-hidden className="size-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-zinc-950">{VISIBILITY_LABELS[v].label}</span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">{VISIBILITY_LABELS[v].hint}</span>
+                    <span className="block text-sm font-semibold text-zinc-950">{visibilityLabels[v].label}</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">{visibilityLabels[v].hint}</span>
                   </span>
                 </button>
               ))}
@@ -771,19 +1302,11 @@ export function QuickRequest({
                       onChange={field.onChange}
                       itemNames={discoveryItemNames}
                       categoryIds={watched.categoryIds ?? []}
-                      // "N firmayı davet et" → davet yayınla anında gider; düğme yayın adımına götürür.
-                      onInvite={() => document.getElementById("talep-yayinla")?.scrollIntoView({ behavior: "smooth", block: "center" })}
                     />
                   )}
                 />
               </div>
             ) : null}
-            <SupplierDiscoveryModal
-              isOpen={discoveryOpen}
-              onClose={() => setDiscoveryOpen(false)}
-              categoryIds={watched.categoryIds ?? []}
-              itemNames={discoveryItemNames}
-            />
           </NumberedSection>
 
           {/* 4 ── BELGELER */}
@@ -791,22 +1314,24 @@ export function QuickRequest({
             id="talep-belgeler"
             n={4}
             accent="blue"
-            title="Belgeler"
-            lead="Şartname, teknik resim, sözleşme taslağı — tedarikçi teklif verirken görür. İsteğe bağlı."
-            status={stagedDocs.length ? <Done>{stagedDocs.length} dosya</Done> : <span>isteğe bağlı</span>}
+            title={tr("belgeler")}
+            lead={tr("sartnameTeknikResimSozlesmeTaslagi")}
+            status={docCount ? <Done>{tr("dosyaSayisi", { n: docCount })}</Done> : <span>{tr("istegeBagli")}</span>}
           >
-            <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
+            {/* Düzenlemede mevcut belgeler listelenir, kaldırılır; yeni dosya hemen
+                yüklenir (O-087). Yeni talepte dosyalar kayıtta yüklenir. */}
+            {isEdit && listingId ? <FilesTab listingId={listingId} isOwner canEdit /> : <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />}
           </NumberedSection>
         </div>
 
         {/* SAĞ RAY */}
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={defaultsQ.data?.source ?? "none"} />
+          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={seedKind === "edit" ? "listing" : seedKind === "seed" ? "seed" : (defaultsQ.data?.source ?? "none")} />
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-semibold text-zinc-950">Teklif kalitesi</p>
-              <span className="text-sm font-semibold tabular-nums text-zinc-950">%{quality.score}</span>
+              <p className="text-sm font-semibold text-zinc-950">{tr("teklifKalitesi")}</p>
+              <span className="text-sm font-semibold tabular-nums text-zinc-950">{tr("yuzde", { n: quality.score })}</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
               <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${quality.score}%` }} />
@@ -814,54 +1339,60 @@ export function QuickRequest({
             {quality.missing.length ? (
               <ul className="mt-2 space-y-1 text-xs/5 text-zinc-600">
                 {quality.missing.slice(0, 3).map((m) => (
-                  <li key={m.key}>· {m.hint}</li>
+                  <li key={m.key}>· {tr.has(`kaliteIpucu.${m.key}` as never) ? tr(`kaliteIpucu.${m.key}` as never) : m.hint}</li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-xs text-emerald-700">İsabetli teklif için yeterli.</p>
+              <p className="mt-2 text-xs text-emerald-700">{tr("isabetliTeklifIcinYeterli")}</p>
             )}
-            <p className="mt-2 text-[11px] text-zinc-500">Engel değil, ipucu.</p>
+            <p className="mt-2 text-[11px] text-zinc-500">{tr("engelDegilIpucu")}</p>
           </div>
           {/* ÖZET + YAYINLA rayın EN ALTINDA (2026-09-19, kullanıcı: "bu kısım
               en aşağıda olmalı") — şartlar ve teklif kalitesi önce okunur,
               yayın kararı en son. */}
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-            <p className="text-sm font-semibold text-zinc-950">Özet</p>
+            <p className="text-sm font-semibold text-zinc-950">{tr("ozet")}</p>
             <dl className="mt-3 space-y-2 text-sm">
-              <Row k="Ne" v={summary.what} />
-              <Row k="Nereye" v={summary.where} />
-              <Row k="Ne zamana" v={summary.when} />
-              <Row k="Ödeme" v={paymentLabel} />
-              <Row k="Kime" v={summary.who} />
-              <Row k="Belge" v={stagedDocs.length ? `${stagedDocs.length} dosya` : null} />
+              <Row k={tr("ne")} v={summary.what} />
+              <Row k={tr("nereye")} v={summary.where} />
+              <Row k={tr("neZamana")} v={summary.when} />
+              <Row k={tr("odeme")} v={paymentLabel} />
+              <Row k={tr("kime")} v={summary.who} />
+              <Row k={tr("belge")} v={docCount ? tr("dosyaSayisi", { n: docCount }) : null} />
             </dl>
             {!verified ? (
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
                 <ExclamationTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  Yayın için firma doğrulaması gerekir —{" "}
-                  <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
-                    belgeleri yükleyin
-                  </Link>
-                  . Şimdilik taslak kaydedebilirsiniz.
+                  {tr.rich(verificationPending ? "yayinIcinDogrulamaIncelemede" : "yayinIcinFirmaDogrulamasiGerekir", {
+                    link: (c) => (
+                      <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
+                        {c}
+                      </Link>
+                    ),
+                  })}
                 </span>
               </p>
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
                 <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
-                  {busy ? "Kaydediliyor…" : "Talebi yayınla"}
+                  {busy ? tr("kaydediliyor") : isLiveEdit ? tr("degisiklikleriKaydet") : tr("talebiYayinla")}
                 </button>
-                {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">Yayın için başlık ve kategori gerekli.</p> : null}
-                <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
-                  {isEdit ? "Taslağı kaydet" : "Taslak kaydet"}
-                </button>
-                <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
-                  Şablon olarak kaydet
-                </button>
+                {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">{tr("yayinIcinBaslikVeKategori")}</p> : null}
+                {isLiveEdit ? null : (
+                  <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
+                    {isEdit ? tr("taslagiKaydet") : tr("taslakKaydet")}
+                  </button>
+                )}
+                {canManageTemplates ? (
+                  <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
+                    {tr("sablonOlarakKaydet")}
+                  </button>
+                ) : null}
               </div>
             ) : (
-              <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">Talep açmak için talep yönetimi yetkisi gerekir.</p>
+              <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">{tr("talepAcmakIcinTalepYonetimi")}</p>
             )}
           </div>
         </aside>
@@ -869,11 +1400,11 @@ export function QuickRequest({
 
       {/* MOBİL YAPIŞKAN ÇUBUK */}
       {canManage ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
-            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || "Kalem ekleyin"}</p>
-            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              Yayınla
+            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
+            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              {isLiveEdit ? tr("kaydet") : tr("yayinla")}
             </button>
           </div>
         </div>
@@ -881,7 +1412,7 @@ export function QuickRequest({
       <SaveTemplateDialog
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
-        onSave={(name) => void handleSaveTemplate(name)}
+        onSave={handleSaveTemplate}
         isSaving={saveTemplate.isPending}
         defaultName={watched.title || undefined}
       />
@@ -891,8 +1422,8 @@ export function QuickRequest({
 
 function Done({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-emerald-600/20">
-      <CheckIcon aria-hidden className="size-3" /> {children}
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-emerald-600/20">
+      <CheckIcon aria-hidden className="size-3 shrink-0" /> <span className="truncate">{children}</span>
     </span>
   );
 }

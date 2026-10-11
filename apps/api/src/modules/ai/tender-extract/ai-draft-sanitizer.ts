@@ -1,12 +1,18 @@
 import {
+  CURRENCY_CODES,
   MAX_LISTING_HORIZON_MS,
   MAX_MONEY,
   MAX_QUANTITY,
   MIN_QUANTITY,
+  getUnit,
+  normalizeUnit,
+  visibleCategoryIds,
   type AiFieldFlag,
+  type AiMissingField,
   type AiTenderDraft,
   type AiTenderDraftItem,
 } from "@rothern/shared";
+import { DEFAULT_TIME_ZONE, zonedTimeToUtc } from "../../../common/time/country-time-zone";
 import type { AiExtractRoute } from "./ai-extract-router";
 
 /**
@@ -21,9 +27,8 @@ import type { AiExtractRoute } from "./ai-extract-router";
  */
 
 // DTO/zod ile birebir enum listeleri (create-listing.dto.ts / form-schema.ts).
-const CURRENCIES = new Set([
-  "TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB",
-]);
+// Para birimi tek kaynak `@rothern/shared` `CURRENCY_CODES` (Prisma enum'la birebir).
+const CURRENCIES = new Set<string>(CURRENCY_CODES);
 const DELIVERY_TERMS = new Set([
   "DOMESTIC_DELIVERED", "DOMESTIC_PICKUP", "DOMESTIC_CARRIER_COLLECT",
   "DOMESTIC_ON_VEHICLE", "EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP",
@@ -43,10 +48,71 @@ const VISION_CRITICAL_TOP_FIELDS = ["bidsCloseAt", "primaryCurrency"] as const;
 const KNOWN_PATH_RE =
   /^(title|description|primaryCurrency|deliveryTerm|paymentCategory|paymentDays|advancePercent|bidsCloseAt|keywords|isInternational|termsAndConditions|items\.\d+\.(name|description|quantity|unit|materialCode|requiredByDate|targetUnitPrice))$/;
 
+/**
+ * Model birimi → formun sakladığı biçim (2026-09-27): tanınan birim — kod
+ * ("PCE"), İngilizce ("pcs") ya da Türkçe ("Adet") — katalogdaki Türkçe ada
+ * ("adet") iner; web `useUnitLabel` onu okuyucunun dilinde basar ("pcs",
+ * "шт."). Tanınmayan serbest metin olduğu gibi kalır (kullanıcı formda görür).
+ * İstem birimi kodla ister: Almanca/Rusça belgeden "Stück"/"шт" gelse de
+ * kalem tek biçimde saklansın.
+ */
+export function canonicalUnitName(raw: string | null | undefined): string | null {
+  const t = raw?.trim();
+  if (!t) return null;
+  const code = normalizeUnit(t);
+  return code ? (getUnit(code)?.nameTr ?? t) : t;
+}
+
 export interface SanitizedDraft {
   draft: AiTenderDraft;
   flags: AiFieldFlag[];
-  missingRequired: string[];
+  missingRequired: AiMissingField[];
+}
+
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const NAIVE_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+
+/** Saat verilmeyen kapanis gunu: urun saat diliminde gun sonu (23:59). */
+export const DATE_ONLY_CLOSE_HOUR = 23;
+export const DATE_ONLY_CLOSE_MINUTE = 59;
+
+/**
+ * Kapanis ani — urun saat dilimi (Europe/Istanbul) duvar saatiyle okunur
+ * (derin denetim MU-07). Eskiden `new Date(v)` kullaniliyordu: istemin
+ * istedigi "YYYY-MM-DD" UTC gece yarisina (TR 03:00) donusup talep soylenen
+ * gunun basinda kapaniyordu; ofsetsiz "2026-10-05T14:00" de sunucunun (UTC)
+ * saatiyle okunup 3 saat kayiyordu. Kural:
+ *  - yalniz gun → o gunun 23:59'u (Istanbul),
+ *  - ofsetsiz tarih-saat → Istanbul duvar saati,
+ *  - ofsetli / `Z` ISO → oldugu gibi.
+ * Gecersizse `null`.
+ */
+export function parseClosingInstant(raw: string): Date | null {
+  const v = raw.trim();
+  const dateOnly = DATE_ONLY_RE.exec(v);
+  const naive = dateOnly ? null : NAIVE_DATETIME_RE.exec(v);
+  const m = dateOnly ?? naive;
+  if (m) {
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const h = dateOnly ? DATE_ONLY_CLOSE_HOUR : Number(m[4]);
+    const mi = dateOnly ? DATE_ONLY_CLOSE_MINUTE : Number(m[5]);
+    const s = dateOnly ? 0 : Number(m[6] ?? 0);
+    // Takvim disi deger (2026-02-31, 25:00) Date.UTC'de sessizce tasar — reddet.
+    const probe = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+    if (
+      probe.getUTCFullYear() !== y ||
+      probe.getUTCMonth() !== mo - 1 ||
+      probe.getUTCDate() !== d ||
+      probe.getUTCHours() !== h ||
+      probe.getUTCMinutes() !== mi
+    ) {
+      return null;
+    }
+    const out = zonedTimeToUtc(y, mo, d, h, mi, DEFAULT_TIME_ZONE);
+    return new Date(out.getTime() + s * 1000);
+  }
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 const round = (n: number, decimals: number) => {
@@ -113,11 +179,11 @@ export function sanitizeAiDraft(
   const isoDate = (
     v: unknown,
     path: string,
-    opts: { future?: boolean; maxHorizonMs?: number },
+    opts: { future?: boolean; maxHorizonMs?: number; appWallClock?: boolean },
   ): string | null => {
     if (typeof v !== "string" || v.trim() === "") return null;
-    const d = new Date(v.trim());
-    if (Number.isNaN(d.getTime())) {
+    const d = opts.appWallClock ? parseClosingInstant(v) : new Date(v.trim());
+    if (!d || Number.isNaN(d.getTime())) {
       flag(path, "validation_failed");
       return null;
     }
@@ -146,7 +212,7 @@ export function sanitizeAiDraft(
         max: MAX_QUANTITY,
         decimals: 3,
       }),
-      unit: str(it.unit, p("unit"), { min: 1, max: 20 }),
+      unit: canonicalUnitName(str(it.unit, p("unit"), { min: 1, max: 20 })),
       materialCode: str(it.materialCode, p("materialCode"), { max: 50 }),
       requiredByDate: isoDate(it.requiredByDate, p("requiredByDate"), {}),
       targetUnitPrice: num(it.targetUnitPrice, p("targetUnitPrice"), {
@@ -167,6 +233,7 @@ export function sanitizeAiDraft(
     advancePercent: num(r.advancePercent, "advancePercent", { min: 1, max: 100, decimals: 0, int: true }),
     bidsCloseAt: isoDate(r.bidsCloseAt, "bidsCloseAt", {
       future: true,
+      appWallClock: true,
       maxHorizonMs: MAX_LISTING_HORIZON_MS,
     }),
     keywords: (Array.isArray(r.keywords) ? r.keywords : [])
@@ -187,13 +254,20 @@ export function sanitizeAiDraft(
     // Backend'in DB'ye karşı doğruladığı öneri — revive/refine döngülerinde
     // kaybolmasın diye taşınır; model bu alanı üretMEZ (üretse de yalnız
     // string id biçimi geçer, servis DB'de yeniden doğrular).
-    suggestedCategoryIds: (Array.isArray(r.suggestedCategoryIds)
-      ? r.suggestedCategoryIds
-      : []
-    )
-      .filter((c): c is string => typeof c === "string" && c.trim() !== "")
-      .map((c) => c.trim().slice(0, 64))
-      .slice(0, 10),
+    // Gizli segmentteki kod TAŞINMAZ (2026-10-09): segment gizlenmeden önce
+    // önerilmiş kod eski oturumdan / istemcideki taslaktan geri gelirdi — onay
+    // kartı ve form gizli kategoriyi gösterir, yayın 400 alırdı. Boşalan liste
+    // "kategori eksik" sayılır ve kalemlerden yeniden önerilir (öneri servisi
+    // yalnız görünür segmentlerden seçer).
+    suggestedCategoryIds: visibleCategoryIds(
+      (Array.isArray(r.suggestedCategoryIds) ? r.suggestedCategoryIds : [])
+        .filter((c): c is string => typeof c === "string" && c.trim() !== "")
+        .map((c) => c.trim().slice(0, 64)),
+    ).slice(0, 10),
+    // Kaynak işareti: belge yolları her zaman belgeden; "refine" (oturumdan
+    // revive, istemci/model taslağı) gelen değeri korur — model argümanındaki
+    // değeri çağıran önceki taslakla ezer (assistant propose_tender_draft).
+    fromDocument: route === "refine" ? r.fromDocument === true : true,
   };
 
   // Model güven bildirimi (beyaz-liste süzgeçli).
@@ -213,20 +287,20 @@ export function sanitizeAiDraft(
   if (draft.pricesIncludeVat === true) flag("prices", "vat_warning");
 
   // Eksik ZORUNLU alanlar (AI sorar; opsiyoneller boş bırakılır — kullanıcı yorulmaz).
-  const missingRequired: string[] = [];
-  if (!draft.title) missingRequired.push("Satın Alma Talebi başlığı");
+  const missingRequired: AiMissingField[] = [];
+  if (!draft.title) missingRequired.push("title");
   const usableItems = items.filter((i) => i.name);
-  if (usableItems.length === 0) missingRequired.push("En az bir kalem");
+  if (usableItems.length === 0) missingRequired.push("items");
   else {
-    if (usableItems.some((i) => i.quantity == null)) missingRequired.push("Kalem miktarları");
-    if (usableItems.some((i) => !i.unit)) missingRequired.push("Kalem birimleri");
+    if (usableItems.some((i) => i.quantity == null)) missingRequired.push("quantities");
+    if (usableItems.some((i) => !i.unit)) missingRequired.push("units");
   }
-  if (!draft.deliveryTerm) missingRequired.push("Teslim şekli");
-  if (!draft.bidsCloseAt) missingRequired.push("Teklif kapanış tarihi");
+  if (!draft.deliveryTerm) missingRequired.push("deliveryTerm");
+  if (!draft.bidsCloseAt) missingRequired.push("bidsCloseAt");
   // Kategori: AI önerisi varsa formda ön-dolu gelir (kullanıcı kontrol eder);
   // yoksa kullanıcının seçmesi gereken zorunlu alan olarak bildirilir.
   if (draft.suggestedCategoryIds.length === 0) {
-    missingRequired.push("Kategori seçimi (platformdan)");
+    missingRequired.push("category");
   }
 
   return { draft, flags, missingRequired };

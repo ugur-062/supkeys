@@ -1,6 +1,8 @@
 import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import { hiddenCategoryWhere } from "@rothern/shared";
 import type { PrismaService } from "../../common/prisma/prisma.service";
+import { CATEGORY_NAME_SELECT, type CategoryNameRow } from "../../common/company/category-name";
+import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
  * MODEL İFADESİ → GERÇEK KATEGORİ KODU — TEK KAYNAK (AI arama; katalogdan
@@ -15,17 +17,20 @@ import type { PrismaService } from "../../common/prisma/prisma.service";
  *  · Sıralama AD ÖNCE: tam ad = tokenlerin tamamı ADDA (tam) › adda ön ekle ›
  *    tamamı searchText'te (anahtar kelime) › ön ekle searchText'te. Eşitlikte
  *    SINIF (L3) emtiadan (L4) önce — yanlış giderse genel olan az zarar verir.
+ *
+ * Dönen satır üç dilde adı taşır (`CATEGORY_NAME_SELECT`); kullanıcıya
+ * gösterilirken `categoryName(row)` — `nameTr` ham basılmaz (2026-09-27:
+ * EN/RU arayüzde AI arama çipi Türkçe kategori adı gösteriyordu).
  */
 export const MAX_HINTS = 60;
 const POOL_TAKE = 2000;
 const SINGLE_TAKE = 300;
 
-export interface ResolvedCategory {
+export interface ResolvedCategory extends CategoryNameRow {
   id: string;
-  nameTr: string;
 }
 
-type Candidate = { id: string; nameTr: string; level: number; searchText: string | null };
+type Candidate = ResolvedCategory & { level: number; searchText: string | null };
 
 const tokensOf = (h: string) => tokenizeQuery(h).map((t) => foldSearchText(t)).filter(Boolean);
 
@@ -70,14 +75,21 @@ export async function resolveCategoryHints(
   const distinct = [...new Set(hints.filter((h): h is string => !!h))].slice(0, MAX_HINTS);
   if (distinct.length === 0) return out;
 
-  const clauseFor = (ts: string[]) => ({ AND: ts.map((t) => ({ searchText: { contains: stemPrefix(t) } })) });
+  // İpucu modelden gelir, model de kullanıcı metninden üretir: `%` / `_`
+  // taşıyabilir. Desene düz karakter olarak girer (`likeLiteral`). Puanlama
+  // (`score`) zaten düz `includes` olduğu için jokerli ipucu yanlış koda
+  // ÇÖZÜLMÜYORDU; zararı havuzdaydı: "%%" tek başına `POOL_TAKE` satırı
+  // dolduruyor, aynı çağrıdaki gerçek ipuçları havuzda yer bulamıyordu.
+  const clauseFor = (ts: string[]) => ({
+    AND: ts.map((t) => ({ searchText: { contains: likeLiteral(stemPrefix(t)) } })),
+  });
   const clauses = distinct
     .map((h) => tokensOf(h))
     .filter((ts) => ts.length > 0)
     .map(clauseFor);
   if (clauses.length === 0) return out;
   const gate = { ...(opts.discoveryOnly ? { inDiscovery: true } : {}), ...hiddenCategoryWhere() };
-  const select = { id: true, nameTr: true, level: true, searchText: true } as const;
+  const select = { id: true, ...CATEGORY_NAME_SELECT, level: true, searchText: true } as const;
 
   const pool: Candidate[] = await prisma.category.findMany({
     where: { isActive: true, level: { in: [3, 4] }, ...gate, OR: clauses },
@@ -101,7 +113,7 @@ export async function resolveCategoryHints(
       });
       best = pick(single, ts, folded);
     }
-    if (best) out.set(hint, { id: best.id, nameTr: best.nameTr });
+    if (best) out.set(hint, { id: best.id, nameTr: best.nameTr, nameEn: best.nameEn, nameRu: best.nameRu });
   }
   return out;
 }

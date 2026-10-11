@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useUploadProductImage } from "@/hooks/use-company-items";
 import { resizeImageFile, ImageProcessingError } from "@/lib/image-resize";
-import { PhotoIcon, StarIcon, TrashIcon } from "@heroicons/react/20/solid";
+import { ChevronLeftIcon, ChevronRightIcon, PhotoIcon, StarIcon, TrashIcon } from "@heroicons/react/20/solid";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +12,8 @@ const MIN_EDGE = 800;
 const MAX_IMAGES = 8;
 /** Kural metniyle aynı sayı; üstü reddedilmez, küçültülür (uyarıyla). */
 const MAX_BYTES = 5 * 1024 * 1024;
+const TILE_BUTTON =
+  "flex-1 rounded-md bg-white/90 py-1 text-zinc-700 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-zinc-900";
 
 /**
  * ÜRÜN GÖRSELLERİ — ilki KAPAK.
@@ -30,10 +33,26 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export function ImageUploader({
   images,
   onChange,
+  readOnly = false,
 }: {
   images: string[];
-  onChange: (next: string[]) => void;
+  /**
+   * Salt-okur (izinsiz kullanıcı, arayüz testi O-099): görseller görünür;
+   * ekleme kutucuğu, bırakma alanı, sıralama ve kapak/kaldır düğmeleri YOK —
+   * yükleme ucu zaten 403 döner.
+   */
+  readOnly?: boolean;
+  /**
+   * Fonksiyonel güncelleme de alır (üst bileşen `setImages` verir). Yükleme
+   * sonucu HER ZAMAN güncel listeye eklenir — derin denetim LU-31: açılıştaki
+   * `images` kopyasıyla yazmak, yükleme sürerken silinen/sıralanan görseli
+   * geri getiriyordu.
+   */
+  onChange: (next: string[] | ((prev: string[]) => string[])) => void;
 }) {
+  const t = useTranslations("web.panel.trade.imageUploader");
+  // Görsel işleme (EXIF temizliği) hatası metni — `lib/image-resize.ts` React dışı.
+  const tImg = useTranslations("web.shared.imageProcessing");
   const upload = useUploadProductImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +78,7 @@ export function ImageUploader({
     if (!files?.length) return;
     const room = MAX_IMAGES - images.length;
     if (room <= 0) {
-      toast.error(`En fazla ${MAX_IMAGES} görsel eklenebilir`);
+      toast.error(t("enFazlaGorselEklenebilir", { max: MAX_IMAGES }));
       return;
     }
     setBusy(true);
@@ -68,35 +87,42 @@ export function ImageUploader({
     for (const file of Array.from(files).slice(0, room)) {
       try {
         if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-          next.push(`${file.name}: yalnız JPG, PNG veya WebP yüklenebilir.`);
+          next.push(t("yalnizJpgPngVeyaWebp", { name: file.name }));
           continue;
         }
         if (file.size > MAX_BYTES) {
           // Telefon fotoğrafı sık sık 5 MB'ı aşar; reddetmek yerine küçültüp
           // yüklüyoruz, kullanıcıya söylüyoruz.
           next.push(
-            `${file.name}: ${(file.size / 1024 / 1024).toFixed(1)} MB — 5 MB üstü, otomatik küçültüldü.`,
+            t("mb5MbUstuOtomatik", { name: file.name, size: (file.size / 1024 / 1024).toFixed(1) }),
           );
         }
         const dims = await readDimensions(file);
         if (dims && (dims.w < MIN_EDGE || dims.h < MIN_EDGE * 0.75)) {
           next.push(
-            `${file.name}: ${dims.w}×${dims.h}px — kartta bulanık görünebilir (en az ${MIN_EDGE}×${MIN_EDGE * 0.75} px önerilir).`,
+            t("kucukGorselKarttaBulanik", { name: file.name, w: dims.w, h: dims.h, minW: MIN_EDGE, minH: MIN_EDGE * 0.75 }),
           );
         }
-        const resized = await resizeImageFile(file, { maxEdge: 1600 });
+        const resized = await resizeImageFile(file, {
+          maxEdge: 1600,
+          errorMessage: tImg("exifTemizlenemedi"),
+        });
         added.push(await upload.mutateAsync(resized));
       } catch (e) {
         next.push(
           e instanceof ImageProcessingError
-            ? `${file.name}: ${e.message}`
-            : `${file.name} yüklenemedi.`,
+            ? t("dosyaVeHata", { name: file.name, message: e.message })
+            : t("yuklenemedi", { name: file.name }),
         );
       }
     }
     setNotices(next);
     setBusy(false);
-    if (added.length) onChange([...images, ...added]);
+    if (added.length) {
+      onChange((prev) =>
+        [...prev, ...added.filter((u) => !prev.includes(u))].slice(0, MAX_IMAGES),
+      );
+    }
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -104,34 +130,35 @@ export function ImageUploader({
     <div>
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-zinc-900">
-          Görseller
+          {t("gorseller")}
           <span className="ml-1 font-normal text-zinc-500">
             ({images.length}/{MAX_IMAGES})
           </span>
         </p>
         <p className="text-xs text-zinc-500">
-          {images.length > 0 ? "İlk görsel kapak — " : ""}3–8 görsel önerilir
+          {images.length > 0 ? t("ilkGorselKapakGorselOnerilir") : t("gorselOnerilir")}
         </p>
       </div>
       <p className="mt-1 text-xs text-zinc-500">
-        JPG, PNG veya WebP · en az {MIN_EDGE}×{MIN_EDGE * 0.75} px · en fazla 5 MB
-        (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir;
-        sürükleyerek sıralayın, ilki kapak olur.
+        {t("jpgPngVeyaWebpEnAz", { minW: MIN_EDGE, minH: MIN_EDGE * 0.75 })}
       </p>
 
       {/* BIRAKMA ALANI: dosyaları buraya sürükleyin — telefon/masaüstü fark etmez. */}
       <div
         onDragOver={(e) => {
-          if (e.dataTransfer.types.includes("Files")) {
+          if (!readOnly && e.dataTransfer.types.includes("Files")) {
             e.preventDefault();
             setDragOver(true);
           }
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
-          if (!e.dataTransfer.files?.length) return;
+          if (readOnly || !e.dataTransfer.files?.length) return;
           e.preventDefault();
           setDragOver(false);
+          // Ekle düğmesi gibi: yükleme sürerken ikinci parti başlamaz (tavan
+          // iki kez geçilip 8'i aşıyordu).
+          if (busy) return;
           void handleFiles(e.dataTransfer.files);
         }}
         data-dragover={dragOver || undefined}
@@ -141,7 +168,7 @@ export function ImageUploader({
         {images.map((src, i) => (
           <li
             key={src}
-            draggable
+            draggable={!readOnly}
             onDragStart={(e) => {
               setDragIndex(i);
               e.dataTransfer.effectAllowed = "move";
@@ -157,8 +184,8 @@ export function ImageUploader({
               setDragIndex(null);
             }}
             onDragEnd={() => setDragIndex(null)}
-            title="Sürükleyerek sırala"
-            className={`group relative aspect-square cursor-grab overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 active:cursor-grabbing ${
+            title={readOnly ? undefined : t("surukleyerekSirala")}
+            className={`group relative aspect-square overflow-hidden ${readOnly ? "" : "cursor-grab active:cursor-grabbing"} rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 ${
               dragIndex === i ? "opacity-50" : ""
             }`}
           >
@@ -166,10 +193,26 @@ export function ImageUploader({
             <img src={src} alt="" className="size-full object-cover" />
             {i === 0 ? (
               <span className="absolute top-1.5 left-1.5 rounded-full bg-zinc-950/80 px-2 py-0.5 text-[10px] font-medium text-white">
-                Kapak
+                {t("kapak")}
               </span>
             ) : null}
-            <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
+            {readOnly ? null : (
+            // KLAVYE/DOKUNMATİK (arayüz testi D-288): düğmeler eskiden yalnız
+            // fareyle (hover) görünüyordu; Tab ile odaklanınca ve hover'sız
+            // (dokunmatik) cihazda da görünür. Sıralama sürükle-bırakın yanında
+            // sola/sağa taşı düğmeleriyle de yapılır.
+            <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+              {i > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => move(i, i - 1)}
+                  title={t("solaTasi")}
+                  aria-label={t("solaTasi")}
+                  className={TILE_BUTTON}
+                >
+                  <ChevronLeftIcon aria-hidden className="mx-auto size-3.5" />
+                </button>
+              ) : null}
               {i > 0 ? (
                 <button
                   type="button"
@@ -178,25 +221,39 @@ export function ImageUploader({
                     next.splice(i, 1);
                     onChange([src, ...next]);
                   }}
-                  title="Kapak yap"
-                  className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
+                  title={t("kapakYap")}
+                  aria-label={t("kapakYap")}
+                  className={TILE_BUTTON}
                 >
                   <StarIcon aria-hidden className="mx-auto size-3.5" />
+                </button>
+              ) : null}
+              {i < images.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => move(i, i + 1)}
+                  title={t("sagaTasi")}
+                  aria-label={t("sagaTasi")}
+                  className={TILE_BUTTON}
+                >
+                  <ChevronRightIcon aria-hidden className="mx-auto size-3.5" />
                 </button>
               ) : null}
               <button
                 type="button"
                 onClick={() => onChange(images.filter((_, x) => x !== i))}
-                title="Kaldır"
-                className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
+                title={t("kaldir")}
+                aria-label={t("kaldir")}
+                className={TILE_BUTTON}
               >
                 <TrashIcon aria-hidden className="mx-auto size-3.5" />
               </button>
             </div>
+            )}
           </li>
         ))}
 
-        {images.length < MAX_IMAGES ? (
+        {!readOnly && images.length < MAX_IMAGES ? (
           <li>
             <button
               type="button"
@@ -206,9 +263,9 @@ export function ImageUploader({
             >
               <PhotoIcon aria-hidden className="size-6" />
               <span className="text-xs font-medium">
-                {busy ? "Yükleniyor…" : "Görsel ekle"}
+                {busy ? t("yukleniyor") : t("gorselEkle")}
               </span>
-              <span className="text-[10px] text-zinc-500">ya da sürükleyip bırakın</span>
+              <span className="text-[10px] text-zinc-500">{t("yaDaSurukleyipBirakin")}</span>
             </button>
           </li>
         ) : null}

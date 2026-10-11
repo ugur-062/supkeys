@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -17,6 +18,7 @@ export function FilterBar({
   onClearAll,
   className,
 }: Props) {
+  const t = useTranslations("web.panel.shell.filterBar");
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-wrap gap-2 items-center">{children}</div>
@@ -24,7 +26,7 @@ export function FilterBar({
       {activeFilterCount > 0 && onClearAll ? (
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">
-            {activeFilterCount} filtre aktif
+            {t("filtreAktif", { n: activeFilterCount })}
           </span>
           <button
             type="button"
@@ -32,7 +34,7 @@ export function FilterBar({
             className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-700 font-semibold"
           >
             <X className="h-3 w-3" />
-            Temizle
+            {t("temizle")}
           </button>
         </div>
       ) : null}

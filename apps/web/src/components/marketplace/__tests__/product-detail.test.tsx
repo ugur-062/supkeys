@@ -2,8 +2,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { ProductBreadcrumb, ProductDetailBody, RelatedRows, brandIsSeller } from "../product-detail";
+import { ProductBreadcrumb, ProductDetailBody, RelatedRows, SellerSiteGate, brandIsSeller } from "../product-detail";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 
 /**
@@ -96,11 +98,13 @@ describe("ProductBreadcrumb", () => {
 });
 
 describe("ProductDetailBody", () => {
-  it("satıcı paneli niteliği gösterir: rozet, sertifika, kuruluş, çalışan", () => {
-    render(Body());
+  it("satıcı paneli niteliği gösterir: doğrulama rozeti, sertifika, kuruluş, çalışan — paket rozeti yok", () => {
+    const { container } = render(Body());
     expect(screen.getAllByText("Karadeniz Enerji A.Ş.").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Doğrulanmış firma").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Gold Üye").length).toBeGreaterThan(0);
+    // Ücretsiz dönem (2026-10-07): API `gold: true` döndürse de paket rozeti çizilmez.
+    expect(screen.queryByText("Gold Üye")).toBeNull();
+    expect(container.textContent).not.toMatch(/Gold|Silver/);
     expect(screen.getAllByText("ISO 9001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Kuruluş 2008 · 50-100 çalışan").length).toBeGreaterThan(0);
   });
@@ -219,10 +223,143 @@ describe("ProductDetailBody", () => {
   });
 });
 
+// Arayüz testi D-04: satıcı kutusunda ad tek satır + `truncate` idi — 360 px'te
+// "ООО «Уралсварпромкабе…" (215 px ad, 204 px yer). Firma kartıyla aynı kural:
+// iki satıra kadar sarar, uzun tek sözcük bölünür; bayrak ve rozet ilk satırda.
+describe("ProductDetailBody — satıcı adı (D-04)", () => {
+  it("ad iki satıra kadar sarar ve sözcük içinde bölünebilir; tek satıra kırpılmaz", () => {
+    const name = "ООО «Уралсварпромкабель»";
+    const { container } = render(Body({ company: { ...company, name } }));
+    const links = screen
+      .getAllByRole("link", { name })
+      .filter((a) => a.getAttribute("href") === "/firma/karadeniz-enerji" && a.className.includes("font-semibold"));
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.className).toMatch(/(^|\s)line-clamp-2(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)break-words(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect(link.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap)(\s|$)/);
+      // Satır üstten hizalı: bayrak ve doğrulama rozeti adın İLK satırında kalır.
+      const row = link.parentElement as HTMLElement;
+      expect(row.className).toMatch(/(^|\s)items-start(\s|$)/);
+      expect(row.className).not.toMatch(/(^|\s)items-center(\s|$)/);
+      const flag = row.querySelector('img[src="/flags/4x3/tr.svg"]');
+      expect(flag?.className).toMatch(/(^|\s)mt-1(\s|$)/);
+      expect(flag?.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    }
+    expect(container.querySelector("a.truncate.font-semibold")).toBeNull();
+  });
+});
+
 describe("brandIsSeller", () => {
   it("marka firma adının parçasıysa çip basılmaz; gerçek marka 'Marka:' ile kalır", () => {
     expect(brandIsSeller("Demo Gold", "Demo Gold Makina")).toBe(true);
     expect(brandIsSeller("Siemens", "Demo Gold Makina")).toBe(false);
     expect(brandIsSeller("", "Demo Gold Makina")).toBe(false);
+  });
+
+  it("kelime sınırında karşılaştırır — firma adının içinde harf dizisi olarak geçen kısa marka gizlenmez", () => {
+    expect(brandIsSeller("LG", "Algı Elektrik")).toBe(false);
+    expect(brandIsSeller("ABB", "Kabbani Ltd")).toBe(false);
+    expect(brandIsSeller("3M", "Demo 3M-Tedarik")).toBe(true);
+    expect(brandIsSeller("Demo Gold Makina A.Ş.", "Demo Gold Makina")).toBe(true);
+    expect(brandIsSeller("Siemens", "")).toBe(false);
+  });
+});
+
+/**
+ * Arayüz testi 2026-10-01: kademe fiyatı başlıkla aynı biçimde (D-057), ürün
+ * videosu izinli listeden gömülür (Y-11), belge indirme üyeye (D-331, T-18).
+ */
+/** Belgeler sekmesi oturumlu üyede indirme adresini sorgular (react-query). */
+function withQuery({ children }: { children: React.ReactNode }) {
+  return <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>;
+}
+
+describe("ProductDetailBody — fiyat biçimi, video, belgeler", () => {
+  it("kademe satırı '{sayı} {kod}' değil başlıkla aynı biçim (sembol dilden)", () => {
+    render(
+      Body({
+        product: {
+          ...product,
+          priceMode: "TIERED",
+          priceAmount: null,
+          priceTiers: [
+            { minQty: 1, unitPrice: 9.8 },
+            { minQty: 100, unitPrice: 8.4 },
+          ],
+        } as unknown as PublicProduct,
+      }),
+    );
+    expect(screen.getAllByText("9,8 ₺").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/9,8 TRY/)).toBeNull();
+  });
+
+  it("YouTube videosu çerezsiz oynatıcıyla gömülür; izinsiz adres çizilmez", async () => {
+    const u = userEvent.setup();
+    const { unmount } = render(
+      Body({ product: { ...product, videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } as PublicProduct }),
+    );
+    await u.click(screen.getByRole("tab", { name: "Video" }));
+    const frame = document.querySelector("iframe");
+    expect(frame?.getAttribute("src")).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    unmount();
+    render(Body({ product: { ...product, videoUrl: "javascript:alert(1)" } as PublicProduct }));
+    expect(screen.queryByRole("tab", { name: "Video" })).toBeNull();
+  });
+
+  it("adressiz belge (herkese açık uç) indirme bağlantısı değil, giriş çağrısı", async () => {
+    const u = userEvent.setup();
+    render(
+      Body({
+        product: { ...product, documents: [{ title: "Katalog" }] } as unknown as PublicProduct,
+        documentsLoginHref: "/company/login?next=%2Fcompany%2Furun%2Fa%2Fb%23belgeler",
+      }),
+      { wrapper: withQuery },
+    );
+    await u.click(screen.getByRole("tab", { name: "Belgeler" }));
+    expect(screen.getByText("Katalog").closest("a")).toBeNull();
+    expect(screen.getByRole("link", { name: "Belgeyi indirmek için giriş yapın" })).toHaveAttribute(
+      "href",
+      "/company/login?next=%2Fcompany%2Furun%2Fa%2Fb%23belgeler",
+    );
+  });
+
+  it("adresli belge (üye) indirme bağlantısıdır", async () => {
+    const u = userEvent.setup();
+    render(
+      Body({
+        product: { ...product, documents: [{ title: "Katalog", url: "https://cdn.example.com/k.pdf" }] } as unknown as PublicProduct,
+      }),
+      { wrapper: withQuery },
+    );
+    await u.click(screen.getByRole("tab", { name: "Belgeler" }));
+    expect(screen.getByRole("link", { name: "Katalog" })).toHaveAttribute("href", "https://cdn.example.com/k.pdf");
+  });
+});
+
+
+/**
+ * Arayüz testi son tur (webA-1): "Firmanın web sitesini görmek için giriş
+ * yapın" satırı oturumlu üyeye de basılıyordu; giriş bağlantısı onu sitesi
+ * görünmeyen üye sayfasına geçiriyordu. Satır yalnız misafire (varlığı
+ * `hasWebsite` ile çağıranda süzülür).
+ */
+describe("SellerSiteGate", () => {
+  it("misafir giriş bağlantısını görür; oturumlu üye görmez", () => {
+    useCompanyAuthStore.setState({ isHydrated: true, user: null, company: null });
+    const { unmount } = render(<SellerSiteGate label="Web sitesi" redirect="/company/urun/a/b" />);
+    const link = screen.getByRole("link");
+    expect(link.getAttribute("href") ?? "").toContain("next=");
+    unmount();
+
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["buy:view"], roles: [] } as never,
+      company: { tier: "SILVER", companyVerificationStatus: "VERIFIED", slug: "alici" } as never,
+    });
+    const { container } = render(<SellerSiteGate label="Web sitesi" redirect="/company/urun/a/b" />);
+    expect(container).toBeEmptyDOMElement();
+    useCompanyAuthStore.setState({ isHydrated: true, user: null, company: null });
   });
 });

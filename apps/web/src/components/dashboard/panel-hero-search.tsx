@@ -1,15 +1,20 @@
 "use client";
 
 import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { BuildingOffice2Icon, ClipboardDocumentListIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link } from "@/i18n/navigation";
+import { VERIFY_HREF } from "@/components/company/verification-gate";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
+import { useId, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
 import { cn } from "@/lib/utils";
@@ -54,6 +59,15 @@ export interface PanelHeroAi {
   portal: AiSearchPortal;
   /** Silver+ ∧ koltuk rolü. */
   enabled: boolean;
+  /**
+   * KİLİDİN NEDENİ (arayüz testi O-050): rol kısıtı paket kilidi gibi
+   * anlatılmaz. "tier" → "Silver ile açılır" (Paketler'e); "role" → paket
+   * bağlantısı YOK, "alım/satış yetkisi olan kullanıcılara açık" notu (Gold
+   * firmanın Yönetici'si Paketler'de "Mevcut paketiniz" görüyordu). Rol
+   * kontrolü paket kontrolünün İÇİNDE: paket yetmiyorsa neden her zaman
+   * paket. Verilmezse eski davranış ("tier"). Bkz. `aiSearchAccess`.
+   */
+  lockedBy?: "tier" | "role";
   onResult: (r: AiSearchIntentResult) => void;
   placeholder?: string;
 }
@@ -117,9 +131,19 @@ export function HeroDecor({
      portal tonunda — satınalma mavi, satış yeşil. */
   accent?: "blue" | "emerald";
 }) {
+  // Widget başlığı/ipucu katalog anahtarı olabilir (`web.marketing.heroDecor.*`, i18n);
+  // anahtar değilse düz metin basılır (panel/test geriye dönük).
+  const tDecor = useTranslations("web.marketing.heroDecor");
+  const tx = (v: string) => (tDecor.has(v as never) ? tDecor(v as never) : v);
   const g = accent === "emerald";
+  // KIRPMA BURADA (arayüz testi webA-07, yeniden doğrulama): eskiden bandın
+  // kendisi `overflow-hidden` taşıyordu ve bandın altına inen öneri
+  // listesini de kesiyordu ("Firmalar" grubu görünmüyor, ↑ ile seçilen satır
+  // görünmez kalıyordu). Taşan yalnız dekor; onu kendi kutusunda kırpıyoruz.
+  // Kutu konumlu ama `z-index`siz — çocukların `-z-10/-z-20`si bandın
+  // istifleme bağlamında kalır (içeriğin arkasında, zeminin üstünde).
   return (
-    <>
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
             eğik, arkada; bant beyaz kalır. */}
         <div aria-hidden className={cn("pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] 2xl:block", g ? "bg-emerald-100/60" : "bg-blue-100/60")} />
@@ -168,14 +192,171 @@ export function HeroDecor({
             ) : (
               <w.icon className={cn("size-8", g ? "text-emerald-600" : "text-blue-600")} strokeWidth={1.75} />
             )}
-            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{tx(w.title)}</span>
             <span className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
+              <span className="text-[13px] leading-snug text-zinc-500">{tx(w.hint)}</span>
               <ChevronRight className="size-4 shrink-0 text-zinc-500" />
             </span>
           </div>
         ))}
+    </div>
+  );
+}
+
+/* Başlık ve alt cümlenin tipografisi — hero, ölçü kopyası ve herkese açık
+   anasayfanın hidrasyon öncesi kabuğu (`home-hero.tsx` `HeroShell`) AYNI
+   sınıfları kullanır; ayrışırlarsa ölçü yanlış yükseklik ayırır. Renk ayrı.
+   Başlığın üst boşluğu (`mt-3`) da burada: kabuk onu taşımadığı için başlık
+   hidrasyonda 12 px kayıyordu (son canlı kontrol 2026-10-10, NEW-04). */
+export const HERO_TITLE_CLASS = "mt-3 text-4xl font-bold tracking-tight text-balance sm:text-5xl";
+export const HERO_LEAD_CLASS = "mx-auto mt-3 max-w-xl text-base/7 text-pretty";
+export const HERO_NOTE_CLASS = "mt-5 flex flex-wrap items-center justify-center gap-2 text-sm";
+
+/* KABUK ↔ HERO KUTU SÖZLEŞMESİ (NEW-04). Herkese açık anasayfanın sunucu
+   HTML'i (`HeroShell`) hidrasyonda bu hero ile yer değiştirir; dikeyde ortalı
+   bantta içerik yüksekliği farklıysa başlık zıplar (ölçüldü: 68–92 px). Bandın,
+   sütunun, arama formunun ve notun KUTU ölçüsünü veren sınıflar bu yüzden tek
+   yerde durur ve iki taraf da buradan okur. Sözleşme testi:
+   `marketplace/__tests__/home-hero-shell.test.tsx`. */
+export const HERO_COLUMN_CLASS = "mx-auto w-full max-w-4xl text-center";
+/** Arama formunun üst boşluğu (AI anahtarı olmayan hero). */
+const HERO_FORM_CLASS = "relative mt-7";
+/** Arama çubuğunun kutusu: iç boşluk + hizalama (zemin, gölge, çerçeve ayrı). */
+const HERO_SEARCH_BAR_BOX_CLASS = "relative mx-auto flex p-2";
+/** Çubuğun içindeki alanın ve "Ara" düğmesinin yüksekliği. */
+const HERO_SEARCH_CONTROL_HEIGHT_CLASS = "h-12";
+/** Nottaki hap düğmenin kutusu ve yazısı (renk ayrı). */
+const HERO_NOTE_PILL_CLASS = "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold";
+
+/**
+ * `backdrop` bandının sınıfları — hero ve kabuk AYNI fonksiyonu çağırır.
+ *
+ * Bant panel kenar boşluğunu negatif marjla iptal eder (tam genişlik), kendi
+ * boşluğunu geri verir ve gerçek bir yükseklik alır. `-mt-6 lg:-mt-8`: kabuğun
+ * içerik sarmalayıcısı `py-6 lg:py-8` taşıyor; bant onu da iptal eder ki zemin
+ * üst çubuğun HEMEN ALTINDA başlasın (kullanıcı: "arada boşluk olmasın").
+ * `min-h` + dikey ortalama (2026-09-08, kullanıcı: "iki portalın bandı aynı
+ * uzunlukta olsun"): sabit taban yükseklik iki portalı eşitler, kısa içerik
+ * ortalanır. Köşe kartları varken bant 2xl'de biraz daha yüksek (kartlar arama
+ * kutusunun satırına inmez) ve zemin portal tonunda çok hafif gradyan.
+ */
+export function heroBandClass(accent: "blue" | "emerald", hasWidgets: boolean): string {
+  return cn(
+    "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-x-clip bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+    hasWidgets
+      ? cn(
+          "min-h-[30rem] 2xl:min-h-[34rem]",
+          accent === "emerald"
+            ? "bg-gradient-to-b from-emerald-50/80 via-white to-white"
+            : "bg-gradient-to-b from-blue-50/80 via-white to-white",
+        )
+      : "min-h-[30rem]",
+  );
+}
+
+type HeroNoteText = { text: string; label: string };
+
+/** Ölçü yuvasının ızgarası ve görünmez ölçü hücresi (`SizedSlot` ve not yuvası ortak kullanır). */
+const SIZED_SLOT_CLASS = "grid items-end";
+const SIZER_CELL_CLASS = "invisible [grid-area:1/1]";
+
+/**
+ * Not yuvasının ÖLÇÜ notları: verilenlerden boş olmayan, görünen nottan ve
+ * birbirinden farklı (metin + etiket) olanlar, verildiği sırada. Aynı içerik aynı
+ * yüksekliği verir — yinelenen ölçü çizilmez (misafirde yuva eskisiyle birebir).
+ */
+function heroNoteSizers(
+  own: HeroNoteText | undefined,
+  sizers: HeroNoteText | readonly (HeroNoteText | undefined)[] | undefined,
+): HeroNoteText[] {
+  const keyOf = (n: HeroNoteText) => `${n.text}\u0000${n.label}`;
+  const seen = new Set(own ? [keyOf(own)] : []);
+  const out: HeroNoteText[] = [];
+  const list: readonly (HeroNoteText | undefined)[] = !sizers ? [] : "text" in sizers ? [sizers] : sizers;
+  for (const note of list) {
+    if (!note || seen.has(keyOf(note))) continue;
+    seen.add(keyOf(note));
+    out.push(note);
+  }
+  return out;
+}
+
+/** Notun içeriğinin ETKİLEŞİMSİZ kopyası (metin + hap): ölçü hücresi ve kabuk çizer. */
+function HeroNoteGhost({ note }: { note: HeroNoteText }) {
+  return (
+    <>
+      {note.text}
+      <span className={HERO_NOTE_PILL_CLASS}>
+        {note.label}
+        <ArrowRightIcon aria-hidden className="size-4" />
+      </span>
     </>
+  );
+}
+
+/**
+ * KABUK İÇİN: arama formunun yerini tutan, formla aynı yükseklikte (üst boşluk
+ * + çubuğun iç boşluğu + alan yüksekliği) GÖRÜNMEZ kutu. Etkileşimli hiçbir şey
+ * taşımaz — form, alan ve düğme hidrasyonla gelir; kabuktaki bir alan hidrasyonda
+ * atılır ve yazılanı götürürdü.
+ */
+export function HeroSearchPlaceholder() {
+  return (
+    <div aria-hidden data-hero-search-placeholder className={cn(HERO_FORM_CLASS, "invisible")}>
+      <div className={cn(HERO_SEARCH_BAR_BOX_CLASS, "items-center")}>
+        <span className={cn(HERO_SEARCH_CONTROL_HEIGHT_CLASS, "flex-1")} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * KABUK İÇİN: arama çubuğunun altındaki notun (`ctaNote`) yerini tutan görünmez
+ * yuva. Hero ile AYNI ızgara: `note` görünen notun, `sizer` öteki yüzün notunun
+ * kopyası; yükseklik ikisinden uzun olanınki. Bağlantı YOK (yalnız yer).
+ */
+export function HeroNotePlaceholder({ note, sizer }: { note?: HeroNoteText; sizer?: HeroNoteText }) {
+  if (!note) return null;
+  return (
+    <SizedSlot
+      sizer={sizer ? `${sizer.text} ${sizer.label}` : undefined}
+      sizerNode={sizer ? <HeroNoteGhost note={sizer} /> : undefined}
+      sizerClassName={HERO_NOTE_CLASS}
+    >
+      <div aria-hidden className={cn("invisible", sizer && "[grid-area:1/1]", HERO_NOTE_CLASS)}>
+        <HeroNoteGhost note={note} />
+      </div>
+    </SizedSlot>
+  );
+}
+
+/**
+ * İki metinden uzun olanın yüksekliğini ayıran yuva: `sizer` (öteki yüzün
+ * metni) görünmez ve `aria-hidden` olarak çocukla AYNI ızgara hücresine
+ * çizilir, kısa olan alta yaslanır. `sizer` yoksa hiçbir sarmalayıcı çizilmez.
+ * Çocuk `[grid-area:1/1]` taşımalıdır. Ölçü `<h1>`in DIŞINDADIR (başlığın
+ * metni tek kalır).
+ */
+export function SizedSlot({
+  sizer,
+  sizerNode,
+  sizerClassName,
+  children,
+}: {
+  sizer?: string;
+  /** Ölçü düz metin değilse (not + düğme) çizilecek içerik; `sizer` yine anahtar. */
+  sizerNode?: ReactNode;
+  sizerClassName: string;
+  children: ReactNode;
+}) {
+  if (!sizer) return <>{children}</>;
+  return (
+    <div className={SIZED_SLOT_CLASS}>
+      {children}
+      <div aria-hidden className={cn(SIZER_CELL_CLASS, sizerClassName)}>
+        {sizerNode ?? sizer}
+      </div>
+    </div>
   );
 }
 
@@ -185,12 +366,15 @@ export function PanelHeroSearch({
   titleAccent,
   splitTitle = false,
   plainTitle = false,
+  titleSizer,
   lead,
+  leadSizer,
   placeholder,
   action,
   chips = [],
-  chipsLabel = "Popüler",
+  chipsLabel: chipsLabelProp,
   ctaNote,
+  ctaNoteSizer,
   backdrop = false,
   widgets,
   objects,
@@ -201,6 +385,7 @@ export function PanelHeroSearch({
   supplierScope,
   onScopeChange,
   scope: scopeProp,
+  portal,
 }: {
   eyebrow?: string;
   title: string;
@@ -219,7 +404,17 @@ export function PanelHeroSearch({
   splitTitle?: boolean;
   /** Başlık TEK RENK (zinc-950), vurgu sözcüğü yok (2026-09-17, kullanıcı kararı). */
   plainTitle?: boolean;
+  /**
+   * İKİ YÜZLÜ SAYFADA YÜKSEKLİK SABİT KALSIN (2026-10-09; kural 2026-09-18:
+   * "geçişte yazılar yer değiştirmesin"): öteki yüzün başlığı / alt cümlesi.
+   * Görünmez ölçü olarak aynı ızgara hücresine çizilir; blok iki metinden uzun
+   * olanın yüksekliğini alır (dil ve genişlikten bağımsız), kısa olan alta
+   * yaslanır — arama kutusu geçişte yerinden oynamaz. Verilmezse (panel
+   * anasayfaları) işaretleme eskisiyle birebir aynıdır.
+   */
+  titleSizer?: string;
   lead: string;
+  leadSizer?: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
   action: string;
@@ -231,6 +426,16 @@ export function PanelHeroSearch({
    * geçti: sayılar bilgi veriyordu ama bir sonraki adımı söylemiyordu.
    */
   ctaNote?: { text: string; label: string; href: string };
+  /**
+   * Not yuvasının ÖLÇÜSÜ (görünmez; bkz. `titleSizer`): öteki yüzün notu — ya da
+   * bir liste. Yuva, görünen notla birlikte bunların en uzununun yüksekliğini
+   * alır. Ölçü varsa yuva `ctaNote` YOKKEN de çizilir (yalnız görünmez ölçüler):
+   * herkese açık anasayfada sunucu kabuğu yuvayı misafir notlarıyla ayırır;
+   * notu olmayan üyede (izni yok) yuva kaybolursa başlık ve arama kutusu
+   * hidrasyonda ve yüz geçişinde 28–52 px oynuyordu (kapanış kontrolü CL-01).
+   * Verilmezse (panel anasayfaları) işaretleme eskisiyle birebir aynıdır.
+   */
+  ctaNoteSizer?: HeroNoteText | readonly (HeroNoteText | undefined)[];
   /**
    * DEKORATİF ARKA PLAN KATMANLARI (2026-09-08, kullanıcı varlıkları):
    * dünya haritası + depo + gemi + uçak. Yalnız görsel; içerik ve yapı
@@ -281,13 +486,29 @@ export function PanelHeroSearch({
   suggestions?: PanelSuggestGroup[];
   onQueryChange?: (q: string) => void;
   ai?: PanelHeroAi;
+  /**
+   * Son aramaların yazıldığı portal (`recent-searches.ts`, arayüz testi
+   * D-312). Verilmezse `ai.portal`, o da yoksa satınalma — herkese açık
+   * anasayfanın TEDARİKÇİ yüzü AI taşımadığı için talep aramaları alıcının
+   * tavsiye şeridine yazılıyordu.
+   */
+  portal?: AiSearchPortal;
 }) {
+  const t = useTranslations("web.marketplace.panelHome.panelHeroSearch");
+  const chipsLabel = chipsLabelProp ?? t("populer");
   const router = useRouter();
   const pathname = usePathname();
+  const locale = useLocale() as Locale;
   const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [aiMode, setAiMode] = useState(false);
+  // AI kutusunda 3 karakterden kısa gönderim: sessizce yutulmaz, not çıkar
+  // (arayüz testi D-233). Yazınca kalkar.
+  const [aiShort, setAiShort] = useState(false);
+  // Öneri listesinde klavyeyle seçili satır (arayüz testi D-235) — -1: yok.
+  const [active, setActive] = useState(-1);
+  const listId = useId();
   const [scopeState, setScopeState] = useState<"products" | "suppliers">("products");
   const scope = scopeProp ?? scopeState;
   const setScope = (next: "products" | "suppliers") => {
@@ -304,12 +525,16 @@ export function PanelHeroSearch({
     const term = q.trim();
     setOpen(false);
     if (aiActive && ai) {
-      if (term.length < 3 || intent.isPending) return;
+      if (intent.isPending) return;
+      if (term.length < 3) {
+        setAiShort(true);
+        return;
+      }
       intent.mutate(
         { text: term, portal: ai.portal },
         {
           onSuccess: (r) => ai.onResult(r),
-          onError: (err) => toast.error(extractErrorMessage(err, "AI araması başarısız oldu — tekrar deneyin.")),
+          onError: (err) => toast.error(extractErrorMessage(err, t("aiAramasiBasarisizOlduTekrar"))),
         },
       );
       return;
@@ -320,7 +545,7 @@ export function PanelHeroSearch({
     // Anasayfadaki tavsiye şeridinin girdisi (tarayıcı-yerel, bkz.
     // `recent-searches.ts`). AI dalı yukarıda döndüğü için buraya yalnız
     // DÜZ arama düşer — AI yorumu bir arama terimi değil.
-    if (term) rememberSearch(ai?.portal === "satis" ? "satis" : "satinalma", term);
+    if (term) rememberSearch((portal ?? ai?.portal) === "satis" ? "satis" : "satinalma", term);
     const keep = new URLSearchParams(targetAction === pathname ? (sp?.toString() ?? "") : "");
     keep.delete("q");
     keep.delete("sayfa");
@@ -328,7 +553,51 @@ export function PanelHeroSearch({
     if (term) parts.push(`q=${encodeURIComponent(term)}`);
     router.push(parts.length ? `${targetAction}?${parts.join("&")}` : targetAction);
   };
+  // Öneri kaynağı yoksa (herkese açık anasayfa — typeahead ertelendi, D-002)
+  // kutu düz bir arama kutusudur: `role="combobox"` ekran okuyucuya hiç
+  // gelmeyecek önerileri vaat ediyordu (arayüz testi webA-07, yeniden doğrulama).
+  const typeahead = onQueryChange !== undefined || suggestions.length > 0;
   const hasSug = !aiActive && q.trim().length >= 2 && suggestions.some((g) => g.rows.length > 0);
+  // Klavye gezinmesi (arayüz testi D-235, ARIA combobox kalıbı): gruplar
+  // düz bir diziye açılır, ↓/↑ etkin satırı gezer, Enter etkin satıra gider,
+  // Esc listeyi kapatır (metni SİLMEZ — `type="search"`ün tarayıcı
+  // varsayılanı kutuyu boşaltıyordu).
+  const sugGroups = suggestions.filter((g) => g.rows.length > 0);
+  const flatRows = sugGroups.flatMap((g) => g.rows);
+  // Öneriler geç gelirse (ürün ucu) sıra kayar — etkin satır sıfırlanır,
+  // Enter başka bir satıra gitmesin.
+  const rowsSig = flatRows.map((r) => r.href).join("\n");
+  const [seenSig, setSeenSig] = useState(rowsSig);
+  if (rowsSig !== seenSig) {
+    setSeenSig(rowsSig);
+    setActive(-1);
+  }
+  const listOpen = open && hasSug;
+  const activeRow = listOpen && active >= 0 ? flatRows[active] : undefined;
+  const optionId = (i: number) => `${listId}-opt-${i}`;
+  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!hasSug || flatRows.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setOpen(true);
+      setActive((i) => (!listOpen || i >= flatRows.length - 1 ? 0 : i + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setOpen(true);
+      setActive((i) => (!listOpen || i <= 0 ? flatRows.length - 1 : i - 1));
+    } else if (e.key === "Enter" && activeRow) {
+      e.preventDefault();
+      setOpen(false);
+      setActive(-1);
+      router.push(activeRow.href);
+    } else if (e.key === "Escape" && listOpen) {
+      e.preventDefault();
+      setOpen(false);
+      setActive(-1);
+    }
+  };
+  // Kilit nedeni (O-050): verilmezse eski davranış — paket.
+  const aiLock = ai && !ai.enabled ? (ai.lockedBy ?? "tier") : null;
   // Textarea'da Enter gönderir, Shift+Enter satır ekler.
   const onAiKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -339,8 +608,8 @@ export function PanelHeroSearch({
   const aiPlaceholder =
     ai?.placeholder ??
     (ai?.portal === "satis"
-      ? "Ne sattığınızı anlatın: ürün, kapasite, bölge…"
-      : "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…");
+      ? t("neSattiginiziAnlatinUrunKapasite")
+      : t("neAradiginiziAnlatinUrunAdet"));
   const tone =
     accent === "blue"
       ? {
@@ -375,40 +644,36 @@ export function PanelHeroSearch({
           softOn: "bg-emerald-100 text-emerald-800",
         };
 
+  const noteSizers = heroNoteSizers(ctaNote, ctaNoteSizer);
+  /** Görünen not; `cell` = ölçü yuvasındaki ızgara hücresi sınıfı (yuva yoksa boş). */
+  const noteLine = (cell: string) =>
+    ctaNote ? (
+      <p className={`${cell}${HERO_NOTE_CLASS} text-zinc-600`}>
+        {ctaNote.text}
+        <Link href={ctaNote.href} className={`${HERO_NOTE_PILL_CLASS} text-white transition ${tone.btn}`}>
+          {ctaNote.label}
+          <ArrowRightIcon aria-hidden className="size-4" />
+        </Link>
+      </p>
+    ) : null;
+
   return (
     <section
       aria-label={title}
       /* BACKDROP modunda hero bir BANT: panel kenar boşluğunu negatif
          marjla iptal eder (tam genişlik), kendi boşluğunu geri verir ve
          gerçek bir yükseklik alır — köşe görselleri ancak böyle "sahne"
-         kurar. `overflow-hidden` yatay kaydırmayı keser. Sade modda
+         kurar. `overflow-x-clip` yatay kaydırmayı keser ama DİKEYDE
+         kırpmaz: öneri listesi bandın altına taşar (arayüz testi webA-07,
+         yeniden doğrulama — `overflow-hidden` listeyi kesiyordu; dekor
+         `HeroDecor`un kendi kutusunda kırpılır). Liste açıkken bant `z-10`
+         alır ki alttaki konumlu kartlar listenin üstüne binmesin. Sade modda
          (satış) eski kompakt hero. */
-      className={
-        backdrop
-          /* `-mt-6 lg:-mt-8`: kabuğun içerik sarmalayıcısı `py-6 lg:py-8`
-             taşıyor; bant onu da iptal eder ki fotoğraf üst çubuğun HEMEN
-             ALTINDA başlasın (kullanıcı: "arada boşluk olmasın"). */
-          /* `min-h` + dikey ortalama (2026-09-08, kullanıcı: "iki portalın
-             arka plan fotoğrafı aynı uzunlukta olsun"): bant yüksekliği
-             İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
-             satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
-             Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
-          ? cn(
-              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
-              /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
-                 kutusunun satırına inmez (2xl'de ölçüldü). */
-              widgets?.length
-                ? cn(
-                    "min-h-[30rem] 2xl:min-h-[34rem]",
-                    /* Zemin portal tonunda çok hafif gradyan (mockup) — beyaza iner. */
-                    accent === "emerald"
-                      ? "bg-gradient-to-b from-emerald-50/80 via-white to-white"
-                      : "bg-gradient-to-b from-blue-50/80 via-white to-white",
-                  )
-                : "min-h-[30rem]",
-            )
-          : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
-      }
+      className={cn(
+        listOpen && "z-10",
+        /* Bandın sınıfları `heroBandClass`ta (kabukla ortak, NEW-04). */
+        backdrop ? heroBandClass(accent, !!widgets?.length) : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6",
+      )}
     >
       {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
@@ -419,7 +684,7 @@ export function PanelHeroSearch({
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —
           arama kutusu 896 px yerine 557 px'e inip yer tutucuyu kırpıyordu. */}
-      <div className={backdrop ? "mx-auto w-full max-w-4xl text-center" : "mx-auto max-w-2xl text-center"}>
+      <div className={backdrop ? HERO_COLUMN_CLASS : "mx-auto max-w-2xl text-center"}>
         {eyebrow ? (
           /* Üst etiket: BÜYÜK HARF + geniş harf aralığı, iki yanında ince
              çizgi (kullanıcı tasarımı). */
@@ -435,7 +700,8 @@ export function PanelHeroSearch({
             atlar). Hero yalnız bu iki sayfada kullanılıyor. */}
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
+        <SizedSlot sizer={titleSizer} sizerClassName={HERO_TITLE_CLASS}>
+        <h1 className={`${titleSizer ? "[grid-area:1/1] " : ""}${HERO_TITLE_CLASS} text-zinc-950`}>
           {plainTitle ? (
             title
           ) : titleAccent ? (
@@ -467,30 +733,39 @@ export function PanelHeroSearch({
             })()
           )}
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{lead}</p>
+        </SizedSlot>
+        <SizedSlot sizer={leadSizer} sizerClassName={HERO_LEAD_CLASS}>
+          <p className={`${leadSizer ? "[grid-area:1/1] " : ""}${HERO_LEAD_CLASS} text-zinc-500`}>{lead}</p>
+        </SizedSlot>
 
         {ai ? (
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
-            {!ai.enabled ? (
-              <Link href="/company/premium" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-                Silver ile açılır
+            {aiLock === "tier" ? (
+              <Link href={VERIFY_HREF} className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
+                {t("aiDogrulamaIleAcilir")}
               </Link>
+            ) : aiLock === "role" ? (
+              /* Rol kısıtı: paket bağlantısı YOK — paket zaten yetiyor. */
+              <span className="text-zinc-500">{t("aiRolKilidi")}</span>
             ) : null}
           </div>
         ) : null}
 
         {/* `data-hero-search`: üst çubuk araması bu kutuyu gözler — kutu
-            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
+            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür.
+            `action` yalnız hidrasyon öncesi düz gönderimin hedefi (sonra
+            `onSubmit` router'la gider) — o da aktif dilin DIŞ yolu olmalı
+            (derin denetim Y-17). */}
         <form
           data-hero-search
-          action={targetAction}
+          action={localizePath(targetAction, locale)}
           method="get"
           role="search"
           onSubmit={onSubmit}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
           }}
-          className={ai ? "relative mt-4" : "relative mt-7"}
+          className={ai ? "relative mt-4" : HERO_FORM_CLASS}
         >
           {/* KAPSAM PİLLERİ — çubuğun ÜSTÜNDE (kullanıcı tasarımı,
               2026-09-08 ikinci tur): seçili taraf mavi dolgu, diğeri sessiz
@@ -499,7 +774,7 @@ export function PanelHeroSearch({
           {supplierScope && !aiActive ? (
             <div
               role="group"
-              aria-label="Arama kapsamı"
+              aria-label={t("aramaKapsami")}
               className="mx-auto mb-3 inline-flex rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur"
             >
               <button
@@ -515,7 +790,7 @@ export function PanelHeroSearch({
                 ) : (
                   <CubeIcon aria-hidden className="size-5" />
                 )}
-                {supplierScope.primaryLabel ?? "Ürün"}
+                {supplierScope.primaryLabel ?? t("urun")}
               </button>
               <button
                 type="button"
@@ -526,7 +801,7 @@ export function PanelHeroSearch({
                 }`}
               >
                 <BuildingOffice2Icon aria-hidden className="size-5" />
-                {supplierScope.label ?? "Firma"}
+                {supplierScope.label ?? t("firma")}
               </button>
             </div>
           ) : null}
@@ -535,7 +810,7 @@ export function PanelHeroSearch({
               "AI ile ara" (açık mavi) ve "Ara →" (dolu mavi). İkisi de
               ÇUBUĞUN İÇİNDE (kullanıcı tasarımı). */}
           <div
-            className={`relative mx-auto flex bg-white p-2 shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
+            className={`${HERO_SEARCH_BAR_BOX_CLASS} bg-white shadow-xl shadow-zinc-950/5 ring-1 ring-inset transition focus-within:ring-2 ${
               aiActive
                 ? `items-end rounded-3xl ${accent === "blue" ? "ring-blue-200 focus-within:ring-blue-500" : "ring-emerald-200 focus-within:ring-emerald-500"}`
                 : `items-center rounded-full ring-zinc-950/10 ${accent === "blue" ? "focus-within:ring-blue-500" : "focus-within:ring-emerald-500"}`
@@ -548,97 +823,148 @@ export function PanelHeroSearch({
               <textarea
                 name="q"
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setAiShort(false);
+                }}
                 onKeyDown={onAiKey}
                 rows={2}
                 placeholder={aiPlaceholder}
-                aria-label="AI ile ara"
+                aria-label={t("aiIleAra")}
                 maxLength={500}
                 className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             ) : (
               <span className="relative flex min-w-[8rem] flex-1 items-center">
-                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-4 size-5 text-zinc-400" />
+                <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute left-3 size-5 text-zinc-400 sm:left-4" />
+                {/* MOBİL (arayüz testi D-316): 390 px'te yer tutucu "Talep,
+                    sektör veya ür" diye kesiliyordu — dar ekranda girinti ve
+                    yer tutucu küçük, düğmeler simge; sığmayan uç "…" ile biter. */}
                 <input
                   type="search"
                   name="q"
+                  {...(typeahead
+                    ? {
+                        role: "combobox",
+                        "aria-expanded": listOpen,
+                        "aria-controls": listOpen ? listId : undefined,
+                        "aria-autocomplete": "list" as const,
+                        "aria-activedescendant": activeRow ? optionId(active) : undefined,
+                      }
+                    : {})}
                   value={q}
                   onChange={(e) => {
                     setQ(e.target.value);
                     onQueryChange?.(e.target.value);
                     setOpen(true);
+                    setActive(-1);
                   }}
                   onFocus={() => setOpen(true)}
+                  onKeyDown={onSearchKey}
                   placeholder={targetPlaceholder}
                   aria-label={title}
                   autoComplete="off"
-                  className="h-12 w-full bg-transparent pr-3 pl-12 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                  className={`${HERO_SEARCH_CONTROL_HEIGHT_CLASS} w-full bg-transparent pr-2 pl-10 text-base text-ellipsis text-zinc-950 outline-none placeholder:text-sm placeholder:text-zinc-400 sm:pr-3 sm:pl-12 sm:placeholder:text-base`}
                 />
               </span>
             )}
             {ai ? (
               <>
                 <span aria-hidden className="my-2 hidden w-px bg-zinc-200 sm:block" />
+                {/* MOBİLDE DE VAR (arayüz testi O-081): `hidden sm:inline-flex`
+                    eylemi 640 px altında tümden siliyordu — dar ekranda simge
+                    düğme, ad ekran okuyucuda. */}
                 <button
                   type="button"
                   aria-pressed={aiActive}
                   disabled={!ai.enabled}
-                  title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
-                  onClick={() => ai.enabled && setAiMode(!aiMode)}
-                  className={`mx-1 hidden h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
+                  title={aiLock === "role" ? t("aiRolKilidi") : aiLock === "tier" ? t("aiDogrulamaGerektirir") : undefined}
+                  onClick={() => {
+                    if (!ai.enabled) return;
+                    const next = !aiMode;
+                    setAiMode(next);
+                    setAiShort(false);
+                    // AI yorumu ürün/talep süzgeci üretir; kapsam pilleri AI
+                    // modunda gizli. "Firma" seçiliyken alttaki firma listesi
+                    // kalıyordu (arayüz testi D-234/O-095) — kapsam birincile döner.
+                    if (next && supplierScope && scope === "suppliers") setScope("products");
+                  }}
+                  className={`mx-1 inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full px-3.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 ${
                     aiActive ? tone.softOn : tone.soft
                   }`}
                 >
                   <SparklesIcon aria-hidden className="size-5" />
-                  {aiActive ? "Aramaya dön" : "AI ile ara"}
+                  <span className="sr-only sm:not-sr-only">{aiActive ? t("aramayaDon") : t("aiIleAra")}</span>
                 </button>
               </>
             ) : null}
             <button
               type="submit"
               disabled={aiActive && intent.isPending}
-              className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
+              className={`inline-flex ${HERO_SEARCH_CONTROL_HEIGHT_CLASS} shrink-0 items-center justify-center gap-2 rounded-full text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${aiActive ? "px-5 sm:px-7" : "px-4 sm:px-7"} ${tone.btn}`}
             >
-              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+              {aiActive ? (
+                intent.isPending ? t("yorumlaniyor") : t("aiIleBul")
+              ) : (
+                /* Dar ekranda yalnız ok (D-316) — ad ekran okuyucuda kalır. */
+                <span className="sr-only sm:not-sr-only">{t("ara")}</span>
+              )}
               {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
             </button>
           </div>
+          {aiActive && aiShort ? (
+            <p role="alert" className="mt-2 text-xs font-medium text-amber-700">
+              {t("aiEnAz3Karakter")}
+            </p>
+          ) : null}
           {aiActive ? (
             <p className="mt-2 text-xs text-zinc-500">
-              Örnek: &ldquo;İstanbul'a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici&rdquo; — AI süzgeçleri kurar, sonuçlar aşağıda listelenir.
+              {t("ornekIstanbulaTeslim")}
             </p>
           ) : null}
 
-          {open && hasSug ? (
+          {listOpen ? (
             <div
+              id={listId}
               role="listbox"
-              aria-label="Öneriler"
+              aria-label={t("oneriler")}
+              // Fare listeden çıkınca vurgu düşer — yoksa Enter yazılan metni
+              // aramak yerine fareyle geçilen öneriye gider (D-235).
+              onMouseLeave={() => setActive(-1)}
               className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl bg-white text-left shadow-xl ring-1 ring-zinc-950/10"
             >
-              {suggestions
-                .filter((g) => g.rows.length > 0)
-                .map((g) => (
-                  <div key={g.label} className="border-b border-zinc-950/5 py-1 last:border-b-0">
-                    <p className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              {sugGroups.map((g, gi) => {
+                // Grubun düz dizideki ilk satırı — seçenek kimliği/etkinlik için.
+                const offset = sugGroups.slice(0, gi).reduce((n, x) => n + x.rows.length, 0);
+                return (
+                  <div key={g.label} role="group" aria-label={g.label} className="border-b border-zinc-950/5 py-1 last:border-b-0">
+                    <p aria-hidden className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
                       {g.label}
                     </p>
-                    <ul>
-                      {g.rows.map((r) => (
-                        <li key={r.key}>
-                          <Link
-                            href={r.href}
-                            role="option"
-                            aria-selected={false}
-                            className="flex items-center justify-between gap-3 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
-                          >
-                            <span className="line-clamp-1">{r.label}</span>
-                            {r.meta ? <span className="shrink-0 text-xs text-zinc-500">{r.meta}</span> : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
+                    {g.rows.map((r, ri) => {
+                      const i = offset + ri;
+                      return (
+                        <Link
+                          key={r.key}
+                          id={optionId(i)}
+                          href={r.href}
+                          role="option"
+                          aria-selected={i === active}
+                          tabIndex={-1}
+                          onMouseEnter={() => setActive(i)}
+                          className={cn(
+                            "flex items-center justify-between gap-3 px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-50",
+                            i === active && "bg-zinc-100",
+                          )}
+                        >
+                          <span className="line-clamp-1">{r.label}</span>
+                          {r.meta ? <span className="shrink-0 text-xs text-zinc-500">{r.meta}</span> : null}
+                        </Link>
+                      );
+                    })}
                   </div>
-                ))}
+                );
+              })}
             </div>
           ) : null}
         </form>
@@ -649,18 +975,24 @@ export function PanelHeroSearch({
             gönderilmez. */}
         {/* KÜÇÜK ÇIKIŞ — "bulamadıysan talep aç". Sayfanın birincil CTA'sı
             sol menüde; bu ikincil ve cümle içinde, hero'yu şişirmiyor. */}
-        {ctaNote ? (
-          <p className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm text-zinc-600">
-            {ctaNote.text}
-            <Link
-              href={ctaNote.href}
-              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition ${tone.btn}`}
-            >
-              {ctaNote.label}
-              <ArrowRightIcon aria-hidden className="size-4" />
-            </Link>
-          </p>
-        ) : null}
+        {noteSizers.length > 0 ? (
+          /* ÖLÇÜ (canlı doğrulama 2026-10-09, HEAD-01-R): iki yüzün notu
+             telefonda farklı satır sayısına sarıyor; bant içeriğini dikeyde
+             ortaladığı için 20 px'lik fark arama kutusunu 10 px oynatıyordu.
+             Ölçü notları görünmez olarak aynı hücrede — başlık ve alt cümleyle
+             aynı yuva. Yuva NOT YOKKEN de durur (CL-01): kabuğun ayırdığı yer
+             hidrasyonda ve yüz geçişinde kaybolmaz. */
+          <div className={SIZED_SLOT_CLASS}>
+            {noteLine("[grid-area:1/1] ")}
+            {noteSizers.map((sizer) => (
+              <div key={`${sizer.text} ${sizer.label}`} aria-hidden className={cn(SIZER_CELL_CLASS, HERO_NOTE_CLASS)}>
+                <HeroNoteGhost note={sizer} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          noteLine("")
+        )}
 
         {chips.length > 0 ? (
           <nav

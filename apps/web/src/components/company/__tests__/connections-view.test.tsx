@@ -5,9 +5,10 @@
  * görünüm çipleri (Bağlantılarım · Gelen istekler · Bekleyenler, sayılı),
  * altında dense tablo; 50'şer çizim; izinsiz üye salt-okunur.
  */
-import { render, screen, within } from "@testing-library/react";
+import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   tier: "GOLD",
@@ -16,10 +17,22 @@ const h = vi.hoisted(() => ({
   incoming: [] as unknown[],
   outgoing: [] as unknown[],
   referrals: [] as unknown[],
+  blocks: [] as unknown[],
+  /** Sorgu durumu: `ok` yanıt geldi · `loading` ilk yükleme · `error` okunamadı (kesinti). */
+  status: {} as Record<string, "ok" | "loading" | "error">,
+  refetch: {} as Record<string, ReturnType<typeof vi.fn>>,
+  /** GERÇEK liste kancaları (TanStack sorguları) koşsun — çevrimdışı / duraklatılmış sorgu testi. */
+  real: false,
+  get: vi.fn(),
+  search: "",
+  confirm: vi.fn(),
+  unblock: vi.fn(),
+  disconnect: vi.fn(),
+  cancelReferral: vi.fn(),
   respond: vi.fn(),
   invite: vi.fn(),
   batch: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -30,22 +43,51 @@ vi.mock("@/hooks/use-company-auth", () => ({
 vi.mock("@/hooks/use-company-complaints", () => ({
   useFileComplaint: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
-vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => async () => true }));
-vi.mock("@/hooks/use-company-connections", () => ({
-  useConnectionSelf: () => ({ data: { rothernId: "AAAA-0001" } }),
-  useConnections: () => ({ data: h.connections, isLoading: false }),
-  useIncomingInvites: () => ({ data: h.incoming, isLoading: false }),
-  useOutgoingInvites: () => ({ data: h.outgoing, isLoading: false }),
-  useReferralInvites: () => ({ data: h.referrals }),
-  useRespondInvite: () => ({ mutateAsync: h.respond, isPending: false, variables: undefined }),
-  useCancelReferralInvite: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
-  useDisconnect: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
-  useBlockCompany: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useInviteByEmail: () => ({ mutateAsync: h.invite, isPending: false }),
-  useInviteByEmailBatch: () => ({ mutateAsync: h.batch, isPending: false }),
+vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useSearchParams: () => new URLSearchParams(h.search),
 }));
+/** TanStack Query sonucunun bileşenin okuduğu kesiti. */
+const listQuery = (name: string, data: unknown[]) => {
+  const status = h.status[name] ?? "ok";
+  h.refetch[name] ??= vi.fn();
+  return {
+    data: status === "ok" ? data : undefined,
+    // İlk yüklemede istek sürer: TanStack'te hem `isPending` hem `isLoading`.
+    isPending: status === "loading",
+    isLoading: status === "loading",
+    isError: status === "error",
+    refetch: h.refetch[name],
+  };
+};
+vi.mock("@/lib/company-auth/api", () => ({ companyApi: { get: h.get } }));
+vi.mock("@/hooks/use-company-connections", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/use-company-connections")>();
+  // `h.real` ise GERÇEK kanca koşar; seçim test boyunca sabittir (kanca sırası değişmez).
+  const list = (real: () => unknown, name: string, data: () => unknown[]) => () => {
+    const query = h.real ? real : () => listQuery(name, data());
+    return query();
+  };
+  return {
+    useConnectionSelf: () => ({ data: { rothernId: "AAAA-0001" } }),
+    useConnections: list(actual.useConnections, "connections", () => h.connections),
+    useIncomingInvites: list(actual.useIncomingInvites, "incoming", () => h.incoming),
+    useOutgoingInvites: list(actual.useOutgoingInvites, "outgoing", () => h.outgoing),
+    useReferralInvites: list(actual.useReferralInvites, "referrals", () => h.referrals),
+    useRespondInvite: () => ({ mutateAsync: h.respond, isPending: false, variables: undefined }),
+    useCancelReferralInvite: () => ({ mutateAsync: h.cancelReferral, isPending: false, variables: undefined }),
+    useDisconnect: () => ({ mutateAsync: h.disconnect, isPending: false, variables: undefined }),
+    useBlocks: list(actual.useBlocks, "blocks", () => h.blocks),
+    useUnblockCompany: () => ({ mutateAsync: h.unblock, isPending: false, variables: undefined }),
+    useBlockCompany: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useInviteByEmail: () => ({ mutateAsync: h.invite, isPending: false }),
+    useInviteByEmailBatch: () => ({ mutateAsync: h.batch, isPending: false }),
+  };
+});
 
 import { ConnectionsView } from "../connections-view";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const co = (i: number, over: Record<string, unknown> = {}) => ({
   id: `c${i}`,
@@ -71,7 +113,17 @@ beforeEach(() => {
   h.incoming = [];
   h.outgoing = [];
   h.referrals = [];
+  h.blocks = [];
+  h.status = {};
+  h.refetch = {};
+  h.real = false;
+  h.search = "";
+  h.confirm.mockResolvedValue(true);
   h.invite.mockResolvedValue({ kind: "invited", email: "x@y.com" });
+});
+afterEach(() => {
+  // Çevrimdışı testi ağı kapatır; sonraki testler çevrimiçi başlasın.
+  onlineManager.setOnline(true);
 });
 
 describe("ConnectionsView", () => {
@@ -149,15 +201,111 @@ describe("ConnectionsView", () => {
     expect(screen.getByRole("button", { name: /Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("STANDART ya da izinsiz: Davet et yok, satır menüsü yok, liste görünür", () => {
+  it("doğrulanmamış firma: Davet et KİLİTLİ düğme (doğrulamaya), boş durum e-posta daveti önermez (O-097); izinsiz: hiç yok", () => {
     h.tier = "STANDART";
-    const { unmount } = render(<ConnectionsView />);
+    h.connections = [];
+    const { unmount, container } = render(<ConnectionsView />);
     expect(screen.queryByRole("button", { name: /Davet et/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(screen.queryByText(/e-posta ile davet edin/)).toBeNull();
+    expect(screen.getByText(/e-postayla davet etmek firma doğrulamasıyla açılır/)).toBeInTheDocument();
+    // Ücretsiz dönem: paket adı ve paket sayfası hiçbir yerde yok.
+    expect(container.textContent).not.toMatch(/Silver|Gold|Platinum|paket/i);
+    expect(container.querySelector('a[href*="/company/premium"]')).toBeNull();
     unmount();
     h.perm = false;
+    h.connections = [{ connectionId: "k1", origin: "INVITE", company: co(1), decidedAt: null }];
     render(<ConnectionsView />);
+    expect(screen.queryByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Daha fazla" })).toBeNull();
     expect(screen.getAllByText("Firma 1").length).toBeGreaterThan(0);
+  });
+
+  it("reddedilmiş doğrulama: kilitli davet yine doğrulamaya gider (webC-2, D-194 kuralı)", () => {
+    h.tier = "STANDART";
+    h.connections = [];
+    useCompanyAuthStore.setState({ company: { companyVerificationStatus: "REJECTED" } as never } as never);
+    try {
+      const { container } = render(<ConnectionsView />);
+      expect(screen.getByRole("link", { name: /Davet için firma doğrulaması gerekir/ })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      expect(container.querySelector('a[href*="/company/premium"]')).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ company: null } as never);
+    }
+  });
+
+  it("?view=incoming gelen istekler görünümüyle açılır (D-328)", () => {
+    h.search = "view=incoming";
+    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "" }];
+    render(<ConnectionsView />);
+    expect(screen.getByRole("button", { name: /Gelen istekler/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Firma 9")).toBeInTheDocument();
+    expect(screen.queryByText("Firma 1")).toBeNull();
+  });
+
+  it("Engellenenler görünümü: engelli firma listelenir, profil bağlantısı yok, onaylı 'Engeli kaldır' (Y-05)", async () => {
+    const user = userEvent.setup();
+    h.blocks = [{ company: { id: "x7", name: "Engelli AŞ", rothernId: "ZZZZ-0007" }, createdAt: "" }];
+    h.unblock.mockResolvedValue({ ok: true });
+    render(<ConnectionsView />);
+    const chip = screen.getByRole("button", { name: /Engellenenler/ });
+    expect(chip).toHaveTextContent("1");
+    await user.click(chip);
+    expect(screen.getByText("Engelli AŞ")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Engelli AŞ/ })).toBeNull();
+    // Vazgeçilirse kaldırılmaz.
+    h.confirm.mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Engeli kaldır" }));
+    expect(h.unblock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Engeli kaldır" }));
+    expect(h.confirm).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Engel kaldırılsın mı?" }));
+    expect(h.unblock).toHaveBeenCalledWith("x7");
+    expect(h.toast.success).toHaveBeenCalledWith("Engel kaldırıldı");
+  });
+
+  it("Engellenenler boşken açıklayıcı boş durum", async () => {
+    const user = userEvent.setup();
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Engellenenler/ }));
+    expect(screen.getByText("Engellediğiniz firma yok")).toBeInTheDocument();
+  });
+
+  it("Reddet, Geri çek ve davet İptal et onay ister; vazgeçince istek atılmaz (D-265)", async () => {
+    const user = userEvent.setup();
+    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "" }];
+    h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
+    h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
+    h.confirm.mockResolvedValue(false);
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+    await user.click(screen.getByRole("button", { name: "Reddet" }));
+    expect(h.confirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "İstek reddedilsin mi?", description: expect.stringContaining("Firma 9") }),
+    );
+    expect(h.respond).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    await user.click(screen.getByRole("button", { name: "Geri çek" }));
+    expect(h.disconnect).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "İptal et" }));
+    expect(h.confirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "Davet iptal edilsin mi?", description: expect.stringContaining("yeni@firma.com") }),
+    );
+    expect(h.cancelReferral).not.toHaveBeenCalled();
+
+    h.confirm.mockResolvedValue(true);
+    await user.click(screen.getByRole("button", { name: "Geri çek" }));
+    expect(h.disconnect).toHaveBeenCalledWith("o1");
+    await user.click(screen.getByRole("button", { name: "İptal et" }));
+    expect(h.cancelReferral).toHaveBeenCalledWith("r1");
+    await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+    await user.click(screen.getByRole("button", { name: "Reddet" }));
+    expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "reject" });
   });
 
   it("Davet et: tek adres → tekil uç, çok adres → toplu uç", async () => {
@@ -168,11 +316,201 @@ describe("ConnectionsView", () => {
     const box = await screen.findByLabelText("Davet edilecek e-posta adresleri");
     await user.type(box, "x@y.com");
     await user.click(screen.getByRole("button", { name: "Davet gönder" }));
-    expect(h.invite).toHaveBeenCalledWith("x@y.com");
+    expect(h.invite).toHaveBeenCalledWith({ email: "x@y.com", locale: "tr" });
     await user.click(screen.getByRole("button", { name: /Davet et/ }));
     const box2 = await screen.findByLabelText("Davet edilecek e-posta adresleri");
     await user.type(box2, "a@b.com, c@d.com");
     await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
-    expect(h.batch).toHaveBeenCalledWith(["a@b.com", "c@d.com"]);
+    expect(h.batch).toHaveBeenCalledWith([
+      { email: "a@b.com", locale: "tr" },
+      { email: "c@d.com", locale: "tr" },
+    ]);
+  });
+
+  it("Davet et: adres başına davet dili — uzantıdan varsayılan (.kz → Русский), değiştirilebilir", async () => {
+    const user = userEvent.setup();
+    h.batch.mockResolvedValue({ summary: { request: 0, invited: 2, skipped: 0 }, results: [] });
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Davet et/ }));
+    await user.type(await screen.findByLabelText("Davet edilecek e-posta adresleri"), "zakupki@zavod.kz, info@firma.com");
+    const kz = screen.getByLabelText("zakupki@zavod.kz için davet dili") as HTMLSelectElement;
+    const com = screen.getByLabelText("info@firma.com için davet dili") as HTMLSelectElement;
+    expect(kz.value).toBe("ru");
+    // Genel uzantı → davet edenin (arayüz) dili.
+    expect(com.value).toBe("tr");
+    await user.selectOptions(com, "en");
+    await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
+    expect(h.batch).toHaveBeenCalledWith([
+      { email: "zakupki@zavod.kz", locale: "ru" },
+      { email: "info@firma.com", locale: "en" },
+    ]);
+  });
+
+  it("e-posta GİTMEDİYSE 'gönderildi' denmez: tekil uçta uyarı, toplu uçta gönderilemeyen sayısı + satır rozeti", async () => {
+    const user = userEvent.setup();
+    h.toast.success.mockReset();
+    h.toast.warning.mockReset();
+    h.invite.mockResolvedValueOnce({ kind: "invited", email: "x@y.com", delivery: "SUPPRESSED", emailSent: false });
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Davet et/ }));
+    await user.type(await screen.findByLabelText("Davet edilecek e-posta adresleri"), "x@y.com");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenCalledWith(expect.stringContaining("x@y.com"));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(expect.stringContaining("geri çevirdi"));
+    expect(h.toast.success).not.toHaveBeenCalled();
+
+    // Teslim edilemez alan adı: "adres geri çevirdi" DEĞİL, "alan adına teslim edilemez".
+    h.invite.mockResolvedValueOnce({
+      kind: "invited",
+      email: "x@firma.test",
+      delivery: "SUPPRESSED",
+      emailSent: false,
+      undeliverable: true,
+    });
+    const single = screen.getByLabelText("Davet edilecek e-posta adresleri");
+    await user.clear(single);
+    await user.type(single, "x@firma.test");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(
+      expect.stringContaining("bu alan adına e-posta teslim edilemez"),
+    );
+
+    // Staging izin listesi: "adres geri çevirdi" DEĞİL, "bu ortamda gönderilmedi".
+    h.invite.mockResolvedValueOnce({
+      kind: "invited",
+      email: "x@firma.com",
+      delivery: "SUPPRESSED",
+      emailSent: false,
+      allowlist: true,
+    });
+    await user.clear(single);
+    await user.type(single, "x@firma.com");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith(expect.stringContaining("izin listesindeki"));
+
+    h.batch.mockResolvedValueOnce({
+      summary: { request: 0, invited: 1, skipped: 0, failed: 1 },
+      results: [
+        { email: "a@b.com", status: "invited", code: "SENT" },
+        { email: "c@d.com", status: "failed", code: "FAILED", reason: "Gönderilemedi" },
+      ],
+    });
+    const box = screen.getByLabelText("Davet edilecek e-posta adresleri");
+    await user.clear(box);
+    await user.type(box, "a@b.com, c@d.com");
+    await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith("1 adrese e-posta gönderilemedi");
+    expect(await screen.findByText("c@d.com")).toBeInTheDocument();
+    expect(screen.getAllByText("Gönderilemedi").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Canlı doğrulama OUT-2 (API kesintisi): bağlantısı olan firmaya çipler
+   * "Bağlantılarım 0 · Gelen istekler 0 · Bekleyenler 0 · Engellenenler 0",
+   * liste de "Henüz bağlantınız yok" + "Firma bul" çiziyordu — hata kartı yoktu.
+   * Kural: boş durum yalnız BAŞARILI ve boş yanıtta; okunamayan sayı 0 değildir.
+   */
+  describe("liste durumları — hata ≠ boş, okunamayan sayı ≠ 0", () => {
+    const chipTexts = () =>
+      within(screen.getByRole("group", { name: "Görünüm" }))
+        .getAllByRole("button")
+        .map((b) => b.textContent);
+
+    it("kesinti: sıfır rozeti ve 'Henüz bağlantınız yok' YOK; hata kartı + Tekrar dene yeniden çeker", async () => {
+      const user = userEvent.setup();
+      h.status = { connections: "error", incoming: "error", outgoing: "error", referrals: "error", blocks: "error" };
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      expect(screen.queryByText("Henüz bağlantınız yok")).toBeNull();
+      expect(screen.getByRole("alert")).toHaveTextContent("Bir şeyler ters gitti");
+      await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(h.refetch.connections).toHaveBeenCalledTimes(1);
+      expect(h.refetch.incoming).not.toHaveBeenCalled();
+    });
+
+    it("kesinti her görünümde hata kartı verir — 'yok' iddiası hiçbirinde çizilmez", async () => {
+      const user = userEvent.setup();
+      h.status = { connections: "error", incoming: "error", outgoing: "ok", referrals: "error", blocks: "error" };
+      render(<ConnectionsView />);
+      await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByText("Bekleyen istek yok")).toBeNull();
+      await user.click(screen.getByRole("button", { name: /Engellenenler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByText("Engellediğiniz firma yok")).toBeNull();
+      // Bekleyenler iki uçtan okur: biri düştüyse sayı da liste de bilinmiyor.
+      await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Bekleyenler/ })).toHaveTextContent(/^Bekleyenler$/);
+      await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+      expect(h.refetch.referrals).toHaveBeenCalledTimes(1);
+      expect(h.refetch.outgoing).not.toHaveBeenCalled();
+    });
+
+    it("yüklenirken de rozet yok (henüz okunmadı), iskelet çizilir", () => {
+      h.status = { connections: "loading", incoming: "loading", outgoing: "loading", referrals: "loading", blocks: "loading" };
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      expect(screen.queryByText("Henüz bağlantınız yok")).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("BAŞARILI ve boş yanıt: gerçek sıfır rozeti + boş durum (hata kartı değil)", () => {
+      h.connections = [];
+      render(<ConnectionsView />);
+      expect(chipTexts()).toEqual(["Bağlantılarım0", "Gelen istekler0", "Bekleyenler0", "Engellenenler0"]);
+      expect(screen.getByText("Henüz bağlantınız yok")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    /**
+     * Gözden geçirme REV-2: cihaz çevrimdışıyken TanStack sorguyu DURAKLATIR —
+     * istek gitmez, hata da olmaz (`isLoading` false, `isError` false, veri yok).
+     * İskelet `isLoading`e bağlıyken liste boş durum dalına düşüyor, okunamayan
+     * sayı (`null`) yüzünden "Eşleşen bağlantı yok — “” ile eşleşen bağlantınız
+     * bulunamadı." yazıyordu. Gerçek kancalar + gerçek sorgu istemcisi.
+     */
+    it("cihaz çevrimdışı (sorgular duraklatıldı): hiçbir görünümde 'yok' iddiası yok, iskelet; bağlantı dönünce liste gelir", async () => {
+      const user = userEvent.setup();
+      h.real = true;
+      h.get.mockImplementation((url: string) =>
+        Promise.resolve({ data: url === "/company/connections" ? h.connections : [] }),
+      );
+      onlineManager.setOnline(false);
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+      const { container } = render(
+        <QueryClientProvider client={qc}>
+          <ConnectionsView />
+        </QueryClientProvider>,
+      );
+      const skeleton = () => container.querySelector(".animate-pulse");
+      const claims = [
+        "Eşleşen bağlantı yok",
+        "Henüz bağlantınız yok",
+        "Bekleyen istek yok",
+        "Bekleyen isteğiniz yok",
+        "Engellediğiniz firma yok",
+      ];
+      const expectNoClaim = () => {
+        for (const claim of claims) expect(screen.queryByText(claim)).toBeNull();
+        expect(screen.queryByRole("alert")).toBeNull();
+        expect(skeleton()).not.toBeNull();
+      };
+      expectNoClaim();
+      // Okunmamış sayı rozet olarak basılmaz.
+      expect(chipTexts()).toEqual(["Bağlantılarım", "Gelen istekler", "Bekleyenler", "Engellenenler"]);
+      for (const name of [/Gelen istekler/, /Bekleyenler/, /Engellenenler/, /Bağlantılarım/]) {
+        await user.click(screen.getByRole("button", { name }));
+        expectNoClaim();
+      }
+      // Duraklatılan sorgu istek ATMAZ: ne hata ne yanıt var.
+      expect(h.get).not.toHaveBeenCalled();
+
+      act(() => onlineManager.setOnline(true));
+      expect(await screen.findByText("Firma 1")).toBeInTheDocument();
+      expect(skeleton()).toBeNull();
+      expect(within(screen.getByRole("group", { name: "Görünüm" })).getByRole("button", { name: /Bağlantılarım/ })).toHaveTextContent("2");
+      qc.clear();
+    });
   });
 });

@@ -10,11 +10,19 @@
  * kimsenin fark etmediği bir duruma yol açardı.
  *
  *   npx tsx prisma/scripts/seed-category-attributes.ts
+ *   ENV_FILE=../../.env.prod.local pnpm --filter @rothern/db seed-category-attributes   # canlı
+ *
+ * Hedef: `prepareScriptDatabase` ENV_FILE'ı BETİK içinde okur ve ilk satırda
+ * hedef host/proje ref'ini basar (boşluk taraması GA1: eskiden `new
+ * PrismaClient()` ENV_FILE'ı yok sayıp kök `.env`e = STAGING yazıyordu).
  */
 import { PrismaClient, type CategoryAttributeType } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
+import { readAttributeI18n } from "./lib/category-keywords";
+import * as path from "path";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-category-attributes") });
 
 async function main() {
   const codes = Object.keys(CATEGORY_ATTRIBUTES);
@@ -33,14 +41,19 @@ async function main() {
 
   // 2) Upsert
   let written = 0;
+  // i18n Faz 4b: EN/RU etiket ve seçenekler (TSV'den; yoksa dokunulmaz).
+  const i18n = readAttributeI18n(path.resolve(__dirname, "../../src/seeds"));
   for (const [categoryId, defs] of Object.entries(CATEGORY_ATTRIBUTES)) {
     for (const [i, d] of defs.entries()) {
+      const tr = i18n.get(`${categoryId}:${d.key}`);
+      const i18nData = tr ? { nameEn: tr.en, nameRu: tr.ru, optionsEn: tr.optionsEn, optionsRu: tr.optionsRu } : {};
       await prisma.categoryAttribute.upsert({
         where: { categoryId_groupKey: { categoryId, groupKey: d.key } },
         create: {
           categoryId,
           groupKey: d.key,
           nameTr: d.nameTr,
+          ...i18nData,
           type: d.type as CategoryAttributeType,
           options: d.options ?? [],
           unit: d.unit ?? null,
@@ -49,6 +62,7 @@ async function main() {
         },
         update: {
           nameTr: d.nameTr,
+          ...i18nData,
           type: d.type as CategoryAttributeType,
           options: d.options ?? [],
           unit: d.unit ?? null,

@@ -75,6 +75,21 @@ export interface AiConfig {
     dailyShare: number;
     /** İstek başı tavan (tek dev belge bütçeyi yakmasın). */
     requestShare: number;
+    /**
+     * Paket bazında istek başı tavan (yoksa `requestShare`). STANDART havuzu
+     * (0,5 USD) yalnız profil tanıtımı önerisine açık; genel %5 pay 0,025 USD
+     * tavan verir. Tek metin çağrısının tahmini (çıktı tavanı 8192 token ≈
+     * 0,021 USD + girdi) buna ancak sığıyor — çıktı tavanı ya da fiyat
+     * yükselirse tam erişimi olmayan firma hiç taslak alamaz (derin denetim
+     * S013/X21'deki arıza sınıfı). Pay bu yüzden paket bazında geniş tutulur.
+     */
+    requestShareByTier?: Partial<Record<TierName, number>>;
+    /**
+     * Paket bazında günlük tavan (yoksa `dailyShare`). Zaman aşımı tahmini
+     * KORUR; günün üç denemesi de tahminiyle kalsa STANDART havuzunun günlük
+     * payına sığmalı (derin denetim MU-06 gözden geçirme).
+     */
+    dailyShareByTier?: Partial<Record<TierName, number>>;
     /** Premium alt-bütçesi: havuzun payı. */
     premiumShare: number;
     /** Uyarı eşiği (havuz doluluk oranı). */
@@ -179,17 +194,27 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
     vertex,
     models,
     pricing: DEFAULT_PRICING,
-    // STANDART'a küçük havuz (2026-09-14, kullanıcı kararı): ücretsiz firma
-    // profilini AI ile BİR KEZ doldurabilsin. Diğer AI özelliklerine bu havuz
-    // ULAŞMAZ — merkezi kapı (`assertAiAccess`) varsayılan SILVER ve yalnız
-    // profil zenginleştirme `minTier: "STANDART"` geçiyor; ayrıca orada firma
-    // başına tek çağrı sayacı var. Tek sayfalık profil çekimi bu havuzun
-    // altında kalır; aşarsa bütçe kapısı zaten reddeder.
+    // STANDART'a küçük havuz (2026-09-14, kullanıcı kararı): tam erişimi
+    // olmayan firma da tanıtım metnini AI'a yazdırabilsin. Diğer AI
+    // özelliklerine bu havuz ULAŞMAZ — merkezi kapı (`assertAiAccess`)
+    // varsayılan SILVER ve yalnız profil tanıtımı önerisi `minTier: "STANDART"`
+    // geçiyor; ayrıca orada firma başına ömürlük öneri sayacı var (6 başarılı
+    // öneri). Web'e çıkmayan tek metin çağrısı bu havuzun çok altında kalır;
+    // aşarsa bütçe kapısı zaten reddeder.
     monthlyBudgetUsd: { STANDART: 0.5, SILVER: 6, GOLD: 25 },
     caps: {
       userShare: 0.5,
       dailyShare: 0.25,
       requestShare: 0.05,
+      // STANDART: tanıtım önerisi çağrısının tahmini (~0,021 USD) genel %5'e
+      // (0,025) ancak sığıyor → pay 0,5 × 0,2 = 0,10 USD ile geniş tutulur.
+      // Günlük deneme sınırı ve ömürlük öneri hakkı yine frenler; havuz diğer
+      // özelliklere ulaşmaz (SILVER kapısı).
+      requestShareByTier: { STANDART: 0.2 },
+      // STANDART: günün 3 denemesi zaman aşımı tahminiyle kalsa da sığsın →
+      // 0,5 × 0,5 = 0,25 USD. Toplam maliyeti ömürlük ücretli çağrı tavanı
+      // sınırlar (profile-enrich).
+      dailyShareByTier: { STANDART: 0.5 },
       premiumShare: 0.2,
       warnShare: 0.8,
     },

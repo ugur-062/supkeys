@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: () => h.canManage,
   useCompanyAuth: () => ({ user: null, company: { name: "Acme", slug: "acme", tier: "SILVER", companyVerificationStatus: "VERIFIED" } }),
 }));
 vi.mock("@/hooks/use-company-profile", () => ({
@@ -19,9 +19,12 @@ vi.mock("@/hooks/use-company-profile", () => ({
 vi.mock("@/hooks/use-categories", () => ({
   useCategoriesByIds: () => ({ data: [{ id: "39121600", code: "39121600", nameTr: "Dağıtım panoları", level: 3, breadcrumb: "" }] }),
 }));
+const h = vi.hoisted(() => ({ confirm: vi.fn(), unpublish: vi.fn(), canManage: true }));
 vi.mock("@/hooks/use-company-items", () => ({
-  usePublishProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePublishProduct: () => ({ mutateAsync: h.unpublish, isPending: false }),
 }));
+// Uygulama içi onay diyaloğu (arayüz testi D-126).
+vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
 
 import { ProductPreview } from "../product-preview";
 import { EditorRail } from "../editor-rail";
@@ -51,11 +54,13 @@ const base = {
   moq: null,
   unit: "adet",
   unitCode: "PCE",
+  brand: null,
+  mpn: null,
+  specification: null,
   completion: { score: 80, missing: [] },
   publishBlockers: [],
   attributeDefs: [{ key: "ip", nameTr: "Koruma sınıfı", type: "SINGLE_SELECT" as const, options: ["IP65"], unit: null, isRequired: false, definedAt: "39000000" }],
 };
-const item = { brand: null, mpn: null, specification: null };
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -65,7 +70,7 @@ function wrap(ui: React.ReactElement) {
 describe("ProductPreview", () => {
   it("kilit bandı + alıcı gövdesi; form kontrolü yok; nitelik etiketli; tanımsız anahtar çizilmez", async () => {
     const u = userEvent.setup();
-    wrap(<ProductPreview product={base} item={item} onClose={() => {}} />);
+    wrap(<ProductPreview product={base} onClose={() => {}} />);
     expect(screen.getByRole("status")).toHaveTextContent("İncelemede — önizleme");
     expect(screen.getByRole("status")).toHaveTextContent("Onay bekliyor");
     expect(screen.getByRole("heading", { level: 1, name: "Sigorta kutusu" })).toBeInTheDocument();
@@ -78,8 +83,36 @@ describe("ProductPreview", () => {
     expect(screen.queryByRole("button", { name: "Vitrinden çek" })).toBeNull();
   });
 
+  it("'Vitrinden çek' tarayıcının değil uygulamanın onay diyaloğunu sorar (arayüz testi D-126)", async () => {
+    const u = userEvent.setup();
+    const native = vi.spyOn(window, "confirm");
+    h.confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    h.unpublish.mockResolvedValue({});
+    const onClose = vi.fn();
+    wrap(<ProductPreview product={{ ...base, isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} onClose={onClose} />);
+    await u.click(screen.getByRole("button", { name: "Vitrinden çek" }));
+    expect(h.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "Ürün vitrinden çekilsin mi?" }));
+    expect(h.unpublish).not.toHaveBeenCalled();
+    await u.click(screen.getByRole("button", { name: "Vitrinden çek" }));
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(h.unpublish).toHaveBeenCalledWith({ id: "p3", publish: false });
+    expect(native).not.toHaveBeenCalled();
+  });
+
+  // Kimlik alanları VİTRİN yanıtından: `?urun=` derin bağlantısında elde liste
+  // kalemi yok; eskiden marka/MPN/şartname önizlemeden düşüyordu
+  // (arayüz testi webC-16, gözden geçirme).
+  it("marka, MPN ve şartname vitrin yanıtından çizilir", async () => {
+    const u = userEvent.setup();
+    wrap(<ProductPreview product={{ ...base, brand: "Schneider", mpn: "NSX400F", specification: "IEC 61439-2 uyumlu" }} onClose={() => {}} />);
+    expect(screen.getByText(/Schneider/)).toBeInTheDocument();
+    expect(screen.getByText(/NSX400F/)).toBeInTheDocument();
+    await u.click(screen.getByRole("tab", { name: "Teknik Özellikler" }));
+    expect(screen.getByText("IEC 61439-2 uyumlu")).toBeInTheDocument();
+  });
+
   it("yayındaki ürünün yeniden incelemesinde 'Vitrinden çek' var (içerik değişikliği değil)", () => {
-    wrap(<ProductPreview product={{ ...base, isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} item={item} onClose={() => {}} />);
+    wrap(<ProductPreview product={{ ...base, isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} onClose={() => {}} />);
     expect(screen.getByRole("status")).toHaveTextContent("Yayında · incelemede");
     expect(screen.getByRole("button", { name: "Vitrinden çek" })).toBeInTheDocument();
   });
@@ -98,7 +131,6 @@ describe("ProductPreview published", () => {
       <ProductPreview
         variant="published"
         product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
-        item={item}
         onClose={() => {}}
         onEdit={onEdit}
       />,
@@ -110,6 +142,55 @@ describe("ProductPreview published", () => {
     await user.click(screen.getByRole("button", { name: /Düzenle/ }));
     expect(onEdit).toHaveBeenCalled();
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  // Canlı doğrulama CP-02: eylem grubu `shrink-0` idi — kendi satırına inse de
+  // içerik genişliğini (~466 px) koruyup 390 px'te karttan taşıyordu; "Düzenle"
+  // ekranın dışında kalıyor, sayfa yatay kayıyordu (510 px). jsdom yerleşim
+  // hesaplamaz; kilitlenen şey taşmayı doğuran sınıflardır.
+  it("dar ekran: üç eylem tek grupta, grup daralabilir ve sarar (shrink-0 yok); metin sütununun tabanı var", () => {
+    wrap(
+      <ProductPreview
+        variant="published"
+        product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
+        onClose={() => {}}
+        onEdit={() => {}}
+      />,
+    );
+    const edit = screen.getByRole("button", { name: /Düzenle/ });
+    const group = edit.parentElement as HTMLElement;
+    expect(group).toContainElement(screen.getByRole("link", { name: /Herkese açık sayfayı aç/ }));
+    expect(group).toContainElement(screen.getByRole("button", { name: "Vitrinden çek" }));
+    expect(group.classList.contains("flex-wrap")).toBe(true);
+    expect(group.classList.contains("shrink-0")).toBe(false);
+    expect(group.classList.contains("max-w-full")).toBe(true);
+    // Kart da sarar; metin sütunu tabansız (`flex-1`) değil — grup onu ezip yanında kalmaz.
+    const card = screen.getByRole("status");
+    expect(group.parentElement).toBe(card);
+    expect(card.classList.contains("flex-wrap")).toBe(true);
+    const text = card.firstElementChild as HTMLElement;
+    expect(text.classList.contains("flex-1")).toBe(false);
+    expect(text.classList.contains("flex-[1_1_15rem]")).toBe(true);
+    expect(text.classList.contains("min-w-0")).toBe(true);
+  });
+
+  it("ürün yönetimi izni yoksa band 'Düzenle'ye basın demez; yetkinin adını söyler (arayüz testi T3)", () => {
+    h.canManage = false;
+    try {
+      wrap(
+        <ProductPreview
+          variant="published"
+          product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
+          onClose={() => {}}
+          onEdit={() => {}}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /Düzenle/ })).toBeNull();
+      expect(screen.getByRole("status")).not.toHaveTextContent(/Düzenle”ye basın/);
+      expect(screen.getByRole("status")).toHaveTextContent("Ürün ve vitrin yönetimi");
+    } finally {
+      h.canManage = true;
+    }
   });
 });
 
@@ -134,5 +215,29 @@ describe("EditorRail", () => {
     expect(onJump).toHaveBeenCalledWith("urun-gorsel");
     expect(screen.getByText("öneri-kartı")).toBeInTheDocument();
     expect(screen.queryByText("Alıcının gördüğü hâl")).toBeNull();
+  });
+
+  // Canlı doğrulama CP-03: kayıtlı kategorisi gizli segmentte olan taslakta
+  // eksik "seçilmedi" değil "artık kullanılmıyor" — API'nin ret metniyle aynı.
+  it("outdatedCategory: kategori çipi güncel bir kategori ister ve 1. bölüme atlar; diğer çipler değişmez", async () => {
+    const user = userEvent.setup();
+    const onJump = vi.fn();
+    const view = wrap(
+      <EditorRail
+        completion={{ score: 85, missing: [{ key: "category", label: "Kategori seçimi", points: 15 }] }}
+        blockers={[{ code: "category" }, { code: "images" }]}
+        outdatedCategory
+        onJump={onJump}
+      />,
+    );
+    expect(screen.getByText("Onaya göndermek için gerekli")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kategori seçilmeli" })).toBeNull();
+    expect(screen.getByRole("button", { name: "En az 1 görsel eklenmeli" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kategori artık kullanılmıyor, güncel bir kategori seçilmeli" }));
+    expect(onJump).toHaveBeenCalledWith("urun-temel");
+    view.unmount();
+    // İşaret yokken kategorisiz ürünün olağan metni.
+    wrap(<EditorRail completion={{ score: 85, missing: [] }} blockers={[{ code: "category" }]} />);
+    expect(screen.getByRole("button", { name: "Kategori seçilmeli" })).toBeInTheDocument();
   });
 });

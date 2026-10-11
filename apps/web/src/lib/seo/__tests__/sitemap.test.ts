@@ -1,6 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sitemapIndexXml, urlsetXml, xmlEscape } from "../sitemap-xml";
-import { indexItems, parsePartName, partPath } from "../sitemap-parts";
+import { buildPart, indexItems, located, parsePartName, partPath } from "../sitemap-parts";
+
+/* Parça üreticisi (`buildPart`) API özetini okur — sahte özet. */
+const summary = vi.hoisted(() => ({
+  products: { count: 0, lastmod: null },
+  companies: { count: 0, lastmod: null },
+  listings: { count: 0, lastmod: null },
+  categories: [],
+  productCities: [
+    { city: "istanbul", name: "İstanbul", country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
+    { city: "de-munich", name: "München", country: "DE", count: 5, lastmod: "2026-09-21T00:00:00.000Z" },
+    // Eşiğin (MIN_LANDING_PRODUCTS = 3) altında → ince içerik, sitemap'e girmez.
+    { city: "it-parma", name: "Parma", country: "IT", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { city: "fr-lyon", name: "Lyon", country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
+  ],
+  companyCities: [{ city: "Ankara", count: 3, lastmod: "2026-09-26T00:00:00.000Z" }],
+  productCountries: [
+    { country: "DE", count: 5, lastmod: "2026-09-21T00:00:00.000Z" },
+    { country: "IT", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
+    { country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
+    { country: "xx", count: 1, lastmod: "2026-09-22T00:00:00.000Z" },
+  ],
+}));
+/* Boş dizin korumasının sonucu — test başına ayarlanır (varsayılan: dolu). */
+const bosDizinler = vi.hoisted(() => new Set<string>());
+vi.mock("@/lib/seo/empty-index-guard", () => ({
+  dizinBos: async (tur: string) => bosDizinler.has(tur),
+}));
+vi.mock("@/lib/public/marketplace-api", async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  fetchSitemapSummary: async () => summary,
+}));
 
 describe("sitemap XML", () => {
   it("URL, lastmod (saniye hassasiyeti), görsel uzantısı ve kaçış", () => {
@@ -66,11 +98,179 @@ describe("sitemap parçaları", () => {
       companyCities: [],
     });
     const locs = items.map((i) => i.loc);
-    // 45.000 / 20.000 → 3 ürün parçası; boş firma seti yine 1 parça (boş dosya, 404 değil)
-    expect(locs.filter((l) => l.includes("/sitemaps/products"))).toHaveLength(3);
+    // 45.000 / 5.000 → 9 ürün parçası; boş firma seti yine 1 parça (boş dosya, 404 değil)
+    expect(locs.filter((l) => l.includes("/sitemaps/products"))).toHaveLength(9);
     expect(locs.filter((l) => l.includes("/sitemaps/companies"))).toHaveLength(1);
     expect(locs).toContain("http://localhost:3000/sitemaps/products-2.xml");
     expect(items.find((i) => i.loc.endsWith("/sitemaps/categories.xml"))?.lastmod).toBe("2026-09-07T00:00:00.000Z");
     expect(items.find((i) => i.loc.endsWith("/sitemaps/pages.xml"))?.lastmod).toBeNull();
+  });
+});
+
+describe("sitemap — kategoriler parçası", () => {
+  // 2026-10-09: gizli segmentin sayfası 404'tür; API özeti süzer, web ikinci kat.
+  it("gizli segmentin (77, 92…) adresi yazılmaz; görünür segment yazılır", async () => {
+    const rows = summary.categories as unknown as Record<string, unknown>[];
+    rows.push(
+      { id: "39000000", name: "Elektrik", slug: "elektrik", count: 2, lastmod: "2026-09-07T00:00:00.000Z" },
+      { id: "92000000", name: "Kamu Düzeni", slug: "kamu-duzeni", count: 5, lastmod: "2026-09-07T00:00:00.000Z" },
+      { id: "77000000", name: "Çevre Hizmetleri", slug: "cevre-hizmetleri", count: 1, lastmod: "2026-09-07T00:00:00.000Z" },
+    );
+    try {
+      const locs = (await buildPart({ kind: "categories", page: 0 })).map((u) => u.loc);
+      expect(locs.some((l) => l.includes("39000000-elektrik"))).toBe(true);
+      expect(locs.filter((l) => /92000000|77000000/.test(l))).toEqual([]);
+    } finally {
+      rows.length = 0;
+    }
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // geri açıldı — açılış sayfası vardır ve site haritasına yazılır. Sayı ve
+  // tarih API özetinden gelir (gizli dallardaki ürünler orada sayılmaz); ürünü
+  // kalmayan (yalnız gizli dalda ürünü olan) segment `count: 0` ile yazılmaz.
+  it("46 geri açıldı: ürünü varsa adresi yazılır, yoksa yazılmaz", async () => {
+    const rows = summary.categories as unknown as Record<string, unknown>[];
+    const row = { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari", lastmod: "2026-10-10T00:00:00.000Z" };
+    try {
+      rows.push({ ...row, count: 4 });
+      const locs = (await buildPart({ kind: "categories", page: 0 })).map((u) => u.loc);
+      expect(locs.some((l) => l.endsWith("/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari"))).toBe(true);
+      rows.length = 0;
+      rows.push({ ...row, count: 0 });
+      expect(await buildPart({ kind: "categories", page: 0 })).toEqual([]);
+    } finally {
+      rows.length = 0;
+    }
+  });
+});
+
+describe("sitemap dilleri (i18n SEO 2026-09-26)", () => {
+  const S = "http://localhost:3000";
+
+  it("her dil KENDİ <url> girdisi; her girdide aynı tam hreflang seti + x-default Türkçe", () => {
+    const urls = located("/firma/acme/urun/boru", { changefreq: "weekly" });
+    expect(urls.map((u) => u.loc)).toEqual([
+      `${S}/firma/acme/urun/boru`,
+      `${S}/en/companies/acme/products/boru`,
+      `${S}/ru/kompanii/acme/tovary/boru`,
+    ]);
+    for (const u of urls) {
+      expect(u.alternates).toEqual({
+        tr: `${S}/firma/acme/urun/boru`,
+        en: `${S}/en/companies/acme/products/boru`,
+        ru: `${S}/ru/kompanii/acme/tovary/boru`,
+        "x-default": `${S}/firma/acme/urun/boru`,
+      });
+      expect(u.changefreq).toBe("weekly");
+    }
+  });
+
+  it("çevirisi gelmemiş dil ne girdi ne alternatif olur", () => {
+    const urls = located("/firma/acme/urun/boru", {}, ["tr"]);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]!.alternates).toEqual({ tr: `${S}/firma/acme/urun/boru`, "x-default": `${S}/firma/acme/urun/boru` });
+  });
+
+  it("Türkçe yoksa x-default hazır İLK dile (sayfa metasıyla aynı kural); hiç dil yoksa girdi yok", () => {
+    const urls = located("/firma/acme", {}, ["en", "ru"]);
+    expect(urls.map((u) => u.loc)).toEqual([`${S}/en/companies/acme`, `${S}/ru/kompanii/acme`]);
+    expect(urls[0]!.alternates?.["x-default"]).toBe(`${S}/en/companies/acme`);
+    expect(located("/firma/acme", {}, [])).toEqual([]);
+  });
+
+  it("dil başına lastmod: çeviri güncellemesi o dilin girdisine yansır, verilmeyen dil ortak tarihe düşer", () => {
+    const urls = located(
+      "/firma/acme",
+      { lastmod: "2026-09-01T00:00:00.000Z" },
+      ["tr", "en", "ru"],
+      { en: "2026-09-20T00:00:00.000Z" },
+    );
+    expect(urls.map((u) => u.lastmod)).toEqual(["2026-09-01T00:00:00.000Z", "2026-09-20T00:00:00.000Z", "2026-09-01T00:00:00.000Z"]);
+  });
+
+  it("XML: her girdide kendini de içeren hreflang bağlantıları", () => {
+    const xml = urlsetXml(located("/urunler", { priority: 0.9 }));
+    expect(xml.match(/<url>/g)).toHaveLength(3);
+    expect(xml.match(/<xhtml:link /g)).toHaveLength(12);
+    expect(xml).toContain(`<loc>${S}/ru/tovary</loc>`);
+  });
+});
+
+describe("şehir ve ülke parçaları (dünya geneli, 2026-09-27)", () => {
+  const S = "http://localhost:3000";
+
+  it("cities: yabancı şehir kalıcı adresiyle ve üç dilde; ürünsüz ve eşik altı şehir yok", async () => {
+    const locs = (await buildPart({ kind: "cities", page: 0 })).map((u) => u.loc);
+    expect(locs).toContain(`${S}/urunler/sehir/de-munich`);
+    expect(locs).toContain(`${S}/en/products/city/de-munich`);
+    expect(locs).toContain(`${S}/ru/tovary/gorod/de-munich`);
+    expect(locs).toContain(`${S}/urunler/sehir/istanbul`);
+    expect(locs.some((l) => l.includes("fr-lyon"))).toBe(false);
+    expect(locs.some((l) => l.includes("it-parma"))).toBe(false);
+    // Firma şehirleri parçaya GİRMEZ (firma şehir sayfaları kalktı).
+    expect(locs.some((l) => l.includes("ankara"))).toBe(false);
+  });
+
+  it("countries: eşiği geçen geçerli ülke kodları, üç dilde ve DİLİN ADIYLA, hreflang setiyle", async () => {
+    const urls = await buildPart({ kind: "countries", page: 0 });
+    const locs = urls.map((u) => u.loc);
+    expect(locs).toEqual([
+      `${S}/urunler/ulke/de-almanya`,
+      `${S}/en/products/country/de-germany`,
+      `${S}/ru/tovary/strana/de-germaniya`,
+      `${S}/urunler/ulke/tr-turkiye`,
+      `${S}/en/products/country/tr-turkiye`,
+      `${S}/ru/tovary/strana/tr-turtsiya`,
+    ]);
+    expect(urls[0]!.alternates?.["x-default"]).toBe(`${S}/urunler/ulke/de-almanya`);
+    expect(urls[0]!.lastmod).toBe("2026-09-21T00:00:00.000Z");
+  });
+
+  it("indeks: countries parçası listelenir; cities lastmod YALNIZ ürün şehirlerinden", () => {
+    const items = indexItems(summary as Parameters<typeof indexItems>[0]);
+    expect(items.find((i) => i.loc.endsWith("/sitemaps/countries.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
+    // Firma şehri (2026-09-26) daha yeni ama parçada yok → lastmod'u etkilemez.
+    expect(items.find((i) => i.loc.endsWith("/sitemaps/cities.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
+  });
+});
+
+describe("sabit sayfalar parçası — sözleşme metinleri (2026-09-27)", () => {
+  const S = "http://localhost:3000";
+
+  it("sözleşmeler yalnız Türkçe listelenir (EN/RU sayfanın kanoniği Türkçe); diğer sayfalar üç dilde", async () => {
+    const locs = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+    expect(locs).toContain(`${S}/sozlesmeler/kvkk`);
+    expect(locs.some((l) => l.includes("/legal/") || l.includes("/dokumenty/"))).toBe(false);
+    expect(locs).toContain(`${S}/en/how-it-works`);
+    expect(locs).toContain(`${S}/ru/faq`);
+  });
+
+  it("boş dizin (noindex) sitemap'e girmez; dolu dizin üç dilde listelenir", async () => {
+    bosDizinler.clear();
+    const hepsi = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+    expect(hepsi).toContain(`${S}/urunler`);
+    bosDizinler.add("urunler");
+    bosDizinler.add("talepler");
+    try {
+      const locs = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+      expect(locs).not.toContain(`${S}/urunler`);
+      expect(locs).not.toContain(`${S}/alim-talepleri`);
+      expect(locs).toContain(`${S}/firmalar`);
+      // İki dizin × üç dil düştü; başka hiçbir şey değişmedi.
+      expect(hepsi.length - locs.length).toBe(6);
+    } finally {
+      bosDizinler.clear();
+    }
+  });
+});
+
+// Yayın denetimi 2026-09-28 Bölüm 5: XML 1.0'da yasak karakter tek bir ürün
+// adında bile bütün sitemap parçasını geçersiz kılardı.
+describe("sitemap XML kaçışı — yasak karakterler", () => {
+  it("C0 denetim karakterleri ve U+FFFE atılır; özel karakterler varlığa çevrilir", () => {
+    expect(xmlEscape("Pano\u0000\u0008\u000B￾ <A&B>")).toBe("Pano &lt;A&amp;B&gt;");
+    expect(xmlEscape("Satır\tsekme\nyeni")).toBe("Satır\tsekme\nyeni");
+    expect(xmlEscape("Çelik 😀 boru")).toBe("Çelik 😀 boru");
   });
 });

@@ -18,6 +18,12 @@ module.exports = {
   moduleNameMapper: {
     "^@rothern/db$": "<rootDir>/../../packages/db/src/index.ts",
     "^@rothern/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+    // @rothern/i18n DIST'ten: use-intl yalnız ESM dağıtıyor, jest'in CJS
+    // yükleyicisi onu require edemez; paketin build'i çevirmeni CJS'e gömer
+    // (packages/i18n/scripts/bundle-translator.mjs). Testten önce
+    // `pnpm --filter @rothern/i18n build` şart (CI: typecheck → turbo ^build).
+    "^@rothern/i18n$": "<rootDir>/../../packages/i18n/dist/index.js",
+    "^@rothern/i18n/(messages|translator|glossary)$": "<rootDir>/../../packages/i18n/dist/$1.js",
   },
   globalSetup: "<rootDir>/test/integration/global-setup.ts",
   maxWorkers: 1,

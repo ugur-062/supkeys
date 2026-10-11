@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ProductCard } from "@/components/marketplace/product-card";
+import { ErrorState } from "@/components/ui/error-state";
 import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { PANEL_MARKET, panelProductPath } from "@/lib/company/panel-market";
 import { recentSearches } from "@/lib/company/recent-searches";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 // Ekranda ~7 kart görünüyor; 8 çekmek şeridi kaydırılamaz kılardı (oklar
@@ -30,9 +32,13 @@ const LIMIT = 16;
  * `localStorage` yok, koşulu render'a taşımak hydration uyuşmazlığı olurdu
  * (aynı ders: 2026-09-05 React #418).
  *
- * Şerit boşsa bölüm HİÇ çizilmez — boş kutu basmayız.
+ * Şerit boşsa bölüm HİÇ çizilmez — boş kutu basmayız. "Boş" yalnız OKUNMUŞ ve
+ * boş yanıttır: okuma düştüyse (kesinti) başlık durur, şeridin yerinde tek
+ * satır hata + "Tekrar dene" çizilir (son canlı kontrol 2026-10-10, OUTF-3 —
+ * eskiden hata da "boş" sayılıyor, anasayfa hero'nun altında bomboş kalıyordu).
  */
 export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const [term, setTerm] = useState<string | undefined>(undefined);
   const [ready, setReady] = useState(mode === "fresh");
   useEffect(() => {
@@ -41,25 +47,30 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
     setReady(true);
   }, [mode]);
 
-  const { data, isLoading } = useDiscoverSearch(
+  const { data, isLoading, isError, refetch } = useDiscoverSearch(
     mode === "fresh"
       ? { pageSize: LIMIT, sort: "newest" }
       : { pageSize: LIMIT, ...(term ? { q: term } : {}) },
+    // Geçmiş okunana dek sorgu KAPALI: aksi hâlde ilk render `q`siz bir
+    // istek atıp sonucu hiç kullanılmadan `q`li ikinci isteğe geçiyordu.
+    { enabled: ready },
   );
   const items = data?.items ?? [];
   // Geçmiş okunmadan istek atılmasın: `q`siz sonuç gelip sonra `q`li sonuçla
   // değişince şerit gözle görülür biçimde zıplıyordu.
   if (!ready) return null;
-  if (!isLoading && items.length === 0) return null;
+  // Okunamadı: gösterilecek veri yok ve istek düştü.
+  const failed = data === undefined && isError;
+  if (!failed && !isLoading && items.length === 0) return null;
 
   const copy =
     mode === "fresh"
-      ? { title: "Yeni eklenen ürünler", lead: "Tedarikçilerin vitrinlerine en son eklediği ürünler." }
+      ? { title: t("yeniEklenenUrunler"), lead: t("tedarikcilerinVitrinlerineEnSonEkledigi") }
       : term
-        ? { title: "Aramalarınıza göre", lead: `Son aradığınız “${term}” ile eşleşen tedarikçi ürünleri.` }
+        ? { title: t("aramalarinizaGore"), lead: t("sonAradiginizIleEslesenTedarikci", { term: term }) }
         : {
-            title: "Size uygun ürünler",
-            lead: "Alım kategorilerinizle örtüşen tedarikçi ürünleri.",
+            title: t("sizeUygunUrunler"),
+            lead: t("alimKategorilerinizleOrtusenTedarikciUrunler"),
           };
 
   return (
@@ -81,12 +92,14 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
           }
           className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
         >
-          Tümünü gör
+          {t("tumunuGor")}
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
 
-      {isLoading ? (
+      {failed ? (
+        <ErrorState compact message={t("urunlerYuklenemedi")} onRetry={() => void refetch()} />
+      ) : isLoading ? (
         <div className="flex gap-3 overflow-hidden" aria-hidden>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-64 w-40 shrink-0 animate-pulse rounded-lg bg-zinc-100 sm:w-44" />
@@ -125,6 +138,7 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
  * odaklanabilir (`tabIndex`) ve ok tuşlarıyla kayar.
  */
 function CardRail({ children }: { children: ReactNode }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const ref = useRef<HTMLUListElement>(null);
   const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false });
 
@@ -155,7 +169,7 @@ function CardRail({ children }: { children: ReactNode }) {
         ref={ref}
         onScroll={measure}
         tabIndex={0}
-        aria-label="Ürün şeridi"
+        aria-label={t("urunSeridi")}
         // `scroll-pl-*` ŞART: ilk kartın snap noktası scrollLeft=0'da
         // olmazsa Chrome yüklenişte kaydırır ve o scroll olayı LCP
         // raporunu keser (2026-09-04'te ölçüldü).
@@ -171,6 +185,8 @@ function CardRail({ children }: { children: ReactNode }) {
 
 /**
  * Kenardan 12 px içeride yuvarlak düğme (kaynak: `arrows-inset-12`).
+ * Şeridin ucunda PASİF ama görünür (`opacity-40`, arayüz testi D-239):
+ * `opacity-0` düğmeyi tümden siliyor, şeridin bittiği anlaşılmıyordu.
  *
  * Dikey hizası kartın ORTASI değil GÖRSEL alanı: kart 309 px yüksek,
  * ortaya konunca düğme ilk kartın BAŞLIĞINI örtüyordu. Görsel 4:3 ve kart
@@ -185,14 +201,15 @@ function RailButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={side === "left" ? "Geri kaydır" : "İleri kaydır"}
-      className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-0 sm:flex ${
+      aria-label={side === "left" ? t("geriKaydir") : t("ileriKaydir")}
+      className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none sm:flex ${
         side === "left" ? "left-3" : "right-3"
       }`}
     >

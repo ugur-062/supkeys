@@ -2,6 +2,7 @@ import { ErrorReporter } from "@/components/error-reporter";
 import { AuthHydrationBoundary } from "@/components/providers/auth-hydration";
 import { QueryProvider } from "@/components/providers/query-provider";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -11,6 +12,14 @@ import "./globals.css";
 // Root layout'ta force-dynamic tüm rotalara iner. Admin zaten tümüyle authed →
 // statik değer yok, kayıp yok. (bkz. src/middleware.ts)
 export const dynamic = "force-dynamic";
+
+// Inter build'de self-host edilir (fonts.googleapis.com CSP'de engelli — derin
+// denetim LU-13). latin-ext: Türkçe ğ/ş/ı/İ glifleri.
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -38,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr">
+    <html lang="tr" className={inter.variable}>
       <body className="antialiased">
         {/* Tarayıcı hatalarını sunucuya bildirir (SDK yok, ~1 kB). */}
         <ErrorReporter />
@@ -50,7 +59,7 @@ export default function RootLayout({
             closeButton
             toastOptions={{
               style: {
-                fontFamily: "Inter, system-ui, sans-serif",
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
               },
             }}
           />

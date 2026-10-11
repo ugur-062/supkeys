@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Firma logosu — YÜKLENEMEZSE yedeğe düşer.
@@ -26,6 +26,16 @@ export function CompanyLogo({
   fallback: React.ReactNode;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const ref = useRef<HTMLImageElement>(null);
+  // HİDRASYON YARIŞI (derin denetim S066): herkese açık profilde logo sunucu
+  // HTML'iyle gelir; görsel React bağlanmadan hata verirse `onError` hiç
+  // ateşlenmez. `SafeCoverImage` kalıbı: bağlandıktan sonra tamamlanmış ama
+  // boyutsuz görseli kırık say.
+  useEffect(() => {
+    const img = ref.current;
+    if (!src || !img || !img.complete) return;
+    if (img.naturalWidth === 0) setFailedSrc(src);
+  }, [src]);
 
   if (!src || failedSrc === src) return <>{fallback}</>;
 
@@ -34,6 +44,7 @@ export function CompanyLogo({
     // her ortam için yapılandırılmış değil.
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={ref}
       src={src}
       alt={alt}
       className={className}

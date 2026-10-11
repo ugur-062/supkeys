@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * ONAY AKIŞI + ONAYLAYICININ DAR BAĞLAMI (Faz O).
@@ -35,6 +35,7 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   expect(denied.status, "satın almacı akış tanımlayamaz").toBe(403);
 
   let flowId = "";
+  let listingId = "";
   try {
   const flow = await apiPost(owner, "/company/approvals/flows", {
     name: `QA Kazandırma Onayı ${stamp}`,
@@ -55,14 +56,8 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   }
 
   // ── Talep + teklif ──────────────────────────────────────────────────
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Onay Depo ${stamp}`,
-    addressLine: "Organize Sanayi 5. Cadde No 13",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM",
     format: "RFQ",
@@ -70,14 +65,14 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
     description: "Kazandırması onay akışına düşen QA talebi — staging.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(5),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY"],
     items: [{ name: "Onaylı Kalem", quantity: 50, unit: "adet" }],
   });
   expect(listing.status, JSON.stringify(listing.body)).toBeLessThan(300);
-  const listingId: string = listing.body.id;
+  listingId = listing.body.id;
   if (listing.body.status === "DRAFT") await apiPost(buyer, `/company/listings/${listingId}/publish`);
   const detail = await apiGet(buyer, `/company/listings/${listingId}`);
   const itemId: string = (detail.body.items as Array<{ id: string }>)[0]!.id;
@@ -100,9 +95,11 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   // ── Onaylayıcı: yalnız karar bağlamı ───────────────────────────────
   const pending = await apiGet(approver, "/company/approvals/pending");
   expect(pending.status).toBe(200);
-  const rows = (pending.body as Array<{ id: string; listingId?: string }>) ?? [];
-  const req = rows.find((r) => r.listingId === listingId) ?? rows[0];
-  expect(req, "onaylayıcının sırasındaki istek").toBeTruthy();
+  // listPending `listingId` DÖNMEZ; talep `listing: { id, … }` içinde. Eşleşme
+  // yoksa en eski isteğe düşmek başka bir koşumun artığını denetletir → hata.
+  const rows = (pending.body as Array<{ id: string; listing?: { id: string } | null }>) ?? [];
+  const req = rows.find((r) => r.listing?.id === listingId);
+  expect(req, `onaylayıcının sırasında bu talebin isteği (${rows.length} bekleyen)`).toBeTruthy();
 
   const ctx = await apiGet(approver, `/company/approvals/${req!.id}`);
   expect(ctx.status).toBe(200);
@@ -118,7 +115,14 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   const page = await (await browser.newContext()).newPage();
   await openAs(page, QA.aliciOnaylayici, "/company/onaylar");
   await expect(page.getByText(`QA Onaylı Kazandırma ${stamp}`).first()).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: /^Onayla$/ }).first().click();
+  // Başka bir bekleyen istek de listede olabilir: yalnız BU talebin kartındaki
+  // düğme (en içteki eşleşen kart — iç içe kapsayıcılar da metni taşır).
+  const kart = page
+    .locator("div.rounded-xl")
+    .filter({ hasText: `QA Onaylı Kazandırma ${stamp}` })
+    .filter({ has: page.getByRole("button", { name: /^Onayla$/ }) })
+    .last();
+  await kart.getByRole("button", { name: /^Onayla$/ }).click();
   const dialogConfirm = page.getByRole("button", { name: /Onayla|Evet/ }).last();
   if (await dialogConfirm.isVisible().catch(() => false)) await dialogConfirm.click();
   await expect(page.locator("body")).toContainText(/onaylandı|Onaylandı/, { timeout: 30_000 });
@@ -131,6 +135,14 @@ test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayı
   const order = (orders.body as Array<{ listingId: string | null }>).find((o) => o.listingId === listingId);
   expect(order, "onay sonrası sipariş").toBeTruthy();
   } finally {
+    // Yarım kalan koşumun bekleyen onay isteği kuyrukta kalmasın: sonraki
+    // koşumlar ve onaylayıcının sırası temiz başlasın (başlatan iptal eder).
+    if (listingId) {
+      const kalan = await apiGet(approver, "/company/approvals/pending").catch(() => null);
+      const satirlar = Array.isArray(kalan?.body) ? (kalan!.body as Array<{ id: string; listing?: { id: string } | null }>) : [];
+      const bekleyen = satirlar.filter((r) => r.listing?.id === listingId);
+      for (const r of bekleyen) await apiPost(buyer, `/company/approvals/${r.id}/cancel`).catch(() => undefined);
+    }
     // TEMİZLİK ŞART: aktif LISTING_AWARD akışı kalırsa sipariş zinciri ve
     // teklif turları da onaya düşer, sonraki koşumlar kırılır.
     if (flowId) {

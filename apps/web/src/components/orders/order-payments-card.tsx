@@ -1,6 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
+import { intlLocale } from "@/i18n/format";
 import {
   usePaymentDecision,
   useRecordPayment,
@@ -17,43 +19,42 @@ import {
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
-import { MoneyInput } from "@/components/ui/money-input";
+import { MoneyInput, formatMoneyDisplay } from "@/components/ui/money-input";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { moneyInputError } from "@/lib/money-input";
-import {
-  CURRENCY_SYMBOL,
-  formatPaymentPlan,
-  KDV_HARIC_NOTE,
-} from "@/lib/tenders/labels";
+import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
+import { useFormatPaymentPlan, useMoneyInputError, usePaymentMethodLabel, useSystemText } from "@/i18n/domain";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { toast } from "sonner";
 
+// Etiket katalog anahtarı (`status.<KOD>`) — çizim yerinde `tr(key)`.
 const PAYMENT_STATUS: Record<
   OrderPayment["status"],
-  { label: string; cls: string }
+  { key: string; cls: string }
 > = {
   AWAITING_CONFIRMATION: {
-    label: "Onay bekliyor",
+    key: "status.AWAITING_CONFIRMATION",
     cls: "bg-warning-50 text-warning-600 border border-warning-500/30",
   },
   CONFIRMED: {
-    label: "Onaylandı",
+    key: "status.CONFIRMED",
     cls: "bg-success-50 text-success-600 border border-success-500/30",
   },
   REJECTED: {
-    label: "Reddedildi",
+    key: "status.REJECTED",
     cls: "bg-danger-50 text-danger-600 border border-danger-500/30",
   },
 };
 
-function fmt(n: string | number) {
-  return Number(n).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47). */
+function fmt(n: string | number, intl: string) {
+  return Number(n).toLocaleString(intl, { minimumFractionDigits: 2 });
 }
 
 /**
@@ -64,17 +65,33 @@ function fmt(n: string | number) {
  * kanalından, satıcı "Ödeme Bankadan Alındı" adımıyla işaretler.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
+  const tr = useTranslations("web.panel.trade.orderPaymentsCard");
+  const locale = useLocale();
+  const intl = intlLocale(locale);
+  const moneyError = useMoneyInputError();
+  const td = useTranslations("web.domain");
+  const formatPlan = useFormatPaymentPlan();
+  // Sistemin ürettiği kayıt (akreditif) KOD taşır → okuyucunun dilinde.
+  const methodLabel = usePaymentMethodLabel();
+  const systemText = useSystemText();
   // Birincil düğme rengi portaldan (satınalmada siyah yok — 2026-09-17 kuralı).
   const accent = useButtonAccent();
-  const curSym =
-    CURRENCY_SYMBOL[(order.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
-    "₺";
+  // Sembol tek kaynaktan; YERİ dilden (`affixCurrency`: İngilizcede önde).
+  const cur = order.currency ?? "TRY";
+  const curSym = currencySymbol(cur);
   const isBuyer = order.role === "buyer";
   const isSeller = order.role === "seller";
   // F7: ödeme kaydet/onayla tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
   const canAct = canActOnOrder(order.role, user);
   const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
+  // İptal/ret: borç kalmaz → "Kalan" gösterilmez; onaylı ödeme varsa iade notu
+  // (arayüz testi D-105 — iptal edilen siparişte "KALAN 21.000 ₺" duruyordu).
+  const terminal = order.status === "CANCELLED" || order.status === "REJECTED";
+  // Ayıp ihbarlı DISPUTED (TTK 23): API ödeme penceresini kapatır (isPaymentOpen)
+  // — "teslim alındıktan sonra açılır" demek mal teslim alınmışken yanlıştı
+  // (arayüz testi webB-07 NEW-4); ihbar geri çekilince pencere yeniden açılır.
+  const defectDisputed = order.status === "DISPUTED" && !!order.defectNotifiedAt;
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
   const confirm = useConfirm();
@@ -82,6 +99,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  // Çift tık / Enter tekrarı ikinci ödeme kaydı açmasın (arayüz testi FX-00 O-002).
+  const payLock = useDialogSubmitLock(open && isBuyer);
 
   const t = order.paymentTotals;
 
@@ -115,7 +134,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const submit = async () => {
     const value = Number(amount);
     // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend order-payment.dto birebir).
-    const e = moneyInputError(value);
+    const e = moneyError(value);
     if (e) {
       toast.error(e);
       return;
@@ -124,7 +143,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     // bekleyenler dahil kalanın üstünde bildirim daha formda durdurulur.
     if (value > Number(t.remaining) + 0.005) {
       toast.error(
-        `Kalan borcun üstünde bildirim yapılamaz — kalan ${Number(t.remaining).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`,
+        tr("kalanBorcunUstundeBildirimYapilamaz", { toLocaleString: amountLabel(t.remaining) }),
       );
       return;
     }
@@ -133,10 +152,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         amount: value,
         note: note.trim() || undefined,
       });
-      toast.success("Ödeme bildirildi — satıcının onayı bekleniyor");
+      toast.success(tr("odemeBildirildiSaticininOnayiBekleniyor"));
       resetForm();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Ödeme bildirilemedi"));
+      toast.error(extractErrorMessage(err, tr("odemeBildirilemedi")));
     }
   };
 
@@ -145,8 +164,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [rejectId, setRejectId] = useState<string | null>(null);
 
   /** Tutarı erişilebilir ad ve onay metni için biçimler. */
-  const amountLabel = (amount: number | string) =>
-    `${Number(amount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`;
+  const amountLabel = (amount: number | string) => affixCurrency(fmt(amount, intl), cur, intl);
 
   /**
    * #5: "Ödemeyi Aldım" GERİ ALINAMAZ (backend `paymentDecision` atomik CAS
@@ -154,9 +172,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
    */
   const confirmReceipt = async (p: { id: string; amount: number | string }) => {
     const ok = await confirm({
-      title: "Ödemeyi aldım",
-      description: `${amountLabel(p.amount)} tutarındaki ödemeyi tahsil ettiğinizi onaylıyor musunuz? Bu işlem GERİ ALINAMAZ: borç kapanır ve alıcının ödeme yükümlülüğü düşer.`,
-      confirmLabel: "Evet, tahsil ettim",
+      title: tr("odemeyiAldim"),
+      description: tr("tutarindakiOdemeyiTahsilEttiginiziOnayliyor", { amountLabel: amountLabel(p.amount) }),
+      confirmLabel: tr("evetTahsilEttim"),
       destructive: true,
     });
     if (!ok) return;
@@ -170,10 +188,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   ) => {
     try {
       await decide.mutateAsync({ paymentId, decision, reason });
-      toast.success(decision === "confirm" ? "Ödeme onaylandı" : "Ödeme reddedildi");
+      toast.success(decision === "confirm" ? tr("odemeOnaylandi") : tr("odemeReddedildi"));
       setRejectId(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, tr("islemBasarisiz")));
     }
   };
 
@@ -181,13 +199,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     <section className="rounded-xl border border-zinc-950/10 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-zinc-900">Ödeme</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{tr("odeme")}</h2>
           {/* İhale şartındaki ödeme planı — award anındaki snapshot. */}
           <p className="truncate text-xs text-zinc-500">
-            {formatPaymentPlan(order)}
+            {formatPlan(order)}
             {order.paymentNote ? ` · ${order.paymentNote}` : ""}
           </p>
-          <p className="mt-0.5 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">{td("kdvHaricNote")}</p>
         </div>
         {canAct && isBuyer && order.paymentOpen ? (
           <button
@@ -196,23 +214,32 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
             disabled={fullyCovered}
             title={
               fullyCovered
-                ? "Tamamı bildirildi — onay bekleyenler dahil kalan tutar yok"
+                ? tr("tamamiBildirildiOnayBekleyenlerDahil")
                 : undefined
             }
             className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 ${accentFillClass(accent)}`}
           >
             <Plus className="h-3.5 w-3.5" />
-            Ödemeyi Yaptım
+            {tr("odemeyiYaptim")}
           </button>
         ) : null}
       </div>
 
       {/* Toplamlar */}
-      <div className="grid grid-cols-3 divide-x divide-zinc-950/5 border-b border-zinc-950/5">
-        <Totals label="Onaylanan" value={t.confirmed} tone="text-success-600" curSym={curSym} />
-        <Totals label="Bekleyen" value={t.pending} tone="text-warning-600" curSym={curSym} />
-        <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" curSym={curSym} />
+      <div
+        className={`grid divide-x divide-zinc-950/5 border-b border-zinc-950/5 ${terminal ? "grid-cols-2" : "grid-cols-3"}`}
+      >
+        <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" currency={cur} />
+        <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" currency={cur} />
+        {terminal ? null : (
+          <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" currency={cur} />
+        )}
       </div>
+      {terminal && Number(t.confirmed) > 0 ? (
+        <div className="border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600">
+          {tr("iadeTaraflarArasinda")}
+        </div>
+      ) : null}
 
       {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır.
           P0: vadesi GEÇMİŞ + borç açık → danger vurgusu ve gecikme gün sayısı. */}
@@ -230,47 +257,53 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   : "border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600"
               }
             >
-              Ödeme vadesi:{" "}
-              <strong>
-                {formatDate(order.paymentDueDate, "short")}
-              </strong>
-              {overdue ? ` — ${overdueDays} gün gecikti` : ""}
+              {tr.rich("odemeVadesi", {
+                date: formatDate(order.paymentDueDate, "short", locale),
+                strong: (c) => <strong>{c}</strong>,
+              })}
+              {overdue ? ` ${tr("gunGecikti", { overdueDays: overdueDays })}` : ""}
             </div>
           );
         })()
       ) : null}
 
-      {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. */}
-      {isLc ? (
+      {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. Ödeme bankadan
+          alındı olarak işaretlendikten sonra (onaylı kayıt listede) bayatlar →
+          gizlenir (arayüz testi O-029). */}
+      {isLc && !order.lcPaidAt && !terminal ? (
         <div className="border-b border-zinc-950/5 bg-zinc-50 px-5 py-2 text-xs text-zinc-600">
-          Ödeme akreditif kapsamında <strong>banka kanalından</strong> yapılır —
-          satıcı ödemeyi aldığında Akreditif bölümünden işaretler.
+          {tr.rich("odemeAkreditifKapsaminda", { strong: (c) => <strong>{c}</strong> })}
+        </div>
+      ) : null}
+
+      {defectDisputed ? (
+        <div className="border-b border-zinc-950/5 bg-amber-50 px-5 py-2 text-xs text-amber-800">
+          {tr("ayipIhbariAcikkenOdemeKaydiYapilamaz")}
         </div>
       ) : null}
 
       {/* Kayıt formu — POP-UP (madde 16: inline şerit yerine diyalog). */}
       <Dialog open={open && isBuyer} onClose={resetForm} size="md">
-        <DialogTitle>Ödemeyi Bildir</DialogTitle>
+        <DialogTitle>{tr("odemeyiBildir")}</DialogTitle>
         <DialogDescription>
-          Yaptığınız ödemenin tutarını girin — satıcı onaylayınca kalan borçtan
-          düşülür.
+          {tr("yaptiginizOdemeninTutariniGirinSatici")}
         </DialogDescription>
         {/* P1 (denetim §4.2): form + Enter ile gönderim. */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void submit();
+            void payLock.run(submit);
           }}
         >
         <DialogBody className="space-y-4">
           <Field>
-            <Label>Tutar ({curSym}) *</Label>
+            <Label>{tr("tutar", { curSym: curSym })}</Label>
             <div className="flex items-center gap-2">
               <MoneyInput
                 value={amount}
                 onChange={setAmount}
-                placeholder="0,00"
-                aria-label="Ödeme tutarı"
+                placeholder={formatMoneyDisplay("0.00", locale)}
+                aria-label={tr("odemeTutari")}
               />
               {/* §10.3: tek tık tam kapama. */}
               <button
@@ -278,25 +311,27 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 onClick={() => setAmount(Number(t.remaining).toFixed(2))}
                 className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Tümünü Öde
+                {tr("tumunuOde")}
               </button>
             </div>
           </Field>
           <Field>
-            <Label>Not (opsiyonel)</Label>
+            <Label>{tr("notOpsiyonel")}</Label>
+            {/* D-256: API tavanı (order-payment.dto note MaxLength 500) alanda. */}
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Dekont no, açıklama…"
+              maxLength={500}
+              placeholder={tr("dekontNoAciklama")}
             />
           </Field>
         </DialogBody>
         <DialogActions>
           <Button plain onClick={resetForm}>
-            Vazgeç
+            {tr("vazgec")}
           </Button>
-          <Button type="submit" disabled={record.isPending || !amount}>
-            Bildir
+          <Button type="submit" disabled={record.isPending || !amount || payLock.locked}>
+            {tr("bildir")}
           </Button>
         </DialogActions>
         </form>
@@ -306,11 +341,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       <div className="divide-y divide-zinc-950/5">
         {order.payments.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-zinc-500">
-            {order.paymentOpen
-              ? "Henüz ödeme kaydı yok."
+            {/* O-029/O-055: akreditifte alıcı kayıt eklemez (banka kanalı) —
+                "satıcı onayladıktan sonra eklenebilir" bayat metni yazılmaz. */}
+            {order.paymentOpen || isLc || terminal || defectDisputed
+              ? tr("henuzOdemeKaydiYok")
               : order.paymentTiming === "AFTER_DELIVERY"
-                ? "Ödeme bölümü, sipariş teslim alındıktan sonra açılır."
-                : "Ödeme kaydı, satıcı siparişi onayladıktan sonra eklenebilir."}
+                ? tr("odemeBolumuSiparisTeslimAlindiktan")
+                : tr("odemeKaydiSaticiSiparisiOnayladiktan")}
           </p>
         ) : (
           order.payments.map((p) => {
@@ -322,22 +359,22 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               >
                 <div className="min-w-0">
                   <div className="tabular-nums text-sm font-semibold text-zinc-900">
-                    {fmt(p.amount)} {curSym}
+                    {amountLabel(p.amount)}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    {p.method ? `${p.method} · ` : ""}
-                    {formatDate(p.createdAt, "short")}
-                    {p.note ? ` · ${p.note}` : ""}
+                    {methodLabel(p.method) ? `${methodLabel(p.method)} · ` : ""}
+                    {formatDate(p.createdAt, "short", locale)}
+                    {p.note ? ` · ${systemText(p.note)}` : ""}
                     {p.status === "REJECTED" && p.rejectReason
                       ? ` · ${p.rejectReason}`
                       : ""}
                   </div>
                   {p.chequeNo ? (
                     <div className="mt-0.5 text-xs text-amber-700">
-                      Çek No: {p.chequeNo}
+                      {tr("cekNo", { chequeNo: p.chequeNo })}
                       {p.chequeBank ? ` · ${p.chequeBank}` : ""}
                       {p.chequeDueDate
-                        ? ` · Vade: ${formatDate(p.chequeDueDate, "short")}`
+                        ? ` ${tr("vade", { formatDate: formatDate(p.chequeDueDate, "short", locale) })}`
                         : ""}
                     </div>
                   ) : null}
@@ -346,7 +383,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
                   >
-                    {st.label}
+                    {tr(st.key as never)}
                   </span>
                   {canAct && isSeller && p.status === "AWAITING_CONFIRMATION" ? (
                     <>
@@ -359,8 +396,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         onClick={() => void confirmReceipt(p)}
                         disabled={decide.isPending}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
-                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi aldım olarak işaretle`}
-                        title="Ödemeyi Aldım"
+                        aria-label={tr("tutarindakiOdemeyiAldimOlarakIsaretle", { amountLabel: amountLabel(p.amount) })}
+                        title={tr("odemeyiAldim2")}
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -369,8 +406,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         onClick={() => setRejectId(p.id)}
                         disabled={decide.isPending}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-danger-50 text-danger-600 hover:bg-danger-500/10 disabled:opacity-50"
-                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi reddet`}
-                        title="Reddet"
+                        aria-label={tr("tutarindakiOdemeyiReddet", { amountLabel: amountLabel(p.amount) })}
+                        title={tr("reddet")}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -388,9 +425,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         open={rejectId !== null}
         onClose={() => setRejectId(null)}
         onSubmit={(reason) => rejectId && runDecision(rejectId, "reject", reason)}
-        title="Ödemeyi Reddet"
-        description="Red gerekçesi alıcıya iletilir."
-        confirmLabel="Reddet"
+        title={tr("odemeyiReddet")}
+        description={tr("redGerekcesiAliciyaIletilir")}
+        confirmLabel={tr("reddet")}
         minLength={10}
         pending={decide.isPending}
         destructive
@@ -403,20 +440,21 @@ function Totals({
   label,
   value,
   tone,
-  curSym,
+  currency,
 }: {
   label: string;
   value: string;
   tone: string;
-  curSym: string;
+  currency: string;
 }) {
+  const intl = intlLocale(useLocale());
   return (
     <div className="px-4 py-3 text-center">
       <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </div>
       <div className={`mt-0.5 tabular-nums text-sm font-semibold ${tone}`}>
-        {fmt(value)} {curSym}
+        {affixCurrency(fmt(value, intl), currency, intl)}
       </div>
     </div>
   );

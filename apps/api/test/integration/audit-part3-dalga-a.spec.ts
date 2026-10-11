@@ -1,12 +1,13 @@
 /**
  * Denetim 2026-08-23 Parça 3 (Sipariş & para) — Dalga A regresyonları.
- * Rapor: docs/audit-2026-08-23-part3-orders.md (#2, #3, #4, #6, #7 + HIGH SSRF).
+ * Rapor: docs/audit-2026-08-23-part3-orders.md (#2, #3, #4, #6, #7). HIGH SSRF
+ * maddesinin sınadığı dış site çekimi (`common/website-import.ts`) 2026-10-08'de
+ * profil AI'ı web'e çıkmaz olunca tek çağıranıyla birlikte söküldü.
  */
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { AdminInspectionService } from "../../src/modules/admin-companies/admin-inspection.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
-import { assertPublicHttpUrl } from "../../src/common/website-import";
 import { makeCompanyWithUser } from "./factories";
 import { prisma, truncateAll } from "./test-db";
 
@@ -257,24 +258,5 @@ describe("#3 — admin sipariş detayı PII taşımaz", () => {
     expect(detail).toHaveProperty("paymentConfirmed");
     expect(detail).toHaveProperty("items");
     expect(detail).toHaveProperty("payments");
-  });
-});
-
-describe("HIGH (Parça 3 turu) — SSRF: özel ağ adresleri çekilemez", () => {
-  it("assertPublicHttpUrl loopback/metadata/özel ağ ve http-dışı şemaları reddeder", () => {
-    for (const bad of [
-      "http://127.0.0.1:4000/health",
-      "http://localhost/admin",
-      "http://169.254.169.254/latest/meta-data/",
-      "http://10.0.0.5/",
-      "http://192.168.1.1/",
-      "http://172.16.0.9/",
-      "http://[::1]/",
-      "file:///etc/passwd",
-      "gopher://evil/",
-    ]) {
-      expect(() => assertPublicHttpUrl(bad)).toThrow();
-    }
-    expect(() => assertPublicHttpUrl("https://www.rothern.com")).not.toThrow();
   });
 });

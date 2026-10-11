@@ -16,12 +16,25 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // `x-powered-by: Next.js` çerçeve bilgisini sızdırıyordu (G3) — kapalı.
+  poweredByHeader: false,
   // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (bkz. web config).
   // Vercel kendi çıktısını yönetir; standalone yalnız Docker/Coolify için.
   output: process.env.VERCEL ? undefined : "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  // ÜCRETSİZ DÖNEM (2026-10-07): üyelik raporu ekranı kaldırıldı (ücretli
+  // üyelik dönünce git geçmişinden geri gelir); eski adres firma listesine 308.
+  async redirects() {
+    return [
+      {
+        source: "/admin/uyelik-raporu",
+        destination: "/admin/firmalar",
+        permanent: true,
+      },
+    ];
   },
 };
 

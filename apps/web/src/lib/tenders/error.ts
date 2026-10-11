@@ -1,3 +1,4 @@
+import { tRuntime } from "@/i18n/runtime";
 import axios from "axios";
 
 /**
@@ -33,17 +34,30 @@ export function extractFieldErrors(
 /** Toast'a sığacak kadar alan hatası (fazlası "+N alan daha"). */
 const MAX_FIELD_ERRORS_IN_TOAST = 3;
 
-export function extractErrorMessage(err: unknown, fallback: string): string {
+/**
+ * `fieldLabels` (isteğe bağlı): DTO alan anahtarı → kullanıcıya görünen etiket.
+ * Verilirse eşleşen hata "Etiket: mesaj" basılır — class-validator mesajı alan
+ * adını taşımıyor ("En fazla 100 karakter olabilir"), birden çok metin alanlı
+ * formda hangi alanın reddedildiği anlaşılmıyordu (arayüz testi D-054).
+ */
+export function extractErrorMessage(
+  err: unknown,
+  fallback: string,
+  fieldLabels?: Record<string, string>,
+): string {
   if (axios.isAxiosError(err)) {
     // #3: alan hataları varsa GENEL mesaj yerine onları göster — kullanıcı
     // hangi alanı düzelteceğini bilsin. (RHF formları `extractFieldErrors`
     // ile alanlara basabilir; bu dal imperatif formlar ve toast'lar için.)
     const fields = extractFieldErrors(err);
     if (fields) {
-      const entries = Object.values(fields);
+      const entries = Object.entries(fields).map(([key, msg]) => {
+        const label = fieldLabels?.[key] ?? fieldLabels?.[key.split(".")[0]!];
+        return label ? `${label}: ${msg}` : msg;
+      });
       const shown = entries.slice(0, MAX_FIELD_ERRORS_IN_TOAST).join(" · ");
       const extra = entries.length - MAX_FIELD_ERRORS_IN_TOAST;
-      return extra > 0 ? `${shown} (+${extra} alan daha)` : shown;
+      return extra > 0 ? `${shown} (${tRuntime("common.errors.moreFields", { n: extra })})` : shown;
     }
     const data = err.response?.data as
       | { message?: string | string[] }
@@ -53,6 +67,19 @@ export function extractErrorMessage(err: unknown, fallback: string): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
+}
+
+/**
+ * Axios interceptor'ları (lib/api + lib/company-auth/api) 5xx ve ağ hatasında
+ * GENEL bir toast'ı ("Sunucu hatası", "Bağlantı hatası") zaten gösterir; çağıran
+ * aynı hatayı kendi `extractErrorMessage` toast'ıyla basarsa metinler farklı
+ * olduğundan tekilleştirme yakalamaz ve kullanıcı iki hata görür (arayüz testi
+ * D-255). Çağıran bu durumda kendi toast'ını atlar.
+ */
+export function errorToastedGlobally(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  if (!err.response) return true;
+  return err.response.status >= 500;
 }
 
 /**

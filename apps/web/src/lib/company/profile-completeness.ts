@@ -7,4 +7,6 @@ export {
   profileCompleteness,
   type ProfileCompleteness,
   type ProfileCompletenessInput,
+  type ProfileCompletenessItem,
+  type ProfileCompletenessKey,
 } from "@rothern/shared";

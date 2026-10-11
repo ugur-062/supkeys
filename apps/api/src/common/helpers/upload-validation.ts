@@ -1,8 +1,34 @@
-import { BadRequestException } from "@nestjs/common";
+import { i18nMessage } from "../i18n/http-i18n";
+import { BadRequestException, Logger } from "@nestjs/common";
 import type {
   BucketKind,
   StorageService,
 } from "../../modules/storage/storage.service";
+
+const logger = new Logger("UploadValidation");
+
+/**
+ * Doğrulamadan geçemeyen nesneyi silmeyi dener. Hata YUTULMAZ-SESSİZCE:
+ * public kovadaki R2 nesne kilidi DeleteObject'i reddedebilir; bu durumda
+ * nesne kovada (ve CDN'de) kalır, operasyonun elle temizleyebilmesi için
+ * anahtar uyarı olarak loglanır (derin denetim Y-01). İstek yine reddedilir.
+ */
+async function deleteRejectedObject(
+  storage: StorageService,
+  bucket: BucketKind,
+  key: string,
+  reason: string,
+): Promise<void> {
+  try {
+    await storage.deleteObject(bucket, key);
+  } catch (err) {
+    logger.warn(
+      `Rejected upload could not be deleted (${bucket}, ${reason}): ${key} — ${
+        (err as Error)?.message ?? String(err)
+      }. Manual cleanup required.`,
+    );
+  }
+}
 
 /** Yükleme başına azami boyut (eski sistem paritesi: 50 MB). */
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -36,7 +62,7 @@ const FORBIDDEN_EXTENSIONS = new Set([
 export function assertSafeFileName(fileName: string): void {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
   if (ext && FORBIDDEN_EXTENSIONS.has(ext)) {
-    throw new BadRequestException("Bu dosya türü yüklenemez");
+    throw new BadRequestException(i18nMessage("api.helpers.buDosyaTuruYuklenemez"));
   }
 }
 
@@ -44,7 +70,7 @@ export function assertSafeFileName(fileName: string): void {
 export function assertReportedSize(size: number | undefined): void {
   if (size != null && (size <= 0 || size > MAX_UPLOAD_BYTES)) {
     throw new BadRequestException(
-      "Dosya boyutu 50 MB sınırını aşıyor veya geçersiz",
+      i18nMessage("api.helpers.dosyaBoyutu50MbSiniriniAsiyor"),
     );
   }
 }
@@ -60,8 +86,9 @@ export async function assertUploadedObjectValid(
   key: string,
   maxBytes: number = MAX_UPLOAD_BYTES,
   /**
-   * İzinli GERÇEK içerik tipleri. Presigned PUT içerik tipini İMZALAMAZ (AWS
-   * SDK `prepareRequest` → `unsignableHeaders.add("content-type")`): istemci
+   * İzinli GERÇEK içerik tipleri. Private kovada presigned PUT içerik tipini
+   * İMZALAMAZ (AWS SDK `prepareRequest` → `unsignableHeaders.add(
+   * "content-type")`; public kovada Y-01'den beri imzalı): istemci
    * "image/png" beyan edip nesneyi `text/html` olarak yükleyebilir. Public
    * kovadaki nesneler kalıcı ve kimliksiz erişilebilir olduğundan bu, marka
    * alan adında (cdn.rothern.com) DEPOLANMIŞ XSS demekti — çerez alanı
@@ -76,24 +103,103 @@ export async function assertUploadedObjectValid(
   const head = await storage.checkExists(bucket, key);
   if (!head.exists) {
     throw new BadRequestException(
-      "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
+      i18nMessage("api.helpers.dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin"),
     );
   }
   if (head.size != null && head.size > maxBytes) {
     // Yetim (limit aşan) nesneyi temizle ki bucket şişmesin.
-    await storage.deleteObject(bucket, key).catch(() => undefined);
+    await deleteRejectedObject(storage, bucket, key, "size");
     throw new BadRequestException(
-      `Dosya boyutu ${Math.round(maxBytes / 1024 / 1024)} MB sınırını aşıyor`,
+      i18nMessage("api.helpers.dosyaBoyutuMbSiniriniAsiyor", { round: Math.round(maxBytes / 1024 / 1024) }),
     );
   }
   if (allowedContentTypes && allowedContentTypes.length > 0) {
     const actual = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
     if (!allowedContentTypes.includes(actual)) {
-      await storage.deleteObject(bucket, key).catch(() => undefined);
+      await deleteRejectedObject(storage, bucket, key, `type=${actual}`);
       throw new BadRequestException(
-        "Yüklenen dosyanın türü kabul edilmiyor — dosyayı kontrol edip tekrar deneyin",
+        i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
       );
     }
+  }
+}
+
+/**
+ * İçerik imzası (magic bytes) → gerçek tip. Yalnız KYC'nin kabul ettiği
+ * dört tip tanınır; tanınmayan içerik `null`.
+ */
+export function sniffDocumentType(head: Uint8Array): string | null {
+  const b = Buffer.from(head);
+  if (b.length >= 5 && b.subarray(0, 5).toString("latin1") === "%PDF-") {
+    return "application/pdf";
+  }
+  if (
+    b.length >= 8 &&
+    b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return "image/png";
+  }
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    b.length >= 12 &&
+    b.subarray(0, 4).toString("latin1") === "RIFF" &&
+    b.subarray(8, 12).toString("latin1") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+/**
+ * S3/R2 "416 Range Not Satisfiable" (InvalidRange): nesne boş. Diğer hatalar
+ * (ağ, yetki) geçici olabilir — geçerli bir yüklemeyi silmemek için yeniden
+ * fırlatılır.
+ */
+function isInvalidRangeError(err: unknown): boolean {
+  const e = err as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number } } | null;
+  return (
+    e?.$metadata?.httpStatusCode === 416 || e?.name === "InvalidRange" || e?.Code === "InvalidRange"
+  );
+}
+
+/** İmza denetimi için okunan bayt sayısı (en uzun imza: WEBP, 12 bayt). */
+const SIGNATURE_BYTES = 16;
+
+/**
+ * Yüklenen nesnenin İÇERİĞİ beyan edilen tiple uyuşuyor mu (arayüz testi
+ * D-014). HEAD'deki içerik tipi istemcinin beyanıdır: düz metin dosyası
+ * ".pdf" adıyla ve `application/pdf` tipiyle yüklenip KYC belgesi olarak
+ * incelemeye gidebiliyordu. İlk baytlar okunur; imza izinli bir tipe ve
+ * HEAD tipine uymuyorsa nesne SİLİNİR ve istek reddedilir.
+ * `assertUploadedObjectValid`'den SONRA çağrılır (varlık + tip zaten geçti).
+ */
+export async function assertUploadedSignature(
+  storage: StorageService,
+  bucket: BucketKind,
+  key: string,
+  allowedContentTypes: readonly string[],
+): Promise<void> {
+  const head = await storage.checkExists(bucket, key);
+  // Boş (0 bayt) nesnede Range okuması S3/R2'de 416 InvalidRange döner ve
+  // yakalanmazsa istek 400 yerine 500 ile biterdi; nesne de silinmezdi.
+  // Boş içerik imzasız sayılır → aşağıdaki red yolu (sil + 400).
+  let prefix: Uint8Array = new Uint8Array();
+  if (head.size !== 0) {
+    try {
+      prefix = await storage.readObjectPrefix(bucket, key, SIGNATURE_BYTES);
+    } catch (err) {
+      if (!isInvalidRangeError(err)) throw err;
+    }
+  }
+  const declared = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
+  const actual = sniffDocumentType(prefix);
+  if (!actual || !allowedContentTypes.includes(actual) || actual !== declared) {
+    await deleteRejectedObject(storage, bucket, key, `signature=${actual ?? "unknown"}`);
+    throw new BadRequestException(
+      i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
+    );
   }
 }
 
@@ -116,14 +222,14 @@ export function assertOwnProfileImageUrl(
   try {
     url = new URL(value);
   } catch {
-    throw new BadRequestException("Geçersiz görsel adresi");
+    throw new BadRequestException(i18nMessage("api.helpers.gecersizGorselAdresi"));
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new BadRequestException("Geçersiz görsel adresi"); // data:/javascript: elenir
+    throw new BadRequestException(i18nMessage("api.helpers.gecersizGorselAdresi")); // data:/javascript: elenir
   }
   if (!opts.allowedHosts.includes(url.host)) {
     throw new BadRequestException(
-      "Görsel yalnız kendi profil deponuzdan olabilir",
+      i18nMessage("api.helpers.gorselYalnizKendiProfilDeponuzdanOlabilir"),
     );
   }
   // Dalga B-3: `decodeURIComponent` try dışındaydı — bozuk yüzde-kaçışlı bir
@@ -138,7 +244,7 @@ export function assertOwnProfileImageUrl(
   }
   if (!path.includes(opts.tenantPrefix)) {
     throw new BadRequestException(
-      "Görsel yalnız kendi profil deponuzdan olabilir",
+      i18nMessage("api.helpers.gorselYalnizKendiProfilDeponuzdanOlabilir"),
     );
   }
 }

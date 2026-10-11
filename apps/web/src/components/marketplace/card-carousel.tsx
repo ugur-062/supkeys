@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 /**
@@ -70,8 +72,12 @@ export function CardCarousel({
 
   return (
     <section>
+      {/* `min-w-0 break-words`: başlık sarılan flex satırının öğesi ve firma adı
+          taşıyabilir ("… ile keşfedilecek daha fazla ürün") — satırdan uzun tek
+          sözcük telefonda satırın dışına taşmasın (arayüz testi D-04 ile aynı kök
+          neden; 360 px'te 34 harflik tek sözcük 31 px taşıyordu). */}
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 id={headingId} className="text-xl font-semibold tracking-tight text-zinc-950">
+        <h2 id={headingId} className="min-w-0 break-words text-xl font-semibold tracking-tight text-zinc-950">
           {heading}
         </h2>
         <div className="flex items-center gap-3">
@@ -102,13 +108,14 @@ export function CardCarousel({
 }
 
 function ArrowButton({ dir, disabled, onClick }: { dir: 1 | -1; disabled: boolean; onClick: () => void }) {
+  const t = useTranslations("web.marketplace.carousel");
   const Icon = dir === 1 ? ChevronRightIcon : ChevronLeftIcon;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={dir === 1 ? "Sonraki ürünler" : "Önceki ürünler"}
+      aria-label={dir === 1 ? t("next") : t("prev")}
       className="inline-flex size-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon aria-hidden className="size-5" />

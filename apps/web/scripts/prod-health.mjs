@@ -18,6 +18,11 @@
  * SEÇENEKLER
  *   INDEXNOW_KEY=<anahtar>  kök anahtar dosyasını da doğrular
  *   RATE=1                  giriş hız sınırını sınar (12 hatalı deneme atar)
+ *   EXPECTED_SHA=<commit>   API `/health` sürümü bu commit'in ilk 7 karakterine
+ *                           eşitlenene dek yoklar (DEPLOY_WAIT_SECONDS, varsayılan
+ *                           900); eşleşmezse KIRMIZI. Sürüm sonrası koşumda
+ *                           iş akışı verir — yoksa eski dağıtımı yoklayıp yeşil
+ *                           verebilirdi (derin denetim LU-01).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -79,16 +84,41 @@ function operatorOlgulari() {
   };
 }
 
-async function main() {
-  console.log(`Canlı sağlık denetimi\n  site: ${SITE}\n  api : ${API}`);
+const EXPECTED = (process.env.EXPECTED_SHA ?? "").trim().slice(0, 7);
+const DEPLOY_WAIT_MS = Number(process.env.DEPLOY_WAIT_SECONDS ?? 900) * 1000;
 
-  /* ── 1. Servis ─────────────────────────────────────────────────── */
-  bolum("Servis");
+async function saglikOku() {
   const health = await get(`${API}/health`, "application/json");
   let saglik = null;
   try {
     saglik = JSON.parse(health.text);
   } catch { /* yok */ }
+  return { health, saglik };
+}
+
+/**
+ * Sabit bekleme sürümün indiğini KANITLAMAZ: derleme uzarsa ya da migration
+ * düşerse Render eski örneği servis etmeye devam eder ve denetim eski sürüme
+ * karşı yeşil biterdi. Beklenen commit verildiyse sürüm eşleşene dek yoklanır.
+ */
+async function surumuBekle() {
+  const deadline = Date.now() + DEPLOY_WAIT_MS;
+  let son = await saglikOku();
+  while (son.saglik?.version !== EXPECTED && Date.now() < deadline) {
+    console.log(`  … API sürümü ${son.saglik?.version ?? `HTTP ${son.health.status}`}, beklenen ${EXPECTED}`);
+    await new Promise((r) => setTimeout(r, 20_000));
+    son = await saglikOku();
+  }
+  return son;
+}
+
+async function main() {
+  console.log(`Canlı sağlık denetimi\n  site: ${SITE}\n  api : ${API}`);
+
+  /* ── 1. Servis ─────────────────────────────────────────────────── */
+  bolum("Servis");
+  const { health, saglik } = EXPECTED ? await surumuBekle() : await saglikOku();
+  if (EXPECTED) log(saglik?.version === EXPECTED, "API sürümü indi", `canlı ${saglik?.version ?? "?"}, beklenen ${EXPECTED}`);
   log(health.status === 200 && saglik?.status === "ok", "API sağlık ucu", saglik?.version ?? `HTTP ${health.status}`);
   log(saglik?.checks?.database === "up", "veritabanı bağlantısı");
   log(saglik?.checks?.exchangeRates?.stale === false, "döviz kurları taze", saglik?.checks?.exchangeRates?.latestRateDate ?? "");

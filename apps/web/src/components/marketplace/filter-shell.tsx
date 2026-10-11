@@ -1,10 +1,13 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
+
 import { useAccentFill } from "@/components/ui/accent-fill";
 import { Sheet } from "@/components/ui/sheet";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { createContext, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import {
   activeFilterCount,
   buildProductFilterQuery,
@@ -29,10 +32,21 @@ import {
  */
 interface Ctx<S> {
   state: S;
-  update: (patch: Partial<S> | ((s: S) => S)) => void;
+  /**
+   * `opts.replace`: geçmişe YAZMADAN değiştir — kullanıcının değil sistemin
+   * yaptığı değişim için (kayıtlı görünüm tercihini URL'e taşımak gibi);
+   * yoksa "geri" tuşu kullanıcıyı tercihsiz adrese atıp aynı yere döndürürdü.
+   */
+  update: (patch: Partial<S> | ((s: S) => S), opts?: { replace?: boolean }) => void;
   clear: () => void;
   isPending: boolean;
-  total: number;
+  /**
+   * Sonuç sayısı. `null` = OKUNAMADI (panel listesi yükleniyor ya da isteği
+   * düştü; canlı doğrulama 2026-10-09 OUTR-1 / OUTR-3): sayı ve "… bulunamadı"
+   * çizilmez — okunamayan sayı 0 değildir. Sunucuda çizilen herkese açık
+   * listeler hep sayı verir.
+   */
+  total: number | null;
   /** Aktif süzgeç sayısı — arama/sıralama/sayfa hariç. */
   activeCount: number;
   openMobile: () => void;
@@ -77,7 +91,8 @@ export function FilterShellCore<S extends { page: number }>({
   toUrl: (next: S) => string;
   /** "Tümünü temizle" sonrası durum. */
   clearState: (s: S) => S;
-  total: number;
+  /** `null` = sayı okunamadı (bkz. `Ctx.total`). */
+  total: number | null;
   activeCount: number;
   /** Mobil çekmecede çizilecek süzgeç ağacı (masaüstü aside ile aynı bileşen, ikinci örnek). */
   drawer?: ReactNode;
@@ -108,25 +123,51 @@ export function FilterShellCore<S extends { page: number }>({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   /**
+   * BEKLEYEN DURUM (arayüz testi O-014). Süzgeç yazımı bir GEÇİŞ: URL ve
+   * dolayısıyla `state`, sunucu yanıtı gelene dek ESKİ kalır. Eskiden ikinci
+   * tık da eski URL'den kuruluyordu — "Üretici"yi işaretleyip 150 ms sonra
+   * "Distribütör"ü işaretleyen kullanıcının ilk seçimi sessizce düşüyordu.
+   * Gönderilen son durum ref'te tutulur (art arda gelen olaylar render
+   * beklemeden okur), sonraki güncellemeler onun üstüne kurulur ve kutucuklar
+   * da onu gösterir (iyimser). Geçiş bitince (URL yetişti ya da gezinme
+   * başka yerde sonlandı) yeniden URL kaynak olur.
+   */
+  const pendingRef = useRef<S | null>(null);
+  const [pending, setPending] = useState<S | null>(null);
+  useEffect(() => {
+    if (!isPending && pendingRef.current) {
+      pendingRef.current = null;
+      setPending(null);
+    }
+  }, [isPending]);
+
+  /**
    * SÜZGEÇ değişimi `replace` (her tık geçmişe girmesin — "geri" tuşu on
    * kutucuk geri gitmemeli), SAYFA değişimi `push` (2. sayfadan "geri"
    * 1. sayfaya dönmeli). İkisi de `scroll: false`: konumu sayfalama
    * kendi yönetir, süzgeçte sayfa başına zıplamak istenmiyor.
    */
-  const navigate = (next: S, mode: "replace" | "push" = "replace") =>
+  const navigate = (next: S, mode: "replace" | "push" = "replace") => {
+    pendingRef.current = next;
+    setPending(next);
     startTransition(() => router[mode](toUrl(next), { scroll: false }));
-  const update: Ctx<S>["update"] = (patch) => {
-    const next = typeof patch === "function" ? patch(state) : { ...state, ...patch };
+  };
+  const update: Ctx<S>["update"] = (patch, opts) => {
+    const base = pendingRef.current ?? state;
+    const next = typeof patch === "function" ? patch(base) : { ...base, ...patch };
     // Süzgeç değişince 1. sayfaya dönülür; sayfa YALNIZ açıkça istenince
     // korunur (eskiden `update({ page })` da 1'e düşüyordu — panel ürün
     // dizininde "Sonraki" çalışmıyordu).
-    const explicitPage = typeof patch === "function" ? next.page !== state.page : "page" in patch;
-    navigate(explicitPage ? next : { ...next, page: 1 }, explicitPage || pushFilters ? "push" : "replace");
+    const explicitPage = typeof patch === "function" ? next.page !== base.page : "page" in patch;
+    navigate(
+      explicitPage ? next : { ...next, page: 1 },
+      !opts?.replace && (explicitPage || pushFilters) ? "push" : "replace",
+    );
   };
-  const clear = () => navigate(clearState(state));
+  const clear = () => navigate(clearState(pendingRef.current ?? state));
 
   const value: Ctx<S> = {
-    state,
+    state: pending ?? state,
     update,
     clear,
     isPending,
@@ -155,6 +196,8 @@ export function FilterShellCore<S extends { page: number }>({
 export function FilterShell({
   basePath,
   fixedCategory,
+  fixedCity,
+  fixedCountry,
   total,
   drawer,
   drawerHideAt,
@@ -165,7 +208,16 @@ export function FilterShell({
   basePath: string;
   /** Kategori yol sayfasında yoldan gelen kod. */
   fixedCategory?: string;
-  total: number;
+  /**
+   * Şehir/ülke açılış sayfasında YOLDAN gelen süzgeç (2026-09-27): durumun
+   * parçası sayılır (sayaç, çip, işaretli kutu) ve sıralama/görünüm/sayfa
+   * boyutu değişince açılış yolunda kalınır; yoldaki değer kaldırılır ya da
+   * başka şehir/ülke eklenirse sorgu şemasına (`/urunler?…`) geçilir.
+   */
+  fixedCity?: string;
+  fixedCountry?: string;
+  /** `null` = sayı okunamadı (bkz. `Ctx.total`). */
+  total: number | null;
   drawer?: ReactNode;
   /** Bkz. `FilterShellCore` — panel pazarında `xl`. */
   drawerHideAt?: "lg" | "xl";
@@ -177,15 +229,33 @@ export function FilterShell({
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
-  const state = parseProductFilters(sp ?? new URLSearchParams(), fixedCategory);
+  const current = new URLSearchParams(sp?.toString() ?? "");
+  if (fixedCity) current.set("sehir", fixedCity);
+  if (fixedCountry) current.set("ulke", fixedCountry);
+  const state = parseProductFilters(current, fixedCategory);
 
+  const only = (list: string[], value: string) => list.length === 1 && list[0] === value;
   const toUrl = (next: ProductFilterState) => {
-    // Kategori yol sayfasındaysak ve kategori değiştiyse/başka süzgeç
-    // eklendiyse sorgu şemasına geç; yoksa mevcut yolda kal (kanonik yol).
-    const onPathPage = !!fixedCategory && pathname !== basePath;
-    const keepPath = onPathPage && next.category === fixedCategory;
+    // Yol sayfasındaysak (kategori/şehir/ülke) ve yoldaki süzgeç AYNEN
+    // duruyorsa mevcut yolda kal (kanonik yol); değiştiyse/genişlediyse
+    // sorgu şemasına geç.
+    const onPathPage = (!!fixedCategory || !!fixedCity || !!fixedCountry) && pathname !== basePath;
+    const keepPath =
+      onPathPage &&
+      (!fixedCategory || next.category === fixedCategory) &&
+      (!fixedCity || only(next.cities, fixedCity)) &&
+      (!fixedCountry || only(next.countries, fixedCountry));
     const target = keepPath ? pathname : basePath;
-    return `${target}${buildProductFilterQuery(keepPath ? { ...next, category: undefined } : next)}`;
+    return `${target}${buildProductFilterQuery(
+      keepPath
+        ? {
+            ...next,
+            category: fixedCategory ? undefined : next.category,
+            cities: fixedCity ? [] : next.cities,
+            countries: fixedCountry ? [] : next.countries,
+          }
+        : next,
+    )}`;
   };
 
   return (
@@ -235,24 +305,79 @@ export function FilterResults({ children }: { children: ReactNode }) {
  * "Güncelleniyor…" `quiet` modda da GÖRÜNÜR — bekleme geri bildirimi
  * gözle görülmeli.
  */
+/** Sayılan şey — "N … bulundu" cümlesi dil başına ICU çoğuluyla tek mesajda. */
+export type ResultCountKind =
+  | "product"
+  | "company"
+  | "buyingRequest"
+  | "openRequest"
+  /** Satış paneli Açık Talepler › Durum: Geçmiş (arayüz testi D-116). */
+  | "pastRequest"
+  /** Satış paneli Açık Talepler › Durum: Tümü. */
+  | "request";
+
+const FOUND_KEY = {
+  product: "foundProduct",
+  company: "foundCompany",
+  buyingRequest: "foundBuyingRequest",
+  openRequest: "foundOpenRequest",
+  pastRequest: "foundPastRequest",
+  request: "foundRequest",
+} as const satisfies Record<ResultCountKind, string>;
+
+/**
+ * Liste tarama tavanına dayandığında sayı ALT SINIRDIR ("200+") — tavanlı
+ * kaynağı olan türler (D-116: geçmiş talepler 200'de kırpılıyordu, metin
+ * kesin sayı gibi okunuyordu).
+ */
+const FOUND_AT_LEAST_KEY = {
+  openRequest: "foundOpenRequestAtLeast",
+  pastRequest: "foundPastRequestAtLeast",
+  request: "foundRequestAtLeast",
+} as const satisfies Partial<Record<ResultCountKind, string>>;
+
+function foundKey(kind: ResultCountKind, atLeast: boolean) {
+  if (atLeast && kind in FOUND_AT_LEAST_KEY) {
+    return FOUND_AT_LEAST_KEY[kind as keyof typeof FOUND_AT_LEAST_KEY];
+  }
+  return FOUND_KEY[kind];
+}
+
+/** "… bulunamadı" da tür başına TAM cümle — isim parçası cümleye eklenmez (RU/EN çekimi tutmaz). */
+const NOT_FOUND_KEY = {
+  product: "notFoundProduct",
+  company: "notFoundCompany",
+  buyingRequest: "notFoundBuyingRequest",
+  openRequest: "notFoundOpenRequest",
+  pastRequest: "notFoundPastRequest",
+  request: "notFoundRequest",
+} as const satisfies Record<ResultCountKind, string>;
+
 export function ResultCount({
-  noun,
+  kind,
   loading = false,
   quiet = false,
+  atLeast = false,
 }: {
-  noun: string;
+  kind: ResultCountKind;
   loading?: boolean;
   quiet?: boolean;
+  /** Sayı tarama tavanında — "N+" yazılır. */
+  atLeast?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const { total, isPending } = useFilters();
   const busy = loading || isPending;
+  // Sayı okunamadı ve beklenen bir şey de yok (istek düştü): "… bulunamadı"
+  // demek yalan olur — canlı bölge susar, hata kartı sayfanın kendisinde.
+  if (!busy && total == null) return null;
   return (
     <p aria-live="polite" className={quiet && !busy ? "sr-only" : "text-sm text-zinc-600"}>
       {busy
-        ? "Güncelleniyor…"
-        : total > 0
-          ? `${total.toLocaleString("tr-TR")} ${noun} bulundu`
-          : `${noun} bulunamadı`}
+        ? t("updating")
+        : total != null && total > 0
+          ? t(foundKey(kind, atLeast), { total })
+          : t(NOT_FOUND_KEY[kind])}
     </p>
   );
 }
@@ -263,6 +388,7 @@ export function ResultCount({
  * yazılır, `lg`/`xl` farklı varyant olduğu için twMerge onları birleştiremez.
  */
 export function MobileFilterButton({ hideAt = "lg" }: { hideAt?: "lg" | "xl" }) {
+  const t = useTranslations("web.marketplace.filters");
   const { activeCount, openMobile } = useFilters();
   return (
     <button
@@ -273,7 +399,7 @@ export function MobileFilterButton({ hideAt = "lg" }: { hideAt?: "lg" | "xl" }) 
       }`}
     >
       <AdjustmentsHorizontalIcon aria-hidden className="size-4" />
-      Filtrele{activeCount > 0 ? ` (${activeCount})` : ""}
+      {t("filterButton")}{activeCount > 0 ? ` (${activeCount})` : ""}
     </button>
   );
 }
@@ -289,23 +415,42 @@ function MobileDrawer({
   hideAt: "lg" | "xl";
   children: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   // Mavi olmayan yüzeyde portal bağlamı (public tedarikçi yüzü yeşil; 2026-09-18).
   const ctxFill = useAccentFill();
   const { total, clear, isPending, accent } = useFilters();
+  // KIRILIMI GEÇİNCE KAPAN (arayüz testi D-322): panel `lg:hidden`/`xl:hidden`
+  // ile gizleniyor ama Dialog açık kalıyordu — pencere genişletilince
+  // karartma ve kaydırma kilidi duruyor, sayfa tıklanamıyordu. Eşik
+  // Tailwind'in varsayılan `lg` (64rem) / `xl` (80rem) kırılımıyla aynı.
+  useEffect(() => {
+    if (!open || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width: ${hideAt === "xl" ? "80rem" : "64rem"})`);
+    if (mq.matches) {
+      onClose();
+      return;
+    }
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) onClose();
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [open, hideAt, onClose]);
   // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
     <Sheet
       open={open}
       onClose={onClose}
       side="bottom"
-      title="Filtreler"
+      title={t("filtersTitle")}
       className={hideAt === "xl" ? "xl:hidden" : "lg:hidden"}
       header={
         <div className="flex flex-1 items-center justify-between gap-3">
           <button type="button" onClick={clear} className="text-sm font-medium text-zinc-600 hover:text-zinc-950">
-            Temizle
+            {t("clear")}
           </button>
-          <p className="text-sm font-semibold text-zinc-900">Filtreler</p>
+          <p className="text-sm font-semibold text-zinc-900">{t("filtersTitle")}</p>
         </div>
       }
       footer={
@@ -316,7 +461,11 @@ function MobileDrawer({
             accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : ctxFill
           }`}
         >
-          {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}
+          {isPending
+            ? t("updating")
+            : total == null
+              ? t("showResultsPlain")
+              : t("showResults", { total: fmt.number(total) })}
         </button>
       }
     >

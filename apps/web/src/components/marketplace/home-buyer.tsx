@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
+
 /* `"use client"` ŞART: `toShowcaseRows` panelin client dosyasından geliyor
    (`category-showcase-rows.tsx`) ve sunucudan ÇAĞRILAMAZ. Panel dosyasına
    dokunmamak için (kullanıcı sınırı) satır hesabı istemciye alındı. Kayıp
@@ -9,7 +12,7 @@ import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/cat
 import { ProductStrip } from "./product-strip";
 import type { ProductIndexCard } from "@/lib/public/marketplace-api";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
-import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 
 /**
  * ANASAYFANIN ALICI YÜZÜ — satınalma panosunun herkese açık hâli
@@ -31,7 +34,9 @@ import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
  * altındaki firma bölümü kaldırıldı; ziyaretçi anasayfadan firma aramaz.
  * KATEGORİ VİTRİNİ FOTOĞRAFSIZ (aynı gün, kullanıcı: "kategorilerde fotoğraf
  * olmasın, çizgisel ikonlar"): `visual="icon"` — segment ikonu
- * (`category-visual.ts`), panel vitrini fotoğraflı kalır.
+ * (`category-visual.ts`). Panel vitrini (`/company/satinalma`) o gün
+ * fotoğraflı bırakılmıştı; 2026-10-10'da (sahip kararı) o da ikona geçti —
+ * iki vitrin AYNI çizilir.
  */
 export function HomeBuyer({
   newest,
@@ -40,8 +45,12 @@ export function HomeBuyer({
   newest: ProductIndexCard[];
   showcase: ShowcaseCategory[];
 }) {
-  // 6 blok × (1 promo + 10 kategori); artan segmentler son ızgaraya eklenir.
+  // En çok 6 blok, blokta 1 promo + en çok 10 kategori; bloklar dengeli ve
+  // mümkünse eşit bölünür (28 sektör = 4 × (1 + 6)). Satınalma paneli aynı
+  // çağrıyı yapar.
   const rows = toShowcaseRows(showcase, 6);
+  const t = useTranslations("web.marketing.home");
+  const locale = useLocale();
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
@@ -54,25 +63,24 @@ export function HomeBuyer({
           düşüyordu (canlı bulgu 2026-09-09). Sarmalayıcı `CategoryShowcaseRows`
           panel bileşenine dokunmadan çapayı veriyor; `scroll-mt` sabit
           header'ın altına gizlenmesin diye. */}
-      <div id="kategoriler" className="scroll-mt-24">
+      <div id={anchorId("categories", locale)} className="scroll-mt-24">
       <CategoryShowcaseRows
         rows={rows}
         /* Ürünü OLMAYAN segment kategori sayfasında 404 verir (o sayfa boş
            kategoriyi bilerek üretmiyor). O dalın kartı süzülmüş dizine gider:
            dürüst boş liste, kırık bağlantı değil. */
         hrefFor={(c) =>
-          c.count > 0 ? categoryPath(c.id, c.name) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
+          c.count > 0 ? categoryHref(c) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
         }
-        countNoun="ürün"
-        ctaLabel="Şimdi tedarikçi bulun"
+        ctaLabel={t("categoriesCta")}
         visual="icon"
       />
       </div>
 
       <ProductStrip
         id="yeni-eklenen-urunler"
-        title="Yeni eklenen ürünler"
-        lead="Tedarikçilerin vitrinlerine en son eklediği ürünler."
+        title={t("newestTitle")}
+        lead={t("newestLead")}
         href={`${MARKETPLACE_ROUTES.products}?sirala=yeni`}
         items={newest}
         accent="blue"

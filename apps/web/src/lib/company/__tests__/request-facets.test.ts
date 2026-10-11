@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import { EMPTY_REQUEST_FILTERS, type RequestFilterState } from "../request-filter-params";
-import { matchedItemName, passes, requestFacets, sortRequests } from "../request-facets";
+import { matchedItemName, passes, requestFacets, rowSegments, sortRequests } from "../request-facets";
 
 const NOW = Date.parse("2026-09-05T10:00:00Z");
 const DAY = 86_400_000;
@@ -21,12 +21,12 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     createdAt: new Date(NOW - 2 * DAY).toISOString(),
     itemCount: 1,
     owner: { id: "c1", name: "Alıcı A" },
-    ownerCity: "Bursa",
+    ownerCountry: "TR",
     canBid: true,
     invited: false,
     connected: false,
     myBidStatus: null,
-    myBidVersion: null,
+    myBidSubmitCount: null,
     categoryMatch: false,
     categories: [{ code: "39121501", name: "Kablo" }],
     extraCategoryCount: 0,
@@ -47,8 +47,8 @@ describe("passes — her boyut", () => {
     expect(passes(past, F({ status: "tumu" }), NOW)).toBe(true);
   });
 
-  it("uygunluk grup içi VEYA; kategori segmentte; kapsam/usul/para/alıcı/şehir", () => {
-    const r = row({ invited: true, isInternational: true, currency: "USD", format: "ENGLISH_AUCTION", ownerCity: "İzmir" });
+  it("uygunluk grup içi VEYA; kategori segmentte; kapsam/usul/para/alıcı/alıcı ülkesi", () => {
+    const r = row({ invited: true, isInternational: true, currency: "USD", format: "ENGLISH_AUCTION", ownerCountry: "DE" });
     expect(passes(r, F({ fit: ["baglanti", "davet"] }), NOW)).toBe(true);
     expect(passes(r, F({ fit: ["baglanti"] }), NOW)).toBe(false);
     expect(passes(r, F({ categories: ["39000000"] }), NOW)).toBe(true);
@@ -59,8 +59,8 @@ describe("passes — her boyut", () => {
     expect(passes(r, F({ currencies: ["TRY"] }), NOW)).toBe(false);
     expect(passes(r, F({ buyers: ["c1"] }), NOW)).toBe(true);
     expect(passes(row({ owner: null }), F({ buyers: ["c1"] }), NOW)).toBe(false);
-    expect(passes(r, F({ cities: ["İzmir"] }), NOW)).toBe(true);
-    expect(passes(r, F({ cities: ["Bursa"] }), NOW)).toBe(false);
+    expect(passes(r, F({ countries: ["DE"] }), NOW)).toBe(true);
+    expect(passes(r, F({ countries: ["TR"] }), NOW)).toBe(false);
   });
 
   it("kapanış: N gün içinde, yalnız açık ve gelecekteki; yayın tarihi: son N gün", () => {
@@ -101,22 +101,22 @@ describe("passes — her boyut", () => {
 describe("requestFacets — bağlamsal sayaçlar", () => {
   it("her boyut kendisi hariç süzgeçlerle sayılır; seçili değer 0 olsa da listede", () => {
     const rows = [
-      row({ ownerCity: "Bursa", currency: "TRY" }),
-      row({ ownerCity: "İzmir", currency: "USD" }),
-      row({ ownerCity: "İzmir", currency: "TRY", status: "AWARDED" }),
+      row({ ownerCountry: "TR", currency: "TRY" }),
+      row({ ownerCountry: "DE", currency: "USD" }),
+      row({ ownerCountry: "DE", currency: "TRY", status: "AWARDED" }),
     ];
-    const f = F({ cities: ["Bursa"], currencies: ["EUR"] });
+    const f = F({ countries: ["TR"], currencies: ["EUR"] });
     const fx = requestFacets(rows, f, NAMES, NOW);
-    // Şehir sayacı: şehir süzgeci HARİÇ (durum aktif + para EUR uygulanır → hiçbiri EUR değil → 0'lar)
-    expect(fx.cities).toEqual([
-      { key: "Bursa", label: "Bursa", count: 0 },
+    // Ülke sayacı: ülke süzgeci HARİÇ (durum aktif + para EUR uygulanır → hiçbiri EUR değil → 0'lar)
+    expect(fx.countries).toEqual([
+      { key: "TR", label: "TR", count: 0 },
     ]);
-    // Para sayacı: para süzgeci HARİÇ (aktif + Bursa) → TRY 1; seçili EUR 0 ile listede
+    // Para sayacı: para süzgeci HARİÇ (aktif + TR) → TRY 1; seçili EUR 0 ile listede
     expect(fx.currencies).toEqual([
       { key: "TRY", label: "TRY", count: 1 },
       { key: "EUR", label: "EUR", count: 0 },
     ]);
-    // Durum sayacı: durum HARİÇ (Bursa + EUR) → hepsi 0
+    // Durum sayacı: durum HARİÇ (TR + EUR) → hepsi 0
     expect(fx.status).toEqual({ aktif: 0, gecmis: 0, tumu: 0 });
   });
 
@@ -135,6 +135,115 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     expect(fx.period).toEqual({ 7: 1, 30: 1, 90: 2 });
     expect(fx.fit).toEqual({ davet: 0, baglanti: 0, urun: 0, kategori: 0, teklif: 0 });
     expect(fx.format).toEqual({ teklif: 2, pazarlik: 0 });
+  });
+
+  it("gizli segment (segment listesinde yok) kategori yüzünde ham kodla GÖRÜNMEZ (arayüz testi D-009)", () => {
+    const rows = [
+      row({ categories: [{ code: "39121501", name: "Kablo" }] }),
+      // 10 = gizli segment (canlı hayvan) — eski test verisi.
+      row({ categories: [{ code: "10101501", name: "Canlı hayvan" }] }),
+    ];
+    const fx = requestFacets(rows, F({ status: "tumu" }), NAMES, NOW);
+    expect(fx.categories).toEqual([{ key: "39000000", label: "Elektrik", count: 1 }]);
+    expect(fx.categories.some((c) => c.label === "10000000")).toBe(false);
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür,
+  // silah / kolluk dalları gizli. Sektör adı listede VAR; gizli daldaki talep
+  // yine de o sektöre sayılmaz ve o sektörün süzgecinden geçmez — kod segmente
+  // yuvarlanmadan ÖNCE sınanır (ada bakan eski süzgeç bunu yakalayamazdı).
+  it("görünür sektörün gizli dalındaki talep o sektöre sayılmaz ve süzgecinden geçmez; görünür dalındaki sayılır", () => {
+    const names = new Map([...NAMES, ["46000000", "İş Güvenliği ve Yangın Ekipmanları"]]);
+    const weapon = row({ categories: [{ code: "46101500", name: "Ateşli silahlar" }] });
+    const spray = row({ categories: [{ code: "46182501", name: "Biber gazı" }] });
+    const glove = row({ categories: [{ code: "46181500", name: "Koruyucu giysi" }] });
+    const mixed = row({ categories: [{ code: "46151600", name: "Kalabalık kontrol" }, { code: "46191600", name: "Yangın söndürücüler" }] });
+    expect(rowSegments(weapon)).toEqual([]);
+    expect(rowSegments(spray)).toEqual([]);
+    expect(rowSegments(glove)).toEqual(["46000000"]);
+    expect(rowSegments(mixed)).toEqual(["46000000"]);
+
+    const fx = requestFacets([weapon, spray, glove, mixed], F(), names, NOW);
+    expect(fx.categories).toEqual([{ key: "46000000", label: "İş Güvenliği ve Yangın Ekipmanları", count: 2 }]);
+    const only46 = F({ categories: ["46000000"] });
+    expect([weapon, spray, glove, mixed].filter((r) => passes(r, only46, NOW)).map((r) => r.id)).toEqual([glove.id, mixed.id]);
+  });
+});
+
+describe("requestFacets — tarama tavanı (D-116, yeniden doğrulama)", () => {
+  const CAPS = { open: 3, past: 2 };
+  const rows = () => [
+    row({ ownerCountry: "TR" }),
+    row({ ownerCountry: "TR" }),
+    row({ ownerCountry: "DE" }),
+    row({ status: "AWARDED", ownerCountry: "TR" }),
+    row({ status: "AWARDED", ownerCountry: "DE" }),
+  ];
+
+  it("tavandaki kapsamın tamamı sayılıyorsa durum sayacı alt sınırdır (başlıkla aynı karar)", () => {
+    const fx = requestFacets(rows(), F({ status: "gecmis" }), NAMES, NOW, {}, CAPS);
+    expect(fx.status).toEqual({ aktif: 3, gecmis: 2, tumu: 5 });
+    expect(fx.statusAtLeast).toEqual({ aktif: true, gecmis: true, tumu: true });
+  });
+
+  it("süzgeç kapsamı daraltınca sayı kesin; tavan altındaki kapsam hiç '+' almaz", () => {
+    const narrowed = requestFacets(rows(), F({ countries: ["TR"] }), NAMES, NOW, {}, CAPS);
+    expect(narrowed.status).toEqual({ aktif: 2, gecmis: 1, tumu: 3 });
+    expect(narrowed.statusAtLeast).toEqual({ aktif: false, gecmis: false, tumu: false });
+    const below = requestFacets(rows(), F(), NAMES, NOW, {}, { open: 10, past: 10 });
+    expect(below.statusAtLeast).toEqual({ aktif: false, gecmis: false, tumu: false });
+  });
+});
+
+describe("alıcı ülkesi — alıcı şehri süzgecinin yerine (2026-10-04 sahip kararı)", () => {
+  const COUNTRY: Record<string, string> = { TR: "Турция", DE: "Германия", GB: "Великобритания", CA: "Канада" };
+  const labels = { country: (c: string) => COUNTRY[c] ?? c };
+
+  it("şehir boyutu YOK: facet'te `cities` anahtarı yok, eski `?sehir=` durumu taşınmaz", () => {
+    const fx = requestFacets([row(), row({ ownerCountry: "DE" })], F(), NAMES, NOW, labels);
+    expect(fx).not.toHaveProperty("cities");
+    expect(F()).not.toHaveProperty("cities");
+  });
+
+  it("maskeli satır (alıcı adı yok) da ülke sayacına ve süzgecine girer", () => {
+    const masked = row({ id: "masked:ROT-9", masked: true, owner: null, ownerCountry: "DE", canBid: false });
+    const rows = [row(), masked];
+    const fx = requestFacets(rows, F(), NAMES, NOW, labels);
+    expect(fx.countries).toEqual([
+      { key: "DE", label: "Германия", count: 1 },
+      { key: "TR", label: "Турция", count: 1 },
+    ]);
+    expect(rows.filter((r) => passes(r, F({ countries: ["DE"] }), NOW))).toEqual([masked]);
+  });
+
+  it("alıcı ülkesi süzgeci + bağlamsal sayaç (kendi boyutu hariç), etiket çevirmenden", () => {
+    const rows = [
+      row({ ownerCountry: "TR", currency: "TRY" }),
+      row({ ownerCountry: "TR", currency: "USD" }),
+      row({ ownerCountry: "DE", currency: "EUR" }),
+    ];
+    expect(passes(rows[2]!, F({ countries: ["DE"] }), NOW)).toBe(true);
+    expect(passes(rows[0]!, F({ countries: ["DE"] }), NOW)).toBe(false);
+    expect(passes(row({ ownerCountry: null }), F({ countries: ["TR"] }), NOW)).toBe(false);
+    const fx = requestFacets(rows, F({ countries: ["DE"], currencies: ["TRY", "EUR"] }), NAMES, NOW, labels);
+    // Ülke sayacı ülke süzgeci HARİÇ (para TRY/EUR uygulanır): TR 1, DE 1.
+    expect(fx.countries).toEqual([
+      { key: "DE", label: "Германия", count: 1 },
+      { key: "TR", label: "Турция", count: 1 },
+    ]);
+    // Seçili ama sonuçsuz ülke listede kalır.
+    const none = requestFacets(rows, F({ countries: ["GB"] }), NAMES, NOW, labels);
+    expect(none.countries.find((c) => c.key === "GB")).toEqual({ key: "GB", label: "Великобритания", count: 0 });
+  });
+});
+
+describe("seçili ama listede olmayan alıcı (derin denetim LU-24)", () => {
+  it("etiket çağıranın katalog metninden gelir, sabit Türkçe değil", () => {
+    const rows = [row()];
+    const fx = requestFacets(rows, F({ buyers: ["gone"] }), NAMES, NOW, { unknownBuyer: "Buyer" });
+    expect(fx.buyers.find((b) => b.key === "gone")).toEqual({ key: "gone", label: "Buyer", count: 0 });
+    const bare = requestFacets(rows, F({ buyers: ["gone"] }), NAMES, NOW);
+    expect(bare.buyers.find((b) => b.key === "gone")?.label).toBe("—");
   });
 });
 

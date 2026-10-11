@@ -29,6 +29,21 @@ describe("CardCarousel", () => {
     );
   });
 
+  // Arayüz testi D-04'ün kardeşi: başlık firma adı taşır; sarılan flex satırında
+  // en dar hâli en uzun sözcüğü olmasın (telefonda satırın dışına taşıyordu).
+  it("başlık satır içinde daralır ve uzun tek sözcüğü böler", () => {
+    render(
+      <CardCarousel heading="Donaudampfschifffahrtsgesellschaft mbH ile keşfedilecek daha fazla ürün">
+        <li>kart</li>
+      </CardCarousel>,
+    );
+    const heading = screen.getByRole("heading", { level: 2 });
+    expect(heading.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    expect(heading.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(heading.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap)(\s|$)/);
+    expect((heading.parentElement as HTMLElement).className).toContain("flex-wrap");
+  });
+
   it("kaydırılamayan şeritte ok düğmesi çizilmez", () => {
     render(
       <CardCarousel heading="Benzer ürünler">

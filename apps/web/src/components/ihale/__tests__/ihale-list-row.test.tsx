@@ -21,7 +21,7 @@ vi.mock("../IhaleItemsPanel", () => ({
   IhaleItemsPanel: () => <div data-testid="items-panel" />,
 }));
 
-import { IhaleListRow, statusStyle } from "../IhaleListRow";
+import { IhaleListRow } from "../IhaleListRow";
 
 const ROW = {
   id: "l55",
@@ -54,7 +54,8 @@ describe("IhaleListRow", () => {
     );
     expect(screen.getByText("ROT-000055")).toBeInTheDocument();
     expect(screen.getByText("Paslanmaz çelik boru satışı")).toBeInTheDocument();
-    expect(screen.getByText(statusStyle("IN_AWARD").label)).toBeInTheDocument();
+    // Durum etiketi katalogdan (`web.panel.requests.ihalelistrow.status.evaluating`).
+    expect(screen.getByText("Değerlendirmede")).toBeInTheDocument();
     // Kapanış geçmiş + karar yok → zaman notu (4d).
     expect(screen.getByText(/Süresi doldu/)).toBeInTheDocument();
 
@@ -82,7 +83,7 @@ describe("IhaleListRow", () => {
     expect(onFav).toHaveBeenCalledWith("l55");
     expect(h.push).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getByTestId("items-panel")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
 
@@ -92,5 +93,17 @@ describe("IhaleListRow", () => {
     // tıklama davranışı kartın KÖKÜNDE.
     await user.click(container.firstElementChild as HTMLElement);
     expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/company/ilan/l55"));
+  });
+
+  it("D-149: yayımlanmamış taslakta Yayın sütunu oluşturma tarihini değil '—' gösterir", () => {
+    const draft = { ...ROW, status: "DRAFT", publishedAt: null } as unknown as TenderListItem;
+    render(<IhaleListRow t={draft} favorite={false} onToggleFavorite={vi.fn()} />);
+    const term = within(document.querySelector("dl")!)
+      .getAllByRole("term")
+      .find((dt) => dt.textContent?.trim() === "Yayın")!;
+    const value = term.nextElementSibling as HTMLElement;
+    expect(value.textContent?.trim()).toBe("—");
+    // Oluşturma tarihi (19 Ağu) Yayın hücresinde yok.
+    expect(value.textContent).not.toMatch(/19/);
   });
 });

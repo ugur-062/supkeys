@@ -36,6 +36,11 @@ services:
         value: 7d
       - key: LOG_LEVEL
         value: info
+      # UNVERIFIED_SIGNUP_PURGE_ENABLED burada TANIMLANMAZ: doğrulanmamış kayıt
+      # temizliği (7 gün) NODE_ENV=production iken kendiliğinden açık (bu servis
+      # ve api-staging). Acil durdurma: panelden "false". Bu ortamın auth
+      # anahtarlarıyla açılan bir veritabanı KOPYASINDA "false" zorunlu
+      # (.env.production.example, docs/backup-restore-drill.md).
       # Render trafiği Cloudflare'den geçer → gerçek istemci IP'si cf-connecting-ip
       # (throttle/audit). Self-host/CF'siz kurulumda false bırak.
       - key: TRUST_CF_CONNECTING_IP
@@ -66,6 +71,11 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Önerilir (derin denetim Y-11): Settings → API Keys → Secret key (sb_secret_…).
+      # Tanımlıysa girişte istemci IP'si Sb-Forwarded-For ile iletilir; Supabase'in
+      # IP başına giriş kotası Render'ın tek çıkış IP'sinde paylaşılmaz.
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       # ── Depolama (Cloudflare R2) — İKİ BUCKET (bkz. docs/r2-bucket-split.md) ──
       - key: R2_ACCOUNT_ID
         sync: false
@@ -88,8 +98,24 @@ services:
       # ── E-posta (Resend) ──
       - key: EMAIL_FROM_ADDRESS # doğrulanmış domain adresi (onboarding@resend.dev DEĞİL)
         sync: false
-      - key: EMAIL_REPLY_TO
+      - key: EMAIL_REPLY_TO # destek@rothern.com
         sync: false
+      # Akış başına gönderen — İSTEĞE BAĞLI, burada anahtar olarak listelenmez
+      # (boşsa EMAIL_FROM_ADDRESS'e düşer); gerekirse Render panelinden elle:
+      #   EMAIL_FROM_ADDRESS_ACTIVITY=hesap@rothern.com      (kendi işlem bildirimleri, çıkış başlığı yok)
+      #   EMAIL_FROM_ADDRESS_NOTIFICATION=bildirim@rothern.com (keşif bildirimleri, tek tık çıkış)
+      #   EMAIL_FROM_ADDRESS_INVITE=davet@rothern.com        (kayıtsız adrese davet)
+      #   EMAIL_FROM_ADDRESS_LIFECYCLE=haber@rothern.com     (karşılama serisi / özet)
+      # COLD_INVITE_LIST_UNSUBSCRIBE_HEADER burada TANIMLANMAZ (davet mektubu
+      # List-Unsubscribe başlığı taşımaz); yalnız Gmail'e günlük toplam hacim
+      # 5.000'e yaklaşırken Render panelinden tam olarak "true".
+      # Bkz. .env.production.example ve apps/api/src/modules/email/email-streams.ts.
+      # EMAIL_ALLOWLIST bu (canlı) serviste TANIMLANMAZ / BOŞ kalır: yalnız
+      # api-staging'de dolu (listede olmayan alıcıya e-posta gönderilmez — bkz.
+      # docs/release-process.md "Render api-staging ortamı").
+      # AÇILIŞ KAPISI: bu serviste (WEB_URL alan adı rothern.com) EMAIL_ALLOWLIST
+      # doluysa ya da CORS_ALLOW_VERCEL=true ise API açılmaz; ALLOW_STAGING_ONLY_ENV
+      # burada TANIMLANMAZ (bkz. apps/api/src/common/config/prod-config-sanity.ts).
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_WEBHOOK_SECRET

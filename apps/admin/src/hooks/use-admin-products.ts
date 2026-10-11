@@ -13,7 +13,15 @@ export interface AdminProductRow {
   cover: string | null;
   imageCount: number;
   categoryId: string | null;
+  /** Gizli daldaki kategorinin adı gelmez (`null`) — bkz. `hiddenCategory`. */
   categoryName: string | null;
+  /**
+   * Kayıtlı kategori gizli bir dalda (gizli segment ya da görünür segmentin
+   * gizli ailesi / sınıfı): sitede hiçbir yerde gösterilmez, adı burada da
+   * çözülmez. Ekran düzeye göre "— (gizli segment)" ya da "— (gizli kategori)"
+   * yazar (`productCategoryLabel`). Eski API yanıtında alan yoktur.
+   */
+  hiddenCategory?: boolean;
   reviewStatus: ProductReviewStatus;
   isPublic: boolean;
   submittedAt: string | null;
@@ -26,7 +34,10 @@ export interface AdminProductRow {
     name: string;
     slug: string | null;
     city: string | null;
+    /** Yetki kademesi alanları (API) — ekrana BASILMAZ; satırda doğrulama durumu gösterilir. */
     tier: string;
+    effectiveTier: string;
+    membershipEndAt: string | null;
     verification: string;
     isBlocked: boolean;
   };
@@ -117,7 +128,7 @@ export function useProductReview(id: string) {
 
 /**
  * TOPLU ONAY — otomatik onay DEĞİL: kararı yine admin verir, 50 ürün için
- * 50 tıklama 1 tıklamaya iner (ücretsiz pakette ürün tavanı 2026-09-14'te
+ * 50 tıklama 1 tıklamaya iner (doğrulanmamış firmada ürün tavanı 2026-09-14'te
  * 50'ye çıktı). Backend durum değiştirmiş satırları ATLAR ve gerekçesiyle
  * döner — yığın tek bir bayat kayıt yüzünden düşmez.
  */

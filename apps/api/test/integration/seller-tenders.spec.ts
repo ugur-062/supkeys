@@ -98,7 +98,7 @@ describe("sellerTenders", () => {
     ]);
   });
 
-  it("teklif durumu + versiyon satıra işlenir; geçmiş (AWARDED) ilan listelenir", async () => {
+  it("teklif durumu + gönderim sayısı satıra işlenir; geçmiş (AWARDED) ilan listelenir", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -118,7 +118,9 @@ describe("sellerTenders", () => {
     });
     await prisma.listingBid.updateMany({
       where: { listingId: open.id },
-      data: { version: 2 },
+      // version eşzamanlılık sayacı (taslak kaydında da artar) — satıra
+      // işlenen revizyon gönderim sayısıdır (arayüz testi O-036).
+      data: { version: 5, submitCount: 2 },
     });
 
     const past = await makeListing(prisma, {
@@ -139,7 +141,7 @@ describe("sellerTenders", () => {
     const rows = await service.sellerTenders(seller.auth);
     const openRow = rows.find((r) => r.id === open.id);
     expect(openRow?.myBidStatus).toBe("SUBMITTED");
-    expect(openRow?.myBidVersion).toBe(2);
+    expect(openRow?.myBidSubmitCount).toBe(2);
 
     const pastRow = rows.find((r) => r.id === past.id);
     expect(pastRow).toBeDefined();
@@ -323,8 +325,8 @@ describe("sellerTenders", () => {
       visibility: "PUBLIC",
     });
 
-    // Standart (ücretsiz): bağsız PUBLIC listede HİÇ YOK (2026-09-06 — eski
-    // maskeli önizleme kalktı; kilit kartı sayıyı gösterir).
+    // Standart (ücretsiz): bağsız PUBLIC TAM listede yok; alıcı gizli maskeli
+    // satır olarak ayrı uçtan gelir (2026-10-03, `masked-public-tenders.spec`).
     const stdRows = await service.sellerTenders(standard.auth);
     expect(stdRows.find((r) => r.id === l.id)).toBeUndefined();
 

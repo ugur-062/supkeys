@@ -1,3 +1,5 @@
+import { memberProductPath } from "./member-gate";
+
 /**
  * GÖRÜNÜRLÜK KATMANI v2 — herkese açık yüzeyde kim neyi görür (2026-09-04,
  * Europages kalıbı; önceki tabloyu değiştirir).
@@ -62,7 +64,8 @@ export const VISIBILITY = {
     scope: "anon",
     itemSummary: "anon", // "2 kalem · 1.200 adet"
     itemQuantities: "anon", // "Kalem 1 · 500 adet" — ad yok
-    buyerCity: "anon",
+    buyerCity: "anon", // yükte ve şehir süzgecinde; kart/detay artık ülkeyi gösterir
+    buyerCountry: "anon", // talebin açıldığı ülke — kart/detay konumu (2026-10-04)
     buyerActivity: "anon",
     verifiedBadge: "anon",
     closesAt: "anon",
@@ -87,9 +90,16 @@ export function canSee<E extends Entity>(viewer: Viewer, entity: E, field: Field
   return RANK[viewer] >= RANK[need];
 }
 
-/** Yalnız site içi yol; açık yönlendirme yok. */
+/**
+ * Yalnız site içi yol; açık yönlendirme yok. Tarayıcılar yolda `\`'ı `/` sayar
+ * ve sekme/satır sonunu atar → `/\evil.com`, `/\t/evil.com` protokolsüz
+ * başka köke gider (yayın denetimi 2026-09-28 Bölüm 5: kayıt sonrası `/company`
+ * kökü böyle bir `?redirect=` ile siteden çıkarıyordu).
+ */
 export function safeRedirect(redirect?: string | null): string | null {
-  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return null;
+  // eslint-disable-next-line no-control-regex
+  return /[\\\u0000-\u001f\u007f]/.test(redirect) ? null : redirect;
 }
 
 /** Giriş bağlantısı — giriş sayfası `?next=` okur. */
@@ -110,11 +120,15 @@ export function signupHref(intent?: string, redirect?: string): string {
 
 /** Panel karşılıkları — GatedField hedefleri buradan. */
 export const PANEL_TARGET = {
-  product: (companySlug: string, productSlug: string) =>
-    `/company/satinalma/urunler/${companySlug}/${productSlug}`,
+  /* Ürün: paket bilmeyen üye iniş adresi (`member-gate.ts`). Eskiden doğrudan
+     `/company/satinalma/urunler/…`ydı — giriş/kayıt sonrası ücretsiz ve Silver
+     üye Gold duvarına düşüyordu (arayüz testi Y-03). */
+  product: (companySlug: string, productSlug: string) => memberProductPath(companySlug, productSlug),
   company: (companySlug: string) => `/company/firma/${companySlug}`,
   /** Panel talep sayfası cuid ister; numarayla açık talepler listesinde aranır. */
   listing: (number: string) =>
     `/company/satis?q=${encodeURIComponent(number)}#acik-talepler`,
+  /** Satış panelinin açık talepler listesi (Silver ∧ teklif izni). */
+  openRequests: "/company/satis#acik-talepler",
   directory: "/company/satinalma/tedarikcilerim",
 } as const;

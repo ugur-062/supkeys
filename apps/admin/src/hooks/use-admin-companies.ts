@@ -11,17 +11,28 @@ export interface AdminCompanyRow {
   country: string;
   stateRegion: string | null;
   city: string | null;
+  /**
+   * Yetki kademesi (API alanı; ücretsiz dönemde doğrulanmış firma tam yetkili).
+   * Ekrana BASILMAZ — panelde doğrulama durumu gösterilir.
+   */
   tier: "STANDART" | "SILVER" | "GOLD";
   membershipEndAt: string | null;
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   isBlocked: boolean;
+  /** KVKK ile anonimleştirildi — askı işlemleri kapalı (API 409). */
+  anonymized?: boolean;
   complaintCount: number;
   userCount: number;
   /** Faz Y: bekleyen belge-güncelleme revizyonu sayısı (A-modeli rozeti). */
   pendingRevisionCount: number;
   createdAt: string;
-  /** Kuyruk yaşı için — PENDING'e geçiş/belge yükleme yaklaşık anı. */
+  /** Son yazım anı — her düzenlemede değişir; kuyruk yaşı için KULLANMAYIN. */
   updatedAt: string;
+  /**
+   * Yalnız başvuru kuyruğunda (`queue: "kyc"`): kuyruğa giriş anı (belge
+   * gönderimi / bekleyen revizyon) — "Başvuru" tarihi ve bekleme rozeti (O-075).
+   */
+  submittedAt?: string | null;
 }
 
 export interface AdminCompanyListResponse {
@@ -38,16 +49,21 @@ export interface AdminCompanyListParams {
   blocked?: string;
   q?: string;
   country?: string;
-  tier?: string;
   sort?: "newest" | "oldest";
   page?: number;
   pageSize?: number;
 }
 
 /** Sayfalı firma listesi — eski 200 kayıt tavanı kalktı. */
-export function useAdminCompanies(params: AdminCompanyListParams) {
+export function useAdminCompanies(
+  params: AdminCompanyListParams,
+  opts: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ["admin-companies", params],
+    // Rol kapısı: GET admin/companies SUPPORT'a kapalı — izinsiz rolde hiç
+    // istenmez (403 toast'ı yok).
+    enabled: opts.enabled ?? true,
     queryFn: async () => {
       const { data } = await api.get<AdminCompanyListResponse>(
         "/admin/companies",
@@ -66,19 +82,19 @@ export interface AdminCompanyStats {
   pendingReview: number;
   rejected: number;
   openComplaints: number;
-  tierBreakdown: { STANDART: number; SILVER: number; GOLD: number };
+  /** Pano için en kalabalık 10 ülke. */
   countryBreakdown: { country: string; count: number }[];
+  /**
+   * Firması olan TÜM ülkeler — duyuru segmenti / firma listesi filtresi
+   * bundan beslenir (derin denetim LU-11: ilk 10 ile sınırlıydı). Eski API
+   * yanıtında yoksa çağıran `countryBreakdown`'a düşer.
+   */
+  countryOptions?: { country: string; count: number }[];
   last30Days: {
     newCompanies: number;
     newListings: number;
     newOrders: number;
   };
-  expiringMemberships: {
-    id: string;
-    name: string;
-    rothernId: string | null;
-    membershipEndAt: string;
-  }[];
   oldestPendingSince: string | null;
   /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
   funnel: {
@@ -135,8 +151,8 @@ export function useCompanyAction() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı) DEĞİŞTİRİR
       // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
@@ -153,12 +169,39 @@ export interface AdminCompanyDetail {
   country: string;
   stateRegion: string | null;
   city: string | null;
+  /** TR ilçe / mahalle, posta kodu (2026-09-27 — eskiden detayda yoktu). */
+  district?: string | null;
+  neighborhood?: string | null;
+  postalCode?: string | null;
+  /** Hukuki yapı türü; firmanın yerel yapı adı `legalFormLocal`. */
+  companyType?: CompanyTypeCode | null;
+  /** Yetkili kimlik no — API MASKELİ döner (ilk 3 + son 2). */
+  authorizedTckn?: string | null;
   addressLine: string | null;
   billingEmail: string | null;
+  /** Yetki kademesi (API alanı) — ekrana basılmaz; bkz. `lib/entitlement.ts`. */
   tier: "STANDART" | "SILVER" | "GOLD";
+  /** API efektif değeri ayrıca verirse o kullanılır (bugün yok). */
+  effectiveTier?: "STANDART" | "SILVER" | "GOLD" | null;
   membershipEndAt: string | null;
   industry: string | null;
   website: string | null;
+  /**
+   * Son VIES (AB KDV) sorgusu — firma tarafının audit kaydından; hiç sorgu
+   * yoksa null (2026-09-27).
+   */
+  vies?: {
+    valid: boolean;
+    unavailable: boolean;
+    name: string | null;
+    address: string | null;
+    vatNumber: string | null;
+    countryCode: string | null;
+    source: string | null;
+    checkedAt: string;
+  } | null;
+  /** Ülke AB üyesi mi (VIES sorgulanabilir) — API'den. */
+  viesSupported?: boolean;
   companyVerificationStatus:
     | "UNVERIFIED"
     | "PENDING"
@@ -170,6 +213,15 @@ export interface AdminCompanyDetail {
   tradeRegistryNo: string | null;
   iban: string | null;
   ibanHolder: string | null;
+  /** SWIFT/BIC + banka adı (2026-09-27; IBAN kullanmayan ülkede banka adı zorunlu). */
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
+  /** Kayıtlı ülke IBAN kullanıyor mu (API, 2026-09-27) — değilse `iban` = hesap no. */
+  usesIban?: boolean;
+  /** Hukuki yapının yerel adı (GmbH, ООО…) — her türde dolu olabilir; OTHER iken zorunlu. */
+  legalFormLocal?: string | null;
+  /** Ülkenin zorunlu belge seti (API — tek kaynak). */
+  requiredDocs?: DocKind[];
   docTaxPlateUrl: string | null;
   /** Belge kindi → R2 anahtarı (presigned URL nesneyi tanımlamaz; bkz. #3). */
   docKeys?: Partial<Record<DocKind, string | null>>;
@@ -193,6 +245,11 @@ export interface AdminCompanyDetail {
   isBlocked: boolean;
   blockedReason: string | null;
   blockedAt: string | null;
+  /**
+   * KVKK silme talebiyle anonimleştirildi (geri alınamaz) — askıyı kaldır,
+   * bildirim ve düzenleme işlemleri kapalı; API de 409 döner (D-208).
+   */
+  anonymized?: boolean;
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
@@ -225,8 +282,15 @@ export type DocKind =
   | "idFront"
   | "idBack";
 export type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type CompanyTypeCode = "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER";
 export interface DocDecision {
   status: "APPROVED" | "REJECTED";
+  /**
+   * Kodlu red gerekçesi (2026-09-27) — firmanın dilinde çevrilir. Red için
+   * kod VEYA ≥3 karakterlik not (`reason`) zorunlu.
+   */
+  reasonCode?: string | null;
+  /** İsteğe bağlı not — firmaya olduğu gibi gösterilir. */
   reason?: string;
   /**
    * İncelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3). Karar bu
@@ -256,8 +320,8 @@ export function useReviewDocuments() {
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı) DEĞİŞTİRİR
       // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
@@ -273,23 +337,25 @@ export function useReviewDocRevision() {
       revId,
       status,
       reason,
+      reasonCode,
     }: {
       id: string;
       revId: string;
       status: "APPROVED" | "REJECTED";
       reason?: string;
+      reasonCode?: string;
     }) => {
       const { data } = await api.post<{ ok: boolean; status: string }>(
         `/admin/companies/${id}/doc-revisions/${revId}/review`,
-        { status, reason },
+        { status, reason, reasonCode },
       );
       return data;
     },
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı) DEĞİŞTİRİR
       // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
@@ -301,6 +367,14 @@ export function useCompanyDetail(id: string | null) {
   return useQuery({
     queryKey: ["admin-company-detail", id],
     enabled: !!id,
+    // 403/404 yeniden denemeyle düzelmez — ikinci istek ikinci "Kayıt
+    // bulunamadı" toast'ı basıyordu (arayüz testi D-206).
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } } | null)
+        ?.response?.status;
+      if (status === 403 || status === 404) return false;
+      return failureCount < 1;
+    },
     queryFn: async () => {
       const { data } = await api.get<AdminCompanyDetail>(
         `/admin/companies/${id}`,
@@ -319,6 +393,8 @@ export interface CompanyProfilePatch {
   mersisNo?: string | null;
   tradeRegistryNo?: string | null;
   country?: string;
+  companyType?: CompanyTypeCode;
+  legalFormLocal?: string | null;
   stateRegion?: string | null;
   city?: string | null;
   addressLine?: string | null;
@@ -327,6 +403,8 @@ export interface CompanyProfilePatch {
   industry?: string | null;
   iban?: string | null;
   ibanHolder?: string | null;
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
 }
 
 export function useUpdateCompanyProfile() {
@@ -339,143 +417,22 @@ export function useUpdateCompanyProfile() {
       id: string;
       patch: CompanyProfilePatch;
     }) => {
-      const { data } = await api.post<{ ok: boolean; changed: string[] }>(
-        `/admin/companies/${id}/profile`,
-        patch,
-      );
+      // `mappedCompanyType`: API yerel adı firmanın ülkesinin hukuki yapı
+      // listesinde bulup türü ORADAN yazdıysa (istenen türden farklıysa) gelir.
+      const { data } = await api.post<{
+        ok: boolean;
+        changed: string[];
+        mappedCompanyType?: CompanyTypeCode;
+      }>(`/admin/companies/${id}/profile`, patch);
       return data;
     },
     onSuccess: (_d, { id }) => {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
+      // Denetim 2026-08-26 Parça 10: doğrulama/KYC aksiyonları panodaki
+      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı) DEĞİŞTİRİR
       // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
-    },
-  });
-}
-
-export function useSetCompanyTier() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      tier,
-      months,
-      reason,
-    }: {
-      id: string;
-      tier: "STANDART" | "SILVER" | "GOLD";
-      months?: number;
-      reason?: string;
-    }) => {
-      await api.post(`/admin/companies/${id}/tier`, { tier, months, reason });
-    },
-    onSuccess: (_d, { id }) => {
-      qc.invalidateQueries({ queryKey: ["admin-companies"] });
-      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
-      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
-      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
-      qc.invalidateQueries({ queryKey: ["membership-history", id] });
-    },
-  });
-}
-
-/** Ek-süreli uzatma — mevcut bitişe ay EKLER (bitişi sıfırlamaz). */
-export function useExtendMembership() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      id,
-      months,
-      reason,
-    }: {
-      id: string;
-      months: number;
-      reason?: string;
-    }) => {
-      const { data } = await api.post<{ ok: boolean; membershipEndAt: string }>(
-        `/admin/companies/${id}/membership/extend`,
-        { months, reason },
-      );
-      return data;
-    },
-    onSuccess: (_d, { id }) => {
-      qc.invalidateQueries({ queryKey: ["admin-companies"] });
-      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
-      // Denetim 2026-08-26 Parça 10: doğrulama/KYC/tier aksiyonları panodaki
-      // KPI'ları (bekleyen doğrulama, KYC kuyruk yaşı, tier dağılımı) DEĞİŞTİRİR
-      // ama tazelemiyordu; kardeş `useResolveComplaint` doğru yapıyordu.
-      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
-      qc.invalidateQueries({ queryKey: ["membership-history", id] });
-    },
-  });
-}
-
-export interface MembershipEvent {
-  id: string;
-  action: "GRANT" | "EXTEND" | "REVOKE" | "EXPIRE";
-  months: number | null;
-  endBefore: string | null;
-  endAfter: string | null;
-  reason: string | null;
-  adminEmail: string | null;
-  createdAt: string;
-}
-
-export function useMembershipHistory(id: string) {
-  return useQuery({
-    queryKey: ["membership-history", id],
-    queryFn: async () => {
-      const { data } = await api.get<MembershipEvent[]>(
-        `/admin/companies/${id}/membership/history`,
-      );
-      return data;
-    },
-  });
-}
-
-export interface MembershipReportRow {
-  id: string;
-  companyName: string;
-  rothernId: string | null;
-  action: "GRANT" | "EXTEND" | "REVOKE" | "EXPIRE";
-  months: number | null;
-  endAfter: string | null;
-  reason: string | null;
-  adminEmail: string | null;
-  createdAt: string;
-}
-
-export interface MembershipReport {
-  rows: MembershipReportRow[];
-  totals: {
-    grants: number;
-    extends: number;
-    revokes: number;
-    expires: number;
-    monthsGranted: number;
-  };
-  /**
-   * Liste tavana takıldıysa true (denetim 2026-08-26 Parça 9 #14). TOPLAMLAR
-   * her hâlükârda TÜM eşleşen kayıtlardan gelir — kesilen yalnız satır listesi.
-   */
-  truncated?: boolean;
-  totalMatching?: number;
-}
-
-export function useMembershipReport(from?: string, to?: string) {
-  return useQuery({
-    queryKey: ["membership-report", from, to],
-    queryFn: async () => {
-      const { data } = await api.get<MembershipReport>(
-        "/admin/membership/report",
-        { params: { ...(from ? { from } : {}), ...(to ? { to } : {}) } },
-      );
-      return data;
     },
   });
 }
@@ -530,6 +487,8 @@ export function useResolveComplaint() {
       status: "RESOLVED" | "DISMISSED";
       adminNote?: string;
       suspend?: boolean;
+      /** Askıya alınan firmaya iletilen gerekçe (adminNote İÇ nottur, gitmez). */
+      suspendReason?: string;
     }) => {
       const { id, ...body } = input;
       await api.post(`/admin/complaints/${id}/resolve`, body);
@@ -539,6 +498,10 @@ export function useResolveComplaint() {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       // Dashboard "Açık Şikayet" KPI'sı da bu veriden — bayat kalmasın.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
+      // `suspend: true` firmayı askıya alır; şikayet id'si firma id'si değil →
+      // tüm firma detayları düşer. Yoksa 60 sn staleTime boyunca detay firmayı
+      // aktif gösterip "Askıya al" sunuyordu (derin denetim LU-13).
+      qc.invalidateQueries({ queryKey: ["admin-company-detail"] });
     },
   });
 }

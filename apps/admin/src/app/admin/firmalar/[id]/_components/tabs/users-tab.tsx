@@ -27,6 +27,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useAddCompanyUser,
@@ -45,7 +46,9 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const ROLE_LABELS: Record<string, string> = {
   SAHIP: "Kurucu",
@@ -55,6 +58,17 @@ const ROLE_LABELS: Record<string, string> = {
   ONAYLAYICI: "Onaylayıcı",
 };
 
+/**
+ * Rol sütunu — firma panelinin Kullanıcılar listesiyle aynı kural (D-305):
+ * rolsüz ama izinli üye Görüntüleyici hazır setidir; izinsiz olan "Yetki yok".
+ * Rolsüz kurucunun rozeti ad hücresinde — sütun "—" kalır.
+ */
+function roleText(u: Pick<AdminCompanyUser, "roles" | "permissions" | "isOwner">): string {
+  if (u.roles.length) return u.roles.map((r) => ROLE_LABELS[r] ?? r).join(", ");
+  if (u.isOwner) return "—";
+  return (u.permissions ?? []).length > 0 ? "Görüntüleyici" : "Yetki yok";
+}
+
 const ADDABLE_ROLES = [
   { value: "YONETICI", label: "Yönetici" },
   { value: "SATIN_ALMACI", label: "Satın Almacı" },
@@ -62,20 +76,42 @@ const ADDABLE_ROLES = [
   { value: "ONAYLAYICI", label: "Onaylayıcı" },
 ];
 
+/**
+ * Satınalma yetkisi kilidinin nedeni — firma doğrulama durumuna göre
+ * (ücretsiz dönem: doğrulama yeterli, satın alınacak bir şey yok).
+ */
+function buyLockNote(verification: string | undefined): string {
+  const base =
+    "Satınalma yetkisi (talep açma ve kazandırma) yalnız doğrulanmış firmada verilebilir.";
+  if (verification === "PENDING") {
+    return `${base} Firmanın doğrulaması inceleniyor — Belgeler sekmesinden sonuçlandırın.`;
+  }
+  if (verification === "REJECTED") {
+    return `${base} Firmanın doğrulaması reddedildi — firma yeniden başvurmalı.`;
+  }
+  return `${base} Firma henüz doğrulanmadı — Belgeler sekmesinden doğrulayın.`;
+}
+
 /** Doğrudan üye ekleme dialog'u — kullanıcıya şifre kurma e-postası gider. */
 function AddUserDialog({
   onConfirm,
   onClose,
   pending,
+  canGrantBuy,
+  verification,
 }: {
   onConfirm: (v: {
     email: string;
     firstName: string;
     lastName: string;
     role: string;
-  }) => void;
+  }) => unknown;
   onClose: () => void;
   pending: boolean;
+  /** Firma tam yetkili mi — değilse Satın Almacı rolü verilemez (API kapısıyla aynı). */
+  canGrantBuy: boolean;
+  /** Kilidin nedeni metni için firmanın doğrulama durumu. */
+  verification?: string;
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -133,13 +169,21 @@ function AddUserDialog({
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
             >
-              {ADDABLE_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
+              {ADDABLE_ROLES.map((r) => {
+                const locked = r.value === "SATIN_ALMACI" && !canGrantBuy;
+                return (
+                  <option key={r.value} value={r.value} disabled={locked}>
+                    {locked ? `${r.label} (doğrulama gerekli)` : r.label}
+                  </option>
+                );
+              })}
             </Select>
           </label>
+          {!canGrantBuy ? (
+            <p className="text-admin-text-muted text-xs">
+              {buyLockNote(verification)}
+            </p>
+          ) : null}
           <p className="text-admin-text-muted text-xs">
             Kullanıcıya şifre belirleme e-postası gönderilir; e-posta
             doğrulama adımı atlanır (kimliği telefonda doğruladınız).
@@ -160,7 +204,8 @@ function AddUserDialog({
                 toast.error("Ad ve soyad gerekli");
                 return;
               }
-              onConfirm({
+              // Promise döner → admin Button iş bitene dek kilitli (FX-00 O-045).
+              return onConfirm({
                 email: form.email.trim(),
                 firstName: form.firstName.trim(),
                 lastName: form.lastName.trim(),
@@ -176,7 +221,17 @@ function AddUserDialog({
 }
 
 /** Kullanıcılar — üye listesi + kurtarma aksiyonları (Faz 4). */
-export function UsersTab({ companyId }: { companyId: string }) {
+export function UsersTab({
+  companyId,
+  canGrantBuy = true,
+  verification,
+}: {
+  companyId: string;
+  /** Firma tam yetkili mi (satınalma yetkisi verilebilir mi). */
+  canGrantBuy?: boolean;
+  /** Firmanın doğrulama durumu — kilit notu buna göre yazılır. */
+  verification?: string;
+}) {
   const query = useAdminCompanyUsers(companyId);
   const recovery = useUserRecoveryAction(companyId);
   const setActive = useSetUserActive(companyId);
@@ -185,21 +240,26 @@ export function UsersTab({ companyId }: { companyId: string }) {
   const [dialog, setDialog] = useState<
     | { kind: "add" }
     | { kind: "email"; user: AdminCompanyUser }
+    // Tek tıkla uygulanıyordu — kısa onay (arayüz testi D-209).
+    | { kind: "deactivate"; user: AdminCompanyUser }
+    | { kind: "dropSessions"; user: AdminCompanyUser }
     | null
   >(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
   const users = query.data ?? [];
 
+  // Kurtarma eylemleri tek uçuşta: çift tık iki kod/şifre e-postası atmaz
+  // (arayüz testi FX-00 D-178).
+  const recoveryLock = useSubmitLock();
+  const recoveryBusy = recovery.isPending || recoveryLock.locked;
   const runRecovery = (
     userId: string,
     action: "password-reset" | "resend-verification" | "drop-sessions",
     msg: string,
   ) =>
-    recovery.mutate(
-      { userId, action },
-      { onSuccess: () => toast.success(msg), onError: err },
+    recoveryLock.run(() =>
+      recovery.mutateAsync({ userId, action }).then(() => toast.success(msg), err),
     );
 
   return (
@@ -252,7 +312,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
                     </span>
                   </TableCell>
                   <TableCell className="text-admin-text text-sm">
-                    {u.roles.map((r) => ROLE_LABELS[r] ?? r).join(", ") || "—"}
+                    {roleText(u)}
                   </TableCell>
                   <TableCell>
                     {u.deletedAt ? (
@@ -281,9 +341,9 @@ export function UsersTab({ companyId }: { companyId: string }) {
                           variant="ghost"
                           size="sm"
                           title="Şifre sıfırlama e-postası gönder"
-                          disabled={recovery.isPending}
+                          disabled={recoveryBusy}
                           onClick={() =>
-                            runRecovery(
+                            void runRecovery(
                               u.id,
                               "password-reset",
                               "Şifre sıfırlama e-postası gönderildi",
@@ -303,8 +363,9 @@ export function UsersTab({ companyId }: { companyId: string }) {
                           <DropdownMenu anchor="bottom end">
                             {!u.emailVerifiedAt ? (
                               <DropdownItem
+                                disabled={recoveryBusy}
                                 onClick={() =>
-                                  runRecovery(
+                                  void runRecovery(
                                     u.id,
                                     "resend-verification",
                                     "Doğrulama kodu gönderildi",
@@ -318,12 +379,9 @@ export function UsersTab({ companyId }: { companyId: string }) {
                               </DropdownItem>
                             ) : null}
                             <DropdownItem
+                              disabled={recoveryBusy}
                               onClick={() =>
-                                runRecovery(
-                                  u.id,
-                                  "drop-sessions",
-                                  "Oturumlar düşürüldü",
-                                )
+                                setDialog({ kind: "dropSessions", user: u })
                               }
                             >
                               <LogOut data-slot="icon" />
@@ -344,16 +402,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
                                 {u.isActive ? (
                                   <DropdownItem
                                     onClick={() =>
-                                      setActive.mutate(
-                                        { userId: u.id, active: false },
-                                        {
-                                          onSuccess: () =>
-                                            toast.success(
-                                              "Devre dışı bırakıldı — oturumları düşürüldü",
-                                            ),
-                                          onError: err,
-                                        },
-                                      )
+                                      setDialog({ kind: "deactivate", user: u })
                                     }
                                   >
                                     <DropdownLabel>
@@ -393,16 +442,15 @@ export function UsersTab({ companyId }: { companyId: string }) {
       {dialog?.kind === "add" ? (
         <AddUserDialog
           pending={addUser.isPending}
+          canGrantBuy={canGrantBuy}
+          verification={verification}
           onConfirm={(v) =>
-            addUser.mutate(v, {
-              onSuccess: () => {
-                toast.success(
-                  "Kullanıcı eklendi — şifre kurma e-postası gönderildi",
-                );
-                setDialog(null);
-              },
-              onError: err,
-            })
+            addUser.mutateAsync(v).then(() => {
+              toast.success(
+                "Kullanıcı eklendi — şifre kurma e-postası gönderildi",
+              );
+              setDialog(null);
+            }, err)
           }
           onClose={() => setDialog(null)}
         />
@@ -416,22 +464,69 @@ export function UsersTab({ companyId }: { companyId: string }) {
             : "Yeni e-posta"
         }
         placeholder="yeni@firma.com"
+        // Biçim + uzunluk diyalogda doğrulanır; diyalog yalnız başarıda
+        // kapanır — hata dalında yazılan adres kaybolmaz (arayüz testi D-204).
+        type="email"
+        maxLength={200}
         required
         confirmLabel="Değiştir"
         onConfirm={(v) => {
           if (dialog?.kind !== "email") return;
-          changeEmail.mutate(
-            { userId: dialog.user.id, email: (v || "").trim() },
-            {
-              onSuccess: (r) =>
-                toast.success(`E-posta güncellendi: ${r.email}`),
-              onError: err,
-            },
-          );
-          setDialog(null);
+          return changeEmail
+            .mutateAsync({ userId: dialog.user.id, email: (v || "").trim() })
+            .then((r) => {
+              toast.success(`E-posta güncellendi: ${r.email}`);
+              setDialog(null);
+            }, err);
         }}
         onClose={() => setDialog(null)}
       />
+      <ConfirmDialog
+        open={dialog?.kind === "deactivate"}
+        title="Kullanıcıyı devre dışı bırak"
+        confirmLabel="Devre Dışı Bırak"
+        danger
+        onConfirm={() => {
+          if (dialog?.kind !== "deactivate") return;
+          return setActive
+            .mutateAsync({ userId: dialog.user.id, active: false })
+            .then(() => {
+              toast.success("Devre dışı bırakıldı — oturumları düşürüldü");
+              setDialog(null);
+            }, err);
+        }}
+        onClose={() => setDialog(null)}
+      >
+        <p>
+          <strong>
+            {dialog?.kind === "deactivate" ? dialog.user.email : ""}
+          </strong>{" "}
+          giriş yapamaz ve açık oturumları kapanır. İstediğinizde
+          &quot;Aktifleştir&quot; ile geri açabilirsiniz.
+        </p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={dialog?.kind === "dropSessions"}
+        title="Oturumları düşür"
+        confirmLabel="Oturumları Düşür"
+        danger
+        onConfirm={() => {
+          if (dialog?.kind !== "dropSessions") return;
+          return runRecovery(
+            dialog.user.id,
+            "drop-sessions",
+            "Oturumlar düşürüldü",
+          ).then(() => setDialog(null));
+        }}
+        onClose={() => setDialog(null)}
+      >
+        <p>
+          <strong>
+            {dialog?.kind === "dropSessions" ? dialog.user.email : ""}
+          </strong>{" "}
+          tüm cihazlarda oturumdan çıkarılır; yeniden giriş yapması gerekir.
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

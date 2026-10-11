@@ -1,41 +1,62 @@
+import { LOCALES } from "@rothern/i18n";
 import {
+  Equals,
+  IsBoolean,
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 
+import { PasswordPolicy } from "../../../common/auth/password-policy";
+import { tApi } from "../../../common/i18n/i18n.service";
+import { IsIntlPhone, NormalizePhone } from "./phone.validator";
+
 export class UpdateMeDto {
-  @IsOptional()
+  // @IsOptional null'ı da geçirirdi → serviste null.trim() 500 (derin denetim
+  // LU-06). Ad/soyad silinemez: yalnız ALAN YOKSA atlanır, null 400 alır.
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/) // tek harfli ad meşru; yalnız boş olamaz
   @MaxLength(80)
   firstName?: string;
 
-  @IsOptional()
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/)
   @MaxLength(80)
   lastName?: string;
 
+  // Boş dize (ya da null) numarayı siler; dolu değer ülke uzunluğuna göre (phone.validator.ts).
   @IsOptional()
+  @NormalizePhone()
   @IsString()
   @MaxLength(30)
-  phone?: string;
+  @IsIntlPhone(
+    { allowEmpty: true },
+    { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") },
+  )
+  phone?: string | null;
+
+  /** Arayüz dili — desteklenen kodlar @rothern/i18n LOCALES (tr/en/ru). */
+  @IsOptional()
+  @IsIn(LOCALES)
+  locale?: string;
 }
 
 export class ChangePasswordDto {
   @IsString()
   currentPassword!: string;
 
-  @IsString()
-  @MinLength(8, { message: "Parola en az 8 karakter" })
-  @MaxLength(72)
-  @Matches(/[A-Z]/, { message: "En az bir büyük harf (A-Z)" })
-  @Matches(/[a-z]/, { message: "En az bir küçük harf (a-z)" })
-  @Matches(/[0-9]/, { message: "En az bir rakam" })
+  // Politika kayıt/davet DTO'suyla AYNI (yayın denetimi 2026-09-28 Bölüm 9):
+  // değiştirme ve sıfırlama 8 karakter + özel karaktersiz kabul ediyordu —
+  // kayıtta konan kural sıfırlamayla zayıflatılabiliyordu. Kural artık TEK
+  // kaynakta (`common/auth/password-policy.ts`), dört yol aynı dekoratörü taşır.
+  @PasswordPolicy()
   newPassword!: string;
 }
 
@@ -46,7 +67,34 @@ export class UpdateNotificationPrefsDto {
 
 export class TwoFactorCodeDto {
   @IsString()
-  @MinLength(6, { message: "6 haneli kod girin" })
+  @MinLength(6, { message: () => tApi("api.dto.account.altiHaneliKodGirin") })
   @MaxLength(10)
   code!: string;
+}
+
+/**
+ * Sözleşme onayı — onay izi olmayan hesabın (admin eliyle açılan üye) ilk
+ * girişte kendisinin verdiği onay (derin denetim 2026-09-29 MU-04). Kayıt ve
+ * davet kabulündeki üç zorunlu onayın aynısı.
+ */
+export class AcceptTermsDto {
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kullaniciSozlesmesiniKabulEtmelisiniz") })
+  termsAccepted!: boolean;
+
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.aracilikVeKullanimSozlesmesiniKabulEtmelisiniz") })
+  mediationAccepted!: boolean;
+
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kvkkAydinlatmaMetniniOnaylamalisiniz") })
+  kvkkAccepted!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  marketingConsent?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  profileImprovementConsent?: boolean;
 }

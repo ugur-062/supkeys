@@ -8,6 +8,7 @@ import { authenticator } from "otplib";
 import { AdminAuthService } from "../../src/modules/admin-auth/admin-auth.service";
 import { AdminJwtStrategy } from "../../src/modules/admin-auth/strategies/admin-jwt.strategy";
 import { isEncryptedTotpSecret } from "../../src/common/auth/totp-secret-cipher";
+import { SessionRevocationService } from "../../src/common/auth/session-revocation.service";
 import { prisma, truncateAll } from "./test-db";
 
 const SECRET = "admin-revocation-test-secret-1234567890";
@@ -20,7 +21,7 @@ const config = {
   },
 };
 
-function makeService() {
+function makeService(cfg: typeof config = config) {
   const supabaseAuth = {
     verifyPassword: jest.fn(async () => ({ authId: "auth-admin-1", email: "admin@test.local" })),
     updatePassword: jest.fn(async () => undefined),
@@ -31,9 +32,13 @@ function makeService() {
     jwt,
     supabaseAuth as never,
     audit as never,
-    config as never,
+    cfg as never,
   );
-  const strategy = new AdminJwtStrategy(config as never, prisma as never);
+  const strategy = new AdminJwtStrategy(
+    cfg as never,
+    prisma as never,
+    new SessionRevocationService(prisma as never, cfg as never),
+  );
   return { svc, strategy, supabaseAuth };
 }
 
@@ -103,5 +108,86 @@ describe("admin oturum iptali (tokenVersion)", () => {
     const after = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: admin.id } });
     expect(after.twoFactorEnabled).toBe(false);
     expect(after.tokenVersion).toBe(2);
+  });
+});
+
+describe("admin 2FA zorunlulugu (derin denetim MU-01)", () => {
+  const enforced = {
+    ...config,
+    get: (key: string) =>
+      key === "JWT_SECRET" ? SECRET : key === "ADMIN_2FA_REQUIRED_ROLES" ? "SUPER_ADMIN" : undefined,
+  };
+
+  it("2FA'siz SUPER_ADMIN kilitlenmez: login token verir + twoFactorSetupRequired; enable sonrasi bayrak kalkar", async () => {
+    const { svc, strategy } = makeService(enforced);
+    const admin = await makeAdmin();
+
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(typeof login.token).toBe("string");
+    expect(login.admin).toMatchObject({ twoFactorEnabled: false, twoFactorSetupRequired: true });
+    // Strateji guard'a DB'den taze 2FA durumunu verir.
+    await expect(strategy.validate(jwt.verify(login.token) as never)).resolves.toMatchObject({
+      id: admin.id,
+      twoFactorEnabled: false,
+    });
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({ twoFactorSetupRequired: true });
+
+    const { secret } = await svc.setupTwoFactor(admin.id);
+    const en = await svc.enableTwoFactor(admin.id, secret, authenticator.generate(secret));
+    await expect(strategy.validate(jwt.verify(en.token) as never)).resolves.toMatchObject({
+      twoFactorEnabled: true,
+    });
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({
+      twoFactorEnabled: true,
+      twoFactorSetupRequired: false,
+    });
+  });
+
+  it("zorunluluk kapaliyken (varsayilan test ortami) bayrak false", async () => {
+    const { svc } = makeService();
+    const admin = await makeAdmin();
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(login.admin.twoFactorSetupRequired).toBe(false);
+  });
+});
+
+describe("gecici parola zorunlu degisimi (arayuz testi D-025)", () => {
+  it("login + /me + strateji bayragi tasir; ayni parola reddedilir; degisim bayragi kaldirir", async () => {
+    const { svc, strategy } = makeService();
+    const admin = await makeAdmin();
+    await prisma.platformAdmin.update({
+      where: { id: admin.id },
+      data: { mustChangePassword: true },
+    });
+
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(login.admin.mustChangePassword).toBe(true);
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({ mustChangePassword: true });
+    await expect(strategy.validate(jwt.verify(login.token) as never)).resolves.toMatchObject({
+      mustChangePassword: true,
+    });
+
+    // Gecici parolayi "yeni" diye yeniden koymak kilidi acmaz.
+    await expect(
+      svc.changePassword(admin.id, "Rt-temp-pass-12!", "Rt-temp-pass-12!"),
+    ).rejects.toThrow();
+    const still = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: admin.id } });
+    expect(still.mustChangePassword).toBe(true);
+    expect(still.tokenVersion).toBe(0);
+
+    const res = await svc.changePassword(admin.id, "Rt-temp-pass-12!", "kendi-sifrem-123");
+    const after = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: admin.id } });
+    expect(after.mustChangePassword).toBe(false);
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({ mustChangePassword: false });
+    await expect(strategy.validate(jwt.verify(res.token) as never)).resolves.toMatchObject({
+      mustChangePassword: false,
+    });
+  });
+
+  it("varsayilan: mevcut/yeni olusturulan kayitta bayrak false (kilitlenme yok)", async () => {
+    const { svc } = makeService();
+    const admin = await makeAdmin();
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(login.admin.mustChangePassword).toBe(false);
   });
 });

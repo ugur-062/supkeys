@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActionCenterApiRow } from "@/hooks/use-company-dashboard";
 
 const h = vi.hoisted(() => ({
-  sa: { data: { rows: [] as ActionCenterApiRow[] }, isLoading: false, isError: false, refetch: vi.fn() },
-  st: { data: { rows: [] as ActionCenterApiRow[] }, isLoading: false, isError: false, refetch: vi.fn() },
+  sa: { data: { rows: [] as ActionCenterApiRow[] } as { rows: ActionCenterApiRow[] } | undefined, isLoading: false, isPending: false, isError: false, refetch: vi.fn() },
+  st: { data: { rows: [] as ActionCenterApiRow[] } as { rows: ActionCenterApiRow[] } | undefined, isLoading: false, isPending: false, isError: false, refetch: vi.fn() },
   unread: { satinalma: 0, satis: 0 },
   enabled: [] as string[],
 }));
@@ -28,6 +28,7 @@ const row = (over: Partial<ActionCenterApiRow>): ActionCenterApiRow => ({
 
 beforeEach(() => {
   h.sa.data = { rows: [] }; h.st.data = { rows: [] }; h.sa.isLoading = false; h.st.isLoading = false; h.sa.isError = false; h.st.isError = false;
+  h.sa.isPending = false; h.st.isPending = false;
   h.unread = { satinalma: 0, satis: 0 }; h.enabled = [];
 });
 
@@ -46,7 +47,26 @@ describe("buildCompanyActions / groupOf", () => {
     expect(g.week.map((r) => `${r.portal}:${r.key}`)).toEqual(["satis:unansweredInvites"]);
     // Bilinmeyen anahtar metin haritasında yok → düşer; mesaj satırı eklenir.
     expect(g.waiting.map((r) => `${r.portal}:${r.key}`)).toEqual(["satinalma:awaitingDecision", "satinalma:messages"]);
-    expect(g.waiting[0]!.href).toBe("/company/satinalma/taleplerim");
+    expect(g.waiting[0]!.href).toBe("/company/satinalma/taleplerim?status=OPEN,IN_AWARD");
+  });
+});
+
+describe("groupOf — takvim günü Europe/Istanbul (derin denetim S066)", () => {
+  it("UTC+5 tarayıcıda İstanbul'da aynı gün 22:30 vadeli iş 'Bugün'de kalır", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Asia/Almaty";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-01T10:00:00+03:00"));
+      // Almatı'da yerel saatle ertesi gün 00:30 — eski yerel gece yarısı
+      // hesabı bunu "Yarın" (week) grubuna atıyordu.
+      expect(groupOf(row({ dueAt: "2026-10-01T22:30:00+03:00" }))).toBe("today");
+      expect(groupOf(row({ dueAt: "2026-10-02T00:30:00+03:00" }))).toBe("week");
+    } finally {
+      vi.useRealTimers();
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
   });
 });
 
@@ -60,7 +80,7 @@ describe("CompanyActionCenter", () => {
     expect(within(sec.querySelector("h2")!.parentElement!).getByText("2")).toBeInTheDocument();
     expect(within(sec).getByText(/Gecikmiş/)).toBeInTheDocument();
     expect(within(sec).getByText(/Bu hafta/)).toBeInTheDocument();
-    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler");
+    expect(within(sec).getByRole("link", { name: /siparişin ödemesi gecikti — 3 gün gecikti/ })).toHaveAttribute("href", "/company/satinalma/siparisler?payment=overdue");
     expect(within(sec).getByRole("link", { name: /davete henüz teklif vermediniz — yarın/ })).toHaveAttribute("href", "/company/satis#acik-talepler");
     expect(within(sec).getByText("Satınalma")).toBeInTheDocument();
     expect(within(sec).getByText("Satış")).toBeInTheDocument();
@@ -75,7 +95,29 @@ describe("CompanyActionCenter", () => {
 
   it("hata dalı boş liste sanılmaz", () => {
     h.st.isError = true;
+    h.st.data = undefined;
     render(<CompanyActionCenter portals={["satis"]} />);
     expect(screen.getByText("Bekleyen işler yüklenemedi")).toBeInTheDocument();
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+  });
+
+  it("çevrimdışı duraklayan sorguda (istek yok, hata yok, veri yok) 'Bekleyen iş yok' çizilmez", () => {
+    // `isLoading` false kalır; eskiden iskelet ona bağlıydı (LİSTE DURUMLARI).
+    h.st.data = undefined;
+    h.st.isPending = true;
+    const { container } = render(<CompanyActionCenter portals={["satis"]} />);
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+    expect(screen.queryByText("Bekleyen işler yüklenemedi")).toBeNull();
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
+  });
+
+  it("arka plan yoklaması düşünce eldeki satırlar kalır (hata kartına dönmez)", () => {
+    h.st.data = { rows: [row({ key: "unansweredInvites", severity: "warning", count: 2, dueAt: day(1) })] };
+    h.st.isError = true;
+    render(<CompanyActionCenter portals={["satis"]} />);
+    expect(screen.queryByText("Bekleyen işler yüklenemedi")).toBeNull();
+    expect(screen.queryByText("Bekleyen iş yok.")).toBeNull();
+    // Satır hâlâ çizili: bölümde en az bir bağlantı var.
+    expect(within(screen.getByRole("region", { name: /Bekleyen işler/i })).getAllByRole("link").length).toBeGreaterThan(0);
   });
 });

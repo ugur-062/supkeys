@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Chip } from "@/components/ui/chip";
 import { useFilterAccent } from "./filter-shell";
 
@@ -9,7 +11,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 /**
  * SÜZGEÇ YAPI TAŞLARI — ürün süzgeci (`product-filters.tsx`) ve açık talep
  * süzgeci (`company/request-filters.tsx`) AYNI parçaları kullanır:
- *  · `Group`   — <fieldset><legend>, seçili sayısı + bölüm temizle, daraltılır
+ *  · `Group`   — <fieldset> (adı başlıktan, aria-labelledby), seçili sayısı + bölüm temizle, daraltılır
  *                (durum localStorage `rothern.filters.<key>`)
  *  · `Check`   — checkbox/radio satırı; sayısı 0 olan seçenek soluk + devre dışı
  *                (seçili değilse)
@@ -71,35 +73,50 @@ export function Group({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [open, setOpen] = useOpenState(storageKey, defaultOpen);
   const id = useId();
+  const titleId = `${id}-title`;
   return (
     /* HER FACET AYRI YÜZEY (brif §4.3): tek uzun sütun yerine aralarında
        boşluk olan kartlar. Ayırıcı çizgili tek blokta gruplar birbirine
-       karışıyor ve rayın nerede bittiği okunmuyordu. */
-    <fieldset className="rounded-lg border border-zinc-200 bg-white px-3 py-3">
-      <div className="flex items-center justify-between gap-2">
+       karışıyor ve rayın nerede bittiği okunmuyordu.
+       Grubun ADI `aria-labelledby` ile (arayüz testi D-326): başlık daraltma
+       düğmesinin içinde; düğmenin içindeki <legend> fieldset'in ilk çocuğu
+       olmadığı için tarayıcı onu ad saymıyor, grup adsız okunuyordu. */
+    /* BAŞLIK RAYA SIĞAR (arayüz testi webA-05, yeniden doğrulama): RU'da
+       "МЕСТОПОЛОЖЕНИЕ (1) ⌄ Сбросить" tek satıra sığmıyor; fieldset'in
+       varsayılan `min-inline-size: min-content`i kartı 256 px rayın dışına
+       itiyor, şehir sayaçları ve yarıçap ölçeği kırpılıyordu. Satır SARAR
+       ("Temizle" alt satıra, sağa yaslı geçer), fieldset `min-w-0` ile raydan
+       geniş olamaz, başlık yine sığmazsa kelimeden bölünür. */
+    <fieldset aria-labelledby={titleId} className="min-w-0 rounded-lg border border-zinc-200 bg-white px-3 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={id}
           onClick={() => setOpen(!open)}
-          className="flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
+          className="flex min-w-0 flex-auto items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
         >
-          <legend className="contents">
-            {icon ? (
-              <span aria-hidden className="mr-1 inline-flex text-zinc-400">
-                {icon}
-              </span>
-            ) : null}
+          {icon ? (
+            <span aria-hidden className="mr-1 inline-flex shrink-0 text-zinc-400">
+              {icon}
+            </span>
+          ) : null}
+          <span id={titleId} className="min-w-0 break-words">
             {title}
-            {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
-          </legend>
-          <ChevronDownIcon aria-hidden className={`ml-auto size-4 transition ${open ? "" : "-rotate-90"}`} />
+          </span>
+          {count > 0 ? <span className="ml-1 shrink-0 normal-case text-zinc-950">({count})</span> : null}
+          <ChevronDownIcon aria-hidden className={`ml-auto size-4 shrink-0 transition ${open ? "" : "-rotate-90"}`} />
         </button>
         {count > 0 ? (
-          <button type="button" onClick={onClear} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-            Temizle
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-auto shrink-0 text-xs whitespace-nowrap text-zinc-500 underline underline-offset-2 hover:text-zinc-950"
+          >
+            {t("clear")}
           </button>
         ) : null}
       </div>
@@ -115,8 +132,10 @@ export function Check({
   label,
   icon,
   count,
+  countAtLeast = false,
   checked,
   onChange,
+  onUncheck,
   type = "checkbox",
   name,
 }: {
@@ -125,8 +144,16 @@ export function Check({
   /** Seçeneğin ikonu (ör. tedarikçi türü) — süsleme, etiket metni taşır. */
   icon?: ReactNode;
   count?: number;
+  /** Sayı tarama tavanında (alt sınır) — "200+" yazılır, başlık sayacıyla aynı (D-116). */
+  countAtLeast?: boolean;
   checked: boolean;
   onChange: (v: boolean) => void;
+  /**
+   * İşaretli RADYOYA tıklanınca (arayüz testi D-320). Tarayıcı işaretli
+   * radyoda `change` üretmez; seçimi kaldırılabilen radyo listeleri
+   * (kategori) bunu verir, yoksa satıra tıklamak hiçbir şey yapmıyordu.
+   */
+  onUncheck?: () => void;
   type?: "checkbox" | "radio";
   name?: string;
 }) {
@@ -148,6 +175,7 @@ export function Check({
           checked={checked}
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
+          onClick={type === "radio" && checked && onUncheck ? () => onUncheck() : undefined}
           className={`size-4 shrink-0 rounded border-zinc-300 ${
             accent === "blue" ? "text-blue-600 focus:ring-blue-600" : "text-zinc-950 focus:ring-zinc-950"
           }`}
@@ -157,9 +185,18 @@ export function Check({
             {icon}
           </span>
         ) : null}
-        <span className="line-clamp-1">{label}</span>
+        {/* İki satıra kadar sarar + tam ad ipucu (arayüz testi D-147): RU'da
+            "Совпадает с моими товарами" tek satırda kesiliyordu. */}
+        <span className="line-clamp-2 break-words" title={label}>
+          {label}
+        </span>
       </span>
-      {count != null ? <span className="shrink-0 text-xs text-zinc-500">{count}</span> : null}
+      {count != null ? (
+        <span className="shrink-0 text-xs text-zinc-500">
+          {count}
+          {countAtLeast ? "+" : null}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -167,28 +204,59 @@ export function Check({
 export interface FacetOption {
   key: string;
   label: string;
-  count: number;
+  /** Verilmezse sayı çizilmez (bkz. `withSelected` `missingCount`). */
+  count?: number;
   /** Satır ikonu — verilmezse çizilmez (çoğu facet metin listesidir). */
   icon?: ReactNode;
 }
 
+/**
+ * SEÇİLİ AMA FACET'TE OLMAYAN seçenekler (arayüz testi D-336): bağlamsal
+ * sayaçta sonucu 0 kalan seçenek facet yanıtından düşüyor; seçili şehir
+ * listeden kayboluyor, grup "Seçenek yok" deyip başlıkta (1) gösteriyordu ve
+ * kutucuktan kaldırılamıyordu. `labelFor` verilen grupta bu anahtarlar 0
+ * sayıyla listeye eklenir (seçili olduğu için devre dışı kalmaz).
+ *
+ * `missingCount` eksik anahtarın sayısını verir; `undefined` dönerse sayı
+ * ÇİZİLMEZ. Facet'in hiç saymadığı anahtar (talep kategorisi facet'i yalnız
+ * segment sayar, seçili yaprak "Vidalar 0" görünüyordu) için.
+ */
+export function withSelected(
+  items: FacetOption[],
+  selected: string[],
+  labelFor?: (key: string) => string,
+  missingCount: (key: string) => number | undefined = () => 0,
+): FacetOption[] {
+  if (!labelFor) return items;
+  const missing = selected.filter((k) => !items.some((i) => i.key === k));
+  return missing.length ? [...items, ...missing.map((k) => ({ key: k, label: labelFor(k), count: missingCount(k) }))] : items;
+}
+
 export function ShowMore({
-  items,
+  items: facetItems,
   selected,
   idPrefix,
   onToggle,
-  emptyText = "Seçenek yok",
+  emptyText,
+  labelFor,
+  iconFor,
 }: {
   items: FacetOption[];
   selected: string[];
   idPrefix: string;
   onToggle: (key: string, on: boolean) => void;
   emptyText?: string;
+  /** Facet'te olmayan SEÇİLİ anahtarın etiketi — verilirse o anahtar 0 sayıyla listelenir (D-336). */
+  labelFor?: (key: string) => string;
+  /** Satır ikonu anahtardan (ör. ülke bayrağı) — facet'te olmayan seçili satır da alır. */
+  iconFor?: (key: string) => ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
+  const items = withSelected(facetItems, selected, labelFor);
   // Seçili olanlar her zaman görünür (kısıtlı listede kaybolmasın).
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || selected.includes(i.key));
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText}</p>;
+  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (
     <>
       {visible.map((i) => (
@@ -196,7 +264,7 @@ export function ShowMore({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
-          icon={i.icon}
+          icon={i.icon ?? iconFor?.(i.key)}
           count={i.count}
           checked={selected.includes(i.key)}
           onChange={(on) => onToggle(i.key, on)}
@@ -204,7 +272,7 @@ export function ShowMore({
       ))}
       {items.length > SHOW ? (
         <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
+          {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
     </>
@@ -212,21 +280,32 @@ export function ShowMore({
 }
 
 export function ShowMoreRadio({
-  items,
+  items: facetItems,
   selected,
   idPrefix,
   onSelect,
-  emptyText = "Seçenek yok",
+  emptyText,
+  labelFor,
+  missingCount,
+  iconFor,
 }: {
   items: FacetOption[];
   selected?: string;
   idPrefix: string;
   onSelect: (key: string) => void;
   emptyText?: string;
+  /** Bkz. `ShowMore.labelFor`. */
+  labelFor?: (key: string) => string;
+  /** Bkz. `ShowMore.iconFor`. */
+  iconFor?: (key: string) => ReactNode;
+  /** Facet'te olmayan seçili anahtarın sayısı; `undefined` → sayı çizilmez (varsayılan 0). */
+  missingCount?: (key: string) => number | undefined;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
+  const items = withSelected(facetItems, selected ? [selected] : [], labelFor, missingCount);
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || i.key === selected);
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText}</p>;
+  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (
     <>
       {visible.map((i) => (
@@ -234,15 +313,19 @@ export function ShowMoreRadio({
           key={i.key}
           id={`${idPrefix}-${i.key}`}
           label={i.label}
-          icon={i.icon}
+          icon={i.icon ?? iconFor?.(i.key)}
           count={i.count}
           checked={selected === i.key}
           onChange={() => onSelect(i.key)}
+          // Seçili satıra yeniden tıklamak seçimi kaldırır (çağıranın
+          // `onSelect`i aynı anahtarda temizler) — işaretli radyo `change`
+          // üretmediği için eskiden hiçbir şey olmuyordu.
+          onUncheck={() => onSelect(i.key)}
         />
       ))}
       {items.length > SHOW ? (
         <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
+          {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
     </>
@@ -267,21 +350,22 @@ export function FilterChipBar({
   onClearAll: () => void;
   sticky?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   if (chips.length === 0) return null;
   return (
     <div
       className={`${sticky ? "sticky top-20 z-20" : ""} -mx-2 mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white/90 px-2 py-2 text-sm ring-1 ring-zinc-950/5 backdrop-blur`}
     >
-      <span className="text-zinc-500">Süzgeçler:</span>
+      <span className="text-zinc-500">{t("chipsLabel")}</span>
       {chips.map((c) => (
-        <Chip key={c.key} onRemove={c.onRemove} removeLabel={`${c.label} süzgecini kaldır`} className="h-7 text-xs">
+        <Chip key={c.key} onRemove={c.onRemove} removeLabel={t("removeFilter", { label: c.label })} className="h-7 text-xs">
           {c.label}
         </Chip>
       ))}
       <button type="button" onClick={onClearAll} className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
-        Tümünü temizle
+        {t("clearAll")}
       </button>
-      <span className="sr-only">{activeCount} süzgeç aktif</span>
+      <span className="sr-only">{t("activeCount", { n: activeCount })}</span>
     </div>
   );
 }
@@ -329,40 +413,45 @@ export function PriceHistogram({
   data,
   from,
   to,
+  formatPrice,
   onPick,
 }: {
   data: { min: number; max: number; buckets: { from: number; to: number; count: number }[] };
   from?: number;
   to?: number;
+  /**
+   * Tutar + sembol, dilin yazımıyla (sunucu seçilen birimde kovalar). Sembolün
+   * yeri dilden gelir (İngilizcede önde) — `${sayı} ${sembol}` elle yazılmaz.
+   */
+  formatPrice: (n: number) => string;
   onPick: (from: number, to: number) => void;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const peak = Math.max(1, ...data.buckets.map((b) => b.count));
   const selected = (b: { from: number; to: number }) =>
     (from == null || b.to > from) && (to == null || b.from < to);
   const active = from != null || to != null;
   return (
     <div className="mb-2">
-      <div className="flex h-12 items-end gap-px" role="group" aria-label="Fiyat dağılımı">
+      <div className="flex h-12 items-end gap-px" role="group" aria-label={t("histLabel")}>
         {data.buckets.map((b) => (
           <button
             key={b.from}
             type="button"
             onClick={() => onPick(b.from, b.to)}
-            title={`${b.from.toLocaleString("tr-TR")} – ${b.to.toLocaleString("tr-TR")} ₺ · ${b.count} ürün`}
+            title={t("histTitle", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}
             className={`flex-1 rounded-t-sm transition hover:bg-zinc-900 ${
               !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
             }`}
             style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
           >
-            <span className="sr-only">
-              {b.from}-{b.to} ₺ aralığı, {b.count} ürün
-            </span>
+            <span className="sr-only">{t("histSr", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}</span>
           </button>
         ))}
       </div>
       <p className="tnum mt-1 flex justify-between text-[11px] text-zinc-500">
-        <span>{data.min.toLocaleString("tr-TR")} ₺</span>
-        <span>{data.max.toLocaleString("tr-TR")} ₺</span>
+        <span>{formatPrice(data.min)}</span>
+        <span>{formatPrice(data.max)}</span>
       </p>
     </div>
   );

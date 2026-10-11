@@ -7,6 +7,10 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { makeService } from "./make-service";
+import {
+  dateParam,
+  listingTitleParam,
+} from "../../src/common/notifications/notification-params";
 
 function svc() {
   return new NotificationService(prisma as never);
@@ -79,6 +83,56 @@ describe("pushToCompany / pushToCompanies — fan-out", () => {
       body: "Durum değişti",
     });
     expect(count).toBe(1);
+  });
+});
+
+// TİPLİ PARAMETRE (2026-09-27): aynı bildirim her alıcının dilinde — talep
+// başlığı alıcının dilindeki içerik çevirisinden (yoksa kaynak), tarih
+// İstanbul duvar saatiyle ve alıcının biçiminde.
+describe("pushToCompanies — tipli parametreler alıcının dilinde", () => {
+  it("İngilizce üye çevrilmiş başlığı + İngilizce tarihi, Türkçe üye kaynağı görür", async () => {
+    const calls: string[] = [];
+    const translations = {
+      localizeListings: async (
+        items: { title: string }[],
+        ids: string[],
+        locale: string,
+      ) => {
+        calls.push(locale);
+        return items.map((it, i) =>
+          locale === "en" && ids[i] === "l-1" ? { ...it, title: "Steel pipe purchase" } : it,
+        );
+      },
+    };
+    const n = new NotificationService(prisma as never, undefined, translations as never);
+    const co = await makeCompany(prisma, {});
+    const tr = await makeUser(prisma, co.id, [CompanyRole.SATISCI]);
+    const en = await makeUser(prisma, co.id, [CompanyRole.SATISCI], { locale: "en" });
+    const en2 = await makeUser(prisma, co.id, [CompanyRole.SATISCI], { locale: "en" });
+
+    const count = await n.pushToCompany(co.id, {
+      type: "listing_closing_changed",
+      titleKey: "api.notifications.listings.closingChanged.title",
+      bodyKey: "api.notifications.listings.closingChanged.body",
+      params: {
+        title: listingTitleParam("l-1", "Çelik boru alımı"),
+        number: "ROT-000001",
+        direction: "extended",
+        // 21:30 UTC = İstanbul'da ertesi gün 00:30.
+        closesAt: dateParam(new Date("2026-09-27T21:30:00Z"), "dateTime"),
+      },
+    });
+    expect(count).toBe(3);
+    const rows = await prisma.notification.findMany({ where: { companyId: co.id } });
+    const bodyOf = (id: string) => rows.find((r) => r.companyUserId === id)!.body;
+    expect(bodyOf(tr.id)).toContain("Çelik boru alımı");
+    expect(bodyOf(tr.id)).toContain("28 Eylül 2026 00:30");
+    expect(bodyOf(en.id)).toContain("Steel pipe purchase");
+    expect(bodyOf(en.id)).toContain("September 28, 2026");
+    expect(bodyOf(en.id)).toContain("(GMT+3)");
+    expect(bodyOf(en2.id)).toBe(bodyOf(en.id));
+    // Başlık dil başına BİR kez okunur (iki İngilizce üye → tek sorgu).
+    expect(calls.sort()).toEqual(["en", "tr"]);
   });
 });
 

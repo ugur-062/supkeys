@@ -7,7 +7,11 @@ import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-c
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompany } from "./factories";
+import { makeCompany as makeCompanyBase } from "./factories";
+
+/** D-166: doğrulama yolları kurulumu (onboarding) bitmiş firma ister. */
+const makeCompany: typeof makeCompanyBase = (p, over = {}) =>
+  makeCompanyBase(p, { onboardingCompletedAt: new Date(), ...over });
 
 function storageMock() {
   return {
@@ -27,6 +31,8 @@ function storageMock() {
       size: 1024,
       contentType: "application/pdf",
     })),
+    // D-014: commit içerik imzasını (ilk baytlar) da denetler.
+    readObjectPrefix: jest.fn(async () => Buffer.from("%PDF-1.7\n%")),
   };
 }
 
@@ -66,6 +72,8 @@ async function pendingCompany() {
     docActivityCertUrl: "company-docs/x/act.pdf",
     docIdFrontUrl: "company-docs/x/idf.pdf",
     docIdBackUrl: "company-docs/x/idb.pdf",
+    // SWIFT doğrulamada her ülkede zorunlu (2026-09-27) — admin onay kapısı da ister.
+    bankSwiftBic: "TGBATRIS",
   });
 }
 
@@ -128,6 +136,62 @@ describe("belge bazlı KYC inceleme", () => {
     ).rejects.toThrow(/gerekçe/i);
   });
 
+  it("KODLU GEREKÇE (2026-09-27): kod + not '[KOD] not' olarak, yalnız kod '[KOD]' olarak saklanır", async () => {
+    const admin = adminService();
+    const co = await pendingCompany();
+    await admin.reviewDocuments(
+      co.id,
+      {
+        ...ALL_APPROVED,
+        taxPlate: { status: "REJECTED", reasonCode: "OUTDATED", reason: "2023 tarihli" },
+        idBack: { status: "REJECTED", reasonCode: "UNREADABLE" },
+      },
+      "adm1",
+    );
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docTaxPlateReason).toBe("[OUTDATED] 2023 tarihli");
+    expect(c.docIdBackReason).toBe("[UNREADABLE]");
+    expect(c.companyVerificationStatus).toBe("REJECTED");
+  });
+
+  it("admin detayı: son VIES kaydı audit'ten, yetkili kimliği maskeli, hukuki yapı + adres alanları", async () => {
+    const admin = adminService();
+    const co = await makeCompany(prisma, {
+      country: "DE",
+      companyType: "OTHER",
+      legalFormLocal: "GmbH",
+      postalCode: "80331",
+      authorizedTckn: "C01X2Y3Z489",
+    });
+    await prisma.auditLog.createMany({
+      data: [
+        {
+          actorType: "company",
+          action: "company.vies_checked",
+          entityType: "company",
+          entityId: co.id,
+          metadata: { countryCode: "DE", vatNumber: "811569869", valid: false, unavailable: true, name: null, address: null, source: "manual" },
+          createdAt: new Date("2026-09-27T09:00:00Z"),
+        },
+        {
+          actorType: "system",
+          action: "company.vies_checked",
+          entityType: "company",
+          entityId: co.id,
+          metadata: { countryCode: "DE", vatNumber: "811569869", valid: true, unavailable: false, name: "MUSTER GMBH", address: null, source: "onboarding" },
+          createdAt: new Date("2026-09-27T10:00:00Z"),
+        },
+      ],
+    });
+    const d = await admin.detail(co.id);
+    expect(d.vies).toMatchObject({ valid: true, unavailable: false, name: "MUSTER GMBH", source: "onboarding" });
+    expect(d.viesSupported).toBe(true);
+    expect(d.companyType).toBe("OTHER");
+    expect(d.legalFormLocal).toBe("GmbH");
+    expect(d.postalCode).toBe("80331");
+    expect(d.authorizedTckn).toBe("C01******89");
+  });
+
   it("KİLİT: REJECTED durumda reddedilen belge yeniden yüklenebilir → PENDING", async () => {
     const admin = adminService();
     const docs = docsService();
@@ -160,6 +224,15 @@ describe("belge bazlı KYC inceleme", () => {
     ).rejects.toThrow(/onaylandı|değiştirilemez/i);
   });
 
+  it("prototip anahtarı ('constructor'/'toString') belge türü sayılmaz: 400 (derin denetim LU-07)", async () => {
+    const docs = docsService();
+    const co = await pendingCompany();
+    for (const kind of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      await expect(docs.commit(co.id, kind, `company-docs/${co.id}/x.pdf`)).rejects.toMatchObject({ status: 400 });
+      await expect(docs.uploadUrl(co.id, kind, "x.pdf", "application/pdf")).rejects.toMatchObject({ status: 400 });
+    }
+  });
+
   it("KİLİT: PENDING (inceleme sürerken) belge değiştirilemez", async () => {
     const docs = docsService();
     const co = await pendingCompany();
@@ -186,6 +259,7 @@ describe("belge bazlı KYC inceleme", () => {
       tradeRegistryNo: "123456",
       iban: "TR330006100519786457841326",
       ibanHolder: "Firma A.Ş.",
+      bankSwiftBic: "TGBATRIS",
     });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
     expect(c.companyVerificationStatus).toBe("PENDING");
@@ -235,6 +309,7 @@ describe("KYC belge — audit izi (INV-AUDIT-1)", () => {
         tradeRegistryNo: "123456",
         iban: RAW_IBAN,
         ibanHolder: "Firma A.Ş.",
+      bankSwiftBic: "TGBATRIS",
       },
       actor,
     );

@@ -95,6 +95,10 @@ describe("İngiliz usulü — fiyat monotonluğu", () => {
     await expect(
       service.placeBid(seller.auth, l.id, { amount: 600, ...bidBase } as never),
     ).rejects.toThrow(/önceki teklifinizin/);
+    // Tutar tek `{amount}` — sembolün yeri dilden (tr sonda); eski "{fmt} {bidSym}" değil.
+    await expect(
+      service.placeBid(seller.auth, l.id, { amount: 600, ...bidBase } as never),
+    ).rejects.toThrow(/\(500,00 ₺\)/);
   });
 });
 
@@ -214,6 +218,13 @@ describe("create/update iş kuralı doğrulamaları", () => {
         baseDto({ isInternational: true, targetCountries: ["XX"] }) as never,
       ),
     ).rejects.toThrow(/Geçersiz hedef ülke/);
+    // Kayda kapalı ülke (ABD, İran…) hedeflenemez — sessizce süzülmez (X24).
+    await expect(
+      service.create(buyer.auth, baseDto({ targetCountries: ["DE", "US"] }) as never),
+    ).rejects.toThrow(/Kayda kapalı ülke hedeflenemez: US/);
+    await expect(
+      service.create(buyer.auth, baseDto({ targetCountries: ["IR"] }) as never),
+    ).rejects.toMatchObject({ response: { code: "TARGET_COUNTRY_BLOCKED" } });
     await expect(
       service.create(
         buyer.auth,
@@ -286,7 +297,7 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
     expect(bid.status).toBe("SUBMITTED");
   });
 
-  it("ücretsiz (STANDART) bağsız izleyici PUBLIC talebi HİÇ açamaz — 403 TIER_REQUIRED (maskeli teaser kalktı, 2026-09-06)", async () => {
+  it("ücretsiz (STANDART) bağsız izleyici PUBLIC talebin TAM detayını açamaz — 403 TIER_REQUIRED (alıcı gizli görünüm ayrı uçta: maskedPublicTender, 2026-10-03)", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {

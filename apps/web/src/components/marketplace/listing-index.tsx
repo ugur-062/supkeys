@@ -1,3 +1,4 @@
+import { getLocale, getTranslations } from "next-intl/server";
 import { ListingFilterShell } from "./list-filter-shells";
 import { FilterResults, MobileFilterButton, ResultCount } from "./filter-shell";
 import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-filters";
@@ -6,19 +7,22 @@ import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { Pagination } from "@/components/ui/pagination";
 import {
   activeListingFilterCount,
   buildListingFilterQuery,
+  LISTING_PAGE_LIMIT,
   parseListingFilters,
   toListingListParams,
 } from "@/lib/public/listing-filter-params";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, listingPath, type PublicListingType } from "@/lib/public/marketplace";
+import { canonicalListingListPage } from "@/lib/seo/landing";
+import { pageQuery } from "@/lib/seo/meta";
+import { MARKETPLACE_ROUTES, listingHref, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
-import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
+import { pastEndLastPage, type SearchParamsLike } from "@/lib/public/filter-param-utils";
 
 /**
  * ALIM TALEBİ DİZİNİ — süzgeç v4 (PROMPT 4, 2026-09-06): ürün dizinindeki
@@ -34,29 +38,43 @@ interface Props {
 }
 
 export async function ListingIndex({ title, lead, searchParams }: Props) {
+  const t = await getTranslations("web.marketplace.index");
+  const te = await getTranslations("web.marketplace.empty");
+  const locale = await getLocale();
   const state = parseListingFilters(searchParams);
   const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
-  const noun = MARKETPLACE_LABELS.demandOne;
 
+  // Dinamik çizim (sayfa `searchParams` okuyor): önbelleği ıskalayan çağrı API'de
+  // ziyaretçi başına SSR kovasına sayılsın (derin denetim MU-12/RM-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor();
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
-    fetchFacets({ q: params.q, category: params.category, city: params.city, country: params.country, closesWithin: params.closesWithin }),
+    fetchFacets({ q: params.q, category: params.category, buyerCountry: params.buyerCountry, country: params.country, closesWithin: params.closesWithin }),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "listings"),
   ]);
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
+  // Son sayfanın ötesi: "bulunamadı" değil, son sayfaya bağlantı (arayüz testi webA-05).
+  // Sayfa ayrıştırmada uç tavanına (200) kırpılır; tavanın da ötesindeyse
+  // bağlantı tavana gider (arayüz testi son tur webA-2).
+  const lastPage = pastEndLastPage(
+    { itemCount: page.items.length, total: page.total, page: page.page, pageSize: page.pageSize },
+    LISTING_PAGE_LIMIT,
+  );
 
   /* ITEMLIST — liste sayfasının ne listelediğini söyler; başlıklar zaten
-     herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır. */
+     herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır;
+     yalnız `?sayfa=N` taşıyan sayfanın adresi kendisi (metadaki kanonikle aynı). */
   const listLd = graph([
     itemListNode({
+      locale,
       name: title,
-      path: basePath,
+      path: `${basePath}${pageQuery(canonicalListingListPage(searchParams))}`,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
-      items: page.items.map((l) => ({ name: l.title, path: listingPath(l.number, l.title) })),
+      items: page.items.map((l) => ({ name: l.title, path: listingHref(l) })),
     }),
   ]);
 
@@ -75,12 +93,14 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
           defaultValue: state.q,
           hidden: {
             kategori: state.category,
-            sehir: state.cities.join(",") || undefined,
+            aliciUlke: state.buyerCountries.join(",") || undefined,
             ulke: state.country,
             sure: state.within,
             sirala: state.sort,
+            // Arşiv görünümü (`durum=hepsi`) yeni aramada korunur (arayüz testi D-060).
+            durum: state.state,
           },
-          placeholder: "Talep başlığı, kalem veya kategori arayın",
+          placeholder: t("listingPlaceholder"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -90,7 +110,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun={noun.toLocaleLowerCase("tr-TR")} />
+              <ResultCount kind="buyingRequest" />
             </span>
             <ListingSortBar />
           </span>
@@ -102,14 +122,19 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
               fotoğrafı" yanılgısı üretiyordu. Anasayfayla ve satış panelindeki
               Açık Talepler'le AYNI satır (`ListingTeaserRow` →
               `ListingCard variant="row"`, kind "talep" → asla görsel). */}
-          {page.items.length === 0 ? (
+          {lastPage != null ? (
             <PublicEmptyState
-              noun={hasFilter ? "Bu kriterlerle açık talep" : "Açık talep"}
+              title={te("pageEmpty")}
+              extra={{ label: te("lastPage"), href: `${basePath}${buildListingFilterQuery({ ...state, page: lastPage })}` }}
+            />
+          ) : page.items.length === 0 ? (
+            <PublicEmptyState
+              title={hasFilter ? t("listingEmptyFilteredTitle") : t("listingEmptyTitle")}
               clearHref={hasFilter ? basePath : undefined}
-              extra={{ label: "Talep aç", href: signupHref("talep") }}
+              openRequest={{ label: t("openRequest") }}
             />
           ) : (
-            <ResultGrid count={page.items.length} heading="Talep sonuçları" layout="list">
+            <ResultGrid count={page.items.length} heading={t("listingResults")} layout="list">
               {page.items.map((l) => (
                 <ListingTeaserRow key={l.number} listing={l} />
               ))}
@@ -118,7 +143,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
         </FilterResults>
         <Pagination
           page={page.page}
-          total={page.total}
+          total={Math.min(page.total, LISTING_PAGE_LIMIT * page.pageSize)}
           pageSize={page.pageSize}
           className="mt-10 border-t border-zinc-950/5 pt-6"
           hrefBuilder={(p) => `${basePath}${buildListingFilterQuery({ ...state, page: p })}`}

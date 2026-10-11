@@ -1,107 +1,134 @@
 /**
- * Panel metinleri — TEK modül. Projede i18n altyapısı henüz yok (next-intl
- * greenfield, ayrı iş); tüm panel metinleri burada toplanır ki i18n geçişinde
- * tek noktadan taşınsın. Bileşen içine serbest metin YAZMA.
+ * AKSİYON MERKEZİ SATIR HARİTASI — backend `ActionCenterService` satır
+ * anahtarlarıyla BİREBİR. (Satırın tamamı tıklanabilir; ayrı CTA etiketi
+ * kaldırıldı, 2026-08-03.)
+ *
+ * i18n Faz 2: cümle KATALOGDA (`web.panel.shell.actionRows.<portal>.<anahtar>`),
+ * burada yalnız anahtar + hedef rota var; metni çizen bileşen `t(textKey)` ile
+ * basar (Şirketim › Bekleyen İşler ve eski Aksiyon Merkezi AYNI haritayı okur).
+ * Haritada olmayan satır anahtarı ÇİZİLMEZ (bilinmeyen backend anahtarı
+ * kullanıcıya ham görünmesin).
+ *
+ * Hedef = satırın kümesine SÜZÜLMÜŞ liste (arayüz testi O-035): listeler
+ * `?status=` (virgüllü çoklu) okur; durum kümesi `ActionCenterService`'teki
+ * satır süzgeciyle aynı. Gecikme/kapanış yaklaşan gibi türetilmiş kümeler
+ * kendi parametresiyle süzülür (`?due=overdue`, `?payment=overdue|open`,
+ * `?closing=nobids|soon`, `?ai=1` — tanımlar `derived-filters.ts`'te, backend
+ * satırıyla birebir).
  */
-import { numberPossessive } from "@/lib/turkish";
-
-export const DASH = {
-  // Zaman tasarrufu şeridi/bölümü/kriter penceresi metinleri KALDIRILDI
-  // (2026-09-10, kullanıcı kararı: Şirketim'de gerek yok). API ucu duruyor.
-  heroWinTitle: (pct: string) => `%${pct} kazanma oranı`,
-  heroWinSupport: (won: number, total: number) =>
-    `karara bağlanan ${total} teklifin ${won}${numberPossessive(won)} kazandı`,
-  heroWinEmptyTitle: "Kazanma oranınız burada görünecek",
-  heroWinEmptyBody:
-    "Açık satın alma taleplerine teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
-  heroWinEmptyCta: "Açık Taleplere Göz At",
-  quarterCostNote:
-    "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
-  actionTitle: "Bekleyen İşler",
-  actionEmpty: "Bekleyen bir işiniz yok.",
-  actionShowAll: (n: number) => `Tümünü gör (${n})`,
-  actionShowLess: "Daha az göster",
-} as const;
-
-/** Aksiyon Merkezi satır metin haritası — anahtarlar backend
- * ActionCenterService satır key'leriyle birebir. (Satırın tamamı
- * tıklanabilir; ayrı CTA etiketi kaldırıldı, 2026-08-03.) */
 export const ACTION_ROWS: Record<
   "satinalma" | "satis",
-  Record<string, { text: string; href: string }>
+  Record<string, { textKey: string; href: string }>
 > = {
   satinalma: {
     overduePayments: {
-      text: "siparişin ödemesi gecikti",
-      href: "/company/satinalma/siparisler",
+      textKey: "satinalma.overduePayments",
+      href: "/company/satinalma/siparisler?payment=overdue",
     },
     overdueDeliveries: {
-      text: "siparişin teslim tarihi geçti",
-      href: "/company/satinalma/siparisler",
+      textKey: "satinalma.overdueDeliveries",
+      href: "/company/satinalma/siparisler?due=overdue",
     },
     zeroBidClosingSoon: {
-      text: "satın alma talebiniz teklifsiz kapanmak üzere",
-      href: "/company/satinalma/taleplerim",
+      textKey: "satinalma.zeroBidClosingSoon",
+      href: "/company/satinalma/taleplerim?closing=nobids",
     },
     closingSoon: {
-      text: "satın alma talebiniz kapanmak üzere",
-      href: "/company/satinalma/taleplerim",
+      textKey: "satinalma.closingSoon",
+      href: "/company/satinalma/taleplerim?closing=soon",
+    },
+    aiSuggestions: {
+      textKey: "satinalma.aiSuggestions",
+      href: "/company/satinalma/taleplerim?status=OPEN&ai=1",
     },
     awaitingDecision: {
-      text: "satın alma talebinizde karar bekleyen teklif var",
-      href: "/company/satinalma/taleplerim",
+      textKey: "satinalma.awaitingDecision",
+      href: "/company/satinalma/taleplerim?status=OPEN,IN_AWARD",
     },
     pendingApprovals: {
-      text: "kazandırma onay bekliyor",
+      textKey: "satinalma.pendingApprovals",
       href: "/company/onaylar",
     },
     sellerApproval: {
-      text: "sipariş satıcı onayında",
-      href: "/company/satinalma/siparisler",
+      textKey: "satinalma.sellerApproval",
+      href: "/company/satinalma/siparisler?status=PENDING",
     },
     receiveOrders: {
-      text: "sipariş teslim almanızı bekliyor",
-      href: "/company/satinalma/siparisler",
+      textKey: "satinalma.receiveOrders",
+      href: "/company/satinalma/siparisler?status=IN_DELIVERY",
     },
     paymentWindow: {
-      text: "siparişin ödemesi bekleniyor",
-      href: "/company/satinalma/siparisler",
+      textKey: "satinalma.paymentWindow",
+      href: "/company/satinalma/siparisler?payment=open",
     },
     messages: {
-      text: "okunmamış mesajınız var",
+      textKey: "satinalma.messages",
       href: "/company/mesajlar",
     },
   },
   satis: {
     overdueDeliveries: {
-      text: "siparişin teslim tarihi geçti",
-      href: "/company/satis/siparisler",
+      textKey: "satis.overdueDeliveries",
+      href: "/company/satis/siparisler?due=overdue",
     },
     unansweredInvites: {
-      text: "davete henüz teklif vermediniz",
+      textKey: "satis.unansweredInvites",
       href: "/company/satis#acik-talepler",
     },
     expiringBids: {
-      text: "teklifinizin geçerliliği dolmak üzere",
-      href: "/company/satis/tekliflerim",
+      textKey: "satis.expiringBids",
+      href: "/company/satis/tekliflerim?pending=1",
     },
     pendingOrders: {
-      text: "sipariş onayınızı bekliyor",
-      href: "/company/satis/siparisler",
+      textKey: "satis.pendingOrders",
+      href: "/company/satis/siparisler?status=PENDING",
     },
     // Ürünlerime gelen, henüz yanıtlanmamış sorular — karşıda bir alıcı
     // bekliyor (uç: action-center `unansweredInquiries`).
     unansweredInquiries: {
-      text: "bilgi talebi yanıtınızı bekliyor",
+      textKey: "satis.unansweredInquiries",
       href: "/company/satis/bilgi-talepleri",
     },
     paymentWindow: {
-      text: "siparişin ödemesi bekleniyor",
-      href: "/company/satis/siparisler",
+      textKey: "satis.paymentWindow",
+      href: "/company/satis/siparisler?status=DELIVERED",
     },
     messages: {
-      text: "okunmamış mesajınız var",
+      textKey: "satis.messages",
       href: "/company/mesajlar",
     },
   },
 };
+
+/**
+ * Alış siparişi listesinin KPI hedefleri — sayımla AYNI durum kümesi
+ * (liste `?status=` virgüllü okur).
+ * - delivered: "Teslim Aldım" siparişi doğrudan COMPLETED yapar; huni, vade
+ *   ve nakit takvimi DELIVERED + COMPLETED'i birlikte sayar (arayüz testi
+ *   O-032; eskiden yalnız DELIVERED → "0 sipariş").
+ * - ongoing: `CompanyDashboardService.satinalma().ongoingOrders` (O-035).
+ */
+export const BUYER_ORDER_HREF = {
+  delivered: "/company/satinalma/siparisler?status=DELIVERED,COMPLETED",
+  ongoing: "/company/satinalma/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED",
+} as const;
+
+/**
+ * Satış siparişi listesinin KPI hedefi — "Aktif Sipariş" sayısıyla AYNI küme
+ * (`kpi-selectors.ts` `ORDER_ACTIVE`; listede seçilemeyen eski CREATED
+ * dışarıda kalır). Eskiden süzgeçsiz listeye gidiyordu (O-035).
+ */
+export const SELLER_ORDER_HREF = {
+  active: "/company/satis/siparisler?status=PENDING,ACCEPTED,IN_DELIVERY,DELIVERED",
+} as const;
+
+/**
+ * Taleplerim KPI hedefleri. "Gelen Teklifler" teklif SAYAR, hedefi teklif
+ * gelmiş açık talepler (`?status=OPEN&bids=1`) — "Açık Taleplerim"den ayrı
+ * küme (O-035; eskiden ikisi aynı adresteydi).
+ */
+export const BUYER_TENDER_HREF = {
+  open: "/company/satinalma/taleplerim?status=OPEN",
+  bidsReceived: "/company/satinalma/taleplerim?status=OPEN&bids=1",
+  awarded: "/company/satinalma/taleplerim?status=AWARDED",
+} as const;

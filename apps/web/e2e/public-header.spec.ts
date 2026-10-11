@@ -37,14 +37,15 @@ test.describe("herkese açık üst çubuk", () => {
   test.describe("masaüstü yerleşimi", () => {
     test.use({ viewport: { width: 1280, height: 720 } });
 
-    test("logonun yanında beş menü satırı, sağda giriş/kayıt", async ({ page }) => {
+    test("logonun yanında dört menü satırı, sağda giriş/kayıt", async ({ page }) => {
       await page.goto("/urunler");
       const header = page.locator("header").first();
       await expect(header.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
       await expect(header.getByRole("link", { name: "Firmalar", exact: true })).toBeVisible();
       await expect(header.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
       await expect(header.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
-      await expect(header.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
+      // Ücretsiz dönem (2026-10-07): fiyatlar bölümü ve menü satırı kalktı.
+      await expect(header.getByRole("link", { name: "Fiyatlar" })).toHaveCount(0);
       await expect(header.getByRole("link", { name: "Giriş Yap" })).toBeVisible();
       await expect(header.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();
     });
@@ -71,7 +72,7 @@ test.describe("herkese açık üst çubuk", () => {
     await expect(sheet.getByRole("link", { name: "Ürünler", exact: true })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Alım Talepleri" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Nasıl Çalışır" })).toBeVisible();
-    await expect(sheet.getByRole("link", { name: "Fiyatlar" })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Fiyatlar" })).toHaveCount(0);
     await expect(sheet.getByRole("link", { name: "Ücretsiz Kaydol" })).toBeVisible();
   });
 });

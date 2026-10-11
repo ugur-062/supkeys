@@ -1,6 +1,8 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { useEffect, useRef, useState } from "react";
+import { formatNumber } from "@/i18n/format";
 
 /**
  * Sayı animasyonu — görünüme girince 0'dan hedefe (600 ms, ease-out).
@@ -8,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
  * gelmezse de doğru sayı görünür (animasyon süs, içerik değil).
  */
 export function CountUp({ value, className }: { value: number; className?: string }) {
+  const locale = useLocale();
   const ref = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState(value);
   const started = useRef(false);
@@ -40,7 +43,7 @@ export function CountUp({ value, className }: { value: number; className?: strin
 
   return (
     <span ref={ref} className={className}>
-      {shown.toLocaleString("tr-TR")}
+      {formatNumber(shown, locale)}
     </span>
   );
 }

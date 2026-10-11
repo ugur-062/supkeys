@@ -1,8 +1,10 @@
+import { useLocale, useTranslations } from "next-intl";
+import { anchorId } from "@/lib/public/anchors";
 import { CategoryTile } from "./category-tile";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * "KATEGORİYE GÖRE KEŞFET" — fotoğraf kartları (2026-09-04, akşam).
@@ -18,25 +20,24 @@ import Link from "next/link";
  * parçası, gerekçe CLAUDE.md § Ürün dizini.
  */
 export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] }) {
+  const t = useTranslations("web.marketplace.categoryGrid");
+  const locale = useLocale();
   if (categories.length === 0) return null;
 
   return (
-    <section id="kategoriler" className="mx-auto max-w-7xl scroll-mt-24 px-6 py-16 lg:px-8">
+    <section id={anchorId("categories", locale)} className="mx-auto max-w-7xl scroll-mt-24 px-6 py-16 lg:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-            Kategoriye göre keşfet
+            {t("title")}
           </h2>
-          <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
-            Ürünler ve alım talepleri 58 üst kategori altında sınıflandırılır.
-            Aradığınız dalı seçin.
-          </p>
+          <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">{t("lead")}</p>
         </div>
         <Link
           href="/urunler"
           className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 transition hover:text-zinc-600"
         >
-          Tüm kategoriler
+          {t("all")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       </div>
@@ -46,7 +47,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
           <li key={c.id}>
             <CategoryTile
               category={c}
-              href={categoryPath(c.id, c.name)}
+              href={categoryHref(c)}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           </li>

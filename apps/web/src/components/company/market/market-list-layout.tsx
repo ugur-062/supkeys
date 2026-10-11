@@ -1,6 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { FilterResults, MobileFilterButton, useFilters } from "@/components/marketplace/filter-shell";
+import { ErrorState } from "@/components/ui/error-state";
 import { Pagination } from "@/components/ui/pagination";
 import { PER_PAGE_OPTIONS, type PerPage } from "@/lib/public/product-filter-params";
 import type { ReactNode } from "react";
@@ -53,10 +55,12 @@ export function MarketListLayout({
   onPerPage?: (n: PerPage) => void;
   perPage?: PerPage;
 }) {
+  const t = useTranslations("web.panel.market.marketListLayout");
+  const showPerPage = onPerPage != null && perPage != null && total > PER_PAGE_OPTIONS[0];
   return (
     <div className="grid grid-cols-1 gap-8 xl:grid-cols-[16rem_1fr]">
       <aside
-        aria-label="Süzgeçler"
+        aria-label={t("suzgecler")}
         className="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100svh-6rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1 [scrollbar-width:thin]"
       >
         {rail}
@@ -70,10 +74,13 @@ export function MarketListLayout({
           {toolbarEnd}
         </div>
         <FilterResults>{children}</FilterResults>
-        {total > pageSize ? (
+        {/* Seçici sayfalamadan BAĞIMSIZ: büyük boyut seçilince sonuçlar tek
+            sayfaya sığıp sayfalama kaybolsa da küçük boyuta dönüş yolu kalır
+            (eskiden ikisi birlikte `total > pageSize` iken çiziliyordu). */}
+        {total > pageSize || showPerPage ? (
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-200 pt-6">
-            <Pagination page={page} total={total} pageSize={pageSize} onChange={onPage} />
-            {onPerPage && perPage != null ? <PerPageSelect value={perPage} onChange={onPerPage} /> : null}
+            {total > pageSize ? <Pagination page={page} total={total} pageSize={pageSize} onChange={onPage} /> : null}
+            {showPerPage ? <PerPageSelect value={perPage} onChange={onPerPage} /> : null}
           </div>
         ) : null}
       </div>
@@ -81,11 +88,32 @@ export function MarketListLayout({
   );
 }
 
+/**
+ * SÜZGEÇ RAYININ VERİSİZ HÂLİ — sayaç isteği henüz yanıtlanmadıysa "yükleniyor",
+ * düştüyse nedenini söyler ve yeniden denetir. Eskiden kesintide ray sonsuza
+ * dek "Süzgeçler yükleniyor…"da kalıyordu (canlı doğrulama 2026-10-09, OUTR-3).
+ */
+export function MarketFiltersPlaceholder({
+  failed,
+  onRetry,
+  loadingLabel,
+}: {
+  /** Sayaç isteği düştü ve gösterilecek eski veri de yok. */
+  failed: boolean;
+  onRetry: () => void;
+  loadingLabel: string;
+}) {
+  const t = useTranslations("web.panel.market.marketListLayout");
+  if (!failed) return <p className="text-sm text-zinc-500">{loadingLabel}</p>;
+  return <ErrorState compact message={t("suzgeclerYuklenemedi")} onRetry={onRetry} />;
+}
+
 /** "Sayfa başına" — URL'de `adet`; nötr kontrol (birincil eylem rengi DEĞİL). */
 function PerPageSelect({ value, onChange }: { value: PerPage; onChange: (n: PerPage) => void }) {
+  const t = useTranslations("web.panel.market.marketListLayout");
   return (
-    <label className="flex items-center gap-2 text-xs text-zinc-500">
-      Sayfa başına
+    <label className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+      {t("sayfaBasina")}
       <select
         value={value}
         onChange={(e) => onChange(Number(e.target.value) as PerPage)}
@@ -177,6 +205,7 @@ export function MarketEmpty({
   title: string;
   action?: ReactNode;
 }) {
+  const t = useTranslations("web.panel.market.marketListLayout");
   const { clear, update, activeCount, state } = useFilters<{ q?: string; page: number }>();
   return (
     <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 px-6 py-12 text-center">
@@ -185,7 +214,7 @@ export function MarketEmpty({
         {action}
         {activeCount > 0 ? (
           <button type="button" onClick={clear} className={SECONDARY}>
-            Filtreleri temizle
+            {t("filtreleriTemizle")}
           </button>
         ) : state.q ? (
           // `clear` aramayı KORUR (görünüm tercihi gibi davranır), bu yüzden
@@ -193,7 +222,7 @@ export function MarketEmpty({
           // farklı iş yaptırmak, hiçbir şey olmuyormuş gibi görünmesine yol
           // açıyordu.
           <button type="button" onClick={() => update({ q: undefined })} className={SECONDARY}>
-            Aramayı kaldır
+            {t("aramayiKaldir")}
           </button>
         ) : null}
       </div>

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PASSWORD, gotoRetry, uiLogin } from "./staging-helpers";
+import { API, PASSWORD, gotoRetry, uiLogin } from "./staging-helpers";
 import { cleanupCompanyByOwnerEmail, closeDb, db } from "./db-helpers";
 import { dogrulamaKodu, kayitFormu, onboarding } from "./signup-flow";
 
@@ -164,19 +164,29 @@ test("canlı: kayıt → çıkış → giriş → ürün → kullanıcı daveti"
    * 4a — KOLTUK SINIRI ÜCRETSİZ PAKETTE GERÇEKTEN KAPATIYOR.
    *
    * Ücretsiz pakette 2 koltuk var ve kurucu ikisini de dolduruyor (satın alma
-   * + satış). Diyalog VARSAYILAN olarak "Satın Almacı" hazır setini işaretli
-   * getiriyor ve o set koltuk tüketiyor → ücretsiz firmanın İLK daveti 400
-   * alır. Bu DOĞRU davranış, canlıda ölçüldü; testte de böyle iddia edilir.
-   * Geçerse (yani sınır kalkarsa) burası kırmızı olmalı.
+   * + satış). MU-13'ten beri diyalog koltuk doluyken VARSAYILAN olarak koltuk
+   * tüketmeyen "Görüntüleyici" setini getiriyor ve hazır set çipleri de koltuk
+   * isteyen tikleri düşürüyor — yani arayüzden 400'e düşülemez. Arayüz
+   * yalnız bir AYNA; asıl kapı backend `assertSeatAvailable`. Bu yüzden:
+   *  · arayüz: varsayılan çip Görüntüleyici + "Kullanıcı hakkı dolu" uyarısı,
+   *  · backend: aynı oturumla koltuk isteyen (Satışçı) davet doğrudan API'ye
+   *    gider → 400 "Koltuk dolu". Kayıt yazmaz; sınır kalkarsa kırmızı olur.
    */
-  const koltukYaniti = page.waitForResponse(davetUcu, { timeout: 45_000 });
-  await gonder.click();
-  const ky = await koltukYaniti;
+  await expect(diyalog.getByRole("button", { name: "Görüntüleyici" }), "koltuk doluyken varsayılan set").toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(diyalog.getByText(/Kullanıcı hakkı dolu/)).toBeVisible();
+  const csrfDeger = (await page.context().cookies()).find((c) => c.name === "rk_csrf")?.value ?? "";
+  expect(csrfDeger, "rk_csrf çerezi").not.toBe("");
+  const ky = await page.request.post(`${API.replace(/\/?$/, "/")}company/users`, {
+    headers: { "X-CSRF-Token": csrfDeger, Origin: new URL(page.url()).origin, "Accept-Language": "tr" },
+    data: { email: DAVETLI, permissions: ["sell:view", "sell:bid:submit", "sell:order:manage"] },
+  });
   expect(ky.status(), "ücretsiz pakette işlem yetkili davet koltuk sınırına takılır").toBe(400);
   expect(await ky.text()).toMatch(/Koltuk dolu/);
 
-  /* 4b — "Görüntüleyici" koltuk TÜKETMEZ → aynı davet geçmeli. */
-  await diyalog.getByRole("button", { name: "Görüntüleyici" }).click();
+  /* 4b — varsayılan "Görüntüleyici" koltuk TÜKETMEZ → tek davet geçmeli. */
   const davetYaniti = page.waitForResponse(davetUcu, { timeout: 45_000 });
   await gonder.click();
   const dy = await davetYaniti;

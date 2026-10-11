@@ -1,8 +1,10 @@
-// Sunucu VE istemci uyumlu: hook yok; `hrefBuilder` sunucu bileşeninden,
-// `onChange` istemci bileşeninden gelir (product-index sunucu, galeri istemci).
+// Sunucu VE istemci uyumlu: tek hook `useTranslations` (next-intl ikisinde de
+// çalışır); `hrefBuilder` sunucu bileşeninden, `onChange` istemci bileşeninden
+// gelir (product-index sunucu, galeri istemci).
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 
 /**
  * 7 YUVALI sayfa aralığı: toplam ≤ 7 → hepsi; aksi hâlde her zaman 7 yuva
@@ -36,6 +38,9 @@ export function Pagination({
   onChange?: (page: number) => void;
   className?: string;
 }) {
+  // Erişilebilir adlar okuyucunun dilinde (herkese açık yüzeyde de çizilir →
+  // `web.shared`, panel ad alanı DEĞİL).
+  const t = useTranslations("web.shared.ui");
   const last = Math.max(1, Math.ceil(total / pageSize));
   if (last <= 1) return null;
   const slots = pageSlots(page, last);
@@ -58,18 +63,18 @@ export function Pagination({
     );
   };
   return (
-    <nav aria-label="Sayfalama" className={cn("flex items-center justify-center gap-1", className)}>
-      {page > 1 ? item(page - 1, <ChevronLeft aria-hidden className="size-4" />, { rel: "prev", ariaLabel: "Önceki sayfa" }) : <span className="size-9" aria-hidden />}
+    <nav aria-label={t("pagination")} className={cn("flex items-center justify-center gap-1", className)}>
+      {page > 1 ? item(page - 1, <ChevronLeft aria-hidden className="size-4" />, { rel: "prev", ariaLabel: t("previousPage") }) : <span className="size-9" aria-hidden />}
       {slots.map((s, i) =>
         s === "…" ? (
           <span key={`e${i}`} aria-hidden className="inline-flex h-9 min-w-9 items-center justify-center text-sm text-zinc-400">
             …
           </span>
         ) : (
-          <span key={s}>{item(s, s, { active: s === page, ariaLabel: `Sayfa ${s}` })}</span>
+          <span key={s}>{item(s, s, { active: s === page, ariaLabel: t("pageN", { n: s }) })}</span>
         ),
       )}
-      {page < last ? item(page + 1, <ChevronRight aria-hidden className="size-4" />, { rel: "next", ariaLabel: "Sonraki sayfa" }) : <span className="size-9" aria-hidden />}
+      {page < last ? item(page + 1, <ChevronRight aria-hidden className="size-4" />, { rel: "next", ariaLabel: t("nextPage") }) : <span className="size-9" aria-hidden />}
     </nav>
   );
 }

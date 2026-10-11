@@ -3,13 +3,18 @@
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format-date";
-import { STATE_LABEL, listingPath, publicState } from "@/lib/public/marketplace";
+import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
-import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
+import { daysUntil } from "@/lib/tenders/seller-state";
+import { useActivityLabel, useClosingUrgency, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
+import { CountryLabel } from "@/components/ui/country-flag";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
-import { companyActivityLabel } from "@rothern/shared";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { usePublicBidAction } from "./listing-bid-cta";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
   open: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -22,22 +27,45 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
  * kararı: "fotoğraf/ikon olmasın, alt alta, giriş yaptıktan sonraki satış
  * anasayfası gibi"). Satış panelindeki `BrowseTenderRow` ile AYNI kart
  * (`ListingCard variant="row"`, kind "talep" → asla görsel) ve aynı sütun
- * kümesi: Alıcı · Kalem · Kapsam · Kapanış · Kategori; sağda "Teklif ver".
+ * kümesi: Alıcı · Kalem · Kapsam · Kapanış · Kategori (görünür kategori
+ * varsa); sağda "Teklif ver".
  *
  * Kapalı zarf kuralı KORUNUR: alıcı adı, kalem adları, hedef fiyat YOK —
- * Alıcı sütunu yalnız faaliyet tipi · şehir + doğrulama rozeti. Panele özgü
+ * Alıcı sütunu yalnız faaliyet tipi · talebin açıldığı ÜLKE (bayrak + ad;
+ * 2026-10-04 kullanıcı kararı "İstanbul yerine Türkiye") + doğrulama rozeti. Panele özgü
  * uygunluk rozetleri (davet/bağlantı/eşleşme) ve genişletme paneli anonimde
  * hesaplanamaz, çizilmez. Teaser KARTI (`ListingTeaserCard`) dizin ve
  * ilan detayında yaşamaya devam eder.
  */
 export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard }) {
-  const href = listingPath(l.number, l.title);
+  const t = useTranslations("web.marketplace.card");
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const ts = useTranslations("web.marketplace.state");
+  const locale = useLocale();
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
+  const closingUrgency = useClosingUrgency();
+  const href = listingHref(l);
   const state = publicState(l.status);
+  // Kalan gün "şimdi"ye bağlı: anasayfa/dizin ISR (revalidate=60) — gece
+  // yarısından önce üretilen HTML sonra servis edilince sunucu ile istemci
+  // bir gün farklı sayar (#418, derin denetim X13). Metin ve renk yalnız
+  // hidrasyondan SONRA; öncesinde aynı yükseklikte görünmez yer tutucu
+  // (`urgency`nin varlığı durum + closesAt'e bağlı, saatten bağımsız).
+  const hydrated = useHydrated();
+  const bid = usePublicBidAction(l.number, t("quote"), signupHref("teklif", PANEL_TARGET.listing(l.number)));
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
-  const who = [activity ? companyActivityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
-  const primary = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
+  const activityText = activity ? activityLabel(activity) : null;
+  // Gizli segmentteki kategori satırda ad, ipucu ya da "+N" sayısı olarak
+  // GÖRÜNMEZ (2026-10-09). Görünür kategorisi kalmayan (ya da hiç kategorisi
+  // olmayan) talepte Kategori hücresi HİÇ çizilmez — etiket + "—" boş bir satır
+  // bırakıyordu (canlı doğrulama PUB-02; 390 px'te kartın tam bir satırı).
+  // Talep sayfasının çip satırıyla aynı kural.
+  const categories = visibleCategoryRefs(l.categories);
+  const primary = categories.find((c) => c.level >= 3) ?? categories[0];
 
   const data: ListingCardData = {
     id: l.number,
@@ -45,55 +73,85 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     number: l.number,
     title: l.title,
     kind: "talep",
-    categoryIds: l.categories.map((c) => c.id),
-    status: { label: STATE_LABEL[state], className: STATE_CLASS[state] },
+    categoryIds: categories.map((c) => c.id),
+    status: { label: ts(state), className: STATE_CLASS[state] },
     strip: state === "open" ? "border-l-emerald-500" : "border-l-slate-400",
     facts: [
       {
-        label: "Alıcı",
+        label: t("buyer"),
+        icon: "company",
         value: (
-          <span className="flex min-w-0 flex-col items-start gap-1">
-            <span className="truncate text-slate-800">{who || "—"}</span>
+          <span className="flex min-w-0 max-w-full flex-col items-start gap-1">
+            {/* ÜLKE ÖNCELİKLİ (son toparlama 2026-10-04): faaliyet ile ülke
+                tek satırda yarışınca EN/RU'da ülke "Tü…"/"Т…"ye kısalıyordu.
+                Artık SARILIR — sığarsa yan yana, sığmazsa ülke alt satıra
+                iner ve tam görünür; yalnız tek başına sütundan uzun metin
+                (`max-w-full` + `truncate`, tam metin `title`da) kısalır. Ayraç
+                yok: bayrak ayraçtır, satır başında "·" sarkmaz. */}
+            <span className="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 text-slate-800">
+              {activityText ? (
+                <span className="min-w-0 max-w-full truncate" title={activityText}>
+                  {activityText}
+                </span>
+              ) : null}
+              {l.company.country ? <CountryLabel code={l.company.country} /> : null}
+              {!activityText && !l.company.country ? "—" : null}
+            </span>
+            {/* Rozet hücreyi AŞMAZ (canlı öncesi son tur 2026-10-05): RU
+                "Проверенный покупатель" 1440 px'te ПОКУПАТЕЛЬ sütunundan
+                taşıyordu. Satırda KISA metin (RU "Проверен"; TR/EN aynı),
+                tam metin `title`da; yine sığmazsa `truncate`. */}
             {l.company.verified ? (
-              <Badge tone="verified" size="sm" icon={false}>
-                Doğrulanmış alıcı
+              <Badge tone="verified" size="sm" icon={false} className="max-w-full" title={t("verifiedBuyer")}>
+                <span className="truncate">{t("verifiedBuyerShort")}</span>
               </Badge>
             ) : null}
           </span>
         ),
       },
       {
-        label: "Kalem",
+        label: t("items"),
+        icon: "items",
         value: (
           <span className="flex flex-col items-start">
-            <span className="flex items-baseline gap-1">
-              <span className="font-semibold tabular-nums text-slate-900">{l.itemSummary.count}</span>
-              <span className="text-[11px] text-slate-500">kalem</span>
+            {/* Dar sütunda sayı ile birim kelimesi ayrı satırlara düşmesin
+                (RU "1 / позиция"; arayüz testi D-082): her parça bölünmez,
+                toplam miktar sığmazsa alt satıra geçer. */}
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span className="whitespace-nowrap">
+                {t.rich("itemsCountRich", {
+                  count: l.itemSummary.count,
+                  n: (c) => <span className="font-semibold tabular-nums text-slate-900">{c}</span>,
+                  u: (c) => <span className="text-[11px] text-slate-500">{c}</span>,
+                })}
+              </span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
-                <span className="ml-1 tabular-nums text-slate-600">
-                  {Number(l.itemSummary.totalQuantity).toLocaleString("tr-TR")} {l.itemSummary.unit}
+                <span className="whitespace-nowrap tabular-nums text-slate-600">
+                  {quantity(l.itemSummary.totalQuantity, l.itemSummary.unit)}
                 </span>
               ) : null}
             </span>
-            <span className="text-[11px] leading-tight text-slate-500">şartname ve belgeler üyelere</span>
+            <span className="text-[11px] leading-tight text-slate-500">{t("specsMembers")}</span>
           </span>
         ),
       },
       {
-        label: "Görünürlük",
+        label: t("visibility"),
+        icon: "scope",
         value: (
           <span className="flex flex-col items-start gap-1">
             <ScopeChip targetCountries={l.targetCountries} />
-            <span className="text-[11px] leading-tight text-slate-500">Kapalı zarf</span>
+            <span className="text-[11px] leading-tight text-slate-500">{t("sealedBid")}</span>
           </span>
         ),
       },
       {
-        label: "Kapanış",
+        label: t("closing"),
+        icon: "closing",
         value: (
-          <span title={formatDate(l.closesAt, "datetime")}>
-            <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
-              {formatDate(l.closesAt, "short") || "—"}
+          <span title={formatDate(l.closesAt, "datetime", locale)}>
+            <span className={cn("font-semibold", hydrated && urgency && days <= 3 ? urgency.className : "text-slate-900")}>
+              {formatDate(l.closesAt, "short", locale) || "—"}
             </span>
             {/* Kalan süre ALT SATIRDA (2026-09-13, kullanıcı kararı): rozet
                 `inline-flex` olduğu için tarihin yanına yapışıyor ve
@@ -104,31 +162,38 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
                 <span
                   className={cn(
                     "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
-                    days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
+                    !hydrated ? "invisible ring-transparent" : days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
                   )}
                 >
-                  {urgency.text}
+                  {hydrated ? urgency.text : "\u00a0"}
                 </span>
               </span>
             ) : null}
           </span>
         ),
       },
-      {
-        label: "Kategori",
-        value: primary ? (
-          <span title={l.categories.map((c) => c.name).join(", ")}>
-            <span className="block truncate font-medium text-slate-700">{primary.name}</span>
-            {l.categories.length > 1 ? (
-              <span className="block text-[11px] leading-tight text-slate-500">+{l.categories.length - 1} kategori</span>
-            ) : null}
-          </span>
-        ) : (
-          <span className="text-slate-500">—</span>
-        ),
-      },
+      ...(primary
+        ? [
+            {
+              label: t("category"),
+              icon: "category" as const,
+              value: (
+                <span title={categories.map((c) => c.name).join(", ")}>
+                  <span className="block truncate font-medium text-slate-700">{primary.name}</span>
+                  {categories.length > 1 ? (
+                    <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: categories.length - 1 })}</span>
+                  ) : null}
+                </span>
+              ),
+            },
+          ]
+        : []),
     ],
-    action: state === "open" ? { label: "Teklif ver", href: signupHref("teklif", href) } : null,
+    // Dönüş PANEL karşılığına (arayüz testi O-113): herkese açık talep sayfası
+    // aynı kayıt düğmesini yeniden gösteriyordu; girişli kullanıcıyı kayıt
+    // sayfası bu adrese geçirir.
+    // Oturumlu üyede paket kapısı önceden söylenir (Silver değil → "· Silver").
+    action: state === "open" && bid ? { label: bid.label, href: bid.href } : null,
   };
 
   return <ListingCard variant="row" data={data} />;

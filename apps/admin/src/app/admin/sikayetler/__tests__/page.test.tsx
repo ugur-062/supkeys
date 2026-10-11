@@ -65,6 +65,22 @@ describe("SikayetlerView — rol kapısı (canAdminDo resolveComplaint)", () => 
     render(<AdminSikayetlerPage />);
     expect(screen.getByRole("button", { name: "Çöz" })).toBeInTheDocument();
   });
+
+  it("SUPPORT: firma adları 403 veren firma detayına bağlantı DEĞİL (karar T-09)", () => {
+    h.admin = { role: "SUPPORT" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.getByText("Şikayetçi A.Ş.").closest("a")).toBeNull();
+    expect(screen.getByText("Hakkında Ltd.").closest("a")).toBeNull();
+  });
+
+  it("SALES: firma adları firma detayına bağlantı", () => {
+    h.admin = { role: "SALES" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.getByText("Hakkında Ltd.").closest("a")).toHaveAttribute(
+      "href",
+      "/admin/firmalar/c2?tab=sikayetler",
+    );
+  });
 });
 
 describe("SikayetlerView — durum tablosu", () => {
@@ -145,5 +161,63 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
       },
       expect.anything(),
     );
+  });
+
+  /**
+   * Derin denetim MU-02: yönetici notu İÇ nottur; askıya alınan firmaya giden
+   * gerekçe ayrı alandan `suspendReason` olarak gider.
+   */
+  it("Çöz & Askıya Al → iç not ile firmaya giden askı gerekçesi ayrı gönderilir", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    await user.click(screen.getByRole("button", { name: "Çöz & Askıya Al" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(screen.getByLabelText(/Yönetici notu/), "şikayetçi X, iç inceleme");
+    await user.type(screen.getByLabelText(/Askı gerekçesi/), "Tekrarlanan ihlal");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Çöz & Askıya Al" }),
+    );
+    expect(h.resolveMutate).toHaveBeenCalledWith(
+      {
+        id: "k1",
+        status: "RESOLVED",
+        adminNote: "şikayetçi X, iç inceleme",
+        suspend: true,
+        suspendReason: "Tekrarlanan ihlal",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("askısız Çöz'de askı gerekçesi alanı görünmez", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    await user.click(screen.getByRole("button", { name: "Çöz" }));
+    await screen.findByRole("dialog");
+    expect(screen.queryByLabelText(/Askı gerekçesi/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Şikayetler — süzgeç ve hücre düzeni (arayüz testi D-214, O-125)", () => {
+  it("durum süzgeci varsayılanda (Açık) koyu değil, başka değerde koyu", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    const select = screen.getByRole("combobox", { name: "Durum" });
+    expect(select.parentElement!.className).not.toContain("bg-zinc-900");
+    await user.selectOptions(select, "");
+    expect(select.parentElement!.className).toContain("bg-zinc-900");
+  });
+
+  it("uzun konu hücresi sarılır (tablonun nowrap'ını ezer)", () => {
+    const long = "Uzun konu ".repeat(12).trim();
+    h.complaints = {
+      data: { items: [complaint({ reason: long })], total: 1, page: 1, pageSize: 25 },
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminSikayetlerPage />);
+    const cell = screen.getByText(long).closest("td")!;
+    expect(cell.className).toContain("whitespace-normal");
+    expect(cell.className).toContain("break-words");
   });
 });

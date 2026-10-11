@@ -191,7 +191,8 @@ export const OWNER_IMPLICIT_PERMISSIONS: readonly string[] = [
 /**
  * İzin listesini kanonik hâle getirir: eski anahtar → yeni, bilinmeyen düşer,
  * sahibe-özel düşer (yalnız isOwner verir), işlem izni grubun görüntülemesini
- * ekler (yönetemediğini görebilmeli), sıra katalog sırası.
+ * ekler (yönetemediğini görebilmeli), Şablonlar/Bağlantılar portal
+ * görüntülemesini ekler, sıra katalog sırası.
  */
 export function normalizePermissions(input: readonly string[]): string[] {
   const set = new Set<string>();
@@ -203,6 +204,15 @@ export function normalizePermissions(input: readonly string[]): string[] {
   }
   if (BUY_SEAT_PERMISSIONS.some((k) => set.has(k))) set.add("buy:view");
   if (SELL_SEAT_PERMISSIONS.some((k) => set.has(k))) set.add("sell:view");
+  // Yönetim tikleri de çalıştıkları portalın görüntülemesini getirir (arayüz
+  // testi T3): tek başına verilen "Şablonlar" ya da "Bağlantılar" hiçbir
+  // sayfayı açmıyor, yalnız doğrudan API çağrısıyla kullanılabiliyordu.
+  //  · Şablonlar yalnız satınalma portalında → buy:view.
+  //  · Bağlantılar iki portalda da var; kişide hiçbir görüntüleme yoksa satış
+  //    tarafı (Müşterilerim her pakette açık; satınalma portalı Gold ister).
+  if (set.has("templates:manage")) set.add("buy:view");
+  if (set.has("connections:manage") && !set.has("buy:view") && !set.has("sell:view"))
+    set.add("sell:view");
   return ALL_COMPANY_PERMISSIONS.filter((k) => set.has(k));
 }
 

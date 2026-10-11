@@ -1,5 +1,5 @@
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
-import { foldSearchText, stemPrefix } from "@rothern/shared";
+import { foldSearchText, isHiddenCategory, stemPrefix } from "@rothern/shared";
 import {
   CLOSING_WINDOWS,
   PERIOD_WINDOWS,
@@ -29,7 +29,7 @@ export type RequestDim =
   | "categories"
   | "closing"
   | "buyers"
-  | "cities"
+  | "countries"
   | "currencies"
   | "format"
   | "period";
@@ -49,9 +49,16 @@ export function rowFits(row: SellerTenderRow, fit: RequestFit): boolean {
   }
 }
 
-/** Satırın segmentleri (tekil) — kategori sayacı satırı segment başına bir kez sayar. */
+/**
+ * Satırın segmentleri (tekil) — kategori sayacı satırı segment başına bir kez sayar.
+ *
+ * Gizli kod segmente yuvarlanmadan ÖNCE düşer (2026-10-10): gizleme aile / sınıf
+ * düzeyinde de var, yani gizli bir kodun segmenti GÖRÜNÜR olabilir — yuvarlandıktan
+ * sonra süzmek o talebi görünür sektörün sayacına ve `?kategori=` süzgecine
+ * sokardı. Satırlar kancadan süzülü gelir (`withVisibleRowCategories`); ikinci kat.
+ */
 export function rowSegments(row: SellerTenderRow): string[] {
-  return [...new Set(row.categories.map((c) => segmentOf(c.code)))];
+  return [...new Set(row.categories.filter((c) => !isHiddenCategory(c.code)).map((c) => segmentOf(c.code)))];
 }
 
 /**
@@ -131,7 +138,7 @@ export function passes(
   if (except !== "closing" && f.closing && !closesWithin(row, f.closing, now)) return false;
   if (except !== "buyers" && f.buyers.length && !(row.owner && f.buyers.includes(row.owner.id)))
     return false;
-  if (except !== "cities" && f.cities.length && !(row.ownerCity && f.cities.includes(row.ownerCity)))
+  if (except !== "countries" && f.countries.length && !(row.ownerCountry && f.countries.includes(row.ownerCountry)))
     return false;
   if (except !== "currencies" && f.currencies.length && !f.currencies.includes(row.currency))
     return false;
@@ -182,16 +189,51 @@ export interface FacetItem {
   label: string;
   count: number;
 }
+/**
+ * API tarama tavanları (`sellerTenders`): açık talepler `SELLER_SCAN_CAP`
+ * (300), katıldığım geçmiş talepler en yeni 200. Tavana dayanan kapsamın
+ * sayısı ALT SINIRDIR ("200+", arayüz testi D-116).
+ */
+export interface RequestScanCaps {
+  open: number;
+  past: number;
+}
+export const REQUEST_SCAN_CAPS: RequestScanCaps = { open: 300, past: 200 };
+
 export interface RequestFacets {
   status: Record<"aktif" | "gecmis" | "tumu", number>;
+  /**
+   * Durum sayacı tarama tavanında mı — `true` ise sayı alt sınır, "N+" yazılır.
+   * Başlıktaki "N+ … bulundu" sayacı da buradan okur; aynı ekrandaki iki sayı
+   * ayrışmasın (yeniden doğrulama: başlık "200+", facet "Geçmiş 200" diyordu).
+   */
+  statusAtLeast: Record<"aktif" | "gecmis" | "tumu", boolean>;
   fit: Record<RequestFit, number>;
   categories: FacetItem[];
   closing: Record<ClosingWindow, number>;
   buyers: FacetItem[];
-  cities: FacetItem[];
+  /**
+   * Alıcı (talep sahibi) ülkesi — maskeli satırlar dahil (ülke kimlik değil
+   * nitelik). Alıcı ŞEHRİ facet'i 2026-10-04'te kalktı (sahip kararı).
+   */
+  countries: FacetItem[];
   currencies: FacetItem[];
   format: Record<"teklif" | "pazarlik", number>;
   period: Record<PeriodWindow, number>;
+}
+
+/**
+ * Facet etiketleri okuyucunun dilinde — motor saf kalsın diye çağıran verir
+ * (`request-filters` / `SellerTendersView`: `countryDisplayName`).
+ */
+export interface RequestFacetLabels {
+  /** ISO kodu → ülke adı (varsayılan: kod). */
+  country?: (code: string) => string;
+  /**
+   * Listede artık bulunmayan seçili alıcının (eski `?alici=` bağlantısı)
+   * etiketi — çağıran katalogdan verir (varsayılan: tire).
+   */
+  unknownBuyer?: string;
 }
 
 function tally(
@@ -220,6 +262,8 @@ export function requestFacets(
   f: RequestFilterState,
   segmentNames: ReadonlyMap<string, string>,
   now: number,
+  labels: RequestFacetLabels = {},
+  caps: RequestScanCaps = REQUEST_SCAN_CAPS,
 ): RequestFacets {
   const rowsFor = (dim: RequestDim) => all.filter((r) => passes(r, f, now, dim));
   const count = (rows: SellerTenderRow[], pred: (r: SellerTenderRow) => boolean) =>
@@ -230,13 +274,29 @@ export function requestFacets(
   const cl = rowsFor("closing");
   const fm = rowsFor("format");
   const pd = rowsFor("period");
-  const buyerName = (id: string) => all.find((r) => r.owner?.id === id)?.owner?.name ?? "Alıcı";
+  const buyerName = (id: string) =>
+    all.find((r) => r.owner?.id === id)?.owner?.name ?? labels.unknownBuyer ?? "—";
+  const countryName = labels.country ?? ((c: string) => c);
+
+  const status = {
+    aktif: count(st, (r) => r.status === "OPEN"),
+    gecmis: count(st, (r) => r.status !== "OPEN"),
+    tumu: st.length,
+  };
+  // Kapsam başına tavan: açık ve geçmiş ayrı sorgulardan gelir, ayrı kırpılır.
+  // Sayı ancak süzgeçler o kapsamı daraltmadıysa (tavandaki kümenin TAMAMI)
+  // alt sınırdır; daraltılmış sayı gösterilen veride kesindir.
+  const openTotal = count(all, (r) => r.status === "OPEN");
+  const pastTotal = all.length - openTotal;
+  const aktifAtLeast = openTotal >= caps.open && status.aktif === openTotal;
+  const gecmisAtLeast = pastTotal >= caps.past && status.gecmis === pastTotal;
 
   return {
-    status: {
-      aktif: count(st, (r) => r.status === "OPEN"),
-      gecmis: count(st, (r) => r.status !== "OPEN"),
-      tumu: st.length,
+    status,
+    statusAtLeast: {
+      aktif: aktifAtLeast,
+      gecmis: gecmisAtLeast,
+      tumu: aktifAtLeast || gecmisAtLeast,
     },
     fit: {
       davet: count(fit, (r) => rowFits(r, "davet")),
@@ -245,10 +305,18 @@ export function requestFacets(
       kategori: count(fit, (r) => rowFits(r, "kategori")),
       teklif: count(fit, (r) => rowFits(r, "teklif")),
     },
+    // Yalnız GÖRÜNÜR segmentler sayılır (arayüz testi D-009): gizli segment
+    // (`HIDDEN_SEGMENTS`) `categories/segments` listesinde yok → adı bulunamayıp
+    // ham kod ("10000000 — 16") basılıyordu. Ürün facet'iyle aynı kural.
+    // Görünür segmentin gizli dalı (2026-10-10) ada bakılarak yakalanamaz —
+    // segmentin adı listede VAR; onu `rowSegments` yuvarlamadan önce düşürür.
     categories: tally(
       rowsFor("categories"),
-      (r) => rowSegments(r).map((key) => ({ key, label: segmentNames.get(key) ?? key })),
-      f.categories,
+      (r) =>
+        rowSegments(r)
+          .filter((key) => segmentNames.has(key))
+          .map((key) => ({ key, label: segmentNames.get(key) ?? key })),
+      f.categories.filter((k) => segmentNames.has(k)),
       (k) => segmentNames.get(k) ?? k,
     ),
     closing: Object.fromEntries(
@@ -260,11 +328,11 @@ export function requestFacets(
       f.buyers,
       buyerName,
     ),
-    cities: tally(
-      rowsFor("cities"),
-      (r) => (r.ownerCity ? [{ key: r.ownerCity, label: r.ownerCity }] : []),
-      f.cities,
-      (k) => k,
+    countries: tally(
+      rowsFor("countries"),
+      (r) => (r.ownerCountry ? [{ key: r.ownerCountry, label: countryName(r.ownerCountry) }] : []),
+      f.countries,
+      countryName,
     ),
     currencies: tally(
       rowsFor("currencies"),

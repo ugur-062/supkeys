@@ -27,14 +27,23 @@ export interface AiUsageResponse {
   warnAtPercent: number;
   percentUsed: number;
   warning: boolean;
+  /** Havuz (firma görünümü) ya da kişisel tavan doldu → AI fiilen kapalı (D-172). Eski API'de yok. */
+  exhausted?: boolean;
+  /**
+   * Yalnız firma görünümü: bakan yöneticinin kişisel tavanı doldu (havuz dolmasa
+   * da onun için AI kapalı — `reserve` tavanı yönetime de uygular). Eski API'de yok.
+   */
+  myExhausted?: boolean;
   premiumPercentUsed?: number;
   byUser?: AiUsageByUser[];
   byFeature?: AiUsageByFeature[];
 }
 
-export function useAiUsage() {
+/** `enabled=false`: paket kilitli firmada istek atılmaz (arayüz testi O-044). */
+export function useAiUsage(enabled = true) {
   return useQuery({
     queryKey: ["company-ai-usage"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<AiUsageResponse>("/company/ai/usage");
       return data;

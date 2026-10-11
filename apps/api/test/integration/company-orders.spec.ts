@@ -126,6 +126,7 @@ describe("list() — daraltılmış select serialize alanlarını KORUR", () => 
         paymentCategory: "DEFERRED",
         paymentDays: 45,
         advancePercent: 20,
+        expectedDeliveryDate: new Date("2026-01-15T00:00:00.000Z"),
       },
     });
 
@@ -137,6 +138,8 @@ describe("list() — daraltılmış select serialize alanlarını KORUR", () => 
     expect(r.paymentCategory).toBe("DEFERRED");
     expect(r.paymentDays).toBe(45);
     expect(r.advancePercent).toBe(20);
+    // Şirketim "teslim tarihi geçti" süzgeci (`?due=overdue`, O-035) için:
+    expect(r.expectedDeliveryDate).toBe("2026-01-15T00:00:00.000Z");
     // Çekirdek + relation-türevi alanlar da tam:
     expect(r.role).toBe("seller");
     expect(r.amount).toBe("1500");

@@ -1,5 +1,7 @@
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import type { MetadataRoute } from "next";
 
 /**
@@ -45,7 +47,16 @@ const AI_AGENTS = [
 ];
 
 /** Hiçbir ajanın girmemesi gereken yollar — tek kaynak. */
-const DISALLOW = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
+const DISALLOW_BASE = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
+const PREFIXES = LOCALES.filter((l) => l !== DEFAULT_LOCALE).map((l) => `/${l}`);
+// i18n: ön ekli diller de kapalı ve panel kökü DİLE GÖRE (`/en/company/`,
+// `/ru/kompaniya/`); Türkçe ön eksiz. Yol sözlüğü `localizePath` üzerinden.
+const DISALLOW = [
+  ...DISALLOW_BASE,
+  ...LOCALES.filter((l) => l !== DEFAULT_LOCALE).flatMap((l) =>
+    DISALLOW_BASE.map((d) => `${localizePath(d.replace(/\/$/, ""), l)}/`),
+  ),
+];
 
 /**
  * CANLI OLMAYAN ORTAM (staging/preview) HİÇ TARANMAMALI.
@@ -104,6 +115,7 @@ export default function robots(): MetadataRoute.Robots {
           "/sozlesmeler",
           "/sitemaps", // sitemap parçaları (indeks /sitemap.xml)
           "/indexnow", // IndexNow anahtar dosyası
+          ...PREFIXES.map((p) => `${p}/`), // /en/, /ru/ — herkese açık sayfalar dil başına
         ],
         // `/company/` panelin tamamı (login/kayıt dahil) — dizinlenecek içerik
         // yok, tarama bütçesi yer. Süzgeçli varyantlar (`?kategori=`, `?il=`)

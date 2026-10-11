@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
+
 /**
  * Web uygulamasının derin bağlantıları — TEK KAYNAK (denetim Dalga B-2, P10).
  *
@@ -8,19 +10,121 @@
  * e-posta gönderildikten sonra düzeltilemez.
  *
  * Kullanım: `appRoutes.listing(this.webUrl(), listingId)`.
+ *
+ * DİL (i18n Faz 3): her yardımcının SON parametresi `locale` (varsayılan
+ * `tr` → bugünkü adresler birebir korunur). Bildirim ve e-posta ALICININ
+ * dilini kullandığı için CTA adresi de o dilin biçiminde üretilmeli:
+ * yol parçaları `@rothern/i18n` `ROUTE_PATHNAMES` ile çevrilir
+ * (`/company/ilan/<id>` → `/company/request/<id>` → `/kompaniya/zayavka/<id>`)
+ * ve Türkçe dışındaki diller `/<dil>` ön eki alır. Sorgu dizesi korunur.
  */
+
+/**
+ * İÇ (Türkçe, ön eksiz) yol → o dilin DIŞ adresi. Web'deki `localizePath`in
+ * aynısı; ayrışmasınlar diye ikisi de `ROUTE_PATHNAMES`ten okur.
+ */
+const ABSOLUTE_URL = /^(https?:\/\/[^/]+)(\/[\s\S]*)?$/i;
+
+/**
+ * TEK KAYNAK: iç (Türkçe, ön eksiz) yol → o dilin DIŞ adresi. Bildirim CTA'sı
+ * ve e-posta bağlantıları da bunu kullanır (üç ayrı kopya vardı, birleştirildi).
+ * Mutlak adres verilirse köken ayrılır, yalnız yol çevrilir ve köken geri eklenir.
+ * `mailto:`, protokol-göreli (`//…`) ve göreli adresler OLDUĞU GİBİ döner.
+ */
+export function localizeAppPath(path: string, locale: Locale): string {
+  const abs = ABSOLUTE_URL.exec(path);
+  const origin = abs ? abs[1]! : "";
+  const inner = abs ? (abs[2] ?? "/") : path;
+  if (!inner.startsWith("/") || inner.startsWith("//")) return path;
+  const outer = translateRoutePath(inner, locale);
+  if (locale === DEFAULT_LOCALE) return `${origin}${outer}`;
+  return `${origin}${outer === "/" ? `/${locale}` : `/${locale}${outer}`}`;
+}
+
+const localize = localizeAppPath;
+
 export const appRoutes = {
-  home: (base: string) => `${base}/company`,
-  listing: (base: string, listingId: string) =>
-    `${base}/company/ilan/${listingId}`,
-  order: (base: string, orderId: string) => `${base}/company/siparis/${orderId}`,
-  approvals: (base: string) => `${base}/company/onaylar`,
-  premium: (base: string) => `${base}/company/premium`,
-  messagesWith: (base: string, companyId: string) =>
-    `${base}/company/mesajlar?with=${companyId}`,
+  home: (base: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize("/company", locale)}`,
+  listing: (base: string, listingId: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/company/ilan/${listingId}`, locale)}`,
+  order: (base: string, orderId: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/company/siparis/${orderId}`, locale)}`,
+  /** Portalın sipariş LİSTESİ — tek olaydan birden çok sipariş doğduğunda CTA. */
+  orders: (
+    base: string,
+    portal: "satinalma" | "satis",
+    locale: Locale = DEFAULT_LOCALE,
+  ) => `${base}${localize(`/company/${portal}/siparisler`, locale)}`,
+  /**
+   * Portalın Bağlantılar sayfası (`?view=incoming` gelen istekleri açar —
+   * web `ConnectionsView` başlangıç görünümünü parametreden okur).
+   */
+  connections: (
+    base: string,
+    portal: "satinalma" | "satis",
+    locale: Locale = DEFAULT_LOCALE,
+    view?: "incoming",
+  ) =>
+    `${base}${localize(
+      `${portal === "satinalma" ? "/company/satinalma/tedarikcilerim" : "/company/satis/musterilerim"}${view ? `?view=${view}` : ""}`,
+      locale,
+    )}`,
+  approvals: (base: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize("/company/onaylar", locale)}`,
+  premium: (base: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize("/company/premium", locale)}`,
+  /**
+   * Gelen kutusunda bir firmayla sohbet. `portal` konuşmanın bağlantıyı AÇAN firma gözündeki
+   * yönüdür (satinalma = ben alıcıyım, satis = ben satıcıyım); verilmezse
+   * gelen kutusu iki yönlü kullanıcıda ilk portalı seçer ve ters yöndeki boş
+   * konuşmayı açabilir (derin denetim Y-18) — e-posta CTA'ları geçmeli.
+   */
+  messagesWith: (
+    base: string,
+    companyId: string,
+    locale: Locale = DEFAULT_LOCALE,
+    portal?: "satinalma" | "satis",
+  ) =>
+    `${base}${localize(
+      `/company/mesajlar?with=${companyId}${portal ? `&portal=${portal}` : ""}`,
+      locale,
+    )}`,
   /** Ürünlerime GELEN bilgi talepleri (satıcı gözü). */
-  inquiriesReceived: (base: string) => `${base}/company/satis/bilgi-talepleri`,
+  inquiriesReceived: (base: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize("/company/satis/bilgi-talepleri", locale)}`,
   /** GÖNDERDİĞİM bilgi talepleri (alıcı gözü) — ayrı portal, ayrı rota. */
-  inquiriesSent: (base: string) =>
-    `${base}/company/satinalma/bilgi-taleplerim`,
+  inquiriesSent: (base: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize("/company/satinalma/bilgi-taleplerim", locale)}`,
+
+  // ── Jetonlu bağlantılar (alıcısı henüz üye olmayabilir) ────────────────
+  // Dil, E-POSTANIN dilidir: bağlantı metinle aynı dilde açılsın. Alıcının
+  // kayıtlı dili yoksa çağıran DEFAULT_LOCALE geçer (bugünkü davranış).
+  /** Ekip daveti kabul sayfası. */
+  invite: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/company/davet/${token}`, locale)}`,
+  /**
+   * Referans/dış davetten kayıt (token sorgu dizesinde). `redirect` İÇ
+   * (Türkçe, ön eksiz) yoldur — kayıt + onboarding sonrası oraya dönülür
+   * (web `signup-intent`; dış talep daveti talebin kendisine götürür).
+   */
+  signupWithRef: (
+    base: string,
+    token: string,
+    locale: Locale = DEFAULT_LOCALE,
+    redirect?: string,
+  ) =>
+    `${base}${localize(
+      `/company/kayit?ref=${token}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`,
+      locale,
+    )}`,
+  /** Davet e-postalarından çıkış (opt-out). */
+  optOut: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/davet-kapat?token=${token}`, locale)}`,
+  /** Kayıtsız talep önizlemesi (davet jetonu + talep; 2026-09-27, Faz 3). */
+  invitePreview: (base: string, token: string, listingId: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/talep-davet?ref=${token}&l=${listingId}`, locale)}`,
+  /** Misafir bilgi talebi e-posta doğrulaması. */
+  inquiryVerify: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/talep-onayla?t=${token}`, locale)}`,
 } as const;

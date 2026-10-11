@@ -25,6 +25,10 @@ class SubmitDocsDto {
   @IsOptional() @IsString() @MaxLength(30) tradeRegistryNo?: string;
   @IsOptional() @IsString() @MaxLength(40) iban?: string;
   @IsOptional() @IsString() @MaxLength(120) ibanHolder?: string;
+  /** SWIFT/BIC — firma doğrulamasında HER ÜLKEDE zorunlu (2026-09-27). */
+  @IsOptional() @IsString() @MaxLength(15) bankSwiftBic?: string;
+  /** Banka adı — IBAN kullanmayan ülkede zorunlu. */
+  @IsOptional() @IsString() @MaxLength(120) bankName?: string;
 }
 
 @Controller("company/docs")

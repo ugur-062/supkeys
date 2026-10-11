@@ -1,0 +1,392 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Badge } from "@/components/catalyst/badge";
+import { Iban } from "@/components/ui/iban";
+import { Button } from "@/components/catalyst/button";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
+import { Text } from "@/components/catalyst/text";
+import {
+  useBankAccounts,
+  useDeleteBankAccount,
+  useSaveBankAccount,
+  type CompanyBankAccount,
+} from "@/hooks/use-company-bank-accounts";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import {
+  bankDetailsErrors,
+  classifyBankAccountInput,
+  countryIbanMode,
+  ibanPlaceholder,
+  normalizeSwift,
+  registrationCountries,
+} from "@rothern/shared";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { toast } from "sonner";
+
+/**
+ * Banka ülkesi seçilebilir kodlar: kayda KAPALI ülkeler (ABD + toprakları,
+ * kapsamlı yaptırım ülkeleri) hariç — API de reddeder (2026-09-27).
+ */
+const BANK_COUNTRY_CODES = registrationCountries().map((c) => c.code);
+
+export function BankAccountsSection({ canManage }: { canManage: boolean }) {
+  const t = useTranslations("web.panel.settings.bankAccountsSection");
+  // LİSTE DURUMLARI: `isPending` yükleme (çevrimdışı duraklamada "Henüz kayıtlı
+  // banka hesabı yok" çizilmesin); hata dalı yalnız hiç veri yokken — arka plan
+  // yenilemesi düşerse eldeki hesaplar kalır.
+  const { data: accounts, isPending, isError, refetch } = useBankAccounts();
+  const del = useDeleteBankAccount();
+  const confirm = useConfirm();
+  const [editing, setEditing] = useState<CompanyBankAccount | "new" | null>(
+    null,
+  );
+
+  const handleDelete = async (a: CompanyBankAccount) => {
+    const ok = await confirm({
+      title: t("bankaHesabiSilinsinMi"),
+      description: t("hesabiKaliciOlarakSilinecekMevcut", { title: a.title }),
+      confirmLabel: t("sil"),
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(a.id);
+      toast.success(t("bankaHesabiSilindi"));
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("silinemedi")));
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+      {/* Başlık/açıklama SettingsShell'de — burada tekrar edilmez (2026-09-10). */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Text className="text-sm text-zinc-600">
+          {t("kayitliHesaplarSiparisOnayindaSecilir")}
+        </Text>
+        {canManage ? (
+          <Button onClick={() => setEditing("new")}>{t("hesapEkle")}</Button>
+        ) : (
+          <Text className="text-xs text-zinc-500">
+            {t("bankaHesabiYalnizKurucuTarafindan")}
+          </Text>
+        )}
+      </div>
+
+      {isPending ? (
+        <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>
+      ) : isError && accounts === undefined ? (
+        <p role="alert" className="mt-3 text-sm text-rose-800">
+          {t("bankaHesaplariYuklenemedi")}{" "}
+          <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
+            {t("yenidenDene")}
+          </button>
+        </p>
+      ) : !accounts || accounts.length === 0 ? (
+        <Text className="mt-3 text-sm text-zinc-500">
+          {t("henuzKayitliBankaHesabiYok")}
+        </Text>
+      ) : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {accounts.map((a) => (
+            <div key={a.id} className="rounded-lg border border-zinc-200 p-4">
+              {/* C35/C36: başlık kendi satırında + ikon aksiyonlar (adres
+                  kartlarıyla aynı düzen). */}
+              <div className="flex items-start justify-between gap-2">
+                <span
+                  className="min-w-0 truncate text-sm font-semibold text-zinc-900"
+                  title={a.title}
+                >
+                  {a.title}
+                </span>
+                {canManage ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      plain
+                      aria-label={t("duzenle")}
+                      title={t("duzenle")}
+                      onClick={() => setEditing(a)}
+                    >
+                      <Pencil className="h-4 w-4 text-zinc-500" />
+                    </Button>
+                    <Button
+                      plain
+                      aria-label={t("sil")}
+                      title={t("sil")}
+                      onClick={() => handleDelete(a)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              {a.isDefault ? (
+                <div className="mt-1.5">
+                  <Badge color="amber">{t("varsayilan")}</Badge>
+                </div>
+              ) : null}
+              <div className="mt-1.5 text-xs text-zinc-600">
+                {a.iban ? (
+                  <Iban value={a.iban} />
+                ) : (
+                  <span className="tabular-nums">{a.accountNumber}</span>
+                )}
+                {a.swiftBic ? <span className="text-zinc-500"> · SWIFT {a.swiftBic}</span> : null}
+              </div>
+              <div className="mt-0.5 text-xs text-zinc-500">
+                {a.accountHolder}
+                {a.bankName ? ` · ${a.bankName}` : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing ? (
+        <BankAccountModal
+          account={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function BankAccountModal({
+  account,
+  onClose,
+}: {
+  account: CompanyBankAccount | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations("web.panel.settings.bankAccountsSection");
+  const save = useSaveBankAccount();
+  // Çift tık iki hesap açmasın (arayüz testi FX-00 O-001).
+  const lock = useSubmitLock();
+  const [title, setTitle] = useState(account?.title ?? "");
+  const [holder, setHolder] = useState(account?.accountHolder ?? "");
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
+  const [bankCountry, setBankCountry] = useState(
+    account?.bankCountry ?? (account?.iban ? account.iban.slice(0, 2) : companyCountry),
+  );
+  // Hesap kimliği TEK alanda: IBAN zorunlu ülkede IBAN; değilse IBAN ya da
+  // hesap no (geçerli IBAN'sa IBAN sayılır — `classifyBankAccountInput`).
+  const [accountRef, setAccountRef] = useState(account?.iban ?? account?.accountNumber ?? "");
+  const [swift, setSwift] = useState(account?.swiftBic ?? "");
+  const [bankName, setBankName] = useState(account?.bankName ?? "");
+  const [isDefault, setIsDefault] = useState(account?.isDefault ?? false);
+  // Kaydet denemesinden sonra zorunlu alan hataları görünür (arayüz testi
+  // D-308): eskiden Kaydet nedensiz pasifti.
+  const [touched, setTouched] = useState(false);
+
+  // Kural TEK KAYNAK `bankDetailsErrors` — backend `assertBankDetails` ile aynı
+  // (2026-09-27): bankanın ülkesi IBAN'ı zorunlu tutuyorsa IBAN (TR katı,
+  // diğerleri kayıtlı uzunluk + mod-97); tutmuyorsa (kısmi IBAN ülkesi BR/EG…
+  // ya da IBAN'sız ülke) geçerli IBAN YA DA hesap no + SWIFT/BIC + banka adı.
+  const mode = countryIbanMode(bankCountry);
+  const usesIban = mode === "required";
+  const ref = classifyBankAccountInput(bankCountry, accountRef);
+  // IBAN'la kaydedilen hesapta SWIFT/banka adı isteğe bağlı (ülkeden bağımsız).
+  const ibanEntered = Boolean(ref.iban);
+  const errors = bankDetailsErrors({
+    country: bankCountry,
+    iban: ref.iban,
+    accountNumber: ref.accountNumber,
+    swiftBic: swift,
+    bankName,
+  });
+  // Yaptırım ülkesi (IBAN öneki / SWIFT ülkesi kayda kapalı — derin denetim
+  // MU-17): Kaydet pasif kalır, neden alanın altında görünür.
+  const refBlocked = accountRef.trim() && errors.includes("ibanCountryBlocked") ? t("bankCountryBlocked") : null;
+  const ibanError =
+    refBlocked ??
+    (usesIban && ref.iban && errors.includes("ibanInvalid")
+      ? ref.iban.startsWith("TR")
+        ? t("gecerliBirTrIbanGirin")
+        : t("gecerliBirIbanGirinKontrol")
+      : null);
+  // IBAN biçiminde ama mod-97'si tutmayan değer hesap no sayılmaz (derin denetim LU-10).
+  const accountError =
+    refBlocked ??
+    (!usesIban && ref.accountNumber && errors.includes("ibanInvalid")
+      ? t("gecerliBirIbanGirinKontrol")
+      : !usesIban && ref.accountNumber && errors.includes("accountNumberInvalid")
+        ? t("accountNumberInvalid")
+        : null);
+  const swiftError = !swift.trim()
+    ? null
+    : errors.includes("swiftCountryBlocked")
+      ? t("bankCountryBlocked")
+      : errors.includes("swiftInvalid")
+        ? t("swiftInvalid")
+        : null;
+
+  const required = t("zorunluAlan");
+  const titleError = touched && !title.trim() ? required : null;
+  const holderError = touched && !holder.trim() ? required : null;
+  const refRequired =
+    touched && (errors.includes("ibanRequired") || errors.includes("accountNumberRequired")) ? required : null;
+  const swiftRequired = touched && errors.includes("swiftRequired") ? required : null;
+  const bankNameError = touched && errors.includes("bankNameRequired") ? required : null;
+
+  const valid = Boolean(title.trim() && holder.trim() && errors.length === 0);
+
+  const submit = async () => {
+    setTouched(true);
+    if (!valid) return;
+    try {
+      await save.mutateAsync({
+        id: account?.id,
+        title: title.trim(),
+        accountHolder: holder.trim(),
+        bankCountry,
+        ...(ref.iban ? { iban: ref.iban } : { accountNumber: ref.accountNumber ?? "" }),
+        swiftBic: normalizeSwift(swift) || undefined,
+        bankName: bankName.trim() || undefined,
+        isDefault,
+      });
+      toast.success(account ? t("hesapGuncellendi") : t("hesapEklendi"));
+      onClose();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
+    }
+  };
+
+  return (
+    <Dialog open onClose={onClose} size="lg">
+      <DialogTitle>
+        {account ? t("hesabiDuzenle") : t("yeniBankaHesabi")}
+      </DialogTitle>
+      {/* Form + Enter ile gönderim (arayüz testi D-307). */}
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void lock.run(submit);
+        }}
+      >
+      <DialogBody className="space-y-4">
+        <Field>
+          <Label>{t("hesapBasligi")}</Label>
+          <Input
+            value={title}
+            invalid={Boolean(titleError)}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("ornTlVadesizIsBankasi")}
+            maxLength={120}
+          />
+          {titleError ? <ErrorMessage>{titleError}</ErrorMessage> : null}
+        </Field>
+        <Field>
+          <Label>{t("bankCountry")}</Label>
+          <CountryCombobox
+            value={bankCountry}
+            onChange={setBankCountry}
+            codes={BANK_COUNTRY_CODES}
+            ariaLabel={t("bankCountry")}
+          />
+          {mode === "optional" ? (
+            <Text className="mt-1 text-xs text-zinc-500">{t("optionalIbanHint")}</Text>
+          ) : mode === "none" ? (
+            <Text className="mt-1 text-xs text-zinc-500">{t("noIbanHint")}</Text>
+          ) : null}
+        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field>
+            <Label>{t("hesapSahibi")}</Label>
+            <Input
+              value={holder}
+              invalid={Boolean(holderError)}
+              onChange={(e) => setHolder(e.target.value)}
+              placeholder={t("firmaUnvani")}
+              maxLength={140}
+            />
+            {holderError ? (
+              <ErrorMessage>{holderError}</ErrorMessage>
+            ) : (
+              <Text className="mt-1 text-xs text-zinc-500">
+                {t("vergiLevhasindakiUnvanlaAyniOlmali")}
+              </Text>
+            )}
+          </Field>
+          <Field>
+            <Label>{usesIban || ibanEntered ? t("bankaAdi") : `${t("bankNameRequired")} *`}</Label>
+            <Input
+              value={bankName}
+              invalid={Boolean(bankNameError)}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder={usesIban || ibanEntered ? t("opsiyonel") : undefined}
+              maxLength={120}
+            />
+            {bankNameError ? <ErrorMessage>{bankNameError}</ErrorMessage> : null}
+          </Field>
+        </div>
+        {usesIban ? (
+          <Field>
+            <Label>{t("iban")}</Label>
+            <Input
+              value={accountRef}
+              invalid={Boolean(ibanError ?? refRequired)}
+              onChange={(e) => setAccountRef(e.target.value)}
+              placeholder={ibanPlaceholder(bankCountry) ?? undefined}
+              maxLength={40}
+              className="tabular-nums"
+            />
+            {ibanError ?? refRequired ? <ErrorMessage>{ibanError ?? refRequired}</ErrorMessage> : null}
+          </Field>
+        ) : (
+          <Field>
+            <Label>{mode === "optional" ? t("ibanOrAccountNumber") : t("accountNumber")} *</Label>
+            <Input
+              value={accountRef}
+              invalid={Boolean(accountError ?? refRequired)}
+              onChange={(e) => setAccountRef(e.target.value)}
+              placeholder={mode === "optional" ? (ibanPlaceholder(bankCountry) ?? undefined) : undefined}
+              maxLength={40}
+              className="tabular-nums"
+            />
+            {accountError ?? refRequired ? <ErrorMessage>{accountError ?? refRequired}</ErrorMessage> : null}
+          </Field>
+        )}
+        <Field>
+          <Label>{usesIban || ibanEntered ? t("swiftOptional") : `${t("swiftBic")} *`}</Label>
+          <Input
+            value={swift}
+            invalid={Boolean(swiftError ?? swiftRequired)}
+            onChange={(e) => setSwift(normalizeSwift(e.target.value))}
+            placeholder="DEUTDEFF"
+            maxLength={20}
+          />
+          {swiftError ?? swiftRequired ? <ErrorMessage>{swiftError ?? swiftRequired}</ErrorMessage> : null}
+        </Field>
+        <CheckboxField>
+          <Checkbox checked={isDefault} onChange={setIsDefault} />
+          <Label>{t("varsayilanHesapSiparisOnayindaOn")}</Label>
+        </CheckboxField>
+      </DialogBody>
+      <DialogActions>
+        <Button plain onClick={onClose}>
+          {t("vazgec")}
+        </Button>
+        <Button type="submit" disabled={save.isPending || lock.locked}>
+          {save.isPending || lock.locked ? t("kaydediliyor") : t("kaydet")}
+        </Button>
+      </DialogActions>
+      </form>
+    </Dialog>
+  );
+}

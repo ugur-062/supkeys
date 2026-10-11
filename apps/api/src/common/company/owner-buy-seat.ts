@@ -35,10 +35,10 @@ export async function ensureOwnerBuySeat(
 ): Promise<void> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { tier: true, membershipEndAt: true, ownerUserId: true },
+    select: { tier: true, membershipEndAt: true, companyVerificationStatus: true, ownerUserId: true },
   });
   if (!company?.ownerUserId) return;
-  if (!tierAtLeast(effectiveTier(company.tier, company.membershipEndAt), BUYING_TIER)) {
+  if (!tierAtLeast(effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus), BUYING_TIER)) {
     return;
   }
 
@@ -52,7 +52,7 @@ export async function ensureOwnerBuySeat(
   if (roles.includes(CompanyRole.SATIN_ALMACI)) return;
 
   // Koltuk sığıyor mu — sığmıyorsa sessizce vazgeç (yükseltme akışı sürsün).
-  const limit = SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
+  const limit = SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus)];
   if (limit != null) {
     const herkes = await prisma.companyUser.findMany({
       where: { companyId, deletedAt: null, isActive: true },
@@ -72,8 +72,11 @@ export async function ensureOwnerBuySeat(
   // İzin listesi DOĞRULUK KAYNAĞI (`CompanyUser.permissions`), roller etiket.
   // Kurucunun elle kısıtladığı izinleri EZMEMEK için mevcut liste korunur ve
   // üstüne yalnız satınalma setinin eksikleri eklenir.
+  // KAYITLI liste (isOwner:false) — kurucunun örtük/sahibe-özel anahtarları
+  // (`billing:manage`, `company:delete`, `ownership:transfer`…) satıra
+  // YAZILMAZ; onları her istekte `isOwner` verir (arayüz testi D-181).
   const mevcut = effectivePermissions({
-    isOwner: true,
+    isOwner: false,
     permissions: owner.permissions,
     roles,
   });

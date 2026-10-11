@@ -53,6 +53,49 @@ describe("CompanyProfileView — dış bağlantı XSS koruması", () => {
   });
 });
 
+// 2026-10-09 (sahip kararı; W-06, W-10): gizli segmentteki eski beyan profilde
+// çip olarak çizilmez — ziyaretçiye, üyeye ve firmanın KENDİ Profilim ekranına.
+describe("CompanyProfileView — gizli segmentteki kategori beyanı", () => {
+  const bare: ProfileViewData = { ...base, industry: null, city: null, country: null, foundedYear: null, employeeCount: null };
+
+  it("gizli segment çipi çizilmez; görünür segment çizilir", () => {
+    const { container } = render(
+      <CompanyProfileView
+        profile={{
+          ...base,
+          categories: [
+            { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri" },
+            { id: "31000000", name: "Üretim Bileşenleri" },
+            { id: "10000000", name: "Canlı Bitki ve Hayvanlar" },
+            { id: "46100000", name: "Hafif silahlar ve mühimmat" },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("Üretim Bileşenleri")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Kamu Düzeni|Canlı Bitki|silah/);
+  });
+
+  // 2026-10-10: 46 geri açıldı — beyanı sıradan bir çiptir.
+  it("46 (İş Güvenliği ve Yangın Ekipmanları) çipi çizilir", () => {
+    render(<CompanyProfileView profile={{ ...bare, categories: [{ id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları" }] }} />);
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Şirket Bilgileri" })).toBeInTheDocument();
+  });
+
+  it("yalnız gizli segment beyanı olan firmada 'Şirket Bilgileri' kartı boş açılmaz", () => {
+    const hiddenOnly = render(
+      <CompanyProfileView profile={{ ...bare, categories: [{ id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri" }] }} />,
+    );
+    expect(hiddenOnly.container.textContent).not.toMatch(/Kamu Düzeni/);
+    expect(screen.queryByRole("heading", { name: "Şirket Bilgileri" })).toBeNull();
+    hiddenOnly.unmount();
+    // Karşılaştırma: görünür beyan aynı kartı açar.
+    render(<CompanyProfileView profile={{ ...bare, categories: [{ id: "31000000", name: "Üretim Bileşenleri" }] }} />);
+    expect(screen.getByRole("heading", { name: "Şirket Bilgileri" })).toBeInTheDocument();
+  });
+});
+
 describe("CompanyProfileView — doğrulama rozeti", () => {
   it("verified=false → profilde 'Doğrulanmamış' yazar (2026-09-06, ücretsiz vitrin)", () => {
     render(<CompanyProfileView profile={{ ...base, verified: false }} />);
@@ -111,6 +154,33 @@ describe("CompanyProfileView — düzen", () => {
     expect(row.className).not.toMatch(/-mt-/);
     // Logo kutusu taşmayı TEK BAŞINA yapar.
     expect(container.querySelector('[class*="-mt-12"]')).not.toBeNull();
+  });
+
+  // Arayüz testi D-04: "ООО «Уралсварпромкабель»" — tek sözcük 24 px kalın yazıda
+  // 297 px; telefonda başlık sütunu 180 px (360) / 210 px (390). h1 sarılan bir
+  // flex satırının öğesi olduğu için en dar hâli o sözcüktü: kartın dışına taşıyor,
+  // kart (`overflow-hidden`) adı kesiyordu ("«Уралсварпромкаб"). jsdom yerleşim
+  // hesaplamaz → daralma zinciri sınıf sözleşmesiyle sabitlenir (ölçüm tarayıcıda:
+  // 360 px'te ad üç satır, kartın 31 px içinde).
+  it("uzun tek sözcüklü ad başlığın İÇİNDE bölünür: h1 sütuna kadar daralır, kırpılmaz", () => {
+    for (const layout of ["columns", "stacked"] as const) {
+      const { unmount } = render(
+        <CompanyProfileView profile={{ ...base, name: "ООО «Уралсварпромкабель»" }} layout={layout} />,
+      );
+      const h1 = screen.getByRole("heading", { level: 1, name: "ООО «Уралсварпромкабель»" });
+      // Flex öğesi en uzun sözcüğün altına inebilir ve sığmayan sözcüğü böler.
+      expect(h1.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect(h1.className).toMatch(/(^|\s)break-words(\s|$)/);
+      // Kırpma / tek satıra zorlama yok: ad TAM okunur.
+      expect(h1.className).not.toMatch(/(^|\s)(truncate|whitespace-nowrap|line-clamp-\d+|overflow-hidden)(\s|$)/);
+      // Zincirin geri kalanı da daralabilir: metin sütunu ve logo + metin satırı.
+      const column = h1.parentElement?.parentElement as HTMLElement;
+      expect(column.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      expect((column.parentElement as HTMLElement).className).toMatch(/(^|\s)min-w-0(\s|$)/);
+      // Rozetler h1'in kardeşi kalır (başlık metni yalnız ad).
+      expect(h1.textContent).toBe("ООО «Уралсварпромкабель»");
+      unmount();
+    }
   });
 
   it("ürünler 'hakkında' bölümünden ÖNCE ve ızgaranın DIŞINDA (tam genişlik)", () => {

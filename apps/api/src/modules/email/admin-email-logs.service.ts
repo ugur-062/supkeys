@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -5,9 +6,11 @@ import {
 } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import type { EmailTemplateData } from "@rothern/email";
+import { isLocale } from "@rothern/i18n";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService, REDACTED_CONTEXT_TYPES } from "./email.service";
+import { isInternalEmailLog } from "./suppression-marker";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
 @Injectable()
@@ -30,9 +33,22 @@ export class AdminEmailLogsService {
         subject: true,
         payload: true,
         contextType: true,
+        contextId: true,
+        locale: true,
+        provider: true,
       },
     });
-    if (!log) throw new NotFoundException("E-posta kaydı bulunamadı");
+    if (!log) throw new NotFoundException(i18nMessage("api.email.ePostaKaydiBulunamadi"));
+
+    // Ic kayitlar (engel kaldirma isareti, provider="internal") gercek bir
+    // e-posta degildir: sablonu yoktur, render 500 veriyordu ve araya yazilan
+    // FAILED satir da `suppression_clear` sablonunu tasidigi icin yeniden
+    // engellenmis adresi sessizce akliyordu (arayuz testi O-078).
+    if (isInternalEmailLog(log)) {
+      throw new BadRequestException(
+        i18nMessage("api.email.icKayitYenidenGonderilemez"),
+      );
+    }
 
     // Denetim 2026-08-26 Parça 9 #2: tek-kullanımlık sır taşıyan tiplerde
     // `payload` DB'ye MASKELİ yazılır (`{__redacted:…}`) — bu payload'la
@@ -49,10 +65,15 @@ export class AdminEmailLogsService {
       redactedPayload
     ) {
       throw new BadRequestException(
-        "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (parola sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+        i18nMessage("api.email.buEPostaTekKullanimlikKod"),
       );
     }
 
+    // Derin denetim MU-05: orijinal gonderimin DILI ve BAGLAMI geri gecirilir.
+    // Baglam olmadan akis TRANSACTIONAL sayiliyordu: tek tik cikis kapisi
+    // atlaniyor, List-Unsubscribe/alt bilgi baglantisi basilmiyor, islem
+    // gondericisi kullaniliyordu; dil olmadan EN/RU aliciya Turkce gidiyordu.
+    // Eski satirda (locale NULL) Turkce varsayilir — orijinal davranis.
     const result = await this.emailService.send({
       to: { email: log.toEmail, name: log.toName ?? undefined },
       subject: log.subject,
@@ -60,6 +81,10 @@ export class AdminEmailLogsService {
         template: log.template,
         data: log.payload ?? {},
       } as unknown as EmailTemplateData,
+      ...(isLocale(log.locale) ? { locale: log.locale } : {}),
+      ...(log.contextType
+        ? { context: { type: log.contextType, id: log.contextId ?? "" } }
+        : {}),
     });
 
     void this.audit.log({
@@ -72,9 +97,12 @@ export class AdminEmailLogsService {
         template: log.template,
         toEmail: log.toEmail,
         newLogId: result.emailLogId,
+        sent: result.sent,
       },
     });
-    return { success: true, emailLogId: result.emailLogId };
+    // `sent: false` = bastirilmis adres ya da alici bu turden cikmis; yeni log
+    // satiri FAILED + nedeniyle yazildi. Admin arayuzu bunu basari saymaz.
+    return { success: true, emailLogId: result.emailLogId, sent: result.sent };
   }
 
   async list(query: ListEmailLogsDto) {
@@ -123,7 +151,7 @@ export class AdminEmailLogsService {
       },
     });
     if (!log) {
-      throw new NotFoundException("E-posta logu bulunamadı");
+      throw new NotFoundException(i18nMessage("api.email.ePostaLoguBulunamadi"));
     }
     return log;
   }

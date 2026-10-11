@@ -26,15 +26,16 @@ export const SHOWCASE_ORDER = [
   "26000000", // Güç üretim ve dağıtımı
   "25000000", // Araçlar ve bileşenleri
   "32000000", // Elektronik bileşenler
-  "78000000", // Taşıma, depolama, posta
+  "78000000", // Lojistik (2026-10-09'a dek "Taşıma, Depolama ve Posta Hizmetleri")
   "22000000", // Ağır iş ekipmanı
-  "46000000", // İş güvenliği ve emniyet
   "72000000", // İnşaat ve tesis bakım hizmetleri
 ] as const;
 
 export interface ShowcaseCategory {
   id: string;
   name: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad, API) — `categoryHref`; yoksa addan üretilir. */
+  slug?: string;
   /** > 0 ise kartta rozet. */
   count: number;
   /** Fotoğraf → ürün kapağı → null (üretilmiş görsel). */
@@ -42,7 +43,7 @@ export interface ShowcaseCategory {
 }
 
 export function buildShowcase(input: {
-  segments: { id: string; name: string }[];
+  segments: { id: string; name: string; slug?: string }[];
   counts: { id: string; count: number }[];
   /** Kategori kodu (herhangi seviye) → ürün kapağı; segmenti koddan türetiriz. */
   productCovers: { categoryId: string | null; image: string | undefined }[];
@@ -53,10 +54,13 @@ export function buildShowcase(input: {
   // Gizli segmentler (katalog sadeleştirme 2026-09-19) vitrine HİÇ girmez —
   // API zaten süzüyor, burası ikinci savunma.
   const nameById = new Map(input.segments.filter((s) => !isHiddenCategory(s.id)).map((s) => [s.id, s.name]));
+  const slugById = new Map(input.segments.map((s) => [s.id, s.slug] as const));
   const countById = new Map(input.counts.map((c) => [c.id, c.count]));
   const coverBySeg = new Map<string, string>();
   for (const p of input.productCovers) {
-    if (!p.categoryId || !p.image || !/^\d{8}$/.test(p.categoryId)) continue;
+    // Gizli dal segmente yuvarlanmadan ÖNCE düşer (2026-10-10): görünür
+    // segmentin gizli ailesindeki ürünün kapağı o segmentin kartına çıkmaz.
+    if (!p.categoryId || !p.image || !/^\d{8}$/.test(p.categoryId) || isHiddenCategory(p.categoryId)) continue;
     const seg = `${p.categoryId.slice(0, 2)}000000`;
     if (!coverBySeg.has(seg)) coverBySeg.set(seg, p.image);
   }
@@ -73,6 +77,7 @@ export function buildShowcase(input: {
   return ordered.map((id) => ({
     id,
     name: nameById.get(id) as string,
+    slug: slugById.get(id) ?? undefined,
     count: countById.get(id) ?? 0,
     imageSrc: categoryPhotoSrc(id) ?? coverBySeg.get(id) ?? null,
   }));

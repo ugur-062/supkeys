@@ -1,5 +1,34 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { createHash } from "crypto";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
-import { PAID_TIERS, maskIban } from "@rothern/shared";
+import { resolveCityId } from "../../common/geo/geo-index";
+import {
+  BUYING_TIER,
+  EU_VAT_COUNTRIES,
+  PAID_TIERS,
+  PRODUCT_LIMITS,
+  tierAtLeast,
+  type TierName,
+  bankDetailsErrors,
+  countryUsesIban,
+  findLocalLegalForm,
+  formatVerificationReason,
+  isRegistrationOpen,
+  isValidAccountNumber,
+  isValidCountryCode,
+  isValidIbanAny,
+  isValidSwiftBic,
+  isValidTaxIdForCountry,
+  isVerificationReasonCode,
+  maskIban,
+  maskNationalId,
+  normalizeSwift,
+  normalizeTaxId,
+  parseVerificationReason,
+  resolveLegalForm,
+  type VerificationReasonCode,
+} from "@rothern/shared";
+import { assertBankDetails } from "../../common/company/bank-details";
 import {
   BadRequestException,
   ConflictException,
@@ -14,6 +43,7 @@ import {
   CompanyVerificationStatus,
   ComplaintStatus,
   KycDocStatus,
+  Prisma,
   type ListingStatus,
 } from "@rothern/db";
 import { StorageService } from "../storage/storage.service";
@@ -26,12 +56,29 @@ import { isNotificationEnabled } from "../../common/notifications/notification-p
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { enforceProductLimit } from "../../common/company/product-limit";
 import { ensureOwnerBuySeat } from "../../common/company/owner-buy-seat";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { EmailService } from "../email/email.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
-import { NotificationService } from "../notifications/notification.service";
+import {
+  NotificationService,
+  localeOf,
+  type NotificationPortal,
+} from "../notifications/notification.service";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import {
+  dateParam,
+  formatNotificationParams,
+  type NotificationParams,
+} from "../../common/notifications/notification-params";
+import {
+  DEFAULT_LOCALE,
+  translateRoutePath,
+  type Locale,
+} from "@rothern/i18n";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { cancelOutgoingReferralInvites, cancelQueuedListingInvites } from "../../common/company/downgrade-invites";
 
 /**
  * Tek duyuruda ulaşılacak azami firma (Dalga B). Aşılırsa gönderim yapılır ama
@@ -40,9 +87,184 @@ import { resolveWebUrl } from "../../common/config/web-url";
  */
 const ANNOUNCE_MAX_TARGETS = 5000;
 
+/**
+ * Aynı yöneticinin aynı içerik + segmentle duyurusu bu pencerede ikinci kez
+ * gönderilmez (onayda çift tık / ağ tekrarı — arayüz testi FX-00 O-007).
+ */
+const ANNOUNCE_DEDUPE_MS = 120_000;
+
+/**
+ * Başvuru kuyruğu bellekte sıralanırken taranan en çok firma — kuyruk
+ * (bekleyen başvurular) bunun çok altında kalır; tavan yalnız sigorta.
+ */
+const KYC_QUEUE_SCAN_CAP = 5000;
+
+/** CTA etiketi verilmeyen bildirimlerin varsayılan düğmesi. */
+const DEFAULT_CTA_KEY = "api.notifications.common.gitRothern" as ApiMessageKey;
+/** Her bildirim e-postasının ilk paragrafı. */
+const GREETING_KEY = "api.notifications.common.greeting" as ApiMessageKey;
+
+/** Çok paragraflı gövdede in-app satırının kaynağı (tek paragraf → o paragraf). */
+function inAppBodyKey(msg: {
+  bodyKey?: ApiMessageKey;
+  subjectKey?: ApiMessageKey;
+  paragraphKeys?: readonly (ApiMessageKey | null | false | undefined)[];
+}): ApiMessageKey | undefined {
+  if (msg.bodyKey) return msg.bodyKey;
+  const only = (msg.paragraphKeys ?? []).filter(
+    (k): k is ApiMessageKey => !!k,
+  );
+  return only.length === 1 ? only[0] : msg.subjectKey;
+}
+
+/**
+ * İÇ (Türkçe, ön eksiz) yol → alıcının dilindeki TAM adres.
+ * `common/company/app-routes.ts` içindeki `localize` ile AYNI kural (o dosya
+ * yardımcıyı dışa aktardığında burası ona bağlanmalı — iki kopya ayrışmasın).
+ */
+function localizeUrl(base: string, path: string, locale: Locale): string {
+  const outer = translateRoutePath(path, locale);
+  if (locale === DEFAULT_LOCALE) return `${base}${outer}`;
+  return `${base}${outer === "/" ? `/${locale}` : `/${locale}${outer}`}`;
+}
+
+/**
+ * Admin bildiriminin METNİ (i18n Faz 3) — metin ALICININ dilinde üretilir, bu
+ * yüzden çağıran düz metin değil KATALOG ANAHTARI verir. Düz alanlar
+ * (`subject`/`body`/`paragraphs`/`cta.label`) yalnız admin'in KENDİ yazdığı
+ * serbest metin içindir (segment duyurusu, "aradı bilgi verdik" mesajı) —
+ * o metin çevrilmez, yazıldığı gibi gider.
+ *
+ * `bodyKey` = in-app bildirim gövdesi (TEK satır); `paragraphKeys` = e-posta
+ * paragrafları (ilki selamlama). Tek paragraflı bildirimde `bodyKey` o
+ * paragrafın anahtarının AYNISIDIR; çok paragraflıda in-app satırı paragraf
+ * tanımadığı için birleşmiş metni taşıyan ayrı bir anahtar kullanılır
+ * (e-posta paragraf düzenini korur).
+ */
+export interface AdminNotifyMessage {
+  /** Bildirim tipi (kullanıcı tercihi + audit anahtarı). */
+  type: string;
+  /** Başlık: in-app title + e-posta konusu/başlığı. */
+  subjectKey?: ApiMessageKey;
+  subject?: string;
+  /**
+   * In-app gövde. Verilmezse TEK içerik paragrafı varsa o, yoksa başlık
+   * kullanılır — çok paragraflı bildirim birleşmiş metnin anahtarını
+   * AÇIKÇA vermelidir.
+   */
+  bodyKey?: ApiMessageKey;
+  body?: string;
+  /**
+   * E-posta İÇERİK paragrafları (selamlama OTOMATİK eklenir).
+   * `null`/`false` girdiler (koşullu paragraf) atlanır.
+   */
+  paragraphKeys?: readonly (ApiMessageKey | null | false | undefined)[];
+  /** Düz metin İÇERİK paragrafları (selamlama OTOMATİK eklenir). */
+  paragraphs?: string[];
+  /**
+   * `paragraphKeys`'ten SONRA gelen, her biri KENDİ parametreleriyle çizilen
+   * e-posta satırları (ör. reddedilen her belge + gerekçesi, arayüz testi
+   * D-141). `keyParams` değerleri katalog anahtarıdır; alıcının dilinde
+   * çevrilip parametre olarak geçer (belge adı, gerekçe kodu metni).
+   */
+  lines?: readonly AdminNotifyLine[];
+  /**
+   * Başlık + gövde + CTA anahtarlarının ORTAK ICU sözlüğü. Tarih/tutar TİPLİ
+   * (`notification-params.ts`) — alıcının dilinde biçimlenir.
+   */
+  params?: NotificationParams;
+  /** Eylem düğmesi — `path` İÇ (Türkçe) yoldur, alıcının diline çevrilir. */
+  cta?: { labelKey?: ApiMessageKey; label?: string; path: string };
+  /**
+   * In-app satırın portalı. Firmanın KENDİ talebine dair müdahale (kapatma/
+   * uzatma/yeniden açma) satın alma tarafına aittir — verilmezse satır
+   * portal-nötr yazılır ve Satış süzgecinde rozetsiz görünür (arayüz testi
+   * api1-02 yeniden doğrulama, D-115 ailesi). Hesap/doğrulama bildirimleri
+   * vermez (her iki panelde görünmeli).
+   */
+  portal?: NotificationPortal;
+  /**
+   * Bildirimin ait olduğu talep — in-app satırın `listingId`'si (talep
+   * bazlı süzme/okundu eşlemesi). Talebe dair müdahalede `cta.path` de
+   * talebe gider (arayüz testi son tur: "Rothern'e Git" → /company idi).
+   */
+  listingId?: string;
+}
+
+/** Bkz. `AdminNotifyMessage.lines`. */
+export interface AdminNotifyLine {
+  key: ApiMessageKey;
+  params?: NotificationParams;
+  keyParams?: Record<string, ApiMessageKey>;
+}
+
+/**
+ * Saklanan kodlu red gerekçesi → e-posta satırı (alıcının dilinde): kod
+ * katalog metniyle, admin notu olduğu gibi. `prefix` satır ailesi —
+ * `redSatiri*` (belge adıyla) ya da `redGerekcesi*` (genel karar).
+ */
+function rejectReasonLine(
+  raw: string | null | undefined,
+  prefix: "redSatiri" | "redGerekcesi",
+  extraKeyParams: Record<string, ApiMessageKey> = {},
+): AdminNotifyLine | null {
+  const { code, note } = parseVerificationReason(raw);
+  const base = `api.notifications.adminCompanies.${prefix}`;
+  if (code) {
+    const gerekce =
+      `api.notifications.adminCompanies.redKodu.${code}` as ApiMessageKey;
+    return note
+      ? {
+          key: `${base}Notlu` as ApiMessageKey,
+          params: { not: note },
+          keyParams: { ...extraKeyParams, gerekce },
+        }
+      : { key: base as ApiMessageKey, keyParams: { ...extraKeyParams, gerekce } };
+  }
+  if (!note) return null;
+  return {
+    key: `${base}Serbest` as ApiMessageKey,
+    params: { not: note },
+    keyParams: extraKeyParams,
+  };
+}
+
+/** Belge türünün e-postadaki adı — TR firmasında yerel adlar, diğerlerinde genel. */
+function docLabelKey(kind: DocKind, country: string | null): ApiMessageKey {
+  const set = (country ?? "TR").toUpperCase() === "TR" ? "belgeTr" : "belge";
+  return `api.notifications.adminCompanies.${set}.${kind}` as ApiMessageKey;
+}
+
+/**
+ * KODLU RED GEREKÇESİ (2026-09-27) — saklanan dize `formatVerificationReason`
+ * ile "[KOD] not". Eskiden admin'in Türkçe serbest metni olduğu gibi yazılıp
+ * firmanın Doğrulama sayfasında basılıyordu (yabancı firma okuyamıyordu); kod
+ * artık firmanın dilinde katalogdan çevrilir, not olduğu gibi gösterilir.
+ *
+ * Kural: red için kod VEYA ≥3 karakterlik not. İkisi de yoksa `null` döner —
+ * çağıran kendi (belge/revizyon/firma) hata mesajını atar. Bilinmeyen kod 400:
+ * belge kararları serbest biçimli nesne olarak geldiği için DTO yakalamaz.
+ */
+function composeRejectReason(
+  reason: string | null | undefined,
+  reasonCode: unknown,
+): string | null {
+  const code = reasonCode == null || reasonCode === "" ? null : reasonCode;
+  if (code !== null && !isVerificationReasonCode(code)) {
+    throw new BadRequestException(
+      i18nMessage("api.adminCompanies.gecersizRedGerekcesiKodu"),
+    );
+  }
+  const note = reason?.trim() ?? "";
+  if (!code && note.length < 3) return null;
+  return formatVerificationReason(code as VerificationReasonCode | null, note);
+}
+
 @Injectable()
 export class AdminCompaniesService {
   private readonly logger = new Logger(AdminCompaniesService.name);
+  /** Süreç içi duyuru gönderim hakları (anahtar → başlangıç ms; FX-00 O-007). */
+  private readonly announceClaims = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaBypassService,
@@ -60,25 +282,25 @@ export class AdminCompaniesService {
    * Firmaya (in-app + e-posta) bildirim — admin aksiyonları için. Best-effort.
    * Public: AdminInspectionService (ilan kapatma/sipariş iptali) da kullanır.
    */
-  async notifyCompany(
-    companyId: string,
-    subject: string,
-    paragraphs: string[],
-    type: string,
-    cta?: { label: string; path: string },
-  ) {
+  async notifyCompany(companyId: string, msg: AdminNotifyMessage) {
     const baseUrl =
       resolveWebUrl(this.config);
-    const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
-    const ctaLabel = cta?.label ?? "Rothern'e Git";
-    // In-app (portal-nötr → her iki panelde görünür).
+    // In-app (`portal` verilmezse nötr → her iki panelde görünür). Metin ANAHTAR olarak
+    // geçer; her alıcı için kendi diliyle `renderPayload` üretir.
     await this.notifications
       .pushToCompany(companyId, {
-        type,
-        title: subject,
-        body: paragraphs.slice(1).join(" ") || subject,
-        ctaLabel,
-        ctaUrl,
+        type: msg.type,
+        titleKey: msg.subjectKey,
+        title: msg.subject,
+        bodyKey: inAppBodyKey(msg),
+        body: msg.body ?? msg.subject,
+        params: msg.params,
+        ctaLabelKey:
+          msg.cta?.labelKey ?? (msg.cta?.label ? undefined : DEFAULT_CTA_KEY),
+        ctaLabel: msg.cta?.label,
+        ctaPath: `${baseUrl}${msg.cta?.path ?? "/company"}`,
+        portal: msg.portal,
+        listingId: msg.listingId ?? null,
       })
       .catch((err) =>
         this.logger.warn(
@@ -99,14 +321,19 @@ export class AdminCompaniesService {
           billingEmail: true,
           users: {
             where: { isActive: true, deletedAt: null },
-            select: { email: true, firstName: true, lastName: true },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              locale: true,
+            },
             orderBy: { createdAt: "asc" },
             take: 1,
           },
         },
       });
       if (!c) return;
-      this.notifyCompanyEmail(c, subject, paragraphs, type, cta);
+      void this.notifyCompanyEmail(c, msg);
     } catch (err) {
       this.logger.warn(
         `Admin bildirimi e-posta hazırlanamadı (${companyId}): ${
@@ -120,46 +347,90 @@ export class AdminCompaniesService {
    * notifyCompany'nin E-POSTA yarısı — alıcı satırı ÖNCEDEN çekilmiş olarak alır
    * (announce toplu gönderiminde per-firma findUnique N+1'ini önlemek için).
    * Push (in-app) çağıranda; bu yalnız e-posta gönderir.
+   *
+   * Hata FIRLATMAZ (reddi kendisi yutar/loglar); sonucu döner — toplu duyuru
+   * gönderilen/başarısız sayısını buradan toplar (derin denetim Y-08/X18).
+   * `priority: "bulk"` duyuru kuyruğunun diğer e-postaları bekletmemesi için.
    */
   private notifyCompanyEmail(
     company: {
       id: string;
       name: string;
       billingEmail: string | null;
-      users: { email: string; firstName: string; lastName: string }[];
+      users: {
+        email: string;
+        firstName: string;
+        lastName: string;
+        locale?: string | null;
+      }[];
     },
-    subject: string,
-    paragraphs: string[],
-    type: string,
-    cta?: { label: string; path: string },
-  ) {
-    const baseUrl =
-      resolveWebUrl(this.config);
-    const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
-    const ctaLabel = cta?.label ?? "Rothern'e Git";
+    msg: AdminNotifyMessage,
+    opts?: { priority?: "bulk" },
+  ): Promise<"sent" | "skipped" | "failed"> {
     const email = company.billingEmail || company.users[0]?.email;
-    if (!email) return;
+    if (!email) return Promise.resolve("skipped");
     const name = company.users[0]
       ? `${company.users[0].firstName} ${company.users[0].lastName}`.trim() ||
         company.name
       : company.name;
-    void this.email
+    // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili.
+    // Yalnız `billingEmail` taşıyan, aktif üyesi çözülmemiş firmada varsayılan.
+    const locale = localeOf(company.users[0]?.locale);
+    const params = formatNotificationParams(msg.params, locale);
+    const t = (key: ApiMessageKey) => tApi(key, params, locale);
+    const subject = msg.subjectKey ? t(msg.subjectKey) : (msg.subject ?? "");
+    // Selamlama HER İKİ yolda da alıcının dilinde ve otomatik: düz metin yolu
+    // (admin duyurusu) yalnız kendi yazdığı gövdeyi verir.
+    const paragraphs = [
+      t(GREETING_KEY),
+      ...(msg.paragraphKeys
+        ? msg.paragraphKeys.filter((k): k is ApiMessageKey => !!k).map(t)
+        : (msg.paragraphs ?? [])),
+      ...(msg.lines ?? []).map((line) =>
+        tApi(
+          line.key,
+          {
+            ...formatNotificationParams(line.params, locale),
+            ...Object.fromEntries(
+              Object.entries(line.keyParams ?? {}).map(([name, key]) => [
+                name,
+                tApi(key, undefined, locale),
+              ]),
+            ),
+          },
+          locale,
+        ),
+      ),
+    ];
+    const ctaLabel = msg.cta?.labelKey
+      ? t(msg.cta.labelKey)
+      : (msg.cta?.label ?? t(DEFAULT_CTA_KEY));
+    const ctaUrl = localizeUrl(
+      resolveWebUrl(this.config),
+      msg.cta?.path ?? "/company",
+      locale,
+    );
+    return this.email
       .send({
         to: { email, name },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: { subject, heading: subject, paragraphs, ctaLabel, ctaUrl },
         },
-        context: { type, id: company.id },
+        context: { type: msg.type, id: company.id },
+        ...(opts?.priority ? { priority: opts.priority } : {}),
       })
-      .catch((err: unknown) =>
+      .then((r): "sent" | "skipped" => (r.sent ? "sent" : "skipped"))
+      .catch((err: unknown): "failed" => {
         this.logger.warn(
           `Admin e-postası gönderilemedi (${company.id}): ${
             err instanceof Error ? err.message : String(err)
           }`,
-        ),
-      );
+        );
+        return "failed";
+      });
   }
 
   /**
@@ -178,6 +449,8 @@ export class AdminCompaniesService {
     pageSize?: number;
     /** "kyc" → başvuru kuyruğu: PENDING firmalar + bekleyen belge-revizyonlular. */
     queue?: string;
+    /** "30" → 30 gün içinde bitecek paket üyelikler (pano ile aynı tanım). */
+    expiring?: string;
   }) {
     const where: Record<string, unknown> = {};
     if (query.queue === "kyc") {
@@ -202,6 +475,22 @@ export class AdminCompaniesService {
       // DTO @IsIn ile 4 kademeye doğrulanmış.
       where.tier = query.tier as "STANDART" | "SILVER" | "GOLD";
     }
+    const expiring = query.expiring === "30";
+    if (expiring) {
+      // Pano `stats().expiringMemberships` ile AYNI tanım: paket üyelik,
+      // bitişi şimdi ile 30 gün sonrası arasında (arayüz testi D-146). Ayrı
+      // bir kademe süzgeci verildiyse o da geçerli kalır (STANDART → boş).
+      const now = new Date();
+      where.membershipEndAt = {
+        not: null,
+        gte: now,
+        lte: new Date(now.getTime() + 30 * 86_400_000),
+      };
+      if (!query.tier) where.tier = { in: [...PAID_TIERS] };
+      else if (!(PAID_TIERS as readonly string[]).includes(query.tier)) {
+        where.tier = { in: [] };
+      }
+    }
     if (query.q) {
       const q = query.q.trim();
       where.OR = [
@@ -221,48 +510,93 @@ export class AdminCompaniesService {
     }
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
-    const [total, rows] = await this.prisma.$transaction([
-      this.prisma.company.count({ where }),
-      this.prisma.company.findMany({
-        where,
+    const select = {
+      id: true,
+      rothernId: true,
+      name: true,
+      taxNumber: true,
+      country: true,
+      stateRegion: true,
+      city: true,
+      tier: true,
+      membershipEndAt: true,
+      companyVerificationStatus: true,
+      isBlocked: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
         select: {
-          id: true,
-          rothernId: true,
-          name: true,
-          taxNumber: true,
-          country: true,
-          stateRegion: true,
-          city: true,
-          tier: true,
-          membershipEndAt: true,
-          companyVerificationStatus: true,
-          isBlocked: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              complaintsReceived: true,
-              // Dalga B: arama `deletedAt:null` süzerken sayaç süzmüyordu →
-              // ekranda silinmiş kullanıcılar da sayılıyordu.
-              users: { where: { deletedAt: null } },
-              // Faz Y: listede "Belge Güncellemesi" rozeti için.
-              kycRevisions: { where: { status: "PENDING" } },
-            },
-          },
+          complaintsReceived: true,
+          // Dalga B: arama `deletedAt:null` süzerken sayaç süzmüyordu →
+          // ekranda silinmiş kullanıcılar da sayılıyordu.
+          users: { where: { deletedAt: null } },
+          // Faz Y: listede "Belge Güncellemesi" rozeti için.
+          kycRevisions: { where: { status: "PENDING" } },
         },
-        // "oldest": KYC kuyruğu için en-eski-önce (updatedAt ≈ belgelerin
-        // yüklendiği/PENDING'e geçtiği an) — SLA'ya göre işlem sırası.
-        // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
-        // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
-        // deterministik tie-break.
-        orderBy:
-          query.sort === "oldest"
-            ? [{ updatedAt: "asc" }, { id: "asc" }]
-            : [{ createdAt: "desc" }, { id: "desc" }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
+      },
+    } satisfies Prisma.CompanySelect;
+    let total: number;
+    let rows: Prisma.CompanyGetPayload<{ select: typeof select }>[];
+    let submittedAt: Map<string, Date> | null = null;
+    if (query.queue === "kyc") {
+      // Başvuru kuyruğu: "Başvuru" tarihi ve en-eski-önce sırası kuyruğa
+      // GİRİŞ anından gelir (bkz. `kycQueueEnteredAt`). Eskiden `updatedAt`
+      // kullanılıyordu: admin firma bilgisini düzenleyince başvuru zamanı o
+      // ana atlıyor, firma kuyruğun sonuna düşüyordu (arayüz testi O-075).
+      // Türetilmiş alan DB'de sıralanamaz; kuyruk küçük (bekleyen başvurular)
+      // olduğu için kimlikler bellekte sıralanıp sayfa sonra çekilir.
+      const all = await this.prisma.company.findMany({
+        where,
+        select: { id: true, companyVerificationStatus: true, updatedAt: true },
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        take: KYC_QUEUE_SCAN_CAP,
+      });
+      submittedAt = await this.kycQueueEnteredAt(all);
+      const at = submittedAt;
+      const dir = query.sort === "oldest" ? 1 : -1;
+      const ordered = [...all].sort((a, b) => {
+        const d = at.get(a.id)!.getTime() - at.get(b.id)!.getTime();
+        if (d !== 0) return d * dir;
+        return (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) * dir;
+      });
+      const pageIds = ordered
+        .slice((page - 1) * pageSize, page * pageSize)
+        .map((c) => c.id);
+      total =
+        all.length < KYC_QUEUE_SCAN_CAP
+          ? all.length
+          : await this.prisma.company.count({ where });
+      const pageRows = pageIds.length
+        ? await this.prisma.company.findMany({
+            where: { id: { in: pageIds } },
+            select,
+          })
+        : [];
+      const byId = new Map(pageRows.map((r) => [r.id, r]));
+      rows = pageIds.flatMap((id) => {
+        const r = byId.get(id);
+        return r ? [r] : [];
+      });
+    } else {
+      [total, rows] = await this.prisma.$transaction([
+        this.prisma.company.count({ where }),
+        this.prisma.company.findMany({
+          where,
+          select,
+          // Dalga B: tek alanlı sıralama eşit damgalarda sayfalar arası kayma
+          // üretiyordu (aynı satır iki sayfada / hiç görünmüyor) → id ile
+          // deterministik tie-break.
+          orderBy: expiring
+            ? [{ membershipEndAt: "asc" }, { id: "asc" }]
+            : query.sort === "oldest"
+              ? [{ updatedAt: "asc" }, { id: "asc" }]
+              : [{ createdAt: "desc" }, { id: "desc" }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ]);
+    }
     return {
       items: rows.map((c) => ({
         id: c.id,
@@ -276,11 +610,18 @@ export class AdminCompaniesService {
         membershipEndAt: c.membershipEndAt,
         verification: c.companyVerificationStatus,
         isBlocked: c.isBlocked,
+        // KVKK ile anonimlestirildi (D-208): askı/paket menusu kapanir.
+        anonymized: c.isActive === false,
         complaintCount: c._count.complaintsReceived,
         userCount: c._count.users,
         pendingRevisionCount: c._count.kycRevisions,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
+        /**
+         * Yalnız başvuru kuyruğunda (`queue: "kyc"`): kuyruğa giriş anı —
+         * "Başvuru" tarihi ve bekleme rozeti bunu kullanır (O-075).
+         */
+        submittedAt: submittedAt?.get(c.id) ?? null,
       })),
       total,
       page,
@@ -289,11 +630,59 @@ export class AdminCompaniesService {
   }
 
   /**
+   * Başvuru kuyruğuna giriş anı, firma başına:
+   * - ilk doğrulama (PENDING): EN SON `company.docs.submitted` izi (reddedilip
+   *   yeniden gönderen firmada güncel başvuru — panodaki kuyruk yaşıyla aynı
+   *   kaynak);
+   * - VERIFIED kalıp belge güncellemesi bekleyen: en eski PENDING revizyonun
+   *   oluşturulma anı.
+   * İz yoksa (eski kayıt) `updatedAt`'e düşülür.
+   */
+  private async kycQueueEnteredAt(
+    rows: { id: string; companyVerificationStatus: string; updatedAt: Date }[],
+  ): Promise<Map<string, Date>> {
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return new Map();
+    const [submits, revisions] = await Promise.all([
+      this.prisma.auditLog.groupBy({
+        by: ["entityId"],
+        where: { action: "company.docs.submitted", entityId: { in: ids } },
+        _max: { createdAt: true },
+      }),
+      this.prisma.companyKycRevision.groupBy({
+        by: ["companyId"],
+        where: { companyId: { in: ids }, status: "PENDING" },
+        _min: { createdAt: true },
+      }),
+    ]);
+    const lastSubmit = new Map(
+      submits.map((g) => [g.entityId, g._max.createdAt]),
+    );
+    const firstRevision = new Map(
+      revisions.map((g) => [g.companyId, g._min.createdAt]),
+    );
+    const out = new Map<string, Date>();
+    for (const r of rows) {
+      const since =
+        r.companyVerificationStatus === "PENDING"
+          ? lastSubmit.get(r.id)
+          : firstRevision.get(r.id);
+      out.set(r.id, since ?? r.updatedAt);
+    }
+    return out;
+  }
+
+  /**
    * Dashboard KPI'ları — SERVER-SIDE agregat (count/groupBy). Eskiden dashboard
    * 200-limitli listeden `.length`/`.filter` ile sayıyordu → 200 firma sonrası
    * yanlış/eksik sayılıyordu.
    */
-  async stats() {
+  /**
+   * `rowsAllowed: false` (SUPPORT): firma satırı dönmez — `expiringMemberships`
+   * boş, yalnız `expiringMembershipsCount` (arayüz testi D-182).
+   */
+  async stats(opts: { rowsAllowed?: boolean } = {}) {
+    const rowsAllowed = opts.rowsAllowed ?? true;
     const now = new Date();
     const d30 = new Date(now.getTime() - 30 * 86_400_000);
     const in30 = new Date(now.getTime() + 30 * 86_400_000);
@@ -314,6 +703,7 @@ export class AdminCompaniesService {
       listingsByType,
       totalBids,
       pendingRevisionCompanies,
+      expiringCount,
     ] = await Promise.all([
       this.prisma.company.count(),
       this.prisma.company.groupBy({
@@ -321,11 +711,14 @@ export class AdminCompaniesService {
         _count: true,
       }),
       this.prisma.company.groupBy({ by: ["tier"], _count: true }),
+      // Sınırsız: farklı ülke sayısı ISO listesiyle sınırlı (~250 satır).
+      // Eskiden `take: 10` idi → duyuru/firma listesi ülke seçimi 11. ve
+      // sonraki ülkeleri hiç sunamıyordu (derin denetim LU-11). Pano yine
+      // ilk 10'u (`countryBreakdown`) gösterir; tam liste `countryOptions`.
       this.prisma.company.groupBy({
         by: ["country"],
         _count: true,
         orderBy: { _count: { country: "desc" } },
-        take: 10,
       }),
       this.prisma.companyComplaint.count({ where: { status: "OPEN" } }),
       this.prisma.company.count({ where: { createdAt: { gte: d30 } } }),
@@ -384,20 +777,40 @@ export class AdminCompaniesService {
           kycRevisions: { some: { status: "PENDING" } },
         },
       }),
+      // Bitmek üzere üyeliklerin TAMAMI (liste ilk 10 satır) — SUPPORT yalnız
+      // bu sayıyı görür (D-182).
+      this.prisma.company.count({
+        where: {
+          tier: { in: [...PAID_TIERS] },
+          membershipEndAt: { not: null, gte: now, lte: in30 },
+        },
+      }),
     ]);
-    // Kuyruğa giriş anı: PENDING firmaların `company.docs.submitted` izlerinin
-    // EN ESKİSİ (bkz. yukarıdaki not). Hiç iz yoksa en eski `updatedAt`.
+    // Kuyruğa giriş anı: firma başına EN SON `company.docs.submitted` izi
+    // (bkz. yukarıdaki not); iz yoksa (legacy) o firmanın `updatedAt`'i. Kuyruk
+    // yaşı bu firma bazlı girişlerin en eskisidir. Eskiden tüm gönderimlerin
+    // en eskisi alınıyordu: reddedilip aylar sonra yeniden gönderen firmada
+    // ilk başvuru tarihi raporlanıyor, SLA göstergesi şişiyordu (derin denetim
+    // LU-03).
     let oldestPendingSince: Date | null = null;
     if (oldestPending.length > 0) {
-      const submitted = await this.prisma.auditLog.findFirst({
+      const lastSubmits = await this.prisma.auditLog.groupBy({
+        by: ["entityId"],
         where: {
           action: "company.docs.submitted",
           entityId: { in: oldestPending.map((c) => c.id) },
         },
-        select: { createdAt: true },
-        orderBy: { createdAt: "asc" },
+        _max: { createdAt: true },
       });
-      oldestPendingSince = submitted?.createdAt ?? oldestPending[0]!.updatedAt;
+      const lastByCompany = new Map(
+        lastSubmits.map((g) => [g.entityId, g._max.createdAt]),
+      );
+      for (const c of oldestPending) {
+        const since = lastByCompany.get(c.id) ?? c.updatedAt;
+        if (!oldestPendingSince || since < oldestPendingSince) {
+          oldestPendingSince = since;
+        }
+      }
     }
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
@@ -421,7 +834,13 @@ export class AdminCompaniesService {
         SILVER: tmap.get("SILVER") ?? 0,
         GOLD: tmap.get("GOLD") ?? 0,
       },
-      countryBreakdown: byCountry.map((g) => ({
+      /** Pano için en kalabalık 10 ülke. */
+      countryBreakdown: byCountry.slice(0, 10).map((g) => ({
+        country: g.country,
+        count: g._count,
+      })),
+      /** Firması olan TÜM ülkeler (çoktan aza) — segment/filtre seçimleri için. */
+      countryOptions: byCountry.map((g) => ({
         country: g.country,
         count: g._count,
       })),
@@ -430,7 +849,8 @@ export class AdminCompaniesService {
         newListings: new30Listings,
         newOrders: new30Orders,
       },
-      expiringMemberships: expiring,
+      expiringMemberships: rowsAllowed ? expiring : [],
+      expiringMembershipsCount: expiringCount,
       oldestPendingSince: oldestPendingSince,
       /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
       funnel: {
@@ -501,6 +921,14 @@ export class AdminCompaniesService {
         country: true,
         stateRegion: true,
         city: true,
+        // Adresin kalanı + hukuki yapı + yetkili kimliği (2026-09-27): admin
+        // belge incelerken bunları görmüyordu (yabancı firmanın GmbH/LLC'si,
+        // posta kodu, TR ilçe/mahalle).
+        district: true,
+        neighborhood: true,
+        postalCode: true,
+        companyType: true,
+        authorizedTckn: true,
         addressLine: true,
         billingEmail: true,
         tier: true,
@@ -515,6 +943,9 @@ export class AdminCompaniesService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        legalFormLocal: true,
         // Belgeler: url/key + belge bazlı inceleme durumu + red gerekçesi.
         docTaxPlateUrl: true,
         docTaxPlateStatus: true,
@@ -537,6 +968,7 @@ export class AdminCompaniesService {
         isBlocked: true,
         blockedReason: true,
         blockedAt: true,
+        isActive: true,
         createdAt: true,
         // Suppression rozeti: kullanıcı login adresleri + billingEmail'in
         // e-posta ALIP ALAMADIĞINI göster ("giriş yapamıyorum" destek çağrısı).
@@ -550,7 +982,7 @@ export class AdminCompaniesService {
         },
       },
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const openComplaints = await this.prisma.companyComplaint.count({
       where: { againstCompanyId: id, status: "OPEN" },
     });
@@ -594,11 +1026,49 @@ export class AdminCompaniesService {
         url: await this.storage.presignInlinePreview("private", r.key),
       })),
     );
+    // VIES (AB KDV) sonucu — şema değişikliği olmadan audit kaydından
+    // (2026-09-27): firma tarafı her sorguyu `company.vies_checked` olarak
+    // yazar (onboarding düğmesi + kayıt tamamlanınca arka plan); admin en
+    // sonuncuyu görür. Kayıt yoksa `null`.
+    const viesLog = await this.prisma.auditLog.findFirst({
+      where: { action: "company.vies_checked", entityType: "company", entityId: id },
+      orderBy: { createdAt: "desc" },
+      select: { metadata: true, createdAt: true },
+    });
+    const viesMeta = (viesLog?.metadata ?? null) as Record<string, unknown> | null;
+    const vies = viesLog && viesMeta
+      ? {
+          valid: viesMeta.valid === true,
+          unavailable: viesMeta.unavailable === true,
+          name: typeof viesMeta.name === "string" ? viesMeta.name : null,
+          address: typeof viesMeta.address === "string" ? viesMeta.address : null,
+          vatNumber: typeof viesMeta.vatNumber === "string" ? viesMeta.vatNumber : null,
+          countryCode: typeof viesMeta.countryCode === "string" ? viesMeta.countryCode : null,
+          source: typeof viesMeta.source === "string" ? viesMeta.source : null,
+          checkedAt: viesLog.createdAt,
+        }
+      : null;
     // `users` yalnız suppression hesabı için çekildi — detay contract'ına ham
     // liste sızdırma (ayrı users endpoint'i var); yalnız suppressions dön.
-    const { users: _users, ...company } = c;
+    const { users: _users, authorizedTckn, isActive, ...company } = c;
     return {
       ...company,
+      // KVKK ile anonimlestirildi (D-208): admin ekrani askiyi kaldir /
+      // bildirim / duzenle / paket eylemlerini kapatir (API de 409 doner).
+      anonymized: isActive === false,
+      // Yetkili kimlik no MASKELİ (KVKK veri-minimizasyonu; firma tarafıyla
+      // aynı `maskNationalId`) — tanımaya yeter, kopyalamaya yetmez.
+      authorizedTckn: authorizedTckn ? maskNationalId(authorizedTckn) : null,
+      vies,
+      // AB üyesi mi (VIES sorgulanabilir) — admin "sorgulanmadı" satırını
+      // yalnız bu ülkelerde çizer; kuralın kopyası admin'de tutulmaz.
+      viesSupported: EU_VAT_COUNTRIES.has((c.country ?? "").toUpperCase()),
+      // Ülkenin zorunlu belge seti — admin ekranı kendi kopyasını TUTMAZ
+      // (2026-09-27: eskiden "TR 6 / yabancı 3" ikili kuralı KKTC/Çin/BAE'de yanlıştı).
+      requiredDocs: requiredKinds(c.country),
+      // IBAN'sız ülkede `iban` kolonu hesap numarasıdır — admin etiketi buradan
+      // (admin uygulaması @rothern/shared'e bağlı değil; kural kopyalanmaz).
+      usesIban: countryUsesIban(c.country),
       docTaxPlateUrl,
       docTradeRegistryUrl,
       docSignatureCircularUrl,
@@ -627,6 +1097,10 @@ export class AdminCompaniesService {
    * Yalnız gönderilen alanlar değişir; öncesi/sonrası audit'e yazılır.
    * Vergi no/ülke gibi alanların değişimi KYC kararını OTOMATİK bozmaz —
    * gerekiyorsa admin belgeleri yeniden inceler (bilinçli ayrım).
+   *
+   * Yanıt `{ ok, changed, mappedCompanyType? }`: `mappedCompanyType` yalnız
+   * saklanan hukuki yapı türünü yerel ad belirlediyse ve bu, isteğin taşıdığı
+   * (ya da dokunmadığı) türden farklıysa gelir (bkz. aşağıda HUKUKİ YAPI).
    */
   async updateProfile(
     id: string,
@@ -639,6 +1113,8 @@ export class AdminCompaniesService {
         | "mersisNo"
         | "tradeRegistryNo"
         | "country"
+        | "companyType"
+        | "legalFormLocal"
         | "stateRegion"
         | "city"
         | "addressLine"
@@ -646,7 +1122,9 @@ export class AdminCompaniesService {
         | "website"
         | "industry"
         | "iban"
-        | "ibanHolder",
+        | "ibanHolder"
+        | "bankSwiftBic"
+        | "bankName",
         string | null
       >
     >,
@@ -662,6 +1140,8 @@ export class AdminCompaniesService {
         mersisNo: true,
         tradeRegistryNo: true,
         country: true,
+        companyType: true,
+        legalFormLocal: true,
         stateRegion: true,
         city: true,
         addressLine: true,
@@ -670,9 +1150,13 @@ export class AdminCompaniesService {
         industry: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        isActive: true,
       },
     });
-    if (!before) throw new NotFoundException("Firma bulunamadı");
+    if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(before);
 
     // Yalnız gerçekten değişen alanları uygula ("" → null normalize).
     const changes: Record<string, { from: unknown; to: unknown }> = {};
@@ -684,9 +1168,30 @@ export class AdminCompaniesService {
       if (value === prev) continue;
       // Ad boş bırakılamaz; ülke 2 harfli koda normalize edilir.
       if (key === "name" && !value) {
-        throw new BadRequestException("Firma adı boş olamaz");
+        throw new BadRequestException(i18nMessage("api.adminCompanies.firmaAdiBosOlamaz"));
       }
-      data[key] = key === "country" && value ? value.toUpperCase() : value;
+      data[key] =
+        key === "country" && value
+          ? value.toUpperCase()
+          : key === "bankSwiftBic" && value
+            ? normalizeSwift(value)
+            : key === "billingEmail" && value
+              ? value.toLowerCase()
+              : value;
+      // Ülke tam listeden (2026-09-27): eskiden her 2 harf ("ZZ") yazılıyordu.
+      if (key === "country" && data[key] && !isValidCountryCode(data[key]!)) {
+        throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizUlkeKodu"));
+      }
+      // Kayda KAPALI ülkeye (ABD + toprakları, kapsamlı yaptırım ülkeleri —
+      // `REGISTRATION_BLOCKED`) admin yolundan da taşınamaz: firma tarafı bu
+      // ülkeleri hiç seçtirmiyor, admin düzeltmesi kapıyı arkadan açıyordu.
+      // Yalnız DEĞİŞİMDE (aynı değer yukarıda atlandı) — zaten kapalı ülkedeki
+      // eski kayıt başka alan düzenlenirken reddedilmez.
+      if (key === "country" && data[key] && !isRegistrationOpen(data[key]!)) {
+        throw new BadRequestException(
+          i18nMessage("api.adminCompanies.buUlkeKaydaKapali"),
+        );
+      }
       // #11 (denetim 2026-08-26 Parça 9): IBAN audit'e DÜZ yazılıyordu —
       // firma tarafı aynı veriyi bilinçli olarak `maskIban` ile yazıyor
       // (company-docs). Alan adının değiştiği bilgisi iz için yeterli.
@@ -706,18 +1211,155 @@ export class AdminCompaniesService {
       before.country ??
       "TR"
     ).toUpperCase();
-    if (effectiveCountry === "TR" && typeof data.iban === "string") {
-      const iban = data.iban.replace(/\s+/g, "").toUpperCase();
-      if (!/^TR\d{24}$/.test(iban)) {
-        throw new BadRequestException("Geçerli bir IBAN gerekli (TR + 24 rakam).");
+    // HUKUKİ YAPI — onboarding kuralının aynısı (2026-10-08): yerel ad (GmbH,
+    // ООО, Sole trader…) HER türle saklanır; "Diğer" (OTHER) iken ZORUNLU
+    // (2026-09-27). Yerel ad BİR TÜRE AİTTİR: tür değişir ve İSTEK yerel ad
+    // taşımazsa eski ad silinir ("GmbH" yazan bir Anonim Şirket kalmasın).
+    // İki istisna: "Diğer"e geçişte eski ad serbest metin olarak geçerlidir;
+    // eski ad listede zaten YENİ türün adıysa kalır ("Diğer + GmbH" → Limited).
+    //
+    // "İstek yerel ad taşıyor mu" sorusu İSTEĞE sorulur (`input`), süzülmüş
+    // `data`ya değil: kayıtlı adla AYNI gönderilen ad yukarıdaki "değişmeyeni
+    // atla" kuralıyla `data`dan düşer. Eskiden o durumda ad "verilmedi" sayılıp
+    // siliniyordu — "Diğer + GmbH" kaydının türünü "Limited"e düzelten admin,
+    // adı açıkça gönderdiği hâlde GmbH'yı kaybediyordu.
+    //
+    // EŞLEMENİN SAHİBİ API (`resolveLegalForm`, onboarding ile aynı): sonuçtaki
+    // yerel ad firmanın (bu istekle değişiyorsa YENİ) ülkesinin listesindeyse
+    // tür listeden gelir, istek hangi türü taşırsa taşısın. İstenen (ya da
+    // dokunulmamış) tür listeyle ezildiyse yanıt `mappedCompanyType` taşır —
+    // admin ekranı "tür yerel ada göre kaydedildi" diyebilsin.
+    let mappedCompanyType: string | undefined;
+    if (input.companyType !== undefined || input.legalFormLocal !== undefined || "country" in data) {
+      const requestedType = ("companyType" in data ? data.companyType : before.companyType) ?? null;
+      let local = ("legalFormLocal" in data ? data.legalFormLocal : before.legalFormLocal) ?? null;
+      if (
+        "companyType" in data &&
+        input.legalFormLocal === undefined &&
+        requestedType !== "OTHER" &&
+        findLocalLegalForm(effectiveCountry, local)?.type !== requestedType
+      ) {
+        local = null;
       }
-      data.iban = iban;
-      changes.iban = { from: changes.iban?.from ?? null, to: maskIban(iban) };
+      const resolved = resolveLegalForm(effectiveCountry, requestedType, local);
+      if (resolved.type !== requestedType) mappedCompanyType = resolved.type ?? undefined;
+      // Sonuç kayıtlı değerle aynıysa alan yazılmaz (audit gürültüsü olmasın).
+      const apply = (key: "companyType" | "legalFormLocal", value: string | null) => {
+        const prev = before[key] ?? null;
+        if (value === prev) {
+          delete data[key];
+          delete changes[key];
+        } else {
+          data[key] = value;
+          changes[key] = { from: prev, to: value };
+        }
+      };
+      apply("companyType", resolved.type);
+      apply("legalFormLocal", resolved.name);
+      // "Diğer"de yerel ad zorunlu — yalnız hukuki yapı bu istekle DEĞİŞİYORSA
+      // (eski, adsız bir "Diğer" kaydında başka alan düzeltilebilsin).
+      if (
+        ("companyType" in data || "legalFormLocal" in data) &&
+        resolved.type === "OTHER" &&
+        (resolved.name ?? "").length < 2
+      ) {
+        throw new BadRequestException(
+          i18nMessage("api.adminCompanies.yerelHukukiYapiZorunlu"),
+        );
+      }
+    }
+    // Vergi no onboarding ile AYNI biçimde saklanır ve doğrulanır (derin
+    // denetim LU-03): `normalizeTaxId` (etiket/ülke öneki atılır, rakamlar
+    // ASCII) + `isValidTaxIdForCountry`. Eskiden admin yolu ham değeri
+    // yazıyordu; "DE 811569869" normalize "811569869" kaydıyla tekillik
+    // kısıtına takılmadan yan yana durabiliyordu. Yalnız değişen değer
+    // denetlenir (ülke değişimi mevcut numarayı yeniden doğrulamaz).
+    if (typeof data.taxNumber === "string") {
+      const taxNumber = normalizeTaxId(data.taxNumber, effectiveCountry);
+      const type = ("companyType" in data ? data.companyType : before.companyType) ?? null;
+      const isSole = type === "SOLE_PROPRIETOR";
+      if (!taxNumber || !isValidTaxIdForCountry(taxNumber, effectiveCountry, isSole)) {
+        throw new BadRequestException(
+          i18nMessage(
+            effectiveCountry === "TR"
+              ? isSole
+                ? "api.companyAuth.sahisFirmasiIcin11HaneliTckn"
+                : "api.companyAuth.tuzelKisiIcin10HaneliVergiNo"
+              : "api.companyAuth.gecerliBirVergiSicilNumarasiGiriniz",
+          ),
+        );
+      }
+      if (taxNumber === before.taxNumber) {
+        delete data.taxNumber;
+        delete changes.taxNumber;
+      } else {
+        data.taxNumber = taxNumber;
+        changes.taxNumber = { from: before.taxNumber, to: taxNumber };
+      }
+    }
+    // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (TR katı, diğerleri mod-97),
+    // IBAN kullanmayan ülkede hesap numarası — firma tarafıyla aynı kural.
+    if (typeof data.iban === "string" && data.iban.trim()) {
+      if (countryUsesIban(effectiveCountry)) {
+        const iban = data.iban.replace(/\s+/g, "").toUpperCase();
+        if (!isValidIbanAny(iban)) {
+          throw new BadRequestException(
+            effectiveCountry === "TR"
+              ? i18nMessage("api.adminCompanies.gecerliBirIbanGerekliTr24")
+              : i18nMessage("api.bankDetails.ibanInvalid"),
+          );
+        }
+        data.iban = iban;
+      } else if (!isValidAccountNumber(data.iban)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
+      }
+      changes.iban = { from: changes.iban?.from ?? null, to: maskIban(data.iban as string) };
+    }
+    // Banka bilgisi değiştiyse birleşik hâl ortak kapıdan (firma tarafıyla aynı
+    // kural): IBAN'sız ülkede hesap no + SWIFT + banka adı; IBAN ülkesinde SWIFT
+    // biçimi. Hesap/IBAN boşaltılıyorsa (bilgi siliniyor) yalnız SWIFT biçimi.
+    if ("iban" in data || "bankSwiftBic" in data || "bankName" in data) {
+      const pick = (k: "iban" | "bankSwiftBic" | "bankName") => (k in data ? data[k] : before[k]) ?? null;
+      const account = pick("iban");
+      if (account) {
+        const usesIban = countryUsesIban(effectiveCountry);
+        assertBankDetails({
+          country: effectiveCountry,
+          iban: usesIban || isValidIbanAny(account) ? account : null,
+          accountNumber: usesIban ? null : account,
+          swiftBic: pick("bankSwiftBic"),
+          bankName: pick("bankName"),
+        });
+      } else if (data.bankSwiftBic && !isValidSwiftBic(data.bankSwiftBic)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.swiftInvalid", undefined, "BANK_DETAILS_INVALID"));
+      }
     }
     if (Object.keys(data).length === 0) {
-      return { ok: true, changed: [] };
+      return { ok: true, changed: [], ...(mappedCompanyType ? { mappedCompanyType } : {}) };
     }
-    await this.prisma.company.update({ where: { id }, data });
+    // Şehir ya da ülke değiştiyse dünya şehir listesi kaydı yeniden eşlenir (2026-09-27).
+    const writeData: Record<string, string | number | null> = { ...data };
+    if ("city" in data || "country" in data) {
+      writeData.cityId = resolveCityId(
+        (data.country as string | null | undefined) ?? before.country,
+        "city" in data ? (data.city as string | null) : before.city,
+      );
+    }
+    // Vergi no platform genelinde tekil (`companies_taxNumber_key`): başka
+    // firmadaki numaraya düzeltme 500 yerine anlaşılır 409 döner (derin denetim
+    // 2026-09-29 MU-16).
+    try {
+      await this.prisma.company.update({ where: { id }, data: writeData });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        String(Array.isArray(e.meta?.target) ? e.meta.target.join(",") : e.meta?.target ?? "").includes("taxNumber")
+      ) {
+        throw new ConflictException(i18nMessage("api.adminCompanies.buVergiNumarasiBaskaFirmada"));
+      }
+      throw e;
+    }
     // Dalga B: ülke değişimi ZORUNLU BELGE SETİNİ değiştirir (TR 6 / yabancı 3).
     // DE→TR çevrilen VERIFIED bir firmada imza sirküleri/faaliyet belgesi/kimlik
     // arkası hiç yüklenmemiş olabilir; eski davranışta durum VERIFIED kalıyor ve
@@ -747,20 +1389,23 @@ export class AdminCompaniesService {
             data: {
               companyVerificationStatus: "UNVERIFIED",
               companyVerifiedAt: null,
-              companyRejectionReason:
-                "Ülke değişikliği sonrası yeni zorunlu belgeler eksik — lütfen tamamlayıp yeniden gönderin.",
+              // Kodlu gerekçe (2026-09-27): firmanın dilinde katalogdan
+              // çevrilir — eskiden sabit Türkçe cümle yabancı firmaya basılıyordu.
+              companyRejectionReason: formatVerificationReason("COUNTRY_CHANGED"),
             },
           });
-          void this.notifyCompany(
-            id,
-            "Ülke değişikliği: doğrulama belgeleriniz güncellenmeli",
-            [
-              "Merhaba,",
-              "Firmanızın ülkesi güncellendiği için zorunlu doğrulama belgeleri değişti. Eksik belgeleri yükleyip doğrulamayı yeniden gönderin.",
+          await this.onVerificationChanged(id, "VERIFIED", "UNVERIFIED");
+          void this.notifyCompany(id, {
+            type: "company_verification",
+            subjectKey: "api.notifications.adminCompanies.ulkeDegistiBaslik",
+            paragraphKeys: [
+              "api.notifications.adminCompanies.ulkeDegistiGovde",
             ],
-            "company_verification",
-            { label: "Belgeleri Tamamla", path: "/company/ayarlar/dogrulama" },
-          );
+            cta: {
+              labelKey: "api.notifications.common.belgeleriTamamla",
+              path: "/company/ayarlar/dogrulama",
+            },
+          });
         }
       }
     }
@@ -772,7 +1417,11 @@ export class AdminCompaniesService {
       entityId: id,
       metadata: { changes },
     });
-    return { ok: true, changed: Object.keys(data) };
+    return {
+      ok: true,
+      changed: Object.keys(data),
+      ...(mappedCompanyType ? { mappedCompanyType } : {}),
+    };
   }
 
   /**
@@ -787,16 +1436,52 @@ export class AdminCompaniesService {
     tradeRegistryNo: string | null;
     iban: string | null;
     ibanHolder: string | null;
+    bankSwiftBic: string | null;
+    bankName: string | null;
   }): void {
-    if ((c.country ?? "TR").toUpperCase() !== "TR") return;
+    // ÜLKEDEN BAĞIMSIZ (2026-09-27): eskiden TR dışı firma için erken dönüyordu
+    // → admin yabancı firmayı sicil/banka bilgisi BOŞKEN onaylayabiliyordu,
+    // oysa firma tarafı `submit()` hepsini istiyordu. Kural aynı: sicil + banka
+    // (IBAN ya da hesap no) + hesap sahibi + SWIFT her ülkede; MERSİS yalnız TR;
+    // banka adı IBAN kullanmayan ülkede.
+    const country = (c.country ?? "TR").toUpperCase();
+    const usesIban = countryUsesIban(country);
     const missing: string[] = [];
-    if (!c.mersisNo?.trim()) missing.push("MERSİS numarası");
+    if (country === "TR" && !c.mersisNo?.trim()) missing.push("MERSİS numarası");
     if (!c.tradeRegistryNo?.trim()) missing.push("ticari sicil numarası");
-    if (!c.iban?.trim()) missing.push("IBAN");
-    if (!c.ibanHolder?.trim()) missing.push("IBAN hesap sahibi");
+    // Banka alanlari TEK KAYNAKTAN (`bankDetailsErrors`, firma `submit()` ile
+    // ayni cagri): IBAN'siz ulkede gecerli IBAN verilmisse banka adi ISTENMEZ.
+    // Eskiden burada elle yazilmis `!usesIban && !bankName` kurali vardi —
+    // firma kapisindan PENDING'e gecen basvuru admin onayinda 400 aliyordu
+    // (derin denetim MU-02). Yalniz EKSIKLIK kapisi: bicim hatasi (eski kayit)
+    // onayi burada kilitlemez, davranis oncekiyle ayni.
+    const bankErrors = bankDetailsErrors(
+      {
+        country,
+        ...(usesIban ? { iban: c.iban } : { accountNumber: c.iban }),
+        swiftBic: c.bankSwiftBic,
+        bankName: c.bankName,
+      },
+      { requireSwift: true },
+    );
+    // Yaptirim ulkesi (IBAN oneki / SWIFT ulkesi) onayda da kapali: firma
+    // kapisi `assertBankDetails` ile ayni hata. `bankDetailsErrors` bu durumda
+    // erken doner (eksik alan kodlari gelmez) — kontrol edilmezse bu fixten
+    // once PENDING'e gecmis IR IBAN'li eski kayit onaydan gecerdi (derin
+    // denetim MU-17, gozden gecirme).
+    if (bankErrors.includes("ibanCountryBlocked") || bankErrors.includes("swiftCountryBlocked")) {
+      throw new BadRequestException(
+        i18nMessage("api.bankDetails.bankCountryBlocked", undefined, "BANK_COUNTRY_BLOCKED"),
+      );
+    }
+    if (bankErrors.includes("ibanRequired")) missing.push("IBAN");
+    if (bankErrors.includes("accountNumberRequired")) missing.push("banka hesap numarası");
+    if (!c.ibanHolder?.trim()) missing.push("hesap sahibi");
+    if (bankErrors.includes("swiftRequired")) missing.push("SWIFT/BIC");
+    if (bankErrors.includes("bankNameRequired")) missing.push("banka adı");
     if (missing.length > 0) {
       throw new BadRequestException(
-        `Doğrulama için eksik kimlik bilgisi: ${missing.join(", ")}. Firma bu alanları doldurmadan onaylanamaz.`,
+        i18nMessage("api.adminCompanies.dogrulamaIcinEksikKimlikBilgisiFirma", { join: missing.join(", ") }),
       );
     }
   }
@@ -806,6 +1491,7 @@ export class AdminCompaniesService {
     status: "VERIFIED" | "REJECTED",
     adminId: string,
     reason?: string,
+    reasonCode?: VerificationReasonCode | null,
   ) {
     // Denetim 2026-08-26 Parça 9 #1: bu uç eskiden kaynak duruma ve belgelere
     // HİÇ bakmadan karar yazıyor, üstelik `DOC_META`'nın TÜM anahtarlarını
@@ -821,10 +1507,13 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        onboardingCompletedAt: true,
         mersisNo: true,
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -833,20 +1522,29 @@ export class AdminCompaniesService {
         docIdBackUrl: true,
       },
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const required = requiredKinds(c.country);
+    // Kodlu gerekçe (2026-09-27): red için kod VEYA ≥3 karakterlik not.
+    const rejectReason =
+      status === "REJECTED" ? composeRejectReason(reason, reasonCode) : null;
+    if (status === "REJECTED" && !rejectReason) {
+      throw new BadRequestException(
+        i18nMessage("api.dto.adminCompanies.redGerekcesiEnAz3KarakterOlmali"),
+      );
+    }
     if (status === "VERIFIED") {
+      this.assertOnboarded(c);
       for (const k of required) {
         if (!(c as Record<string, unknown>)[DOC_META[k].url]) {
           throw new BadRequestException(
-            `Eksik belge var; karar verilemez (${k})`,
+            i18nMessage("api.adminCompanies.eksikBelgeVarKararVerilemez", { k: k }),
           );
         }
       }
       this.assertKycIdentityComplete(c);
     }
     const docStatus: KycDocStatus = status === "VERIFIED" ? "APPROVED" : "REJECTED";
-    const docReason = status === "REJECTED" ? (reason?.trim() || null) : null;
+    const docReason = rejectReason;
     // Yalnız ülkeye göre ZORUNLU belgeler damgalanır — yüklenmemiş/opsiyonel
     // kolonlara dokunulmaz (kalıcı kilit üretmesin).
     const docData = Object.fromEntries(
@@ -867,14 +1565,13 @@ export class AdminCompaniesService {
         companyVerifiedAt:
           status === "VERIFIED" ? (wasSame ? undefined : new Date()) : null,
         // Red gerekçesi firmaya gösterilir; onayda temizlenir.
-        companyRejectionReason:
-          status === "REJECTED" ? (reason?.trim() || null) : null,
+        companyRejectionReason: rejectReason,
         ...docData,
       },
     });
     if (done.count !== 1) {
       throw new ConflictException(
-        "Firma doğrulama durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+        i18nMessage("api.adminCompanies.firmaDogrulamaDurumuAzOnceDegisti"),
       );
     }
     await this.audit.log({
@@ -889,31 +1586,98 @@ export class AdminCompaniesService {
     });
     // Bildirim yalnız gerçek geçişte (kararın tekrarı ikinci e-posta atmasın).
     if (wasSame) return { ok: true, unchanged: true };
+    // Ücretsiz dönem: doğrulama efektif kademeyi değiştirir (koltuk / temizlik).
+    const drop = await this.onVerificationChanged(id, c.companyVerificationStatus, status);
     // Firmaya sonucu bildir (in-app + e-posta) — onboarding için kritik.
     if (status === "VERIFIED") {
-      void this.notifyCompany(
-        id,
-        "Firma doğrulamanız onaylandı",
-        [
-          "Merhaba,",
-          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
+      void this.notifyCompany(id, {
+        type: "company_verification",
+        subjectKey: "api.notifications.adminCompanies.dogrulamaOnaylandiBaslik",
+        paragraphKeys: [
+          "api.notifications.adminCompanies.dogrulamaOnaylandiGovde",
         ],
-        "company_verification",
-        { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
-      );
+        cta: {
+          labelKey: "api.notifications.common.hesabim",
+          path: "/company/ayarlar/dogrulama",
+        },
+      });
     } else {
+      // Gerekçe e-postada (arayüz testi D-141); doğrulanmış firmada karar
+      // statü KAYBIDIR, etkisi ayrı metinle anlatılır (D-193).
+      const reasonLine = rejectReasonLine(rejectReason, "redGerekcesi");
       void this.notifyCompany(
         id,
-        "Firma doğrulamanız reddedildi",
-        [
-          "Merhaba,",
-          "Firma doğrulama belgeleriniz incelendi ancak onaylanamadı. Lütfen belgelerinizi güncelleyip yeniden gönderin.",
-        ],
-        "company_verification",
-        { label: "Belgeleri Güncelle", path: "/company/ayarlar/dogrulama" },
+        c.companyVerificationStatus === "VERIFIED"
+          ? this.verificationRevokedMessage(reasonLine ? [reasonLine] : [], false, drop)
+          : {
+              type: "company_verification",
+              subjectKey: "api.notifications.adminCompanies.dogrulamaReddedildiBaslik",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.dogrulamaReddedildiGovde",
+              ],
+              ...(reasonLine ? { lines: [reasonLine] } : {}),
+              cta: {
+                labelKey: "api.notifications.common.belgeleriGuncelle",
+                path: "/company/ayarlar/dogrulama",
+              },
+            },
       );
     }
     return { ok: true };
+  }
+
+  /**
+   * D-166: firma kurulumu (unvan, vergi no, adres, rol) bitmemiş firma
+   * doğrulanamaz — eskiden yalnız API ile unvansız firma VERIFIED oluyordu.
+   */
+  private assertOnboarded(c: { onboardingCompletedAt: Date | null }): void {
+    if (!c.onboardingCompletedAt) {
+      throw new BadRequestException(
+        i18nMessage("api.adminCompanies.firmaKurulumuTamamlanmadiDogrulanamaz"),
+      );
+    }
+  }
+
+  /**
+   * Doğrulanmış firmanın doğrulaması geri alındı (D-193): genel "bazı
+   * belgeleriniz reddedildi" metni statü kaybını ve kapanan adımları
+   * söylemiyordu. `lines` reddedilen belgeler / gerekçe. "Reddedilen belgeler
+   * ve gerekçeleri:" başlığı yalnız satırlar BELGE satırıysa basılır — tek tık
+   * red (setVerification) belge saymaz, tek "Gerekçe: …" satırı verir; başlık
+   * altında belge yokmuş gibi görünüyordu (yeniden doğrulama NEW-2).
+   */
+  private verificationRevokedMessage(
+    lines: readonly AdminNotifyLine[],
+    linesAreDocuments = true,
+    drop: { unpublished: number; invitesCancelled: boolean } = {
+      unpublished: 0,
+      invitesCancelled: false,
+    },
+  ): AdminNotifyMessage {
+    return {
+      type: "company_verification",
+      subjectKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiBaslik",
+      bodyKey: "api.notifications.adminCompanies.dogrulamaGeriAlindiGovde",
+      // Ürün tavanı metne SABİT yazılmaz.
+      params: { adet: drop.unpublished, limit: PRODUCT_LIMITS.STANDART ?? 0 },
+      paragraphKeys: [
+        "api.notifications.adminCompanies.dogrulamaGeriAlindiEtki",
+        // Ücretsiz dönem: doğrulama kaybı efektif kademeyi düşürür — firmada
+        // FİİLEN değişenler söylenir (taslağa alınan ürün, iptal edilen davet).
+        drop.unpublished > 0 &&
+          "api.notifications.adminCompanies.dogrulamaGeriAlindiKirpilanUrun",
+        drop.invitesCancelled &&
+          "api.notifications.adminCompanies.dogrulamaGeriAlindiDavetIptal",
+        linesAreDocuments &&
+          lines.length > 0 &&
+          "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
+      ],
+      lines,
+      cta: {
+        labelKey: "api.notifications.common.belgeleriGuncelle",
+        path: "/company/ayarlar/dogrulama",
+      },
+    };
   }
 
   /**
@@ -927,7 +1691,12 @@ export class AdminCompaniesService {
     decisions: Partial<
       Record<
         DocKind,
-        { status: "APPROVED" | "REJECTED"; reason?: string; key?: string }
+        {
+          status: "APPROVED" | "REJECTED";
+          reason?: string;
+          reasonCode?: VerificationReasonCode | null;
+          key?: string;
+        }
       >
     >,
     adminId: string,
@@ -937,10 +1706,13 @@ export class AdminCompaniesService {
       select: {
         country: true,
         companyVerificationStatus: true,
+        onboardingCompletedAt: true,
         mersisNo: true,
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -949,7 +1721,7 @@ export class AdminCompaniesService {
         docIdBackUrl: true,
       },
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const required = requiredKinds(c.country);
     // #3 sürüm sabitlemesi: istemci İNCELEDİĞİ nesnenin anahtarını gönderirse
     // ona, göndermezse şu an okuduğumuz değere sabitleriz. Böylece "ekranda
@@ -965,17 +1737,18 @@ export class AdminCompaniesService {
     for (const k of required) {
       const uploaded = !!(c as Record<string, unknown>)[DOC_META[k].url];
       if (!uploaded) {
-        throw new BadRequestException(`Eksik belge var; karar verilemez (${k})`);
+        throw new BadRequestException(i18nMessage("api.adminCompanies.eksikBelgeVarKararVerilemez", { k: k }));
       }
       const d = decisions[k];
       if (!d || (d.status !== "APPROVED" && d.status !== "REJECTED")) {
-        throw new BadRequestException(`Her zorunlu belge için karar gerekli (${k})`);
+        throw new BadRequestException(i18nMessage("api.adminCompanies.herZorunluBelgeIcinKararGerekli", { k: k }));
       }
       if (d.status === "REJECTED") {
-        const reason = d.reason?.trim();
-        if (!reason || reason.length < 3) {
+        // Kodlu gerekçe (2026-09-27): kod VEYA ≥3 karakterlik not.
+        const reason = composeRejectReason(d.reason, d.reasonCode);
+        if (!reason) {
           throw new BadRequestException(
-            `Reddedilen belgeye gerekçe gerekli (${k})`,
+            i18nMessage("api.adminCompanies.reddedilenBelgeyeGerekceGerekli", { k: k }),
           );
         }
         anyRejected = true;
@@ -990,7 +1763,10 @@ export class AdminCompaniesService {
       ? "REJECTED"
       : "VERIFIED";
     // Dalga B: belge kararları geçse bile kimlik alanları eksikse VERIFIED olmaz.
-    if (status === "VERIFIED") this.assertKycIdentityComplete(c);
+    if (status === "VERIFIED") {
+      this.assertOnboarded(c);
+      this.assertKycIdentityComplete(c);
+    }
     const wasSame = c.companyVerificationStatus === status;
     // #3 + #4 (denetim 2026-08-26 Parça 9): CAS. `where` hem okuduğumuz genel
     // durumu hem de İNCELENEN BELGE ANAHTARLARINI sabitler — admin ekranı
@@ -1015,7 +1791,7 @@ export class AdminCompaniesService {
     });
     if (done.count !== 1) {
       throw new ConflictException(
-        "Belgeler veya doğrulama durumu az önce değişti — sayfayı yenileyip kararı tekrar verin",
+        i18nMessage("api.adminCompanies.belgelerVeyaDogrulamaDurumuAzOnce"),
       );
     }
     await this.audit.log({
@@ -1040,27 +1816,51 @@ export class AdminCompaniesService {
       critical: true,
     });
     if (wasSame && !anyRejected) return { ok: true, unchanged: true };
+    // Ücretsiz dönem: doğrulama efektif kademeyi değiştirir (koltuk / temizlik).
+    const drop = await this.onVerificationChanged(id, c.companyVerificationStatus, status);
     if (status === "VERIFIED") {
-      void this.notifyCompany(
-        id,
-        "Firma doğrulamanız onaylandı",
-        [
-          "Merhaba,",
-          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
+      void this.notifyCompany(id, {
+        type: "company_verification",
+        subjectKey: "api.notifications.adminCompanies.dogrulamaOnaylandiBaslik",
+        paragraphKeys: [
+          "api.notifications.adminCompanies.dogrulamaOnaylandiGovde",
         ],
-        "company_verification",
-        { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
-      );
+        cta: {
+          labelKey: "api.notifications.common.hesabim",
+          path: "/company/ayarlar/dogrulama",
+        },
+      });
     } else {
+      // Hangi belge, neden (arayüz testi D-141): reddedilen her belge kendi
+      // gerekçesiyle ayrı satır. Doğrulanmış firmada karar statü kaybıdır
+      // (D-193) — etkisi ayrı metinle anlatılır.
+      const lines = required
+        .filter((k) => decisions[k]?.status === "REJECTED")
+        .map((k) =>
+          rejectReasonLine(data[DOC_META[k].reason] as string, "redSatiri", {
+            belge: docLabelKey(k, c.country),
+          }),
+        )
+        .filter((l): l is AdminNotifyLine => l !== null);
       void this.notifyCompany(
         id,
-        "Bazı belgeleriniz reddedildi",
-        [
-          "Merhaba,",
-          "Firma doğrulama belgelerinizin bir kısmı onaylanmadı. Reddedilen belgeleri düzeltip yeniden gönderin; onaylanan belgeleri tekrar yüklemenize gerek yok.",
-        ],
-        "company_verification",
-        { label: "Belgeleri Güncelle", path: "/company/ayarlar/dogrulama" },
+        c.companyVerificationStatus === "VERIFIED"
+          ? this.verificationRevokedMessage(lines, true, drop)
+          : {
+              type: "company_verification",
+              subjectKey: "api.notifications.adminCompanies.baziBelgelerReddedildiBaslik",
+              bodyKey: "api.notifications.adminCompanies.baziBelgelerReddedildiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.baziBelgelerReddedildiGovde",
+                lines.length > 0 &&
+                  "api.notifications.adminCompanies.reddedilenBelgelerBaslik",
+              ],
+              lines,
+              cta: {
+                labelKey: "api.notifications.common.belgeleriGuncelle",
+                path: "/company/ayarlar/dogrulama",
+              },
+            },
       );
     }
     return { ok: true, status };
@@ -1075,28 +1875,36 @@ export class AdminCompaniesService {
   async reviewDocRevision(
     companyId: string,
     revisionId: string,
-    decision: { status: "APPROVED" | "REJECTED"; reason?: string },
+    decision: {
+      status: "APPROVED" | "REJECTED";
+      reason?: string;
+      reasonCode?: VerificationReasonCode | null;
+    },
     adminId: string,
   ) {
     if (decision.status !== "APPROVED" && decision.status !== "REJECTED") {
-      throw new BadRequestException("Geçersiz karar");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizKarar"));
     }
     const rev = await this.prisma.companyKycRevision.findUnique({
       where: { id: revisionId },
     });
     if (!rev || rev.companyId !== companyId) {
-      throw new NotFoundException("Revizyon bulunamadı");
+      throw new NotFoundException(i18nMessage("api.adminCompanies.revizyonBulunamadi"));
     }
     if (rev.status !== "PENDING") {
-      throw new BadRequestException("Yalnızca bekleyen revizyon incelenebilir");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizcaBekleyenRevizyonIncelenebilir"));
     }
     if (!(rev.kind in DOC_META)) {
-      throw new BadRequestException("Geçersiz belge türü");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizBelgeTuru"));
     }
     const k = rev.kind as DocKind;
-    const reason = decision.reason?.trim();
-    if (decision.status === "REJECTED" && (!reason || reason.length < 3)) {
-      throw new BadRequestException("Reddedilen revizyona gerekçe gerekli");
+    // Kodlu gerekçe (2026-09-27): kod VEYA ≥3 karakterlik not.
+    const reason =
+      decision.status === "REJECTED"
+        ? composeRejectReason(decision.reason, decision.reasonCode)
+        : null;
+    if (decision.status === "REJECTED" && !reason) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.reddedilenRevizyonaGerekceGerekli"));
     }
     // #8 (denetim 2026-08-26 Parça 9): onayda kolon YENİ anahtarla eziliyor,
     // eski nesne hiçbir yerde saklanmıyor ve silinmiyordu → v1/v2 taramaları
@@ -1116,9 +1924,17 @@ export class AdminCompaniesService {
         },
       });
       if (updated.count === 0) {
-        throw new BadRequestException("Revizyon az önce karara bağlandı");
+        throw new BadRequestException(i18nMessage("api.adminCompanies.revizyonAzOnceKararaBaglandi"));
       }
       if (decision.status === "APPROVED") {
+        // Gozden gecirme (MU-19): firma, bizim ilk okumamizla CAS arasinda
+        // bekleyen revizyonun dosyasini degistirmis olabilir (eski nesne o
+        // yolda silinir). CAS satiri kilitledigi icin burada okunan key
+        // kesinlesmis olandir; bayat rev.key kolona yazilmaz.
+        const fresh = await tx.companyKycRevision.findUniqueOrThrow({
+          where: { id: revisionId },
+          select: { key: true },
+        });
         const prev = await tx.company.findUnique({
           where: { id: companyId },
           select: { [DOC_META[k].url]: true } as Record<string, true>,
@@ -1126,13 +1942,13 @@ export class AdminCompaniesService {
         const prevKey = (prev as Record<string, unknown> | null)?.[
           DOC_META[k].url
         ];
-        if (typeof prevKey === "string" && prevKey && prevKey !== rev.key) {
+        if (typeof prevKey === "string" && prevKey && prevKey !== fresh.key) {
           supersededKey = prevKey;
         }
         await tx.company.update({
           where: { id: companyId },
           data: {
-            [DOC_META[k].url]: rev.key,
+            [DOC_META[k].url]: fresh.key,
             [DOC_META[k].status]: "APPROVED" as KycDocStatus,
             [DOC_META[k].reason]: null,
           },
@@ -1159,29 +1975,109 @@ export class AdminCompaniesService {
       metadata: { kind: k, status: decision.status },
     });
     if (decision.status === "APPROVED") {
-      void this.notifyCompany(
-        companyId,
-        "Belge güncellemeniz onaylandı",
-        [
-          "Merhaba,",
-          "Gönderdiğiniz yeni belge incelendi ve onaylandı; artık geçerli belgeniz olarak kayıtlıdır.",
+      void this.notifyCompany(companyId, {
+        type: "company_verification",
+        subjectKey: "api.notifications.adminCompanies.belgeGuncellemesiOnaylandiBaslik",
+        paragraphKeys: [
+          "api.notifications.adminCompanies.belgeGuncellemesiOnaylandiGovde",
         ],
-        "company_verification",
-        { label: "Belgelerim", path: "/company/ayarlar/dogrulama" },
-      );
+        cta: {
+          labelKey: "api.notifications.common.belgelerim",
+          path: "/company/ayarlar/dogrulama",
+        },
+      });
     } else {
-      void this.notifyCompany(
-        companyId,
-        "Belge güncellemeniz reddedildi",
-        [
-          "Merhaba,",
-          "Gönderdiğiniz yeni belge onaylanmadı; mevcut belgeniz geçerliliğini korumaktadır. Gerekçeyi görüp yeni bir belge yükleyebilirsiniz.",
+      void this.notifyCompany(companyId, {
+        type: "company_verification",
+        subjectKey: "api.notifications.adminCompanies.belgeGuncellemesiReddedildiBaslik",
+        paragraphKeys: [
+          "api.notifications.adminCompanies.belgeGuncellemesiReddedildiGovde",
         ],
-        "company_verification",
-        { label: "Belgelerim", path: "/company/ayarlar/dogrulama" },
-      );
+        cta: {
+          labelKey: "api.notifications.common.belgelerim",
+          path: "/company/ayarlar/dogrulama",
+        },
+      });
     }
     return { ok: true, status: decision.status };
+  }
+
+  /**
+   * EFEKTİF kademe düşüşünün temizliği — elle paket alma (`setTier`) ve
+   * ücretsiz dönemde doğrulamanın geri alınması AYNI kuralı uygular:
+   *  · satınalma panelini kaybeden firmanın kuyruktaki dış talep davetleri
+   *    iptal (derin denetim LU-07);
+   *  · alt kademeye inen firmanın GÖNDERDİĞİ bekleyen bağlantı/referral
+   *    davetleri iptal (kabul edilse `isConnectionValid` geçersiz sayardı — #6)
+   *    ve yayında ürün tavanı uygulanır (fazlası taslağa; silinmez).
+   * Düşüş yoksa hiçbir şey yapmaz. Dönüş: taslağa alınan ürün sayısı ve
+   * davet iptali yapıldı mı (bildirim metni için).
+   */
+  private async applyEffectiveTierDrop(
+    id: string,
+    effBefore: TierName,
+    effAfter: TierName,
+  ): Promise<{ unpublished: number; invitesCancelled: boolean }> {
+    if (tierAtLeast(effAfter, effBefore)) return { unpublished: 0, invitesCancelled: false };
+    if (effAfter !== "STANDART") {
+      if (tierAtLeast(effBefore, BUYING_TIER) && !tierAtLeast(effAfter, BUYING_TIER)) {
+        await cancelQueuedListingInvites(this.prisma, [id]);
+      }
+      return { unpublished: 0, invitesCancelled: false };
+    }
+    await this.prisma.$transaction([
+      this.prisma.companyConnection.deleteMany({
+        where: { inviterCompanyId: id, status: "PENDING" },
+      }),
+      ...cancelOutgoingReferralInvites(this.prisma, [id]),
+    ]);
+    const trimmed = await enforceProductLimit(this.prisma, id, "STANDART").catch(() => ({
+      unpublished: 0,
+    }));
+    return { unpublished: trimmed.unpublished, invitesCancelled: true };
+  }
+
+  /**
+   * ÜCRETSİZ DÖNEM: doğrulama durumu EFEKTİF kademeyi belirler (doğrulanmış =
+   * tam erişim). Durum değişince paket değişiminin yan etkileri burada koşar:
+   *  · VERIFIED oldu → kurucunun satınalma koltuğu açılır (`ensureOwnerBuySeat`
+   *    — kayıtta verilmiyor; satınalma paneli tam bu anda kullanılabilir olur);
+   *  · VERIFIED'dan çıktı → `applyEffectiveTierDrop` (saklı paketi süren firma
+   *    onu korur, düşüş olmaz).
+   * Herkese açık yüzey (belge/video, rozetler) değiştiği için sayfalar
+   * tazelenir. Anahtar kapalıyken hiçbir şey yapmaz. Best-effort: doğrulama
+   * kararı bu yüzden geri alınmaz.
+   */
+  private async onVerificationChanged(
+    id: string,
+    from: string,
+    to: string,
+  ): Promise<{ unpublished: number; invitesCancelled: boolean }> {
+    const none = { unpublished: 0, invitesCancelled: false };
+    if (!isFreePeriod() || from === to) return none;
+    try {
+      const c = await this.prisma.company.findUnique({
+        where: { id },
+        select: { tier: true, membershipEndAt: true },
+      });
+      if (!c) return none;
+      const effBefore = effectiveTier(c.tier, c.membershipEndAt, from);
+      const effAfter = effectiveTier(c.tier, c.membershipEndAt, to);
+      if (effBefore === effAfter) return none;
+      this.seo?.companyChanged(id);
+      if (tierAtLeast(effAfter, effBefore)) {
+        await ensureOwnerBuySeat(this.prisma, id);
+        return none;
+      }
+      return await this.applyEffectiveTierDrop(id, effBefore, effAfter);
+    } catch (err) {
+      this.logger.warn(
+        `Verification entitlement side effects failed (${id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return none;
+    }
   }
 
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
@@ -1194,9 +2090,15 @@ export class AdminCompaniesService {
   ) {
     const before = await this.prisma.company.findUnique({
       where: { id },
-      select: { membershipEndAt: true, tier: true },
+      select: {
+        membershipEndAt: true,
+        tier: true,
+        isActive: true,
+        companyVerificationStatus: true,
+      },
     });
-    if (!before) throw new NotFoundException("Firma bulunamadı");
+    if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(before);
     let membershipEndAt: Date | null = null;
     if (tier !== "STANDART") {
       // Takvim ayı (setMonth) — 30-gün çarpımı yılda ~5 gün drift ediyordu.
@@ -1219,7 +2121,7 @@ export class AdminCompaniesService {
       });
       if (done.count !== 1) {
         throw new ConflictException(
-          "Firmanın üyeliği az önce değişti — sayfayı yenileyip tekrar deneyin",
+          i18nMessage("api.adminCompanies.firmaninUyeligiAzOnceDegistiSayfayi"),
         );
       }
       // Üyelik geçmişi (append-only) — rapor + destek "premium'um nereye gitti".
@@ -1252,50 +2154,33 @@ export class AdminCompaniesService {
       actorId: adminId ?? null,
       entityType: "company",
       entityId: id,
-      metadata: { tier, from: before.tier, months: months ?? 12 },
+      // Paket kaldırmada (STANDART) ay verilmez — eski "ay: 12" denetim
+      // satırında kaldırmayı bir yıllık hibe gibi okutuyordu (arayüz testi
+      // son tur api-2). Olay tablosundaki REVOKE ile aynı: months yok.
+      metadata: { tier, from: before.tier, months: tier !== "STANDART" ? (months ?? 12) : null },
       // #10: para/yetki aksiyonu — audit yazımı düşerse alarm.
       critical: true,
     });
-    // #6: elle REVOKE, otomatik süre-dolma yolunun (membership.scheduler)
-    // temizliğini yapmıyordu. STANDART davet gönderemez; firmanın GÖNDERDİĞİ
-    // bekleyen davetler kalırsa karşı taraf kabul ettiğinde `isConnectionValid`
-    // bağlantıyı geçersiz sayar ("kabul ettim ama bağlantı yok" hayaleti).
-    if (tier === "STANDART" && before.tier !== "STANDART") {
-      await this.prisma.$transaction([
-        this.prisma.companyConnection.deleteMany({
-          where: { inviterCompanyId: id, status: "PENDING" },
-        }),
-        this.prisma.companyReferralInvite.deleteMany({
-          where: { inviterCompanyId: id, status: "PENDING" },
-        }),
-      ]);
-      // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
-      // taslağa çekilir (silinmez) — üyelik cron'uyla aynı kural.
-      const trimmed = await enforceProductLimit(this.prisma, id, "STANDART").catch(() => ({ unpublished: 0 }));
-      void this.notifyCompany(
-        id,
-        "Paket üyeliğiniz sonlandırıldı",
-        [
-          "Merhaba,",
-          "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-          ...(trimmed.unpublished > 0
-            ? [`Tavanı aşan ${trimmed.unpublished} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`]
-            : []),
-          "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-        ],
-        "membership_downgraded",
-      );
-    } else if (tier !== "STANDART" && before.tier === "STANDART") {
-      void this.notifyCompany(
-        id,
-        "Paket üyeliğiniz tanımlandı",
-        [
-          "Merhaba,",
-          `Firma hesabınıza ${tier} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.`,
-        ],
-        "membership_granted",
-      );
-    }
+    // Paket herkese açık yüzeyi değiştirir (Gold rozeti, Silver+ ürün videosu
+    // ve belgeleri): firma ve ürün sayfaları tazelensin (arayüz testi D-192
+    // yeniden doğrulama — eskiden paket değişimi hiçbir tazeleme yaymıyordu).
+    if (tier !== before.tier) this.seo?.companyChanged(id);
+    // YAN ETKİLER EFEKTİF KADEMEYE GÖRE (ücretsiz dönem, sahip kararı
+    // 2026-10-07): saklı kademe değişse de firmanın EFEKTİF kademesi
+    // değişmeyebilir — doğrulanmış firma saklı STANDART'a alınsa da tam
+    // erişimlidir; ürünleri kırpılmaz, davetleri iptal edilmez. Anahtar
+    // kapalıyken efektif = saklı (+süre) → eski davranışla birebir.
+    //
+    // FİRMAYA BİLDİRİM YOK: "paketiniz tanımlandı / sonlandırıldı / … alındı"
+    // metinleri paket adı taşıyordu; hiçbir bildirim/e-posta paket anamaz.
+    // Kayıt denetim izinde ve üyelik geçmişinde durur. Ücretli paketler dönünce
+    // bildirimler ve `api.notifications.adminCompanies.paket*` metinleri git
+    // geçmişinden geri alınır.
+    await this.applyEffectiveTierDrop(
+      id,
+      effectiveTier(before.tier, before.membershipEndAt, before.companyVerificationStatus),
+      effectiveTier(tier, membershipEndAt, before.companyVerificationStatus),
+    );
     return { ok: true, tier, membershipEndAt };
   }
 
@@ -1314,10 +2199,10 @@ export class AdminCompaniesService {
       where: { id },
       select: { tier: true, membershipEndAt: true },
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     if (c.tier === "STANDART") {
       throw new BadRequestException(
-        "Uzatma yalnız paketli üyelikte — önce bir paket (Silver/Gold) verin",
+        i18nMessage("api.adminCompanies.uzatmaYalnizPaketliUyelikteOnceBir"),
       );
     }
     // Dalga B-3: SÜRESİZ üyelik uzatılamaz. Eskiden `membershipEndAt === null`
@@ -1326,7 +2211,7 @@ export class AdminCompaniesService {
     // ve olay tablosunda EXTEND olarak görünüyordu.
     if (!c.membershipEndAt) {
       throw new BadRequestException(
-        "Bu firmanın üyeliği süresiz — uzatılamaz. Süre tanımlamak isterseniz önce paketi yeniden verin (bitiş tarihiyle).",
+        i18nMessage("api.adminCompanies.buFirmaninUyeligiSuresizUzatilamazSure"),
       );
     }
     const now = new Date();
@@ -1346,7 +2231,7 @@ export class AdminCompaniesService {
       });
       if (done.count !== 1) {
         throw new ConflictException(
-          "Firmanın üyeliği az önce değişti — sayfayı yenileyip tekrar deneyin",
+          i18nMessage("api.adminCompanies.firmaninUyeligiAzOnceDegistiSayfayi"),
         );
       }
       await tx.companyMembershipEvent.create({
@@ -1486,8 +2371,13 @@ export class AdminCompaniesService {
   }
 
   async suspend(id: string, reason: string, adminId?: string) {
-    await this.requireCompany(id);
-    const blockedReason = reason?.trim() || "Yönetici tarafından askıya alındı";
+    await this.requireCompany(id, { notAnonymized: true });
+    // blockedReason yalnız admin panelinde görünen TR iç kayıttır. Firmaya
+    // giden bildirimde gerekçe YOKSA bu sabit metin `{gerekce}` olarak EN/RU
+    // şablona girmez; alıcının dilinde çözülen parametresiz anahtar gider
+    // (şikayet yolundaki `resolveComplaint` ile aynı desen — derin denetim LU-03).
+    const adminReason = reason?.trim() || null;
+    const blockedReason = adminReason ?? "Yönetici tarafından askıya alındı";
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: true, blockedReason, blockedAt: new Date() },
@@ -1507,21 +2397,32 @@ export class AdminCompaniesService {
     // kapıda duruyor (company-jwt.strategy `isBlocked`) ama nedenini
     // bilmiyordu. Diğer tüm müdahaleler (ilan kapatma/uzatma, sipariş iptali)
     // firmayı bilgilendiriyor; simetriyi kuruyoruz.
-    void this.notifyCompany(
-      id,
-      "Hesabınız askıya alındı",
-      [
-        "Merhaba,",
-        `Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: ${blockedReason}`,
-        "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
-      ],
-      "admin_company_suspended",
-    );
+    void this.notifyCompany(id, {
+      type: "admin_company_suspended",
+      subjectKey: "api.notifications.adminCompanies.askiyaAlindiBaslik",
+      // İki paragraf → in-app satırı birleşmiş metni taşır.
+      ...(adminReason
+        ? {
+            bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
+            paragraphKeys: [
+              "api.notifications.adminCompanies.askiyaAlindiGerekce",
+              "api.notifications.adminCompanies.askiyaAlindiItiraz",
+            ],
+            params: { gerekce: adminReason },
+          }
+        : {
+            bodyKey: "api.notifications.adminCompanies.askiyaAlindiGerekcesizGovde",
+            paragraphKeys: [
+              "api.notifications.adminCompanies.askiyaAlindiGerekcesiz",
+              "api.notifications.adminCompanies.askiyaAlindiItiraz",
+            ],
+          }),
+    });
     return { ok: true };
   }
 
   async unsuspend(id: string, adminId?: string) {
-    await this.requireCompany(id);
+    await this.requireCompany(id, { notAnonymized: true });
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: false, blockedReason: null, blockedAt: null },
@@ -1536,15 +2437,13 @@ export class AdminCompaniesService {
       critical: true,
     });
     // #17 simetrisi: askının kalktığı da bildirilir.
-    void this.notifyCompany(
-      id,
-      "Hesabınızın askısı kaldırıldı",
-      [
-        "Merhaba,",
-        "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz.",
+    void this.notifyCompany(id, {
+      type: "admin_company_unsuspended",
+      subjectKey: "api.notifications.adminCompanies.askiKaldirildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminCompanies.askiKaldirildiGovde",
       ],
-      "admin_company_unsuspended",
-    );
+    });
     return { ok: true };
   }
 
@@ -1577,8 +2476,10 @@ export class AdminCompaniesService {
         },
       ];
     }
-    const p = Math.max(1, page ?? 1);
-    const ps = Math.min(100, Math.max(1, pageSize ?? 25));
+    // DTO zaten tam sayı garanti eder; servis doğrudan çağrılırsa NaN/ondalık
+    // `skip`/`take` olarak Prisma'ya gitmesin (derin denetim LU-03).
+    const p = Number.isInteger(page) ? Math.max(1, page!) : 1;
+    const ps = Number.isInteger(pageSize) ? Math.min(100, Math.max(1, pageSize!)) : 25;
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.companyComplaint.count({ where }),
       this.prisma.companyComplaint.findMany({
@@ -1634,7 +2535,7 @@ export class AdminCompaniesService {
     await this.requireCompany(companyId);
     const trimmed = body.trim();
     if (trimmed.length < 3) {
-      throw new BadRequestException("Not en az 3 karakter olmalı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.notEnAz3KarakterOlmali"));
     }
     const note = await this.prisma.companyAdminNote.create({
       data: { companyId, adminId, body: trimmed },
@@ -1645,21 +2546,33 @@ export class AdminCompaniesService {
       actorId: adminId,
       entityType: "company",
       entityId: companyId,
+      // Silme kaydıyla eşleşsin (D-167): hangi notun eklendiği.
+      metadata: { noteId: note.id },
     });
     return { ok: true, id: note.id };
   }
 
   async deleteNote(noteId: string, adminId: string) {
+    // D-167: silinen notun firması ve metni denetime yazılır — eskiden yalnız
+    // not kimliği yazılıyordu; firma Denetim sekmesi (firma id'siyle arar)
+    // silmeyi göstermiyor, ne silindiği de izlenemiyordu.
+    const note = await this.prisma.companyAdminNote.findUnique({
+      where: { id: noteId },
+      select: { companyId: true, body: true },
+    });
+    if (!note) throw new NotFoundException(i18nMessage("api.adminCompanies.notBulunamadi"));
     const done = await this.prisma.companyAdminNote.deleteMany({
       where: { id: noteId },
     });
-    if (done.count !== 1) throw new NotFoundException("Not bulunamadı");
+    if (done.count !== 1) throw new NotFoundException(i18nMessage("api.adminCompanies.notBulunamadi"));
     await this.audit.log({
       action: "admin.company.note_deleted",
       actorType: "admin",
       actorId: adminId,
+      tenantId: note.companyId,
       entityType: "company_note",
       entityId: noteId,
+      metadata: { companyId: note.companyId, body: note.body.slice(0, 1000) },
     });
     return { ok: true };
   }
@@ -1726,11 +2639,14 @@ export class AdminCompaniesService {
     message: string,
     adminId: string,
   ) {
-    await this.requireCompany(companyId);
-    await this.notifyCompany(companyId, subject.trim(), [
-      "Merhaba,",
-      message.trim(),
-    ], "admin_message");
+    await this.requireCompany(companyId, { notAnonymized: true });
+    // Admin'in KENDİ yazdığı metin: katalog anahtarı yok, çevrilmez.
+    await this.notifyCompany(companyId, {
+      type: "admin_message",
+      subject: subject.trim(),
+      body: message.trim(),
+      paragraphs: [message.trim()],
+    });
     await this.audit.log({
       action: "admin.company.notified",
       actorType: "admin",
@@ -1777,128 +2693,255 @@ export class AdminCompaniesService {
         truncated: exact > ANNOUNCE_MAX_TARGETS,
       };
     }
-    // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
-    // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
-    // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
-    const targets = (await this.prisma.company.findMany({
-      where,
-      select: {
-        id: true,
-        ...(input.sendEmail
-          ? {
-              name: true,
-              billingEmail: true,
-              users: {
-                where: { isActive: true, deletedAt: null },
-                // #15: alıcının duyuru tercihi (opt-out) okunur.
-                select: {
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  notificationPrefs: true,
-                },
-                orderBy: { createdAt: "asc" },
-                take: 1,
-              },
-            }
-          : {}),
-      },
-      // Dalga B: sessiz tavan yasak — kesildiyse yanıt bunu SÖYLER.
-      take: ANNOUNCE_MAX_TARGETS + 1,
-    })) as {
-      id: string;
-      name: string;
-      billingEmail: string | null;
-      users: {
-        email: string;
-        firstName: string;
-        lastName: string;
-        notificationPrefs?: unknown;
-      }[];
-    }[];
-    const truncated = targets.length > ANNOUNCE_MAX_TARGETS;
-    if (truncated) targets.length = ANNOUNCE_MAX_TARGETS;
-    const subject = input.subject.trim();
-    const message = input.message.trim();
-    const pushPayload = {
-      type: "admin_announcement",
-      // Yetki tablosu: duyuru yönetim ve koltuk sahiplerine; onaylayıcı-only
-      // üye yalnız onay bildirimi alır (kullanıcı kararı 2026-09-05).
-      audience: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
-      title: subject,
-      body: message,
-      ctaLabel: "Rothern'e Git",
-      ctaUrl: `${resolveWebUrl(this.config)}/company`,
-    };
-    const CHUNK = 25;
-    let delivered = 0;
-    for (let i = 0; i < targets.length; i += CHUNK) {
-      const results = await Promise.allSettled(
-        targets.slice(i, i + CHUNK).map(async (t) => {
-          if (input.sendEmail) {
-            // notifyCompany paritesi: in-app push (swallow) + prefetch'li e-posta.
-            await this.notifications
-              .pushToCompany(t.id, pushPayload)
-              .catch((err) =>
-                this.logger.warn(
-                  `Admin bildirimi yazılamadı (${t.id}): ${
-                    err instanceof Error ? err.message : String(err)
-                  }`,
-                ),
-              );
-            // #15 (denetim 2026-08-26 Parça 9): duyuru artık kapatılabilir
-            // bir bildirim tipi (`admin_announcement` → `announcement`).
-            // Alıcı kullanıcının tercihine saygı gösterilir. NOT: firma
-            // `billingEmail`'ine giden kol tercihsizdir — bu, Parça 7'de
-            // yazılı karara bağlanmış mimari (fatura adresi kurumsaldır).
-            const prefUser = t.users[0];
-            const emailAllowed =
-              !prefUser ||
-              !!t.billingEmail ||
-              isNotificationEnabled(
-                prefUser.notificationPrefs as Record<string, boolean> | null,
-                "admin_announcement",
-              );
-            if (emailAllowed) {
-              this.notifyCompanyEmail(
-                t,
-                subject,
-                ["Merhaba,", message],
-                "admin_announcement",
-              );
-            }
-          } else {
-            await this.notifications.pushToCompany(t.id, pushPayload);
-          }
-        }),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") delivered++;
-        else
-          this.logger.warn(
-            `Duyuru gönderilemedi: ${
-              r.reason instanceof Error ? r.reason.message : String(r.reason)
-            }`,
-          );
-      }
+    // MÜKERRER KORUMA (arayüz testi FX-00 O-007): "Evet, Gönder"e çift tık iki
+    // istek de başarılı olup segmentteki her firmaya iki e-posta + iki bildirim
+    // gidiyordu. Hak SENKRON alınır (ilk await'ten önce — aynı süreçteki
+    // eşzamanlı istek göremeden geçemez); ayrıca son pencerede AYNI duyuru
+    // (yönetici + konu + mesaj + tier + ülke + e-posta → `dedupeKey`) denetim
+    // kaydında varsa (başka örnek / sıralı tekrar) reddedilir. Yalnız konuya
+    // bakmak, aynı konulu duyuruyu başka segmente gönderen yöneticiyi de
+    // engelliyordu.
+    const claimKey = createHash("sha256")
+      .update(
+        JSON.stringify([
+          adminId,
+          input.subject.trim(),
+          input.message.trim(),
+          input.tier ?? null,
+          input.country?.trim().toUpperCase() ?? null,
+          !!input.sendEmail,
+        ]),
+      )
+      .digest("hex");
+    const claimNow = Date.now();
+    for (const [k, t] of this.announceClaims) {
+      if (claimNow - t >= ANNOUNCE_DEDUPE_MS) this.announceClaims.delete(k);
     }
-    await this.audit.log({
-      action: "admin.announcement.sent",
-      actorType: "admin",
-      actorId: adminId,
-      entityType: "announcement",
-      entityId: null,
-      metadata: {
-        subject: input.subject,
-        tier: input.tier ?? "all",
-        country: input.country ?? "all",
-        email: !!input.sendEmail,
+    if (this.announceClaims.has(claimKey)) {
+      throw new ConflictException(
+        i18nMessage("api.adminCompanies.ayniDuyuruAzOnceGonderildi", undefined, "ANNOUNCEMENT_DUPLICATE"),
+      );
+    }
+    this.announceClaims.set(claimKey, claimNow);
+    try {
+      const recentSame = await this.prisma.auditLog.findFirst({
+        where: {
+          action: "admin.announcement.sent",
+          actorId: adminId,
+          createdAt: { gte: new Date(claimNow - ANNOUNCE_DEDUPE_MS) },
+          metadata: { path: ["dedupeKey"], equals: claimKey },
+        },
+        select: { id: true },
+      });
+      if (recentSame) {
+        throw new ConflictException(
+          i18nMessage("api.adminCompanies.ayniDuyuruAzOnceGonderildi", undefined, "ANNOUNCEMENT_DUPLICATE"),
+        );
+      }
+    } catch (e) {
+      // Hak yalnız gönderim başladıysa tutulur; ret/okuma hatasında bırakılır.
+      this.announceClaims.delete(claimKey);
+      throw e;
+    }
+    // Gönderim hiçbir firmaya ulaşmadan hata verirse (hedef sorgusu vb.) hak
+    // bırakılır — yeniden deneme 2 dakika 409 almasın. Kısmi gönderimden sonra
+    // tutulur (tekrar, ulaşmış firmalara ikinci kopya olurdu).
+    let delivered = 0;
+    try {
+      // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
+      // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
+      // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
+      const targets = (await this.prisma.company.findMany({
+        where,
+        select: {
+          id: true,
+          ...(input.sendEmail
+            ? {
+                name: true,
+                billingEmail: true,
+                users: {
+                  where: { isActive: true, deletedAt: null },
+                  // #15: alıcının duyuru tercihi (opt-out) okunur.
+                  select: {
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    notificationPrefs: true,
+                    // E-posta kabuğunun/CTA'sının dili (notifyCompanyEmail).
+                    locale: true,
+                  },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                },
+              }
+            : {}),
+        },
+        // Dalga B: sessiz tavan yasak — kesildiyse yanıt bunu SÖYLER.
+        take: ANNOUNCE_MAX_TARGETS + 1,
+      })) as {
+        id: string;
+        name: string;
+        billingEmail: string | null;
+        users: {
+          email: string;
+          firstName: string;
+          lastName: string;
+          notificationPrefs?: unknown;
+          locale?: string | null;
+        }[];
+      }[];
+      const truncated = targets.length > ANNOUNCE_MAX_TARGETS;
+      if (truncated) targets.length = ANNOUNCE_MAX_TARGETS;
+      const subject = input.subject.trim();
+      const message = input.message.trim();
+      const pushPayload = {
+        type: "admin_announcement",
+        // Yetki tablosu: duyuru yönetim ve koltuk sahiplerine; onaylayıcı-only
+        // üye yalnız onay bildirimi alır (kullanıcı kararı 2026-09-05).
+        audience: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
+        // Duyuru metni admin'in KENDİ yazdığı serbest metindir → çevrilmez.
+        // Yalnız CTA etiketi katalogdan (alıcının dilinde) gelir.
+        title: subject,
+        body: message,
+        ctaLabelKey: DEFAULT_CTA_KEY,
+        ctaPath: `${resolveWebUrl(this.config)}/company`,
+      };
+      const CHUNK = 25;
+      // E-POSTA (derin denetim Y-08/X18): eskiden `void email.send` ile 5000'e
+      // kadar gönderim aynı anda uçuyor, Resend 429'unda FAILED kalıyor ve DB
+      // havuzunu tüketiyordu. Artık her gönderim EmailService kuyruğundan
+      // (`bulk` öncelik, saniyelik hız + sınırlı eşzamanlılık + 429 yeniden
+      // deneme) geçer. İstek e-postaları BEKLEMEZ — hesabın saniyelik limitiyle
+      // 1000 e-posta dakikalar sürer, HTTP isteği zaman aşımına düşerdi; sonuç
+      // sayıları bitince ayrı audit satırına yazılır.
+      const emailJobs: Promise<"sent" | "skipped" | "failed">[] = [];
+      for (let i = 0; i < targets.length; i += CHUNK) {
+        const results = await Promise.allSettled(
+          targets.slice(i, i + CHUNK).map(async (t) => {
+            if (input.sendEmail) {
+              // notifyCompany paritesi: in-app push (swallow) + prefetch'li e-posta.
+              await this.notifications
+                .pushToCompany(t.id, pushPayload)
+                .catch((err) =>
+                  this.logger.warn(
+                    `Admin bildirimi yazılamadı (${t.id}): ${
+                      err instanceof Error ? err.message : String(err)
+                    }`,
+                  ),
+                );
+              // #15 (denetim 2026-08-26 Parça 9): duyuru artık kapatılabilir
+              // bir bildirim tipi (`admin_announcement` → `announcement`).
+              // Alıcı kullanıcının tercihine saygı gösterilir. NOT: firma
+              // `billingEmail`'ine giden kol tercihsizdir — bu, Parça 7'de
+              // yazılı karara bağlanmış mimari (fatura adresi kurumsaldır).
+              const prefUser = t.users[0];
+              const emailAllowed =
+                !prefUser ||
+                !!t.billingEmail ||
+                isNotificationEnabled(
+                  prefUser.notificationPrefs as Record<string, boolean> | null,
+                  "admin_announcement",
+                );
+              if (emailAllowed) {
+                emailJobs.push(
+                  this.notifyCompanyEmail(
+                    t,
+                    {
+                      type: "admin_announcement",
+                      subject,
+                      body: message,
+                      paragraphs: [message],
+                    },
+                    { priority: "bulk" },
+                  ),
+                );
+              }
+            } else {
+              await this.notifications.pushToCompany(t.id, pushPayload);
+            }
+          }),
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled") delivered++;
+          else
+            this.logger.warn(
+              `Duyuru gönderilemedi: ${
+                r.reason instanceof Error ? r.reason.message : String(r.reason)
+              }`,
+            );
+        }
+      }
+      await this.audit.log({
+        action: "admin.announcement.sent",
+        actorType: "admin",
+        actorId: adminId,
+        entityType: "announcement",
+        entityId: null,
+        metadata: {
+          subject: input.subject,
+          tier: input.tier ?? "all",
+          country: input.country ?? "all",
+          email: !!input.sendEmail,
+          dedupeKey: claimKey,
+          targets: targets.length,
+          delivered,
+          truncated,
+          ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
+        },
+      });
+      if (emailJobs.length > 0) {
+        void this.recordAnnouncementEmailResult(emailJobs, {
+          adminId,
+          subject: input.subject,
+        });
+      }
+      return {
+        ok: true,
         targets: targets.length,
         delivered,
         truncated,
-      },
-    });
-    return { ok: true, targets: targets.length, delivered, truncated };
+        ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
+      };
+    } catch (e) {
+      if (delivered === 0) this.announceClaims.delete(claimKey);
+      throw e;
+    }
+  }
+
+  /**
+   * Duyuru e-postaları kuyrukta bitince gerçek sonucu audit'e yazar
+   * (`delivered` yalnız in-app push'u sayar; e-posta kaybı görünmüyordu).
+   * Fail-safe: audit hatası yalnız loglanır.
+   */
+  private async recordAnnouncementEmailResult(
+    jobs: Promise<"sent" | "skipped" | "failed">[],
+    meta: { adminId: string; subject: string },
+  ): Promise<{ sent: number; skipped: number; failed: number }> {
+    const results = await Promise.all(jobs);
+    const counts = { sent: 0, skipped: 0, failed: 0 };
+    for (const r of results) counts[r]++;
+    if (counts.failed > 0) {
+      this.logger.warn(
+        `Announcement emails: ${counts.sent} sent, ${counts.failed} failed, ${counts.skipped} skipped`,
+      );
+    }
+    try {
+      await this.audit.log({
+        action: "admin.announcement.email_completed",
+        actorType: "admin",
+        actorId: meta.adminId,
+        entityType: "announcement",
+        entityId: null,
+        metadata: { subject: meta.subject, ...counts },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Announcement email result could not be written to audit: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    return counts;
   }
 
   async resolveComplaint(
@@ -1922,16 +2965,16 @@ export class AdminCompaniesService {
     // SALES yaptığını GERİ ALAMIYORDU). Kapı burada, yan etkinin yanında.
     if (input.suspend && actorRole !== "SUPER_ADMIN") {
       throw new ForbiddenException(
-        "Firma askıya alma yetkisi yalnız SUPER_ADMIN'dedir — şikayeti askıya almadan sonuçlandırabilirsiniz",
+        i18nMessage("api.adminCompanies.firmaAskiyaAlmaYetkisiYalnizSuper"),
       );
     }
     const c = await this.prisma.companyComplaint.findUnique({
       where: { id },
       select: { id: true, againstCompanyId: true, status: true },
     });
-    if (!c) throw new NotFoundException("Şikayet bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.sikayetBulunamadi"));
     if (c.status !== "OPEN") {
-      throw new BadRequestException("Bu şikayet zaten sonuçlanmış");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.buSikayetZatenSonuclanmis"));
     }
     // Atomik CAS: yalnız hâlâ OPEN ise sonuçlandır — tekrar-resolve / eşzamanlı
     // ikinci karar tekrar suspend/üzerine yazma yapamaz.
@@ -1945,7 +2988,7 @@ export class AdminCompaniesService {
       },
     });
     if (resolved.count === 0) {
-      throw new BadRequestException("Bu şikayet zaten sonuçlanmış");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.buSikayetZatenSonuclanmis"));
     }
     await this.audit.log({
       action: "admin.complaint.resolved",
@@ -1956,10 +2999,15 @@ export class AdminCompaniesService {
       metadata: { status: input.status, suspend: !!input.suspend },
     });
     if (input.suspend) {
-      const blockedReason =
-        input.suspendReason?.trim() ||
-        input.adminNote?.trim() ||
-        "Şikayet üzerine askıya alındı";
+      // `adminNote` IC nottur (sikayetciye bile gosterilmez; icinde sikayetci
+      // firmanin adi olabilir) — askiya alinan firmaya giden gerekceye DUSMEZ.
+      // Firmaya yalniz acikca "firmaya iletilir" diye sorulan `suspendReason`
+      // gider (derin denetim MU-02).
+      const suspendReason = input.suspendReason?.trim() || null;
+      // blockedReason yalniz admin panelinde gorunen TR ic kayittir; firmaya
+      // giden bildirimde gerekce yoksa sabit metin DEGIL alicinin dilinde
+      // cozulen katalog anahtari kullanilir (EN/RU sablona TR metin girmesin).
+      const blockedReason = suspendReason ?? "Şikayet üzerine askıya alındı";
       await this.prisma.company.update({
         where: { id: c.againstCompanyId },
         data: {
@@ -1968,6 +3016,8 @@ export class AdminCompaniesService {
           blockedAt: new Date(),
         },
       });
+      // suspend() ile ayni: herkese acik profil/urun/sitemap onbellegi tazelenir.
+      this.seo?.companyChanged(c.againstCompanyId);
       await this.audit.log({
         action: "admin.company.suspended",
         actorType: "admin",
@@ -1979,16 +3029,27 @@ export class AdminCompaniesService {
       });
       // #17: şikayet üzerinden askıya alma da sessiz kalmasın (suspend()
       // ile aynı bildirim; iki yolun tek davranışı olmalı).
-      void this.notifyCompany(
-        c.againstCompanyId,
-        "Hesabınız askıya alındı",
-        [
-          "Merhaba,",
-          `Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: ${blockedReason}`,
-          "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
-        ],
-        "admin_company_suspended",
-      );
+      void this.notifyCompany(c.againstCompanyId, {
+        type: "admin_company_suspended",
+        subjectKey: "api.notifications.adminCompanies.askiyaAlindiBaslik",
+        // İki paragraf → in-app satırı birleşmiş metni taşır.
+        ...(suspendReason
+          ? {
+              bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.askiyaAlindiGerekce",
+                "api.notifications.adminCompanies.askiyaAlindiItiraz",
+              ],
+              params: { gerekce: suspendReason },
+            }
+          : {
+              bodyKey: "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGerekce",
+                "api.notifications.adminCompanies.askiyaAlindiItiraz",
+              ],
+            }),
+      });
     }
     return { ok: true };
   }
@@ -2004,7 +3065,7 @@ export class AdminCompaniesService {
     actor?: { id: string; email?: string | null },
   ): Promise<Record<string, unknown>> {
     const company = await this.prisma.company.findUnique({ where: { id } });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     // Perf (aktif/büyük firmada OOM): eski tek-sorgu 14-relation include ağacı
     // her relation'ı SINIRSIZ belleğe yüklüyordu. Prisma FLUENT relation API'siyle
     // her relation cursor-batch'lenir (include şekli AYNI, TÜM satırlar korunur —
@@ -2038,6 +3099,11 @@ export class AdminCompaniesService {
             twoFactorRecoveryCodes: true,
             authId: true,
             tokenVersion: true,
+            // 2FA deneme freni sayaclari (derin denetim MU-16): hesap
+            // guvenligi ic durumu, dokum kapsami disinda.
+            twoFactorFailedAttempts: true,
+            twoFactorWindowStartedAt: true,
+            twoFactorLastTotpStep: true,
           },
         }),
       ),
@@ -2059,8 +3125,29 @@ export class AdminCompaniesService {
       this.pageRelation((a) => root().connectionsInitiated(a)),
       this.pageRelation((a) => root().connectionsReceived(a)),
       this.pageRelation((a) => root().referralInvitesSent(a)),
-      this.pageRelation((a) => root().complaintsMade(a)),
-      this.pageRelation((a) => root().complaintsReceived(a)),
+      // Sikayetler (derin denetim MU-02): urun sikayet edilen firmaya
+      // sikayetci kimligini hic gostermez — dokum de gostermez. Hakkindaki
+      // sikayetlerde yalniz konu/durum/tarih; sikayetci firma/kullanici,
+      // detay metni (sikayetcinin yazdigi), ic admin notu ve karar veren admin
+      // YOK. Kendi actiklarinda da ic not ve admin kimligi yok (listMine gibi).
+      this.pageRelation((a) =>
+        root().complaintsMade({
+          ...a,
+          omit: { adminNote: true, resolvedByAdminId: true },
+        }),
+      ),
+      this.pageRelation((a) =>
+        root().complaintsReceived({
+          ...a,
+          select: {
+            id: true,
+            reason: true,
+            status: true,
+            createdAt: true,
+            resolvedAt: true,
+          },
+        }),
+      ),
       this.pageRelation((a) => root().membershipEvents(a)),
       this.pageRelation((a) => root().adminNotes(a)),
       this.pageRelation((a) => root().addresses(a)),
@@ -2221,6 +3308,14 @@ export class AdminCompaniesService {
         id: true,
         name: true,
         rothernId: true,
+        // SEO tazelemesi için (sert silmeden sonra satır okunamaz).
+        slug: true,
+        cityId: true,
+        country: true,
+        // Zaten anonimlestirilmis firma (yeniden dogrulama webC-11): ikinci
+        // calisma blockedAt'i (anonimlestirme tarihi) ezip mukerrer kritik
+        // audit yaziyordu; temizlenecek bir sey de kalmaz. 409.
+        isActive: true,
         users: { select: { id: true, authId: true } },
         // Dalga A2 (denetim P12 #1/#2): SERT SİLME kapısı eskiden YALNIZ
         // siparişe bakıyordu. Sipariş FK'ları `Restrict` (doğru), ama iki
@@ -2249,6 +3344,18 @@ export class AdminCompaniesService {
             complaintsMade: true,
             complaintsReceived: true,
             membershipEvents: true,
+            // Derin denetim MU-03 (S010/X18): karsi tarafin yazdigi ama bu
+            // firmanin hic yanitlamadigi thread'ler (messagesSent=0), baska
+            // firmalarin taleplerindeki davet kayitlari ve kayitli alicilarin
+            // bu firmanin urunlerine actigi bilgi talepleri de Company'ye
+            // `onDelete: Cascade` bagli — sert silme karsi tarafin gelen
+            // kutusunu / davetli listesini / "Bilgi taleplerim"ini siliyordu.
+            threadsAsBuyer: true,
+            threadsAsSeller: true,
+            listingInvitations: true,
+            // Anonim ziyaretci talebi (claimedCompanyId yok) platformda kimsenin
+            // kaydi degil; yalniz kayitli aliciya baglananlar tutar.
+            publicInquiries: { where: { claimedCompanyId: { not: null } } },
           },
         },
         // KVKK imhası için nesne anahtarları (aşağıda R2'dan silinir).
@@ -2265,7 +3372,8 @@ export class AdminCompaniesService {
         kycRevisions: { select: { key: true } },
       },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    this.assertNotAnonymized(company);
     const c = company._count;
     /**
      * Sert silmeyi engelleyen izler. Her biri ya KARŞI TARAFIN kaydını
@@ -2285,6 +3393,10 @@ export class AdminCompaniesService {
       complaintsMade: c.complaintsMade,
       complaintsReceived: c.complaintsReceived,
       membershipEvents: c.membershipEvents,
+      threadsAsBuyer: c.threadsAsBuyer,
+      threadsAsSeller: c.threadsAsSeller,
+      listingInvitations: c.listingInvitations,
+      publicInquiries: c.publicInquiries,
     };
     const hasRetainedHistory = Object.values(retentionCounts).some(
       (n) => n > 0,
@@ -2329,6 +3441,13 @@ export class AdminCompaniesService {
 
     if (!hasRetainedHistory) {
       await this.prisma.company.delete({ where: { id } });
+      // Herkese acik profil/urun/sitemap onbellegi dussun (derin denetim
+      // MU-02); satir artik yok, slug silmeden once okundu.
+      this.seo?.companyChanged(id, {
+        slug: company.slug,
+        cityId: company.cityId,
+        country: company.country,
+      });
       await this.audit.log({
         action: "admin.company.deleted",
         actorType: "admin",
@@ -2395,10 +3514,59 @@ export class AdminCompaniesService {
           certificateImages: [],
           aboutText: null,
           publicEnabled: false,
+          // Derin denetim MU-03 (X07/X18/S010): kalan kimlik/iletisim izleri.
+          // slug firma adindan turetilir; searchTextI18n about + ceviri
+          // katlamasidir. Eski slug SEO tazelemesi icin yukarida okundu.
+          slug: null,
+          legalFormLocal: null,
+          bankSwiftBic: null,
+          bankName: null,
+          linkedinUrl: null,
+          instagramUrl: null,
+          services: [],
+          searchTextI18n: "",
         },
       }),
       // KYC revizyon kayıtları da (R2 anahtarı taşır) silinir.
       this.prisma.companyKycRevision.deleteMany({ where: { companyId: id } }),
+      // Derin denetim MU-03: iliskili tablolar cascade'e yalniz SERT silmede
+      // girer; anonimlestirmede elle temizlenir.
+      //  - Banka hesaplari (hesap sahibi adi + IBAN/hesap no): siparisler banka
+      //    bilgisini kendi anlik goruntusunde tutar, satir gerekmez.
+      //  - Bekleyen kullanici davetleri (davetli e-postasi + gecerli token).
+      //  - Firma tanitim cevirileri (aboutText/services EN/RU).
+      //  - Adres defteri: satirlar SILINMEZ (ilan/teklif FK'siz ya da SetNull
+      //    ile bu satirlara bakar), kisi/vergi alanlari ve acik adres
+      //    karartilir; ulke/sehir gibi kaba konum kalir.
+      this.prisma.companyBankAccount.deleteMany({ where: { companyId: id } }),
+      //  - Urunler (arayuz testi D-216): vitrinden cekilir ve onay kuyrugundan
+      //    duser (DRAFT + pasif). Satirlar SILINMEZ: siparis/bilgi talebi
+      //    gecmisi urune bakabilir.
+      this.prisma.companyItem.updateMany({
+        where: { companyId: id },
+        data: {
+          isPublic: false,
+          isActive: false,
+          reviewStatus: "DRAFT",
+          submittedAt: null,
+        },
+      }),
+      this.prisma.companyUserInvitation.deleteMany({ where: { companyId: id } }),
+      this.prisma.contentTranslation.deleteMany({
+        where: { entityType: "COMPANY", entityId: id },
+      }),
+      this.prisma.companyAddress.updateMany({
+        where: { companyId: id },
+        data: {
+          contactName: null,
+          phone: null,
+          addressLine: "",
+          district: null,
+          postalCode: null,
+          taxOffice: null,
+          taxNumber: null,
+        },
+      }),
       // Kullanıcılar: soft-delete + e-posta karartma (unique korunur) +
       // oturum düşürme. İsimler de anonimleşir.
       ...company.users.map((u, i) =>
@@ -2417,6 +3585,20 @@ export class AdminCompaniesService {
         }),
       ),
     ]);
+    // Anonim firma gorunmez (publicEnabled=false, isBlocked) — eski ad/logo
+    // ISR onbelleginden servis edilmesin (derin denetim MU-02). slug artik
+    // null (MU-03): eski profil yolu, once okunan anlik goruntuyle tazelenir.
+    this.seo?.companyChanged(id, {
+      slug: company.slug,
+      cityId: company.cityId,
+      country: company.country,
+    });
+    // Neden sert silinmedi — hangi izler tuttu (Dalga A2, P12 #1/#2). Yanıtta
+    // da döner: admin ekranı "siparişli" varsayımı yerine gerçek nedenleri
+    // gösterir (arayüz testi D-143).
+    const retainedBecause = Object.fromEntries(
+      Object.entries(retentionCounts).filter(([, n]) => n > 0),
+    );
     await this.audit.log({
       action: "admin.company.anonymized",
       actorType: "admin",
@@ -2426,25 +3608,40 @@ export class AdminCompaniesService {
       metadata: {
         name: company.name,
         rothernId: company.rothernId,
-        // Neden sert silinmedi — hangi izler tuttu (Dalga A2, P12 #1/#2).
-        // Eskiden yalnız "sipariş var" ima ediliyordu; artık gerekçe açık.
-        retainedBecause: Object.fromEntries(
-          Object.entries(retentionCounts).filter(([, n]) => n > 0),
-        ),
+        retainedBecause,
       },
       // #10: geri alınamaz aksiyon.
       critical: true,
     });
     // #9: geri alınamaz dış temizlik ancak DB + audit kesinleştikten sonra.
     await purgeExternal();
-    return { ok: true, mode: "anonymized" as const };
+    return { ok: true, mode: "anonymized" as const, retainedBecause };
   }
 
-  private async requireCompany(id: string) {
+  private async requireCompany(
+    id: string,
+    opts: { notAnonymized?: boolean } = {},
+  ) {
     const exists = await this.prisma.company.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
-    if (!exists) throw new NotFoundException("Firma bulunamadı");
+    if (!exists) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    if (opts.notAnonymized) this.assertNotAnonymized(exists);
+  }
+
+  /**
+   * KVKK ile anonimlestirilmis firma (arayuz testi D-208): `Company.isActive`
+   * yalniz `deleteOrAnonymize` tarafindan false yapilir ve geri acilmaz. Boyle
+   * bir firmada askiyi kaldirmak KVKK gerekcesini siliyor ve firmayi
+   * "Dogrulandi" gosteriyordu; bildirim/duzenleme/paket de anlamsiz. 409.
+   * `=== false`: eski/eksik select'te (undefined) kapi kapanmaz.
+   */
+  private assertNotAnonymized(c: { isActive?: boolean | null }) {
+    if (c.isActive === false) {
+      throw new ConflictException(
+        i18nMessage("api.adminCompanies.firmaKvkkIleAnonimlestirildi"),
+      );
+    }
   }
 }

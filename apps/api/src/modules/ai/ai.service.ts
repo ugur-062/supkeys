@@ -1,3 +1,5 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadGatewayException,
   ForbiddenException,
@@ -31,6 +33,14 @@ import {
  * - rol: SEAT_ROLES (shared) — SA/ST koltuk sahipleri. Etiket-only SAHIP/
  *   YONETICI, ONAYLAYICI → 403 (Faz R salt-okunur modeliyle tutarlı).
  */
+
+/**
+ * The AI call ran out of time (`callAi`). Still a 503 with the same message; a
+ * class of its own so that a caller can tell "timed out - trying again helps"
+ * from the other 503s (round 5 review, R5-03: an incomplete supplier search
+ * reports WHY a pass failed).
+ */
+export class AiTimeoutException extends ServiceUnavailableException {}
 
 export interface AiCallOptions {
   feature: string;
@@ -68,6 +78,21 @@ export interface AiCallOptions {
    * zaten "low" (boş-yanıt fix'i, 2026-07-28). Verilmezse sağlayıcı varsayılanı.
    */
   thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  /**
+   * Per-call timeout (ms) instead of the global `AI_TIMEOUT_MS` (round 5, D1).
+   * Only for a call that is known to need longer: the grounded supplier
+   * research takes 45-75 s and the 60 s default cut 15 % of them. An
+   * interactive caller keeps the whole HTTP request below the proxy limit
+   * (Cloudflare 100 s) itself. Keep it well below the reservation reaper
+   * (10 min, `ai.scheduler.ts`).
+   */
+  timeoutMs?: number;
+  /**
+   * Absolute end of the call (epoch ms), the provider's own retries included:
+   * without it every retry of a transient provider error gets the full
+   * `timeoutMs` again. A caller with a wall-clock budget passes it.
+   */
+  deadlineAt?: number;
 }
 
 export interface AiCallResult {
@@ -102,14 +127,14 @@ export class AiService {
    * `anyOf`: özelliğin istediği izinler (herhangi biri yeter). Varsayılan:
    * herhangi bir İŞLEM izni (koltuk) — yetki tablosu 2026-09-05; etiket-only
    * Kurucu/Yönetici, Onaylayıcı ve salt görüntüleyici → 403. Ürün çıkarımı
-   * `sell:product:manage`, profil zenginleştirme `company:manage` geçirir.
+   * `sell:product:manage`, profil tanıtımı önerisi `company:manage` geçirir.
    */
   /**
    * `minTier` — VARSAYILAN "SILVER" ve öyle KALMALI; AI özellikleri paketli
-   * özelliktir. Tek istisna profil zenginleştirme: ücretsiz firmanın profilini
-   * doldurmak PLATFORMUN işine yarıyor (indekslenebilir sayfa = organik
-   * büyüme), o yüzden orada "STANDART" geçiliyor ve çağrı sayısı firma başına
-   * ayrıca sınırlanıyor. Yeni bir özelliğe bu parametreyi vermeden önce
+   * özelliktir. Tek istisna profil tanıtımı önerisi: tam erişimi olmayan
+   * firmanın tanıtım metni de PLATFORMUN işine yarıyor (indekslenebilir sayfa =
+   * organik büyüme), o yüzden orada "STANDART" geçiliyor ve öneri sayısı firma
+   * başına ayrıca sınırlanıyor. Yeni bir özelliğe bu parametreyi vermeden önce
    * "bedelini kim ödüyor, karşılığında ne kazanıyoruz" sorusunu yanıtla.
    */
   assertAiAccess(
@@ -120,17 +145,17 @@ export class AiService {
     if (!this.config.enabled || !this.provider) {
       // Fail-closed ama SESSİZ DEĞİL: anahtar yoksa özellik kapalı, net 503.
       throw new ServiceUnavailableException(
-        "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
       );
     }
     if (!tierAtLeast(user.tier, minTier)) {
-      throw new ForbiddenException(
-        "AI özellikleri Silver veya üzeri paket gerektirir.",
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.ai.aiOzellikleriIcinDogrulama",
+      });
     }
     if (!hasCompanyPermission(user, anyOf)) {
       throw new ForbiddenException(
-        "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
+        i18nMessage("api.ai.aiOzellikleriniYalnizcaBuAlandaIslem"),
       );
     }
   }
@@ -219,7 +244,8 @@ export class AiService {
         webSearch: options.webSearch,
         thinkingLevel: options.thinkingLevel,
         maxOutputTokens: this.config.maxOutputTokens,
-        timeoutMs: this.config.timeoutMs,
+        timeoutMs: options.timeoutMs ?? this.config.timeoutMs,
+        deadlineAt: options.deadlineAt,
       });
       // Grounding (Google Search) TOKEN DIŞI, istek başına ücretlidir —
       // maliyete dahil edilmezse bütçe gerçek faturayı ölçmez (denetim P6).
@@ -243,8 +269,8 @@ export class AiService {
           errorCode: "timeout",
           keepEstimate: true,
         });
-        throw new ServiceUnavailableException(
-          "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.",
+        throw new AiTimeoutException(
+          i18nMessage("api.ai.aiIstegiZamanAsiminaUgradiLutfen"),
         );
       }
       if (err instanceof AiProviderError) {
@@ -253,16 +279,70 @@ export class AiService {
         await this.budget.fail(reservation.id, {
           errorCode: err.code,
           usage: err.usage,
+          // Temizlenmiş sebep (ör. `http_400:FAILED_PRECONDITION`) kullanım
+          // kaydının metadata'sına yazılır — 502'ler günlüksüz teşhis edilsin.
+          reason: err.reason,
         });
-        this.logger.warn(`AI sağlayıcı hatası (${err.code}): ${err.message}`);
+        this.logger.warn(
+          `AI sağlayıcı hatası (${err.code}${err.reason ? `, ${err.reason}` : ""}): ${err.message}`,
+        );
         throw new BadGatewayException(
-          "AI sağlayıcısı hata döndürdü — lütfen tekrar deneyin.",
+          i18nMessage("api.ai.saglayiciHataDondurdu"),
         );
       }
       // Beklenmeyen iç hata: rezervasyonu serbest bırakma (fail-closed) —
       // reaper 10 dk sonra timeout kuralıyla kapatır.
       throw err;
     }
+  }
+
+  /** AI yapılandırılmış mı (anahtar + sağlayıcı)? Sistem işleri önce buna bakar. */
+  get isEnabled(): boolean {
+    return this.config.enabled && !!this.provider;
+  }
+
+  /**
+   * PLATFORMUN ÖDEDİĞİ çağrı (2026-09-27, AI tedarikçi keşfi Faz 1) — kullanıcı
+   * yok, firma bütçesine YAZILMAZ. Yalnız platformun kendi edinme kanalı olan
+   * işler (yayın sonrası otomatik tedarikçi araması) kullanır; maliyet çağırana
+   * döner ve çağıran KENDİ tavanını uygular (bkz. discovery-runs, günlük USD
+   * tavanı). İçerik çevirisiyle aynı ilke: platform işi, platform bütçesi.
+   * Kullanıcının tetiklediği her şey `callAi` (bütçe + erişim kapısı) kalır.
+   */
+  async callAiSystem(
+    options: Pick<
+      AiCallOptions,
+      "prompt" | "system" | "responseSchema" | "webSearch" | "thinkingLevel" | "timeoutMs" | "deadlineAt"
+    >,
+  ): Promise<AiCallResult & { costUsd: number }> {
+    if (!this.isEnabled) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
+      );
+    }
+    const model = this.config.models.default;
+    const result = await this.provider!.complete({
+      model,
+      prompt: options.prompt,
+      system: options.system,
+      responseSchema: options.responseSchema,
+      webSearch: options.webSearch,
+      thinkingLevel: options.thinkingLevel,
+      maxOutputTokens: this.config.maxOutputTokens,
+      timeoutMs: options.timeoutMs ?? this.config.timeoutMs,
+      deadlineAt: options.deadlineAt,
+    });
+    const cost = costFromUsage(result.usage, this.config.pricing[model]!, {
+      grounded: options.webSearch === true,
+    });
+    return {
+      finishReason: result.finishReason,
+      outputTokens: result.usage.outputTokens,
+      text: result.text,
+      downgraded: false,
+      warned: false,
+      costUsd: Number(cost),
+    };
   }
 
   /**
@@ -280,16 +360,16 @@ export class AiService {
     const hasSeat = hasCompanyPermission(user, ALL_SEAT_PERMISSIONS);
     if (!isManagement && !hasSeat) {
       throw new ForbiddenException(
-        "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
+        i18nMessage("api.ai.aiKullaniminiYalnizcaYonetimYaDa"),
       );
     }
 
     const enabled = this.config.enabled;
     const snapshot = await this.budget.usageSnapshot(user.companyId, user.userId);
     if (snapshot == null) {
-      throw new ForbiddenException(
-        "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
-      );
+      throw entitlementForbidden(user.companyVerificationStatus, {
+        key: "api.ai.aiOzellikleriIcinDogrulama",
+      });
     }
     const warnAtPercent = Math.round(this.config.caps.warnShare * 100);
 
@@ -301,6 +381,10 @@ export class AiService {
         percentUsed: snapshot.percentUsed,
         premiumPercentUsed: snapshot.premiumPercentUsed,
         warning: snapshot.warned,
+        exhausted: snapshot.poolExhausted,
+        // `reserve` kişisel tavanı (havuzun userShare'i) yönetime de uygular:
+        // havuz dolmasa da bu kullanıcının AI'ı kapalı olabilir (D-172).
+        myExhausted: snapshot.userCapExhausted,
         byUser: snapshot.byUser,
         byFeature: snapshot.byFeature,
       };
@@ -311,6 +395,8 @@ export class AiService {
       warnAtPercent,
       percentUsed: snapshot.myPercentOfCap,
       warning: snapshot.myPercentOfCap >= warnAtPercent,
+      // Kişisel tavan ya da firma havuzu doldu → bu kullanıcı için AI kapalı.
+      exhausted: snapshot.userCapExhausted || snapshot.poolExhausted,
     };
   }
 
@@ -343,12 +429,14 @@ export class AiService {
         select: { id: true },
       });
       for (const m of managers) {
+        // Metin ANAHTAR olarak geçer; her alıcı için kendi diliyle üretilir.
         await this.notifications.pushToUser(m.id, {
           type: WARN_NOTIFICATION_TYPE,
-          title: "AI bütçe uyarısı",
-          body: `Firmanızın aylık AI kullanımı %${Math.round(percentUsed)} seviyesine ulaştı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır.`,
-          ctaUrl: "/company/ayarlar/ai-kullanim",
-          ctaLabel: "Kullanımı Gör",
+          titleKey: "api.notifications.ai.butceUyarisiBaslik",
+          bodyKey: "api.notifications.ai.butceUyarisiGovde",
+          params: { yuzde: Math.round(percentUsed) },
+          ctaPath: "/company/ayarlar/ai-kullanim",
+          ctaLabelKey: "api.notifications.ai.kullanimiGor",
         });
       }
     } catch (err) {

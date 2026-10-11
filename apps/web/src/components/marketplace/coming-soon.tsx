@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { RothernLogo } from "@/components/brand/logo";
 import { OPERATOR } from "@/lib/company-info";
 
@@ -8,24 +9,21 @@ import { OPERATOR } from "@/lib/company-info";
  * zorlaştırıyordu. İçerik BİREBİR korundu.
  */
 export function ComingSoon() {
+  const t = useTranslations("web.marketing.comingSoon");
   return (
     <div className="flex min-h-dvh flex-col bg-white">
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
         <RothernLogo variant="full-light" size="lg" priority />
         <div className="mt-10 inline-flex items-center gap-2 rounded-full bg-zinc-50 px-3 py-1 text-sm/6 font-medium text-zinc-600 ring-1 ring-zinc-950/10">
           <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Geliştirme aşamasında
+          {t("badge")}
         </div>
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Çok yakında sizlerleyiz
+          {t("title")}
         </h1>
-        <p className="mt-4 max-w-md text-base/7 text-pretty text-zinc-600">
-          Rothern, alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret
-          platformu. Şu anda son hazırlıkları yapıyoruz; en yakın zamanda
-          buradayız.
-        </p>
+        <p className="mt-4 max-w-md text-base/7 text-pretty text-zinc-600">{t("body")}</p>
         <p className="mt-8 text-sm/6 text-zinc-500">
-          Sorularınız için{" "}
+          {t("questions")}{" "}
           <a
             href={`mailto:${OPERATOR.supportEmail}`}
             className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"

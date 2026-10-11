@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
   unread: 0,
   items: [] as unknown[],
   isLoading: false,
+  isError: false,
+  refetch: vi.fn(),
   markRead: vi.fn(),
   markAll: vi.fn(),
   push: vi.fn(),
@@ -17,7 +19,12 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/use-notifications", () => ({
   useUnreadCount: () => ({ data: h.unread }),
-  useNotifications: () => ({ data: h.items, isLoading: h.isLoading }),
+  useNotifications: () => ({
+    data: h.isError ? undefined : h.items,
+    isLoading: h.isLoading,
+    isError: h.isError,
+    refetch: h.refetch,
+  }),
   useMarkNotificationsRead: () => ({ mutate: h.markRead }),
   useMarkAllNotificationsRead: () => ({ mutate: h.markAll }),
 }));
@@ -29,6 +36,7 @@ beforeEach(() => {
   h.unread = 0;
   h.items = [];
   h.isLoading = false;
+  h.isError = false;
 });
 
 describe("NotificationBell", () => {
@@ -77,10 +85,47 @@ describe("NotificationBell", () => {
     expect(h.push).toHaveBeenCalledWith("/company/satis/acik-talepler");
   });
 
+  it.each([
+    ["en", "https://www.rothern.com/en/company/request/abc"],
+    ["ru", "https://www.rothern.com/ru/kompaniya/zayavka/abc"],
+  ])("%s dilinde saklı CTA İÇ yola indirilir — çift dil ön eki (404) yok (Y-13)", async (_l, ctaUrl) => {
+    const user = userEvent.setup();
+    h.unread = 1;
+    h.items = [
+      {
+        id: "n2",
+        type: "bid_received",
+        title: "New quote received",
+        body: "body",
+        ctaUrl,
+        ctaLabel: null,
+        listingId: "abc",
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    render(<NotificationBell />);
+    await user.click(screen.getByRole("button", { name: /Bildirimler/ }));
+    await user.click(await screen.findByText("New quote received"));
+    // Router İÇ yol bekler; dil ön ekini next-intl kendisi ekler.
+    expect(h.push).toHaveBeenCalledWith("/company/ilan/abc");
+  });
+
   it("boşken 'bildiriminiz yok' mesajı", async () => {
     const user = userEvent.setup();
     render(<NotificationBell />);
     await user.click(screen.getByRole("button", { name: /Bildirimler/ }));
     expect(await screen.findByText(/Henüz bildiriminiz yok/)).toBeInTheDocument();
+  });
+
+  it("liste isteği düşerse boş durum yerine hata + Tekrar dene (arayüz testi D-070)", async () => {
+    const user = userEvent.setup();
+    h.isError = true;
+    render(<NotificationBell />);
+    await user.click(screen.getByRole("button", { name: "Bildirimler" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Bildirimler yüklenemedi.");
+    expect(screen.queryByText(/Henüz bildiriminiz yok/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(h.refetch).toHaveBeenCalledTimes(1);
   });
 });

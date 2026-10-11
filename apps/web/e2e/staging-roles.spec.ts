@@ -42,10 +42,16 @@ test("Yönetici: kendi satırında yetki tablosu kilitli", async ({ page }) => {
   await expect(page.getByText(/Kendi yetkilerinizi düzenleyemezsiniz/)).toBeVisible();
 });
 
-test("Ücretsiz paket: herkese açık talepler kilitli (Silver), davet gönderemez", async ({ page }) => {
+test("Doğrulanmamış firma: herkese açık talepler alıcı adı gizli (teklif doğrulamayla), paket adı yok, davet gönderemez", async ({ page }) => {
   await uiLogin(page, QA.ucretsizKurucu);
   await page.goto("/company/satis");
-  await expect(page.locator("body")).toContainText(/Silver/, { timeout: 30_000 });
+  // 2026-10-03: büyük kilit kartı kalktı; alt başlık maskeli grubu anlatır.
+  // Ücretsiz dönem (2026-10-07): kilit paket değil DOĞRULAMA ister; hiçbir yerde paket adı yazmaz.
+  await expect(page.locator("body")).toContainText(/alıcı adı gizli — bunlara teklif firma doğrulamasıyla/, { timeout: 30_000 });
+  await expect(page.locator("body")).not.toContainText(/\b(Silver|Gold|Premium)\b/);
+  // Kısa bilgi şeridi doğrulama sayfasına götürür. Metni firmanın durumuna göre değişir
+  // (bu QA firması doğrulama testinden REDDEDİLMİŞ kalabilir) → metne değil hedefe bakılır.
+  await expect(page.getByTestId("free-period-notice").getByRole("link")).toHaveAttribute("href", /\/company\/ayarlar\/dogrulama/);
   await page.goto("/company/satis/musterilerim");
   await expect(page.getByRole("heading", { name: "Bağlantılar" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: /Davet et/ })).toHaveCount(0);

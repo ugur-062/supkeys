@@ -1,8 +1,39 @@
+import { useFormatter, useTranslations } from "next-intl";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+
+/**
+ * UZUN SÖZCÜK KARTTAN TAŞMAZ (son canlı kontrol 2026-10-10, NEW-02). Kare
+ * kartın etiketi 112 px'e kadar daralır (320 ve 640 px); Rusça tek sözcük
+ * ("Сельскохозяйственное", 160 px) bölünemediği için kartın çerçevesini iki
+ * yandan 12 px aşıyordu.
+ *  - `break-words`: satıra sığmayan sözcük kutunun içinde bölünür. Sığan
+ *    sözcüğe dokunmaz — Türkçe ve İngilizce etiketlerin sarması değişmez.
+ *  - Rusçada (`<html lang="ru">`) tarayıcı sözcüğü hece sınırından tire ile
+ *    böler; sözlüğü olmayan tarayıcıda üstteki kural devrededir. Yalnız Rusça:
+ *    `hyphens: auto` satıra sığan sözcükleri de satır sonunda böler, öteki
+ *    dillerin görünümü bu tur için değiştirilmedi.
+ *  - `hyphenate-limit-chars: 14 4 4` (sözcük en az 14 harf · tireden önce en az
+ *    4 · sonra en az 4): yalnız UZUN sözcük hecelenir; kısa sözcük eskisi gibi
+ *    bütün olarak alt satıra iner. Chromium ve Firefox 137+ tanır; tanımayan
+ *    tarayıcı (Safari) Rusçada her sözcüğü heceleyebilir.
+ *    Kapanış kontrolü CL-03: ilk değer yalnız `13`tü — kutuya SIĞAN 13 harfli
+ *    sözcükler de bölünüyor ("рас-пределения", "про-мышленного",
+ *    "стро-ительству", altbilgide "ди-станционной"), satır sonunda 2–3 harflik
+ *    parça kalıyordu. Çalışan derlemede CSS'i değiştirerek ölçüldü (/ru, 320–1920
+ *    px, 201 genişlik; kutular + tanıtım başlıkları + altbilgi): `13 4 4` kısa
+ *    parçayı kaldırıyor ama 13 harfli sözcükleri bölmeyi sürdürüyor; `14 4 4`te
+ *    13 harfliler bütün iner, bölünenler kutusundan geniş sözcüklerdir
+ *    ("Сельскохозяй-ственное", "Производ-ственные", "Конфиденциаль-ность") ve
+ *    16 harfli "произ-водственное"; `15`te 14 harfli "Посредническое" tiresiz
+ *    bölünüyor. Taşan metin yok. Değer üç dosyada AYNI kalmalı.
+ * Tanıtım kartı başlığı (`category-showcase-rows.tsx`) ve altbilgi bağlantıları
+ * (`marketplace-footer.tsx`) aynı üç kuralı kullanır.
+ */
+const TILE_LABEL_WRAP = "break-words [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto";
 
 /**
  * KATEGORİ KARTI — TEK bileşen (kart sistemi PROMPT 5, 2026-09-06).
@@ -19,33 +50,40 @@ import Link from "next/link";
  *
  * `variant`:
  *  · `wide` (varsayılan) — 16:10 fotoğraf, solda ad + sayı, sağda ok.
- *  · `square` — KARE fotoğraf, altında ORTALANMIŞ ad (2 satır) ve parantezli
- *    sayı. Satınalma anasayfasının vitrin ızgarası için (2026-09-07,
- *    kullanıcı ekran görüntüsü): 5 sütunlu sıkı ızgarada geniş kart adı tek
- *    satıra kırpıyor, kare kart iki satır veriyor ve göz sütunları tarayabiliyor.
+ *  · `square` — KARE kart, altında ORTALANMIŞ ad (2 satır) ve parantezli
+ *    sayı. Kategori vitrininin ızgarası için (2026-09-07, kullanıcı ekran
+ *    görüntüsü): sıkı ızgarada geniş kart adı tek satıra kırpıyor, kare kart
+ *    iki satır veriyor ve göz sütunları tarayabiliyor.
  *
  * `visual` (2026-09-21, kullanıcı kararı "herkese açık anasayfada
  * kategorilerde fotoğraf olmasın, çizgisel ikonlar"): `"photo"` (varsayılan)
  * fotoğraf varsa onu basar; `"icon"` fotoğrafı HİÇ basmaz, segmentin çizgisel
  * ikonunu (`category-visual.ts`, lucide, ince çizgi) tam opaklıkla çizer.
+ *
+ * KİM NEYİ ÇİZİYOR (2026-10-10): kategori vitrini iki sayfada da İKONLU —
+ * `CategoryShowcaseRows` bu kartı `square` + `"icon"` ile çağırır (herkese açık
+ * anasayfa 2026-09-21; satınalma paneli `/company/satinalma` 2026-10-10, sahip
+ * kararı — panel o güne dek `square` + `"photo"` çiziyordu). Fotoğraflı kartı
+ * bugün yalnız `CategoryGrid` (`wide` + varsayılan `"photo"`) çağırır ve onu
+ * hiçbir sayfa içe aktarmıyor; `square` + `"photo"` yalnız sınamalarda çizilir.
+ * Fotoğraf kodu silinmedi.
  */
 export function CategoryTile({
   category: c,
   href,
-  countNoun = "ürün",
   variant = "wide",
   visual = "photo",
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
 }: {
   category: ShowcaseCategory;
   href: string;
-  /** "ürün" / "açık talep" — sayının birimi. */
-  countNoun?: string;
   variant?: "wide" | "square";
   /** Fotoğraf mı, çizgisel ikon mu? */
   visual?: "photo" | "icon";
   sizes?: string;
 }) {
+  const tt = useTranslations("web.marketplace.categoryTile");
+  const fmt = useFormatter();
   const { icon: Icon, tone } = categoryVisual([c.id]);
   const t = TONE_CLASS[tone];
   const photo = visual === "photo" ? c.imageSrc : null;
@@ -66,9 +104,26 @@ export function CategoryTile({
             className={`size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
           />
         </span>
-        <span className="mt-4 line-clamp-2 text-[13px]/5 font-semibold text-zinc-900">{c.name}</span>
+        {/* ÜST SINIR: sütun düzeninde ortalanan etiket içeriği kadar genişler; tek
+            sözcük kutudan uzunsa kartın dışına taşardı (bkz. `TILE_LABEL_WRAP`).
+            "…" İÇİN YER (kapanış kontrolü CL-02): iki satırda kesilen etiketin
+            üç noktası ortalanmış satırın sonundaki boşluktan SONRA çizilir ve
+            kutuyu 1–6 px aşar; `overflow: hidden` onu bir-iki noktaya kırpıyordu
+            (TR / EN / RU, 320–1920 px; aşma en çok 6 px). Etiket iki yandan 8 px
+            büyür (`-mx-2` + `px-2`; kartın 12 px'lik iç boşluğunun içinde kalır),
+            üst sınır da o kadar: METİN kutusu aynı genişlikte — satırlar, metnin
+            yeri ve kart boyu değişmez (çalışan derlemede CSS'i değiştirerek
+            ölçüldü: üç dil × 201 genişlik, 14 472 ölçüm, 0 fark). Üçü birlikte
+            durur. Fotoğraflı kare kartta (o gün panel vitrini; 2026-10-10'dan
+            beri hiçbir sayfa çizmiyor) UYGULANMADI: aynı deneme 320 px'te metni
+            1 px kaydırdı. */}
+        <span
+          className={`-mx-2 mt-4 line-clamp-2 max-w-[calc(100%+1rem)] px-2 text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}
+        >
+          {c.name}
+        </span>
         {c.count > 0 ? (
-          <span className="tnum mt-1 text-xs text-zinc-500">({c.count.toLocaleString("tr-TR")})</span>
+          <span className="tnum mt-1 text-xs text-zinc-500">({fmt.number(c.count)})</span>
         ) : null}
       </Link>
     );
@@ -96,13 +151,15 @@ export function CategoryTile({
           </span>
         )}
         <span className="flex flex-1 flex-col justify-start px-1 pt-3 pb-2 text-center">
-          <span className="line-clamp-2 text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600">
+          <span
+            className={`line-clamp-2 text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600 ${TILE_LABEL_WRAP}`}
+          >
             {c.name}
           </span>
           {/* Sayı YALNIZ > 0 ise: "(0)" envanterin azlığını duyurur
               (`buildShowcase` ile aynı kural). */}
           {c.count > 0 ? (
-            <span className="tnum mt-0.5 text-xs text-zinc-500">({c.count.toLocaleString("tr-TR")})</span>
+            <span className="tnum mt-0.5 text-xs text-zinc-500">({fmt.number(c.count)})</span>
           ) : null}
         </span>
       </Link>
@@ -135,7 +192,7 @@ export function CategoryTile({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-zinc-900">{c.name}</span>
           <span className="tnum block text-xs text-zinc-500">
-            {c.count > 0 ? `${c.count.toLocaleString("tr-TR")} ${countNoun}` : "Keşfet"}
+            {c.count > 0 ? tt("productCount", { n: c.count }) : tt("explore")}
           </span>
         </span>
         <ArrowRightIcon

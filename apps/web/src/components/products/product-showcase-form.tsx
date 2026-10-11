@@ -8,21 +8,26 @@ import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { productSeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
-import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
+import { useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import { productStatusKey } from "@/lib/company/product-status";
 import { ImageUploader } from "./image-uploader";
-import { PriceModeField } from "./price-mode-field";
+import { PriceModeField, isTierComplete } from "./price-mode-field";
 import { ProductActionBar } from "./product-action-bar";
-import { EditorRail } from "./editor-rail";
+import { EditorRail, sectionFor } from "./editor-rail";
 import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { ErrorState } from "@/components/ui/error-state";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
+import { isInvalidNumber, MoneyInput } from "@/components/ui/money-input";
 import {
   useCategoryAttributes,
   useCreateProduct,
   usePublishProduct,
   useUpdateShowcase,
   useUploadProductDocument,
+  type AttributeDef,
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
@@ -33,24 +38,112 @@ import {
   PRODUCT_MEDIA_TIER,
   UNITS,
   getUnit,
+  isHiddenCategory,
   productCompletion,
-  productPublishBlockers,
+  productPublishBlockerCodes,
   productSeoReadiness,
   generateSlug,
   slugifyText,
   tierAtLeast,
+  visibleCategoryId,
   type ProductLike,
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { useProductArchive } from "./use-product-archive";
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
 const MAX_KEYWORDS = 15;
+/** API `ShowcaseDto.keywords` `@MaxLength(50, { each: true })` ile aynı. */
+const MAX_KEYWORD_LENGTH = 50;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
 const MAX_DOCUMENTS = 3;
+/** API `public-image-upload.ts` `MAX_DOCUMENT_BYTES` / `DOCUMENT_MIME` aynası. */
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+/** Sorgu yanıtı gelmeden / kategori yokken AYNI boş dizi: her çizimde yeni `[]` efektleri yeniden tetiklerdi. */
+const NO_ATTRIBUTE_DEFS: AttributeDef[] = [];
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+
+/** Sunucu kaydının yayın kapısı girdisi — kayıttaki (kalıtsal) eksikler için. */
+function productLikeOf(p: ProductShowcase): ProductLike {
+  return {
+    name: p.name,
+    categoryId: p.categoryId,
+    description: p.description,
+    images: p.images,
+    keywords: p.keywords,
+    priceMode: p.priceMode,
+    priceAmount: p.priceAmount,
+    priceTiers: p.priceTiers,
+    moq: p.moq,
+    attributes: p.attributes,
+  };
+}
+
+/**
+ * İÇERİK alanlarının kanonik izi — API `product-content-diff.ts`
+ * (`PRODUCT_CONTENT_FIELDS`) ile aynı alanlar ve aynı indirgeme: kırpılmış
+ * metin, boş nitelik düşer, nitelik sırası önemsiz. Fiyat/MOQ/belge/video
+ * içerik sayılmaz.
+ */
+function contentKey(p: {
+  name: string;
+  description: string | null;
+  categoryId: string | null;
+  images: string[];
+  keywords: string[];
+  attributes: Record<string, string | string[]> | null;
+}): string {
+  const list = (a: string[]) => a.map((x) => x.trim()).filter(Boolean);
+  const attrs = Object.entries(p.attributes ?? {})
+    .filter(([, v]) => v != null && v !== "" && !(Array.isArray(v) && v.length === 0))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify([
+    p.name.trim(),
+    (p.description ?? "").trim(),
+    p.categoryId ?? "",
+    list(p.images),
+    [...new Set(list(p.keywords))],
+    attrs,
+  ]);
+}
+
+/**
+ * KATEGORİ DEĞİŞİMİNDE TAŞINAN NİTELİK DEĞERİ (gözden geçirme REV-PF-1). Aynı
+ * anahtar matriste birden çok düğümde, farklı seçenek listesi ya da farklı türle
+ * tanımlı ("malzeme": bir ailede Çelik / Alüminyum, kardeşinde Pamuk /
+ * Polyester). Yalnız anahtara bakılırsa yeni kategoride seçenek OLMAYAN değer
+ * form durumunda kalır: hiçbir kontrol onu çizmez (basılı çip yok, seçim kutusu
+ * "Seçiniz"), sahibi göremez ve kaldıramaz, yine de kayda gider ve yıldızlı
+ * nitelik "dolu" sayılır.
+ *
+ * Dönen: yeni tanıma uyan değer; uymuyorsa `undefined` (anahtar düşer).
+ *  · tek seçim  — yalnız seçeneklerden biri olan metin;
+ *  · çoklu seçim — seçeneklerle kesişim (boşsa düşer);
+ *  · dizi ↔ metin tür uyuşmazlığı — düşer;
+ *  · metin / sayı — yazılan değer aynen (alanında görünür, düzeltilebilir).
+ * Değişmeyen değer AYNI referansla döner ("değişti" izi olmasın).
+ */
+function carriedAttributeValue(
+  def: AttributeDef,
+  value: string | string[],
+): string | string[] | undefined {
+  if (def.type === "MULTI_SELECT") {
+    if (!Array.isArray(value)) return undefined;
+    const kept = value.filter((v) => def.options.includes(v));
+    if (kept.length === 0) return undefined;
+    return kept.length === value.length ? value : kept;
+  }
+  if (Array.isArray(value)) return undefined;
+  if (def.type === "SINGLE_SELECT") return def.options.includes(value) ? value : undefined;
+  return value;
+}
 
 /**
  * ÜRÜN VİTRİN FORMU — tek sayfa, beş numaralı bölüm (2026-09-09 düzeni;
@@ -78,6 +171,8 @@ export function ProductShowcaseForm({
   onCreated,
   onSaved,
   publishLimitReached,
+  limitPending,
+  onDirtyChange,
 }: {
   product: ProductShowcase;
   /** Kalemin ölçü birimi — fiyat ve MOQ satırlarında gösterilir. */
@@ -105,7 +200,19 @@ export function ProductShowcaseForm({
    * API aynası): "Onaya gönder" kilitlenir, taslak kaydetme serbest kalır.
    */
   publishLimitReached?: boolean;
+  /**
+   * Tavan bilgisi henüz gelmedi (liste yanıtı bekleniyor; `?yeni=1` doğrudan
+   * açılış): "Onaya gönder" bilinene kadar KİLİTLİ sayılır (arayüz testi D-287).
+   */
+  limitPending?: boolean;
+  /**
+   * Kaydedilmemiş değişiklik bayrağı üst bileşene — "Ürünlere dön" ve
+   * uygulama içi bağlantı koruması orada (`useUnsavedChangesGuard`, O-098).
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const t = useTranslations("web.panel.trade.productShowcaseForm");
+  const unitLabelOf = useUnitLabel();
   const isNew = mode === "new";
   // Belge (PDF) ve video PAKETLİ (Silver+): ücretsiz firmada alanlar hiç
   // çizilmez, kısa bir kilit notu çizilir; API de bu alanları dokunmadan bırakır.
@@ -136,7 +243,28 @@ export function ProductShowcaseForm({
   );
   const docInput = useRef<HTMLInputElement>(null);
 
-  const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
+  /**
+   * ESKİ ÜRÜNÜN GİZLİ SEGMENTTEKİ KATEGORİSİ (canlı doğrulama 2026-10-09,
+   * CP-01 / CP-03). Kayıtlı kod formda DURUR ve değişmeden geri gider (değişmeyen
+   * eski değer ilgisiz kaydı engellemez; kategori kutusu onu çizmez, altında
+   * "önceki kategori artık kullanılmıyor" der). Ama o koddan hiçbir şey
+   * TÜRETİLMEZ:
+   *  - nitelik alanları yalnız GÖRÜNÜR kategoriden istenir — çelik borunun
+   *    formunda gizli segmentin "Ürün grubu*" alanları çıkıyordu; görünür
+   *    kategori yokken 3. bölüm "önce kategori seçin" der, ray yıldızlı nitelik
+   *    istemez;
+   *  - henüz yayında OLMAYAN üründe kategori ray / puan / yayın kapısında EKSİK
+   *    sayılır — API `publishGateLike` ile aynı görünüm. Eskiden ray "%90, eksik
+   *    yok" diyor, ret ancak "Onaya gönder"den sonra geliyordu. Yayındaki eski
+   *    ürün etkilenmez (API de orada kayıtlı kodu sayar).
+   */
+  const attributeCategoryId = visibleCategoryId(categoryId);
+  const outdatedCategory = !product.isPublic && isHiddenCategory(categoryId);
+  // `undefined` = seçili kategorinin tanımları OKUNMADI (kategori yok, yanıt
+  // bekleniyor ya da okuma düştü) — "bu kategoride nitelik yok" (`[]`) DEĞİL.
+  const attributeDefsQuery = useCategoryAttributes(attributeCategoryId);
+  const loadedAttributeDefs = attributeDefsQuery.data;
+  const attributeDefs = loadedAttributeDefs ?? NO_ATTRIBUTE_DEFS;
   const save = useUpdateShowcase();
   const create = useCreateProduct();
   const publish = usePublishProduct();
@@ -145,22 +273,43 @@ export function ProductShowcaseForm({
   const uploadDoc = useUploadProductDocument();
 
   const unitDef = getUnit(unitCode);
-  const unitLabel = unitDef?.nameTr ?? unit;
+  // Kayda yazılan birim adı TÜRKÇE kalır (API ve eski kayıtlarla aynı sözlük);
+  // ekranda okuyucunun dilindeki etiket basılır (`useUnitLabel`).
+  const unitName = unitDef?.nameTr ?? unit;
+  const unitLabel = unitLabelOf(unitName, unitCode);
 
   /**
-   * Kategori DEĞİŞİNCE eski nitelikler taşınmaz: yeni kategoride tanımsız
-   * anahtarlar zaten serviste düşüyor, ama formda da göstermemek gerek —
-   * kullanıcı doldurduğu bir alanın sessizce kaybolduğunu görmemeli.
+   * Kategori DEĞİŞİNCE yeni kategoride TANIMSIZ nitelikler formdan düşer (servis
+   * de düşürür; kullanıcı kaydettikten sonra kaybolan alan görmesin). Yeni
+   * kategorinin de tanımladığı niteliklerin değeri KALIR — ama yalnız YENİ tanıma
+   * uyan değer (`carriedAttributeValue`): aynı anahtar başka kategoride başka
+   * seçenek listesi ya da başka türle tanımlıdır.
+   *
+   * Ayıklama yalnız yeni kategorinin tanımları OKUNDUKTAN sonra yapılır (son
+   * canlı kontrol NEW-PF-2): eskiden efekt `categoryId` değişir değişmez, tanımlar
+   * henüz gelmemişken (boş varsayılan) koşuyor ve HER değeri siliyordu — kardeş
+   * kategoriye geçen ya da "güncel bir kategori seçin" notuna uyan sahip kayıtlı
+   * niteliklerini kaydederken kaybediyordu. Bekleyen ya da düşen okumada
+   * (`undefined`) hiçbir şey silinmez; kategori kaldırıldığında da (tanım yok,
+   * sunucu kayıtlı kategoride kalır) değerler durur.
    */
   useEffect(() => {
     if (categoryId === (product.categoryId ?? "")) return;
+    if (!loadedAttributeDefs) return;
+    const defs = new Map(loadedAttributeDefs.map((d) => [d.key, d]));
     setAttributes((prev) => {
-      const allowed = new Set(attributeDefs.map((d) => d.key));
+      let changed = false;
       const next: Record<string, string | string[]> = {};
-      for (const [k, v] of Object.entries(prev)) if (allowed.has(k)) next[k] = v;
-      return next;
+      for (const [key, value] of Object.entries(prev)) {
+        const def = defs.get(key);
+        const kept = def ? carriedAttributeValue(def, value) : undefined;
+        if (kept !== value) changed = true;
+        if (kept !== undefined) next[key] = kept;
+      }
+      // Düşen / daralan yoksa AYNI nesne: boşuna yeniden çizim ve "değişti" izi olmasın.
+      return changed ? next : prev;
     });
-  }, [categoryId, attributeDefs, product.categoryId]);
+  }, [categoryId, loadedAttributeDefs, product.categoryId]);
 
   const patch = useMemo(
     () => ({
@@ -172,33 +321,36 @@ export function ProductShowcaseForm({
       attributes,
       priceMode,
       priceAmount: priceMode === "FIXED" && priceAmount ? Number(priceAmount) : null,
-      priceTiers: priceMode === "TIERED" ? priceTiers : [],
+      // Eksik kademe (boş/0 fiyat) GÖNDERİLMEZ — satırda uyarı çizilir;
+      // eskiden taslak kaydı bile 400 alıyordu (arayüz testi D-050).
+      priceTiers: priceMode === "TIERED" ? priceTiers.filter(isTierComplete) : [],
       priceCurrency,
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
-      videoUrl: videoUrl.trim() || null,
-      documents,
+      // Video ve belge PAKETLİ (`PRODUCT_MEDIA_TIER`): paketin altında alanlar
+      // çizilmez ve GÖNDERİLMEZ — API zaten yok sayıyor; görünmeyen eski bir
+      // değer kaydı etkilemesin (Y-11 gözden geçirme).
+      ...(mediaAllowed ? { videoUrl: videoUrl.trim() || null, documents } : {}),
       unitCode,
-      unit: unitLabel,
+      unit: unitName,
     }),
-    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, videoUrl, documents, unitCode, unitLabel],
+    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, videoUrl, documents, unitCode, unitName, mediaAllowed],
   );
 
   /**
    * KAYDEDİLMEMİŞ DEĞİŞİKLİK: kayıttaki hâl ile formun anlık hâli ayrışınca
-   * sekme kapatma/yenileme tarayıcı uyarısı ister. Uygulama içi "Ürünlere
-   * dön" de aynı bayrağı okur (`onClose` öncesi onay).
+   * bayrak üst bileşene gider; sekme kapatma uyarısı, uygulama içi bağlantı
+   * onayı ve "Ürünlere dön" onayı orada tek korumada (arayüz testi O-098 —
+   * eskiden yalnız sekme kapatma uyarıyordu, bu yorum vaat ettiği hâlde).
    */
   const initial = useRef(JSON.stringify(patch));
   const dirty = JSON.stringify(patch) !== initial.current;
+  const dirtyCb = useRef(onDirtyChange);
+  dirtyCb.current = onDirtyChange;
   useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
+    dirtyCb.current?.(dirty);
   }, [dirty]);
+  useEffect(() => () => dirtyCb.current?.(false), []);
 
   /**
    * CANLI tamamlanma + onay kapısı — sunucuyla AYNI kurallar
@@ -207,13 +359,16 @@ export function ProductShowcaseForm({
   const live = useMemo(() => {
     const like: ProductLike = {
       name: patch.name,
-      categoryId: patch.categoryId,
+      // Yayın kapısı görünümü: yayında olmayan ürünün gizli segmentteki kodu kategori sayılmaz.
+      categoryId: outdatedCategory ? null : patch.categoryId,
       description: patch.description,
       images,
       keywords,
       priceMode,
       priceAmount: patch.priceAmount,
-      priceTiers: patch.priceTiers,
+      // HAM kademeler: boş/0 fiyatlı satır gönderilmese de rayda fiyat
+      // eksiği olarak görünmeli (arayüz testi D-050).
+      priceTiers: priceMode === "TIERED" ? priceTiers : [],
       moq: patch.moq,
       attributes,
     };
@@ -221,9 +376,9 @@ export function ProductShowcaseForm({
       completion: productCompletion(like, {
         requiredAttributeKeys: attributeDefs.filter((d) => d.isRequired).map((d) => d.key),
       }),
-      blockers: productPublishBlockers(like),
+      blockers: productPublishBlockerCodes(like),
     };
-  }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
+  }, [patch, images, keywords, priceMode, priceTiers, attributes, attributeDefs, outdatedCategory]);
 
   /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): puan + Google parçacığı + AI taslağı.
      Parçacık sayfanın GERÇEK şablonundan (`productSeo`) — ayrı metin yok. */
@@ -232,14 +387,24 @@ export function ProductShowcaseForm({
   const seoEnrich = useAiSeoEnrich();
   // Şehir/sektör oturum anlık görüntüsünde yok → profil sorgusu (önbellekli).
   const profileQ = useCompanyProfile();
+  const locale = useLocale();
+  const seoT = useSeoT();
   const seo = useMemo(() => {
-    const attributeEntries = Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v));
+    // Görünür kategori yokken kayıtlı nitelikler (gizli segmentin alanları) ne
+    // puana ne AI istemine girer: tanımları istenmediği için etiketsiz ham
+    // anahtar olarak giderlerdi.
+    const attributeEntries = attributeCategoryId
+      ? Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v))
+      : [];
     const readiness = productSeoReadiness({
       name: patch.name,
       description: patch.description,
       images,
       keywords,
-      categoryId: patch.categoryId,
+      // Tamamlanma kartıyla AYNI görünüm (son canlı kontrol NEW-PF-4): yayında
+      // olmayan ürünün gizli segmentteki kodu "kategori seçili" sayılmaz —
+      // eskiden ray "güncel kategori seçilmeli" derken bu kart 10 puanı veriyordu.
+      categoryId: outdatedCategory ? null : patch.categoryId,
       attributeCount: attributeEntries.length,
       brand: null,
       mpn: null,
@@ -251,7 +416,7 @@ export function ProductShowcaseForm({
       productSeo({
         companySlug,
         product: {
-          name: patch.name || "Ürün",
+          name: patch.name || t("urun"),
           slug: product.slug ?? (slugifyText(patch.name) || "urun"),
           description: patch.description,
           images,
@@ -261,27 +426,28 @@ export function ProductShowcaseForm({
           moq: patch.moq != null ? String(patch.moq) : null,
           priceMode,
           priceAmount: patch.priceAmount != null ? String(patch.priceAmount) : null,
-          priceTiers: priceMode === "TIERED" ? priceTiers : null,
+          priceTiers: priceMode === "TIERED" ? patch.priceTiers : null,
           priceCurrency,
           category: categoryId && categoryName ? { id: categoryId, name: categoryName } : null,
           keywords,
         },
         company: {
-          name: company?.name ?? "Firma",
+          name: company?.name ?? t("firma"),
           slug: companySlug,
           city: profileQ.data?.city ?? null,
           country: company?.country ?? null,
           industry: profileQ.data?.industry ?? null,
         },
         indexable: true,
-      }).metadata,
+      }, { locale, t: seoT }).metadata,
     );
     const facts = attributeEntries.map(([k, v]) => {
       const def = attributeDefs.find((d) => d.key === k);
-      return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.join(", ") : v}`;
+      const show = (x: string) => def?.optionLabels?.[x] ?? x;
+      return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.map(show).join(", ") : show(v)}`;
     });
     return { readiness, snippet, facts };
-  }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceTiers, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug]);
+  }, [patch, images, keywords, attributes, attributeDefs, attributeCategoryId, outdatedCategory, priceMode, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
 
   /** Anahtar kelime ÖNERİLERİ: kategori adı + ürün adındaki anlamlı sözcükler. */
@@ -289,7 +455,7 @@ export function ProductShowcaseForm({
     const out: string[] = [];
     const push = (s: string) => {
       const k = s.toLowerCase().trim();
-      if (k.length >= 3 && !keywords.includes(k) && !out.includes(k)) out.push(k);
+      if (k.length >= 3 && k.length <= MAX_KEYWORD_LENGTH && !keywords.includes(k) && !out.includes(k)) out.push(k);
     };
     if (categoryName) push(categoryName);
     for (const w of name.split(/[\s,/()-]+/)) if (w.length >= 4 && !/^\d+$/.test(w)) push(w);
@@ -298,12 +464,22 @@ export function ProductShowcaseForm({
 
   const addDocument = async (file: File | undefined) => {
     if (!file || documents.length >= MAX_DOCUMENTS) return;
+    // Tür/boyut YÜKLEMEDEN ÖNCE (arayüz testi D-289): 11 MB'lık PDF eskiden
+    // depoya tamamen yüklenip sonra reddediliyordu, üstüne iki toast çıkıyordu.
+    if (file.type !== "application/pdf" || file.size > MAX_DOCUMENT_BYTES) {
+      toast.error(t("belgeYuklenemediYalnizPdfEn"));
+      if (docInput.current) docInput.current.value = "";
+      return;
+    }
     try {
       const url = await uploadDoc.mutateAsync(file);
-      const title = file.name.replace(/\.pdf$/i, "").slice(0, 200) || "Belge";
+      const title = file.name.replace(/\.pdf$/i, "").slice(0, 200) || t("belge");
       setDocuments((d) => [...d, { url, title }]);
-    } catch {
-      toast.error("Belge yüklenemedi — yalnız PDF, en fazla 10 MB");
+    } catch (err) {
+      // Sunucu/ağ hatasının toast'ını küresel yakalayıcı basar (403 "yetkiniz
+      // yok" dahil); burada yalnız depo yüklemesi (PUT) gibi yakalayıcı dışı
+      // hatalar — "yalnız PDF" diye YANLIŞ neden de söylenmez (O-099).
+      if (!isAxiosError(err)) toast.error(t("belgeYuklenemedi"));
     } finally {
       if (docInput.current) docInput.current.value = "";
     }
@@ -311,31 +487,84 @@ export function ProductShowcaseForm({
 
   const addKeyword = (raw = keywordDraft) => {
     // Virgülle çoklu giriş: "boru, dikişsiz, st37" tek seferde.
-    const parts = raw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
-    if (!parts.length) return;
-    setKeywords((prev) => {
-      const next = [...prev];
-      for (const k of parts) if (!next.includes(k) && next.length < MAX_KEYWORDS) next.push(k);
-      return next;
-    });
-    setKeywordDraft("");
+    const all = raw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
+    if (!all.length) return;
+    // Derin denetim LU-31: API her etiketi 50 karakterle sınırlıyor; uzun
+    // parça çip olunca ürünün HER kaydı (taslak dahil) 400 alıyordu. Uzun
+    // parça eklenmez, düzeltilsin diye kutuda kalır.
+    const parts = all.filter((k) => k.length <= MAX_KEYWORD_LENGTH);
+    const tooLong = all.filter((k) => k.length > MAX_KEYWORD_LENGTH);
+    if (parts.length) {
+      setKeywords((prev) => {
+        const next = [...prev];
+        for (const k of parts) if (!next.includes(k) && next.length < MAX_KEYWORDS) next.push(k);
+        return next;
+      });
+    }
+    if (tooLong.length) {
+      toast.error(t("anahtarKelimeCokUzun", { max: MAX_KEYWORD_LENGTH }));
+      setKeywordDraft(tooLong.join(", "));
+    } else {
+      setKeywordDraft("");
+    }
   };
 
   const status = productStatusKey(product);
-  const statusMeta = PRODUCT_STATUS[status];
   // PENDING ürün bu forma HİÇ gelmez (inceleme kilidi → `ProductPreview`);
   // API de 409 döner. Burada yalnız taslak / düzeltme istendi / yayında.
   const publishLocked = !!publishLimitReached && !product.isPublic;
+  // Tavan bilinmiyorken gönderim kapalı (D-287); kilit notu çizilmez — henüz dolu değil.
+  const submitBlocked = publishLocked || (!!limitPending && !product.isPublic);
+  // YAYIN KAPISI (arayüz testi O-009) — API `assertStaysPublishable` ile AYNI
+  // kural: içerik (ad/açıklama/kategori/görsel/etiket/nitelik) değiştiyse
+  // raydaki HER eksik kaydı keser; içerik dışı kayıt (fiyat/MOQ…) yalnız
+  // kayıtta OLMAYAN yeni bir eksik doğurursa kesilir. Kapı sıkılaşmadan önce
+  // yayına çıkmış eksik ürün (ör. kısa eski açıklama) fiyatını güncelleyebilir
+  // (gözden geçirme: eskiden her eksik Kaydet'i kapatıyordu, API izin verirken).
+  const savedBlockerCodes = useMemo(
+    () => new Set(productPublishBlockerCodes(productLikeOf(product)).map((b) => b.code)),
+    [product],
+  );
+  const contentChanged = contentKey(patch) !== contentKey(product);
+  // Kaydı KESEN eksikler: içerik değiştiyse hepsi, değilse yalnız yeni doğanlar.
+  const cuttingBlockers =
+    status !== "published"
+      ? []
+      : contentChanged
+        ? live.blockers
+        : live.blockers.filter((b) => !savedBlockerCodes.has(b.code));
+  const publishedBlocked = cuttingBlockers.length > 0;
 
-  const handleSave = async (thenSubmit: boolean) => {
+  // Kaydet / Onaya gönder tek uçuşta: çift tık aynı ürünü iki kez oluşturmaz
+  // (arayüz testi FX-00 O-006).
+  const saveLock = useSubmitLock();
+  const handleSave = (thenSubmit: boolean) => saveLock.run(() => doSave(thenSubmit));
+  const doSave = async (thenSubmit: boolean) => {
     if (!patch.name) {
-      toast.error("Ürün adı zorunlu");
+      toast.error(t("urunAdiZorunlu"));
+      return;
+    }
+    // Sayısal nitelikte geçersiz giriş ("2,5,1", "1.2.3") kaydedilmez — eskiden
+    // `type="number"` "2,5"i sessizce 25 yazıyordu (arayüz testi kapanış NUM).
+    if (attributeDefs.some((d) => d.type === "NUMBER" && isInvalidNumber(attributes[d.key]))) {
+      toast.error(t("nitelikSayiGecersiz"));
       return;
     }
     if (thenSubmit && publishLocked) {
-      toast.error("Ücretsiz paket tavanı doldu — daha fazla ürün için Silver paketine geçin.");
+      toast.error(t("urunTavaniDolduDogrulama"));
       return;
     }
+    if (thenSubmit && submitBlocked) return;
+    const droppedTiers = priceMode === "TIERED" ? priceTiers.length - patch.priceTiers.length : 0;
+    // Eksik kademe notu AYRI toast değil, sonuç toast'ının açıklaması: iki
+    // toast'ta Sonner uyarıyı başarı toast'ının ARKASINA yığıyordu (yalnız
+    // ~13px şerit görünüyordu, arayüz testi son tur webC-4). Not varken sonuç
+    // sarı (uyarı) çizilir ve okunacak kadar uzun kalır.
+    const tierNote = droppedTiers > 0 ? t("eksikKademeKaydedilmedi", { n: droppedTiers }) : null;
+    const notifySaved = (message: string) => {
+      if (tierNote) toast.warning(message, { description: tierNote, duration: 8000 });
+      else toast.success(message);
+    };
     try {
       // Yeni üründe kayıt TEK çağrıyla oluşur (create+vitrin); sonrasında
       // düzenleme moduna geçeriz — kullanıcı için bu tek bir "kaydet".
@@ -343,40 +572,64 @@ export function ProductShowcaseForm({
         ? await create.mutateAsync({ ...patch, unit })
         : await save.mutateAsync({ id: product.id, patch });
       initial.current = JSON.stringify(patch);
-      if (isNew) onCreated?.(saved);
-      else if (!thenSubmit) onSaved?.(saved);
+      // Eksik kademe gönderilmedi — form da sunucu kopyasıyla AYNI olsun diye
+      // satır formdan çıkarılır ve bu açıkça söylenir (arayüz testi D-050).
+      // Eskiden yalnız yeni üründe (üst bileşen formu sunucu kopyasından
+      // yeniden kurunca) kayboluyordu; düzenlemede satır formda kalırken not
+      // "formdan çıkarıldı" diyordu (son tur webC-4).
+      if (droppedTiers > 0) setPriceTiers(patch.priceTiers);
       if (!thenSubmit) {
-        toast.success(
+        if (isNew) onCreated?.(saved);
+        else onSaved?.(saved);
+        // Mesaj SONUCA göre (arayüz testi D-125): yalnız fiyat/MOQ değişen
+        // yayındaki ürün onaylı kalır — "yeniden incelenecek" demek yanlış.
+        notifySaved(
           isNew
-            ? "Ürün taslak olarak eklendi"
-            : product.isPublic
-              ? "Kaydedildi — içerik değişikliği yeniden incelenecek, ürün yayında kalıyor"
-              : "Taslak kaydedildi",
+            ? t("urunTaslakOlarakEklendi")
+            : saved.reviewStatus === "PENDING"
+              ? t("kaydedildiIcerikDegisikligiYenidenIncelenece")
+              : product.isPublic
+                ? t("kaydedildi")
+                : t("taslakKaydedildi"),
         );
         return;
       }
+      // Yeni üründe "Onaya gönder": düzenleme moduna (onCreated) YALNIZ gönderim
+      // olmazsa geçilir — kayıt taslak kaldı, ikinci kaydetme güncelleme olsun.
+      // Gönderim başarılıysa doğrudan listeye dönülür. Eskiden onCreated önce
+      // çağrılıyordu: üst bileşen TASLAK kopyayla düzenleme formu açıyor, sonraki
+      // onClose (create modunun kapanışı) boşa düşüyor ve kullanıcı PENDING
+      // ürünün bayat "Taslak" formunda kalıyordu (tekrar gönderim → 409).
       if (saved.publishBlockers.length > 0) {
-        toast.error(`Onaya gönderilemedi — ${saved.publishBlockers.join(", ")}`);
+        if (isNew) onCreated?.(saved);
+        const blocked = t("onayaGonderilemedi", { reasons: saved.publishBlockers.join(", ") });
+        if (tierNote) toast.error(blocked, { description: tierNote });
+        else toast.error(blocked);
         return;
       }
-      await publish.mutateAsync({ id: saved.id, publish: true });
-      toast.success("Onaya gönderildi — inceleme bitene kadar ürün değiştirilemez, yalnız önizlenir");
+      try {
+        await publish.mutateAsync({ id: saved.id, publish: true });
+      } catch (err) {
+        if (isNew) onCreated?.(saved);
+        throw err;
+      }
+      notifySaved(t("onayaGonderildiIncelemeBiteneKadar"));
       onClose();
     } catch (err) {
       // 409 PRODUCT_IN_REVIEW dahil: sunucu mesajı kullanıcıya aynen.
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
-  const busy = save.isPending || publish.isPending || create.isPending;
+  const busy = save.isPending || publish.isPending || create.isPending || saveLock.locked;
 
   /* Birincil düğme metni duruma göre — kullanıcı ne olacağını okusun. */
   const primaryLabel =
     status === "draft"
-      ? "Onaya gönder"
+      ? t("onayaGonder")
       : status === "rejected"
-        ? "Düzelt ve yeniden gönder"
-        : "Kaydet";
+        ? t("duzeltVeYenidenGonder")
+        : t("kaydet");
   const primaryAction = () => void handleSave(status === "draft" || status === "rejected");
 
   const publicHref =
@@ -384,10 +637,32 @@ export function ProductShowcaseForm({
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Uygulama içi çevrili onay (arayüz testi D-126; tarayıcının OK/Cancel'ı değil).
+  const confirm = useConfirm();
   const unpublish = async () => {
-    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
-    await publish.mutateAsync({ id: product.id, publish: false });
-    toast.success("Ürün vitrinden çekildi");
+    const ok = await confirm({
+      title: t("vitrindenCekOnayBaslik"),
+      description: t("vitrindenCekOnayAciklama"),
+      confirmLabel: t("vitrindenCek"),
+    });
+    if (!ok) return;
+    // Derin denetim LU-31: hata yakalanmıyordu (işlenmemiş ret, toast yok);
+    // başarıda da `product` güncellenmediği için form "Yayında" gösteriyordu.
+    try {
+      const saved = await publish.mutateAsync({ id: product.id, publish: false });
+      toast.success(t("urunVitrindenCekildi"));
+      if (onSaved) onSaved(saved);
+      else onClose();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("vitrindenCekilemedi")));
+    }
+  };
+
+  // ARŞİVLE (arayüz testi O-039): kayıtlı ve incelemede OLMAYAN üründe; arşivlenen
+  // ürün listeden (yayındaysa vitrinden) kalkar, Arşiv sekmesinden geri alınır.
+  const productArchive = useProductArchive();
+  const archive = async () => {
+    if (await productArchive.archive(product.id)) onClose();
   };
 
   /* DÜZEN (2026-09-19, kullanıcı kararı): üstte yapışkan eylem çubuğu; solda
@@ -398,7 +673,7 @@ export function ProductShowcaseForm({
     <div>
       <ProductActionBar
         name={name}
-        status={statusMeta}
+        status={status}
         isNew={isNew}
         dirty={dirty}
         busy={busy}
@@ -407,80 +682,100 @@ export function ProductShowcaseForm({
         onPrimary={primaryAction}
         // Yayındaki üründe değişiklik yokken Kaydet KAPALI (2026-09-19, kullanıcı
         // bulgusu: değişmeden kaydedince yeniden incelemeye giriyordu).
-        primaryDisabled={((status === "draft" || status === "rejected") && publishLocked) || (status === "published" && !dirty)}
+        primaryDisabled={
+          ((status === "draft" || status === "rejected") && submitBlocked) ||
+          (status === "published" && (!dirty || publishedBlocked))
+        }
         draftSave={status === "draft" || status === "rejected" ? () => void handleSave(false) : undefined}
         unpublish={product.isPublic && !isNew ? () => void unpublish() : undefined}
+        archive={!isNew && product.reviewStatus !== "PENDING" ? () => void archive() : undefined}
         publicHref={publicHref}
         publishLocked={publishLocked}
+        blockedNotice={publishedBlocked && dirty}
+        blockedCount={cuttingBlockers.length}
+        onShowMissing={publishedBlocked ? () => jump(sectionFor(cuttingBlockers[0])) : undefined}
       />
       {status === "rejected" && product.rejectReason ? (
         <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
-          <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
+          <span className="font-semibold">{t("duzeltmeGerekcesi")}</span> {product.rejectReason}
         </p>
       ) : null}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0">
+        {/* İZİNSİZ (salt-okur) kullanıcıda alanlar KAPALI, yükleme kontrolleri
+            çizilmez (arayüz testi O-099) — eskiden form tam düzenlenebilir
+            açılıyor, yüklemeler 403 alıyordu. */}
+        <fieldset disabled={!canManage} className="min-w-0">
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
-            <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
-              <Field hint="Ürün tipi + temel özellik + ölçü/model. En fazla 128 karakter önerilir.">
-                <Label htmlFor="urun-adi" required>Ürün adı</Label>
+            <Section id="urun-temel" n={1} title={t("temelBilgiler")} lead={t("adKategoriVeAciklamaArama")}>
+              <Field hint={t("urunTipiTemelOzellikOlcu")}>
+                <Label htmlFor="urun-adi" required>{t("urunAdi")}</Label>
                 <input
                   id="urun-adi"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={200}
-                  placeholder="Dağıtım panosu 400A IP54"
+                  placeholder={t("dagitimPanosu400aIp54")}
                   className={INPUT}
                 />
                 <p className={`mt-1 text-xs ${name.trim().length > 128 ? "text-amber-700" : "text-zinc-500"}`}>
-                  {name.trim().length} / 128 karakter
+                  {t("n128Karakter", { length: name.trim().length })}
                 </p>
               </Field>
 
-              <Field hint="Nitelik alanları seçtiğiniz kategoriden gelir — üst kategoride tanımlı nitelikler otomatik devralınır.">
+              <Field hint={t("nitelikAlanlariSectiginizKategoridenGelir")}>
                 {/* Kontrol bir modal düğmesi ve kendi adını taşıyor ("Ürün kategorisini
                    seçin") — burası ALAN ETİKETİ değil BAŞLIK. Boş <label> bırakmak
                    erişilebilirlik ihlali olurdu. */}
-                <Label as="p" required>Kategori</Label>
+                <Label as="p" required>{t("kategori")}</Label>
                 <CategorySelectorButton
                   value={categoryId ? [categoryId] : []}
                   onChange={(ids) => setCategoryId(ids[0] ?? "")}
                   mode="single"
-                  modalTitle="Ürün kategorisi"
-                  placeholder="Ürün kategorisini seçin"
+                  modalTitle={t("urunKategorisi")}
+                  modalDescription={t("urunKategorisiAciklama")}
+                  placeholder={t("urunKategorisiniSecin")}
+                  // YAYINDAKİ eski üründe kayıtlı (gizli) kategori sayılır, kayıt
+                  // güncel kategori seçmeden de geçer → not seçim İSTEMEZ (son
+                  // canlı kontrol NEW-PF-5). Yayında olmayan üründe kategori
+                  // gerçekten eksiktir: not ister, ray da ister.
+                  retiredOptional={product.isPublic}
+                  // Ürünün kategorisi DEĞİŞTİRİLİR, kaldırılmaz (kapanış kontrolü
+                  // CL-PF-2): sunucu boş değerde kayıtlı kategoriyi korur — "kaldır"
+                  // sunulsaydı form kayıttan farklı bir şey gösterirdi.
+                  clearable={false}
                 />
               </Field>
 
-              <Field hint={`Onaya göndermek için en az ${MIN_DESCRIPTION} karakter. Ne olduğunu, nerede kullanıldığını, malzeme/standart ve teslim biçimini tam cümlelerle yazın.`}>
-                <Label htmlFor="urun-aciklama" required>Açıklama</Label>
+              <Field hint={t("onayaGondermekIcinEnAz", { min: MIN_DESCRIPTION })}>
+                <Label htmlFor="urun-aciklama" required>{t("aciklama")}</Label>
                 <textarea
                   id="urun-aciklama"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={5000}
                   rows={7}
-                  placeholder="IP54 korumalı, 400A dağıtım panosu. Endüstriyel tesislerde ana dağıtım hattında kullanılır…"
+                  placeholder={t("ip54Korumali400aDagitimPanosu")}
                   className={INPUT}
                 />
                 <p className={`mt-1 text-xs ${description.trim().length >= MIN_DESCRIPTION ? "text-emerald-600" : "text-zinc-500"}`}>
-                  {description.trim().length} / {MIN_DESCRIPTION}–5000 karakter
+                  {t("n5000Karakter", { length: description.trim().length, min: MIN_DESCRIPTION })}
                 </p>
               </Field>
             </Section>
 
             {/* 2 ── GÖRSELLER */}
-            <Section id="urun-gorsel" n={2} title="Görseller" lead="İlk görsel kapak. Farklı açılar ve kullanım hâli; görsel arama ayrı bir trafik kanalıdır.">
-              <ImageUploader images={images} onChange={setImages} />
+            <Section id="urun-gorsel" n={2} title={t("gorseller")} lead={t("ilkGorselKapakFarkliAcilar")}>
+              <ImageUploader images={images} onChange={setImages} readOnly={!canManage} />
             </Section>
 
             {/* 3 ── ÖZELLİKLER */}
-            <Section id="urun-ozellik" n={3} title="Anahtar kelimeler ve özellikler" lead="Alıcının yazacağı sözcükler ve kategoriye özel teknik nitelikler.">
+            <Section id="urun-ozellik" n={3} title={t("anahtarKelimelerVeOzellikler")} lead={t("alicininYazacagiSozcuklerVeKategoriye")}>
               <div>
-                <Label htmlFor="urun-anahtar-kelime">Anahtar kelimeler</Label>
+                <Label htmlFor="urun-anahtar-kelime">{t("anahtarKelimeler")}</Label>
                 <p className="mt-1 text-xs text-zinc-500">
-                  En fazla {MAX_KEYWORDS}. Virgülle birden çok girebilirsiniz; ürün sayfasında görünür ve aramada kullanılır.
+                  {t("enFazlaVirgulleBirdenCok", { max: MAX_KEYWORDS })}
                 </p>
                 {keywords.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -490,7 +785,7 @@ export function ProductShowcaseForm({
                         <button
                           type="button"
                           onClick={() => setKeywords(keywords.filter((x) => x !== k))}
-                          aria-label={`${k} etiketini kaldır`}
+                          aria-label={t("etiketiniKaldir", { keyword: k })}
                           className="text-zinc-400 hover:text-zinc-900"
                         >
                           <XMarkIcon aria-hidden className="size-3.5" />
@@ -512,7 +807,7 @@ export function ProductShowcaseForm({
                         }
                       }}
                       maxLength={200}
-                      placeholder="çelik boru, dikişsiz, st37…"
+                      placeholder={t("celikBoruDikissizSt37")}
                       className={`${INPUT} flex-1`}
                     />
                     <button
@@ -520,13 +815,13 @@ export function ProductShowcaseForm({
                       onClick={() => addKeyword()}
                       className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                     >
-                      Ekle
+                      {t("ekle")}
                     </button>
                   </div>
                 ) : null}
                 {keywordSuggestions.length && keywords.length < MAX_KEYWORDS ? (
                   <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-                    Öneri:
+                    {t("oneri")}
                     {keywordSuggestions.map((s) => (
                       <button
                         key={s}
@@ -542,20 +837,29 @@ export function ProductShowcaseForm({
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-zinc-950">Kategoriye özel özellikler</h4>
-                {!categoryId ? (
+                <h4 className="text-sm font-medium text-zinc-950">{t("kategoriyeOzelOzellikler")}</h4>
+                {!attributeCategoryId ? (
                   <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                    Önce 1. bölümde kategori seçin — teknik nitelik alanları kategoriden gelir.
+                    {t("once1BolumdeKategoriSecin")}
                   </p>
+                ) : loadedAttributeDefs === undefined ? (
+                  // Tanımlar okunmadan "bu kategoride nitelik yok" DENMEZ (LİSTE
+                  // DURUMLARI): bekleme yer tutucu, düşen okuma hata + yeniden dene.
+                  attributeDefsQuery.isError ? (
+                    <ErrorState compact className="mt-2" onRetry={() => void attributeDefsQuery.refetch()} />
+                  ) : (
+                    <div aria-hidden className="mt-2 h-9 animate-pulse rounded-lg bg-zinc-100" />
+                  )
                 ) : attributeDefs.length === 0 ? (
                   <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                    Bu kategoride tanımlı nitelik yok; ölçü, malzeme ve standardı açıklamaya yazın.
+                    {t("buKategorideTanimliNitelikYok")}
                   </p>
                 ) : (
                   <>
                     <p className="mt-1 mb-4 text-xs text-zinc-500">
-                      Bu alanlar “{attributeDefs[0]?.definedAt.slice(0, 2)}” segmentinden ve alt kategorilerinden gelir.
-                      Zorunlu değil; nitelik tablosu süzgeçte ve yapılandırılmış veride görünür.
+                      {/* Ham segment kodu ("“40” segmentinden") basılmaz; yıldızın anlamı
+                          (tamamlanma puanı) burada söylenir (arayüz testi D-129, D-290). */}
+                      {t("buAlanlarKategoridenGelir")}
                     </p>
                     <AttributeFields defs={attributeDefs} values={attributes} onChange={setAttributes} />
                   </>
@@ -564,7 +868,7 @@ export function ProductShowcaseForm({
             </Section>
 
             {/* 4 ── FİYAT VE SİPARİŞ */}
-            <Section id="urun-fiyat" n={4} title="Fiyat ve sipariş" lead='"Teklif isteyin" de geçerli bir seçenektir — boş bırakmak yerine seçin.'>
+            <Section id="urun-fiyat" n={4} title={t("fiyatVeSiparis")} lead={t("teklifIsteyinDeGecerliBir")}>
               <PriceModeField
                 mode={priceMode}
                 amount={priceAmount}
@@ -581,30 +885,31 @@ export function ProductShowcaseForm({
 
               {/* BİRİM ve MİKTAR yan yana: MOQ birimsiz okunmaz ("500 ne?"). */}
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <Field hint="Fiyat ve minimum sipariş bu birimle okunur.">
-                  <Label htmlFor="urun-birim">Satış birimi</Label>
+                <Field hint={t("fiyatVeMinimumSiparisBu")}>
+                  <Label htmlFor="urun-birim">{t("satisBirimi")}</Label>
                   <select id="urun-birim" value={unitCode} onChange={(e) => setUnitCode(e.target.value)} className={INPUT}>
                     {UNITS.filter(
                       (u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === unitCode,
                     ).map((u) => (
                       <option key={u.code} value={u.code}>
-                        {u.nameTr} ({u.symbol})
+                        {unitLabelOf(u.nameTr, u.code)} ({u.symbol})
                       </option>
                     ))}
                   </select>
                 </Field>
                 <Field>
-                  <Label htmlFor="urun-moq">Minimum sipariş miktarı</Label>
+                  <Label htmlFor="urun-moq">{t("minimumSiparisMiktari")}</Label>
                   <div className="flex items-center gap-2">
-                    <input
-                      id="urun-moq"
-                      type="number"
-                      min={0}
-                      step="0.001"
-                      value={moq}
-                      onChange={(e) => setMoq(e.target.value)}
-                      className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    />
+                    {/* Yerel biçimli miktar (arayüz testi son tur S-SELL):
+                        `type=number` Türkçe "1.000"i 1 okuyabiliyordu. */}
+                    <div className="w-40">
+                      <MoneyInput
+                        id="urun-moq"
+                        maxDecimals={3}
+                        value={moq}
+                        onChange={setMoq}
+                      />
+                    </div>
                     <span className="text-sm text-zinc-500">{unitLabel}</span>
                   </div>
                 </Field>
@@ -612,15 +917,15 @@ export function ProductShowcaseForm({
             </Section>
 
             {/* 5 ── EKLER */}
-            <Section id="urun-ekler" n={5} title="Ekler" lead="Katalog PDF'i, video ve kendi sitenizdeki ürün sayfası — isteğe bağlı.">
+            <Section id="urun-ekler" n={5} title={t("ekler")} lead={t("katalogPdfIVideoVe")}>
               {mediaAllowed ? (
                 <>
                   <div>
                     {/* Dosya girişi aşağıda KENDİ <label>'ının içinde sarılı (implicit
                        bağlama) — burası bölüm başlığı. */}
-                    <Label as="p">Dokümanlar</Label>
+                    <Label as="p">{t("dokumanlar")}</Label>
                     <p className="mt-1 text-xs text-zinc-500">
-                      PDF katalog veya teknik föy — en fazla {MAX_DOCUMENTS}, her biri 10 MB.
+                      {t("pdfKatalogVeyaTeknikFoy", { max: MAX_DOCUMENTS })}
                     </p>
                     {documents.length > 0 ? (
                       <ul className="mt-3 space-y-2">
@@ -632,16 +937,16 @@ export function ProductShowcaseForm({
                                 setDocuments((docs) => docs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))
                               }
                               maxLength={200}
-                              aria-label={`Belge ${i + 1} başlığı`}
+                              aria-label={t("belgeBasligi", { n: i + 1 })}
                               className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                             />
                             <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-600 underline hover:text-zinc-900">
-                              Aç
+                              {t("ac")}
                             </a>
                             <button
                               type="button"
                               onClick={() => setDocuments((docs) => docs.filter((_, j) => j !== i))}
-                              aria-label={`${d.title} belgesini kaldır`}
+                              aria-label={t("belgesiniKaldir", { title: d.title })}
                               className="text-zinc-400 hover:text-zinc-900"
                             >
                               <XMarkIcon aria-hidden className="size-4" />
@@ -650,9 +955,9 @@ export function ProductShowcaseForm({
                         ))}
                       </ul>
                     ) : null}
-                    {documents.length < MAX_DOCUMENTS ? (
+                    {canManage && documents.length < MAX_DOCUMENTS ? (
                       <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-                        {uploadDoc.isPending ? "Yükleniyor…" : "PDF ekle"}
+                        {uploadDoc.isPending ? t("yukleniyor") : t("pdfEkle")}
                         <input
                           ref={docInput}
                           type="file"
@@ -665,29 +970,30 @@ export function ProductShowcaseForm({
                     ) : null}
                   </div>
 
-                  <Field hint="YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.">
-                    <Label htmlFor="urun-video">Video bağlantısı</Label>
+                  <Field hint={t("youtubeVeyaVimeoBaglantisiUrun")}>
+                    <Label htmlFor="urun-video">{t("videoBaglantisi")}</Label>
                     <input id="urun-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={INPUT} />
                   </Field>
                 </>
               ) : (
                 <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                  Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı Silver paketiyle açılır.
+                  {t("urunBelgesiPdfKatalogTeknik")}
                 </p>
               )}
 
-              <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
-                <Label htmlFor="urun-dis-baglanti">Ürün sayfası bağlantısı</Label>
+              <Field hint={t("kendiWebSitenizdekiUrunSayfasi")}>
+                <Label htmlFor="urun-dis-baglanti">{t("urunSayfasiBaglantisi")}</Label>
                 <input id="urun-dis-baglanti" type="url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" className={INPUT} />
               </Field>
             </Section>
           </div>
-        </div>
+        </fieldset>
 
         <aside className="min-w-0 lg:sticky lg:top-[7.5rem] lg:self-start">
           <EditorRail
             completion={live.completion}
             blockers={live.blockers}
+            outdatedCategory={outdatedCategory}
             onJump={jump}
             recommendations={
               <SearchVisibilityCard
@@ -698,7 +1004,7 @@ export function ProductShowcaseForm({
                     canManage
                       ? {
                           available: aiAvailable && patch.name.trim().length >= 2,
-                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                          unavailableReason: aiAvailable ? t("onceUrunAdiniYazin") : t("aiIleGuclendirmeDogrulama"),
                           run: () =>
                             seoEnrich.mutateAsync({
                               kind: "product",
@@ -714,7 +1020,7 @@ export function ProductShowcaseForm({
                             setDescription(r.description);
                             setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
                             if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
-                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                            toast.success(t("taslakUygulandiKontrolEdipKaydedin"));
                           },
                         }
                       : undefined
@@ -723,7 +1029,7 @@ export function ProductShowcaseForm({
             }
           />
           <p className="mt-4 text-xs/5 text-zinc-500">
-            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
+            {t("varyasyonlariAyriUrunOlarakAcmayin")}
           </p>
         </aside>
       </div>
@@ -746,7 +1052,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-32">
+    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-44">
       <div className="mb-5 flex items-start gap-3">
         <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-semibold text-white">
           {n}

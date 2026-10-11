@@ -32,6 +32,38 @@ export interface PortalNavItem {
   minTier?: "SILVER" | "GOLD";
   /** Yetki tablosu Faz 3: bu izin(ler)den biri yoksa satır menüde HİÇ çizilmez. */
   permission?: string | readonly string[];
+  /**
+   * Kilit kademesi kişinin İZNİNE göre (rol kontrolü paket kontrolünün
+   * İÇİNDE — arayüz testi O-043): satır birden çok izinle açılıyorsa, kişinin
+   * sahip olduğu izinlerin en düşük kademesi geçerli. Varsa `minTier`'ı ezer.
+   */
+  tierByPermission?: Readonly<Record<string, "SILVER" | "GOLD">>;
+}
+
+/**
+ * Satırın bu kullanıcı için kilit kademesi (`tierByPermission` varsa izne
+ * göre, yoksa sabit `minTier`). Sol menü kilidi buradan okur.
+ */
+export function navItemMinTier(
+  item: PortalNavItem,
+  user: PermissionSubject | null | undefined,
+): "SILVER" | "GOLD" | undefined {
+  if (!item.tierByPermission) return item.minTier;
+  const tiers = Object.entries(item.tierByPermission)
+    .filter(([perm]) => userHasPermission(user, perm))
+    .map(([, tier]) => tier);
+  if (tiers.length === 0) return item.minTier;
+  return tiers.includes("SILVER") ? "SILVER" : "GOLD";
+}
+
+/** Satır bu kullanıcı + kademe için kilitli mi (teaser kilidi). */
+export function isNavItemLocked(
+  item: PortalNavItem,
+  user: PermissionSubject | null | undefined,
+  tier: string,
+): boolean {
+  const min = navItemMinTier(item, user);
+  return !!min && !tierAtLeast(tier, min);
 }
 
 export interface PortalDef {
@@ -78,6 +110,26 @@ export const profilePath = (_portal: PortalKey) => `${COMPANY_AREA_BASE}/profil`
  */
 export const COMPANY_AREA_BASE = "/company/sirketim";
 
+/**
+ * Herkese açık profil sayfasının (Şirketim › Profil) izinleri — API
+ * `GET company/profile` aynası. Menü satırı, Ayarlar "Firma Profili" kartı
+ * ve sayfa kapısı bu TEK sabitten okur (arayüz testi O-101/O-108).
+ */
+export const COMPANY_PROFILE_PERMISSIONS = ["company:manage", "buy:view", "sell:view"] as const;
+
+/**
+ * Şirketim ALANI kapısı: alandaki sayfalardan en az birini açan her izin
+ * (Genel Bakış yönetim/portal izinleriyle, Ziyaret Edenler `insights:view`,
+ * Raporlar `insights:view` / `buy:reports:view`). Alt sayfalar kendi
+ * kapılarını ayrıca taşır (2026-09-17 sayfa bazında kapı; arayüz testi O-062).
+ */
+export const COMPANY_AREA_PERMISSIONS = [
+  "users:manage",
+  ...COMPANY_PROFILE_PERMISSIONS,
+  "insights:view",
+  "buy:reports:view",
+] as const;
+
 export interface CompanyAreaDef {
   label: string;
   basePath: string;
@@ -87,20 +139,31 @@ export interface CompanyAreaDef {
 }
 
 export const COMPANY_AREA: CompanyAreaDef = {
-  label: "Şirketim",
+  label: "sirketim.title",
   basePath: COMPANY_AREA_BASE,
   nav: [
-    { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
+    { icon: BuildingOffice2Icon, label: "sirketim.overview", href: COMPANY_AREA_BASE, permission: COMPANY_AREA_PERMISSIONS },
     // Herkese açık profil HER pakete açık (2026-09-06: ücretsiz firma da
     // yayınlar; paketin karşılığı dizinde öncelik + "Doğrulanmış" rozeti).
-    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil` },
+    // İzin API profil ucuyla aynı (yalnız "Kullanıcı ve yetki" tikli kişi 403
+    // alıyordu — arayüz testi O-101).
+    { icon: IdentificationIcon, label: "sirketim.profile", href: `${COMPANY_AREA_BASE}/profil`, permission: COMPANY_PROFILE_PERMISSIONS },
     // Sayılar herkese açık, kimlikli liste Silver+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
-    { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
+    { icon: EyeIcon, label: "sirketim.visitors", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
     // Raporlar iki tarafın da girişi (2026-09-17): satınalma raporları
     // (Gold + buy:reports:view) VE İş Analizi (Silver + insights:view). Satır
-    // ikisinden biri varsa çizilir; hub içeride yalnız yetkili kartı gösterir.
-    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: ["buy:reports:view", "insights:view"] },
+    // ikisinden biri varsa çizilir; hub içeride yetkili kartı (paketi
+    // yetmiyorsa kilitli) gösterir. Kilit kademesi kişinin iznine göre: yalnız
+    // satınalma raporu izni olana Gold (arayüz testi O-043).
+    {
+      icon: ChartBarIcon,
+      label: "sirketim.reports",
+      href: `${COMPANY_AREA_BASE}/raporlar`,
+      minTier: "SILVER",
+      permission: ["buy:reports:view", "insights:view"],
+      tierByPermission: { "insights:view": "SILVER", "buy:reports:view": "GOLD" },
+    },
   ],
   secondaryNav: [],
 };
@@ -108,43 +171,48 @@ export const COMPANY_AREA: CompanyAreaDef = {
 export const isCompanyAreaPath = (pathname: string | null): boolean =>
   !!pathname && (pathname === COMPANY_AREA_BASE || pathname.startsWith(`${COMPANY_AREA_BASE}/`));
 
+/**
+ * MENÜ ETİKETLERİ KATALOG ANAHTARIDIR (i18n Faz 2, 2026-09-24): değerler
+ * `web.panel.nav.*` altındaki anahtar; çizim yeri `useTranslations("web.panel.nav")`
+ * ile çevirir (`tn(item.label)`). Türkçe metin katalogda, burada değil.
+ */
 export const MODULE_LABELS = {
   satinalma: {
     // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
     // "Taleplerim" sol menüde taşıyordu.
-    ihalelerim: "Taleplerim",
+    ihalelerim: "satinalma.taleplerim",
     // Satıştaki "Bilgi Talepleri" ile karıştırılmamalı: orası ürünlerime
     // GELEN sorular, burası benim GÖNDERDİKLERİM. Ayrımı iyelik kipi taşıyor
     // ("Ürünlerim"/"Ürün Ara" ile aynı kural).
-    bilgiTaleplerim: "Bilgi Taleplerim",
-    siparisler: "Siparişlerim",
+    bilgiTaleplerim: "satinalma.bilgiTaleplerim",
+    siparisler: "satinalma.siparisler",
   },
   satis: {
     // Satış portalında BAŞKA firmaların satın alma talepleri "talep"tir
     // ("Açık Talepler"); firmanın kendi sattıkları ÜRÜN kataloğundadır
     // ("Ürünlerim"). Satış ilanı özelliği kaldırıldı (2026-09-04).
-    urunler: "Ürünlerim",
+    urunler: "satis.urunlerim",
     // Misafir ziyaretçilerin ürün sayfalarından gönderdiği sorular (Faz 1) —
     // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
     // olmayabilir. Aynı sözcüğü kullanmak iki farklı akışı karıştırırdı.
-    bilgiTalepleri: "Bilgi Talepleri",
+    bilgiTalepleri: "satis.bilgiTalepleri",
     // 2026-09-17, kullanıcı kararı: "sadece Tekliflerim olsun" — portal öneki
     // kalktı (satınalma tarafında bu adla sayfa yok; üst çubuk zaten portalı
     // söylüyor).
-    teklifler: "Tekliflerim",
-    siparisler: "Satışlarım",
+    teklifler: "satis.tekliflerim",
+    siparisler: "satis.satislarim",
   },
 } as const;
 
 export const PORTALS: Record<PortalKey, PortalDef> = {
   satinalma: {
     key: "satinalma",
-    label: "Satınalma",
+    label: "portal.satinalma",
     role: "SATIN_ALMACI",
     basePath: "/company/satinalma",
     accent: "blue",
     nav: [
-      { icon: HomeIcon, label: "Anasayfa", href: "/company/satinalma" },
+      { icon: HomeIcon, label: "common.home", href: "/company/satinalma" },
       {
         icon: ClipboardDocumentListIcon,
         label: MODULE_LABELS.satinalma.ihalelerim,
@@ -166,7 +234,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: UsersIcon,
-        label: "Bağlantılar",
+        label: "common.connections",
         href: "/company/satinalma/tedarikcilerim",
       },
     ],
@@ -178,13 +246,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       // onun sağında yaşayan ikinci bölgedir. Burada durmalarının sebebi
       // rota KAYDI: breadcrumb, sayfa başlığı ve tier kapısı bu listeden
       // beslenir (`allPortalRoutes`).
-      { icon: CubeIcon, label: "Ürünler", href: "/company/satinalma/urunler" },
-      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satinalma/firmalar" },
+      { icon: CubeIcon, label: "satinalma.urunler", href: "/company/satinalma/urunler" },
+      { icon: BuildingOffice2Icon, label: "common.companies", href: "/company/satinalma/firmalar" },
       // Raporlar ve Profilim ŞİRKETİM alanına taşındı (2026-09-05, Europages
       // "My Company" kalıbı) — bkz. COMPANY_AREA.
       {
         icon: DocumentDuplicateIcon,
-        label: "Şablonlar",
+        label: "satinalma.sablonlar",
         href: "/company/satinalma/sablonlar",
         minTier: "GOLD",
       },
@@ -192,12 +260,12 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
   },
   satis: {
     key: "satis",
-    label: "Satış",
+    label: "portal.satis",
     role: "SATISCI",
     basePath: "/company/satis",
     accent: "emerald",
     nav: [
-      { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
+      { icon: HomeIcon, label: "common.home", href: "/company/satis" },
       {
         // GAP FIX (2026-09-03): sayfa Faz 2'de yazılmıştı ama menüye HİÇ
         // eklenmemişti — kullanıcı ürününü nereden ekleyeceğini soramaz hâle
@@ -229,7 +297,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: BuildingStorefrontIcon,
-        label: "Bağlantılar",
+        label: "common.connections",
         href: "/company/satis/musterilerim",
       },
     ],
@@ -238,12 +306,30 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     // "kime satabilirim"i arar — anasayfa arama anahtarı ve Bağlantılar ›
     // Keşfet oraya götürür; sol menüde DEĞİL (satınalmadaki kuralla aynı).
     secondaryNav: [
-      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satis/firmalar" },
+      { icon: BuildingOffice2Icon, label: "common.companies", href: "/company/satis/firmalar" },
     ],
   },
 };
 
 export const PORTAL_ORDER: PortalKey[] = ["satinalma", "satis"];
+
+/**
+ * Gold altındaki firmada (paket düştü ya da süresi bitti) Satınalma'nın AÇIK
+ * kalan sayfaları (2026-10-01 kullanıcı kararı T-06, arayüz testi O-008):
+ * mevcut talepleri ve siparişleri görüp sonuçlandırmak için listeler. Yeni iş
+ * (talep açma, şablon, pano) Gold kapısında kalır; liste sayfaları üstte
+ * paket bandı taşır. Tam eşleşme — `/taleplerim/yeni` gibi alt yollar DEĞİL.
+ */
+export const BUYING_WIND_DOWN_PATHS: readonly string[] = [
+  "/company/satinalma/taleplerim",
+  "/company/satinalma/siparisler",
+];
+
+/**
+ * Paket/rol kapısından BAĞIMSIZ geçen eski adresler: yalnız yönlendirici
+ * (birleşik gelen kutusu kendi kapısını uygular — arayüz testi D-264).
+ */
+export const PORTAL_PASSTHROUGH_PATHS: readonly string[] = ["/company/satinalma/mesajlar"];
 
 /**
  * "Kategorileri düzenle" hedefi — açık talep/ilan eşleşmesi firmanın
@@ -302,16 +388,37 @@ export function canUseMessaging(
 }
 
 /**
- * Mesaj GÖNDERME = işlem izni (API `send` aynası): satınalmada "talep açma
- * ve yönetme", satışta "teklif verme". Etiket-only ve görüntüleyici gönderemez.
+ * Mesajlaşma YÖNÜ paketle açık mı? ALICI yönü (satinalma) satınalma panelidir
+ * → Gold (BUYING_TIER); satıcı yönü her pakete açık. Paketi düşen firma eski
+ * alıcı konuşmalarını OKUR (`canUseMessaging` paket sormaz) ama yeni alıcı
+ * konuşması açamaz, yazamaz (API `send` aynası, arayüz testi O-123).
+ */
+export function messagingDirectionOpen(
+  portal: PortalKey,
+  tier: string | null | undefined,
+): boolean {
+  return portal !== "satinalma" || tierAtLeast(tier ?? "STANDART", BUYING_TIER);
+}
+
+/**
+ * Mesaj GÖNDERME = paket (alıcı yönü Gold) + işlem izni (API `send` aynası):
+ * satınalmada "talep açma ve yönetme", satışta "teklif verme". Etiket-only ve
+ * görüntüleyici gönderemez. Rol denetimi paket denetiminin İÇİNDE.
+ * `sendOpenByOrder`: sunucunun bildirdiği süren sipariş istisnası (paketi
+ * düşen alıcı o satıcıya yazabilir — T-06, mevcut siparişler erişilebilir).
  */
 export function canSendMessages(
   user: PermissionSubject | null | undefined,
   portal: PortalKey,
+  tier: string | null | undefined,
+  sendOpenByOrder = false,
 ): boolean {
-  return userHasPermission(
-    user,
-    portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",
+  return (
+    (messagingDirectionOpen(portal, tier) || sendOpenByOrder) &&
+    userHasPermission(
+      user,
+      portal === "satinalma" ? "buy:listing:manage" : "sell:bid:submit",
+    )
   );
 }
 

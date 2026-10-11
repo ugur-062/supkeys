@@ -10,7 +10,15 @@ const h = vi.hoisted(() => ({
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
+  } as {
+    data: CompanyOrder[] | undefined;
+    isLoading: boolean;
+    /** Yanıt henüz yok (yükleme ya da çevrimdışı duraklama) — bileşen bunu okur. */
+    isPending?: boolean;
+    isError: boolean;
+    refetch: () => unknown;
   },
+  sp: new URLSearchParams(),
 }));
 
 vi.mock("@/hooks/use-company-orders", () => ({
@@ -18,10 +26,10 @@ vi.mock("@/hooks/use-company-orders", () => ({
 }));
 // Faz 4.2 — OrdersList başlangıç filtresi için URL okur (drill-down).
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => h.sp,
 }));
 
-import { OrdersList } from "../orders-list";
+import { OrdersList, byCurrencyThenAmount, parseOrdersUrl, writeOrdersUrl } from "../orders-list";
 
 let seq = 0;
 function order(over: Partial<CompanyOrder> = {}): CompanyOrder {
@@ -47,6 +55,8 @@ function order(over: Partial<CompanyOrder> = {}): CompanyOrder {
 beforeEach(() => {
   vi.clearAllMocks();
   seq = 0;
+  h.sp = new URLSearchParams();
+  window.history.replaceState(null, "", "/");
   h.orders = {
     data: undefined,
     isLoading: false,
@@ -60,6 +70,7 @@ describe("OrdersList — durum katmanları", () => {
     h.orders = {
       data: undefined,
       isLoading: true,
+      isPending: true,
       isError: false,
       refetch: vi.fn(),
     };
@@ -84,6 +95,32 @@ describe("OrdersList — durum katmanları", () => {
     const retry = screen.getByRole("button", { name: "Tekrar dene" });
     await userEvent.click(retry);
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  // Son canlı kontrol 2026-10-10, OUTF-1: verisi olmayan sorgu 30 sn'lik
+  // yoklamada "pending"e döner (hata silinir) — kart iskelete dönüp "Tekrar
+  // dene" kayboluyordu. Kart, veri gelene dek durur.
+  it("okunamayan liste yoklamayla yeniden çekilirken hata kartı KALIR; veri gelince liste çizilir", () => {
+    h.orders = { data: undefined, isLoading: false, isPending: false, isError: true, refetch: vi.fn() };
+    const { container, rerender } = render(<OrdersList role="buyer" />);
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+
+    h.orders = { data: undefined, isLoading: true, isPending: true, isError: false, refetch: vi.fn() };
+    rerender(<OrdersList role="buyer" />);
+    expect(screen.getByText("Siparişler yüklenemedi. Lütfen tekrar deneyin.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tekrar dene" })).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+
+    h.orders = {
+      data: [order({ listingTitle: "Geri gelen sipariş" })],
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    rerender(<OrdersList role="buyer" />);
+    expect(screen.getByText("Geri gelen sipariş")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tekrar dene" })).toBeNull();
   });
 
   it("boş liste (alıcı) → 'Henüz sipariş yok' + Taleplerime Git aksiyonu", () => {
@@ -193,7 +230,7 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     };
     render(<OrdersList role="buyer" />);
     const search = screen.getByPlaceholderText(
-      "Sipariş no, ilan veya karşı taraf…",
+      "Sipariş no, talep veya karşı taraf…",
     );
     await userEvent.type(search, "kablo");
 
@@ -219,5 +256,190 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.queryByText("İptal / Sorunlu")).not.toBeInTheDocument();
     expect(screen.getByText("Biten A")).toBeInTheDocument();
     expect(screen.getByText("Bekleyen B")).toBeInTheDocument();
+  });
+});
+
+describe("OrdersList — son durum notu (derin denetim S068)", () => {
+  it("DISPUTED kart 'iptal edildi' DEMEZ — ihtilaf sürüyor; CANCELLED iptal der", () => {
+    h.orders = {
+      data: [
+        order({ status: "DISPUTED", listingTitle: "İhtilaflı iş" }),
+        order({ status: "CANCELLED", listingTitle: "İptal iş" }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Sipariş ihtilaflı — süreç sürüyor")).toBeInTheDocument();
+    expect(screen.getAllByText("Sipariş iptal edildi")).toHaveLength(1);
+  });
+});
+
+describe("byCurrencyThenAmount — tutar sıralaması para birimini yok saymaz (derin denetim LU-27)", () => {
+  const rows = [
+    { amount: "5000", currency: "EUR" },
+    { amount: "50000", currency: "RUB" },
+    { amount: "7000", currency: "EUR" },
+    { amount: "100", currency: "RUB" },
+  ];
+  it("yüksek→düşük: birim grupları ayrı, her grup kendi içinde azalan", () => {
+    const out = [...rows].sort((a, b) => byCurrencyThenAmount(a, b, -1));
+    expect(out.map((r) => `${r.amount} ${r.currency}`)).toEqual(["7000 EUR", "5000 EUR", "50000 RUB", "100 RUB"]);
+  });
+  it("düşük→yüksek: grup içinde artan", () => {
+    const out = [...rows].sort((a, b) => byCurrencyThenAmount(a, b, 1));
+    expect(out.map((r) => `${r.amount} ${r.currency}`)).toEqual(["5000 EUR", "7000 EUR", "100 RUB", "50000 RUB"]);
+  });
+});
+
+describe("OrdersList — ödeme etiketi (arayüz testi D-127)", () => {
+  it("kabul öncesi (PENDING) siparişte 'Ödeme bekliyor' yazmaz; kabul edilende yazar", () => {
+    h.orders = {
+      ...h.orders,
+      data: [
+        order({ status: "PENDING", paymentSettled: false, listingTitle: "Bekleyen" }),
+        order({ status: "ACCEPTED", paymentSettled: false, listingTitle: "Onaylanan" }),
+      ],
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getAllByText(/Ödeme bekliyor/)).toHaveLength(1);
+  });
+
+  it("iptal/ret edilen siparişte onaylı ödeme olsa da yeşil 'Ödeme tamam' yazmaz (webB-07 NEW-5)", () => {
+    h.orders = {
+      ...h.orders,
+      data: [
+        order({ status: "CANCELLED", paymentSettled: true, listingTitle: "İptal" }),
+        order({ status: "REJECTED", paymentSettled: true, listingTitle: "Ret" }),
+        order({ status: "COMPLETED", paymentSettled: true, listingTitle: "Biten" }),
+      ],
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getAllByText("Ödeme tamam")).toHaveLength(1);
+  });
+
+  it("DISPUTED satırı izleyici yerine ihtilaf notunu gösterir (O-030)", () => {
+    h.orders = { ...h.orders, data: [order({ status: "DISPUTED" })] };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText(/ihtilaflı/i)).toBeInTheDocument();
+  });
+});
+
+describe("OrdersList — liste durumu adreste (arayüz testi D-011)", () => {
+  it("parse/write: geçersiz değerler varsayılana düşer; varsayılanlar adrese yazılmaz, yabancı parametre korunur", () => {
+    const st = parseOrdersUrl((k) =>
+      new URLSearchParams("status=PENDING,XX&sort=bogus&range=30d&page=3&cp=Acme&q=boru").get(k),
+    );
+    expect(st).toEqual({ q: "boru", status: ["PENDING"], due: null, payment: null, sort: "newest", range: "30d", cp: "Acme", page: 3 });
+    const out = writeOrdersUrl(new URLSearchParams("tab=x&page=9"), { ...st, page: 1, sort: "newest" });
+    expect(out.get("tab")).toBe("x");
+    expect(out.get("page")).toBeNull();
+    expect(out.get("sort")).toBeNull();
+    expect(out.get("status")).toBe("PENDING");
+  });
+
+  it("adresteki sayfa ve süzgeçle açılır; sayfa değişimi adrese yazılır (Geri ile geri gelir)", async () => {
+    h.orders.data = Array.from({ length: 30 }, () => order({ status: "ACCEPTED" }));
+    h.sp = new URLSearchParams("page=2&status=ACCEPTED");
+    render(<OrdersList role="buyer" />);
+    // 12'lik sayfalar: 2. sayfa 13-24. kayıtlar (en yeni önce → İlan 13 … İlan 24).
+    expect(screen.getByText("İlan 13")).toBeInTheDocument();
+    expect(screen.queryByText("İlan 1")).not.toBeInTheDocument();
+    await waitFor(() => {
+      const u = new URL(window.location.href);
+      expect(u.searchParams.get("page")).toBe("2");
+      expect(u.searchParams.get("status")).toBe("ACCEPTED");
+    });
+  });
+});
+
+describe("OrdersList — '?due=overdue' teslim tarihi geçmiş kümesi (arayüz testi O-035, yeniden doğrulama)", () => {
+  const past = new Date(Date.now() - 5 * 86_400_000).toISOString();
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
+
+  it("alıcı: yalnız teslim edilmemiş ve tarihi geçmiş siparişler; çip kaldırınca tümü", async () => {
+    h.orders.data = [
+      order({ status: "IN_DELIVERY", expectedDeliveryDate: past, listingTitle: "Gecikmiş kargo" }),
+      order({ status: "PENDING", expectedDeliveryDate: past, listingTitle: "Gecikmiş onay" }),
+      order({ status: "ACCEPTED", expectedDeliveryDate: future, listingTitle: "Zamanında" }),
+      order({ status: "COMPLETED", expectedDeliveryDate: past, listingTitle: "Teslim alındı" }),
+      order({ status: "ACCEPTED", expectedDeliveryDate: null, listingTitle: "Tarihsiz" }),
+    ];
+    h.sp = new URLSearchParams("due=overdue");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Gecikmiş kargo")).toBeInTheDocument();
+    expect(screen.getByText("Gecikmiş onay")).toBeInTheDocument();
+    for (const t of ["Zamanında", "Teslim alındı", "Tarihsiz"]) expect(screen.queryByText(t)).toBeNull();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("due")).toBe("overdue"));
+
+    await userEvent.click(screen.getByRole("button", { name: /Teslim tarihi geçmiş/ }));
+    expect(screen.getByText("Zamanında")).toBeInTheDocument();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("due")).toBeNull());
+  });
+
+  it("satıcı: henüz kabul edilmemiş (PENDING) sipariş gecikmiş sayılmaz (Aksiyon Merkezi satırıyla aynı küme)", () => {
+    h.orders.data = [
+      order({ role: "seller", status: "PENDING", expectedDeliveryDate: past, listingTitle: "Kabul bekliyor" }),
+      order({ role: "seller", status: "ACCEPTED", expectedDeliveryDate: past, listingTitle: "Geciken" }),
+    ];
+    h.sp = new URLSearchParams("due=overdue");
+    render(<OrdersList role="seller" />);
+    expect(screen.getByText("Geciken")).toBeInTheDocument();
+    expect(screen.queryByText("Kabul bekliyor")).toBeNull();
+  });
+
+  it("parse: bilinmeyen değer süzgeç kurmaz", () => {
+    expect(parseOrdersUrl((k) => new URLSearchParams("due=bogus").get(k)).due).toBeNull();
+    expect(writeOrdersUrl(new URLSearchParams(), { ...parseOrdersUrl(() => null), due: "overdue" }).get("due")).toBe("overdue");
+  });
+});
+
+describe("OrdersList — '?payment=overdue|open' ödeme kümeleri (arayüz testi O-035, son tur)", () => {
+  const past = new Date(Date.now() - 5 * 86_400_000).toISOString();
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
+  const rows = () => [
+    order({ status: "COMPLETED", paymentSettled: false, paymentDueDate: past, listingTitle: "Vadesi geçmiş" }),
+    order({ status: "DELIVERED", paymentSettled: false, paymentDueDate: future, listingTitle: "Vadesi gelecek" }),
+    order({ status: "DELIVERED", paymentSettled: false, paymentDueDate: null, listingTitle: "Vadesiz açık" }),
+    order({ status: "COMPLETED", paymentSettled: true, paymentDueDate: past, listingTitle: "Ödenmiş" }),
+    order({ status: "IN_DELIVERY", paymentSettled: false, paymentDueDate: null, listingTitle: "Yolda" }),
+  ];
+
+  it("payment=overdue: yalnız teslim edilmiş, ödenmemiş ve vadesi geçmiş; çip kaldırınca tümü", async () => {
+    h.orders.data = rows();
+    h.sp = new URLSearchParams("payment=overdue");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Vadesi geçmiş")).toBeInTheDocument();
+    for (const t of ["Vadesi gelecek", "Vadesiz açık", "Ödenmiş", "Yolda"]) expect(screen.queryByText(t)).toBeNull();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("payment")).toBe("overdue"));
+
+    await userEvent.click(screen.getByRole("button", { name: /Ödemesi gecikmiş/ }));
+    expect(screen.getByText("Yolda")).toBeInTheDocument();
+    await waitFor(() => expect(new URL(window.location.href).searchParams.get("payment")).toBeNull());
+  });
+
+  it("payment=open: ödenmemiş, vadesi yok ya da gelmemiş (gecikmişle ayrık küme)", () => {
+    h.orders.data = rows();
+    h.sp = new URLSearchParams("payment=open");
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Vadesi gelecek")).toBeInTheDocument();
+    expect(screen.getByText("Vadesiz açık")).toBeInTheDocument();
+    for (const t of ["Vadesi geçmiş", "Ödenmiş", "Yolda"]) expect(screen.queryByText(t)).toBeNull();
+    expect(screen.getByRole("button", { name: /Ödeme bekleniyor/ })).toBeInTheDocument();
+  });
+
+  it("parse: bilinmeyen değer süzgeç kurmaz; yazılır", () => {
+    expect(parseOrdersUrl((k) => new URLSearchParams("payment=bogus").get(k)).payment).toBeNull();
+    expect(writeOrdersUrl(new URLSearchParams(), { ...parseOrdersUrl(() => null), payment: "open" }).get("payment")).toBe("open");
+  });
+});
+
+describe("OrdersList — hata ekranında sayaç yok (arayüz testi D-259)", () => {
+  it("veri yokken hata: 'Tümü (0)' ve '0 sipariş' basılmaz", () => {
+    h.orders = { data: undefined, isLoading: false, isError: true, refetch: vi.fn() };
+    render(<OrdersList role="buyer" />);
+    expect(screen.queryByText(/Tümü \(0\)/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0 sipariş/)).not.toBeInTheDocument();
   });
 });

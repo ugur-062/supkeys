@@ -1,9 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PriceTier } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
+import { MoneyInput, MoneyInputNumber } from "@/components/ui/money-input";
+import { NumberInputNumber } from "@/components/ui/number-input";
 import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
+import { CURRENCIES } from "@/lib/tenders/labels";
 
 /**
  * FİYAT MODU — üç seçenekten biri ZORUNLU, hiçbiri yalan gerektirmiyor.
@@ -16,22 +20,10 @@ import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
  * cezalandırmak kullanıcıyı tam da o sahte fiyata iterdi.
  */
 const MODES = [
-  {
-    value: "FIXED" as const,
-    title: "Sabit fiyat",
-    body: "Tek birim fiyat. Miktardan bağımsız.",
-  },
-  {
-    value: "TIERED" as const,
-    title: "Kademeli fiyat",
-    body: "Miktar arttıkça birim fiyat düşer — B2B'de en gerçekçi olan.",
-  },
-  {
-    value: "ON_REQUEST" as const,
-    title: "Fiyat için teklif isteyin",
-    body: "Fiyat yayımlamak istemiyorsanız bunu seçin. Puan kaybettirmez.",
-  },
-];
+  { value: "FIXED", title: "mode.FIXED.title", body: "mode.FIXED.body" },
+  { value: "TIERED", title: "mode.TIERED.title", body: "mode.TIERED.body" },
+  { value: "ON_REQUEST", title: "mode.ON_REQUEST.title", body: "mode.ON_REQUEST.body" },
+] as const;
 
 export function PriceModeField({
   mode,
@@ -53,10 +45,11 @@ export function PriceModeField({
     currency?: string;
   }) => void;
 }) {
+  const tr = useTranslations("web.panel.trade.priceModeField");
   return (
     <div className="space-y-4">
       <fieldset>
-        <legend className="text-sm font-medium text-zinc-900">Fiyat</legend>
+        <legend className="text-sm font-medium text-zinc-900">{tr("fiyat")}</legend>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {MODES.map((m) => (
             <label
@@ -76,9 +69,9 @@ export function PriceModeField({
                 className="sr-only"
               />
               <span className="block text-sm font-semibold text-zinc-950">
-                {m.title}
+                {tr(m.title)}
               </span>
-              <span className="mt-1 block text-xs/5 text-zinc-500">{m.body}</span>
+              <span className="mt-1 block text-xs/5 text-zinc-500">{tr(m.body)}</span>
             </label>
           ))}
         </div>
@@ -86,19 +79,18 @@ export function PriceModeField({
 
       {mode === "FIXED" ? (
         <Field>
-          <Label htmlFor="fiyat-birim">Birim fiyat</Label>
+          <Label htmlFor="fiyat-birim">{tr("birimFiyat")}</Label>
           <div className="flex flex-wrap gap-2">
-            <input
-              id="fiyat-birim"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={amount}
-              onChange={(e) => onChange({ amount: e.target.value })}
-              placeholder="0,00"
-              className="min-w-0 flex-1 basis-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-            />
+            {/* Yerel biçimli para girişi (arayüz testi son tur S-SELL):
+                `type=number` Türkçe "12,50"yi 1250 kaydediyordu (×100). */}
+            <div className="min-w-0 flex-1 basis-40">
+              <MoneyInput
+                id="fiyat-birim"
+                value={amount}
+                onChange={(raw) => onChange({ amount: raw })}
+                placeholder={tr("birimFiyatYerTutucu")}
+              />
+            </div>
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
             <span className="flex items-center px-2 text-sm text-zinc-500">
               / {unit}
@@ -111,50 +103,66 @@ export function PriceModeField({
         <div>
           <div className="flex items-center justify-between">
             {/* Bir satır listesinin başlığı — tek kontrol yok, `<label>` bağlanamaz. */}
-            <Label as="p">Kademeler</Label>
+            <Label as="p">{tr("kademeler")}</Label>
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Her satır “şu miktardan itibaren” anlamına gelir.
+            {tr("herSatirSuMiktardanItibaren")}
           </p>
           <ul className="mt-3 space-y-2">
             {tiers.map((t, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <input
-                  aria-label={`${i + 1}. kademe: başlangıç miktarı`}
-                  type="number"
-                  min={1}
-                  value={t.minQty}
-                  onChange={(e) => {
-                    const next = [...tiers];
-                    next[i] = { ...t, minQty: Number(e.target.value) };
-                    onChange({ tiers: next });
-                  }}
-                  className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                />
-                <span className="text-sm text-zinc-500">{unit} ve üzeri</span>
-                <input
-                  aria-label={`${i + 1}. kademe: birim fiyat`}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={t.unitPrice}
-                  onChange={(e) => {
-                    const next = [...tiers];
-                    next[i] = { ...t, unitPrice: Number(e.target.value) };
-                    onChange({ tiers: next });
-                  }}
-                  className="w-32 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                />
-                <span className="text-sm text-zinc-500">{currency}</span>
-                <button
-                  type="button"
-                  onClick={() => onChange({ tiers: tiers.filter((_, x) => x !== i) })}
-                  className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                  aria-label="Kademeyi sil"
-                >
-                  <TrashIcon aria-hidden className="size-4" />
-                </button>
+              // SARILAN satır (arayüz testi D-051): 390 px'te tek satır kartı
+              // aşıyor, sil düğmesi kartın dışına taşıyor ve sayfa kayıyordu.
+              <li key={i}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-2">
+                    {/* Tam sayı miktar — Türkçe binlik "1.000" 1 okunmasın. */}
+                    <div className="w-28">
+                      {/* Yerel TAM SAYI (arayüz testi kapanış NUM): `MoneyInputNumber
+                          maxDecimals=0` kesri sessizce atıyordu ("2.5" → 2,
+                          "1.250,5" → 1.250); kesirli giriş artık geçersiz (NaN). */}
+                      <NumberInputNumber
+                        aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
+                        value={t.minQty}
+                        onChange={(v) => {
+                          const next = [...tiers];
+                          next[i] = { ...t, minQty: v ?? Number.NaN };
+                          onChange({ tiers: next });
+                        }}
+                      />
+                    </div>
+                    <span className="whitespace-nowrap text-sm text-zinc-500">{tr("veUzeri", { unit: unit })}</span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {/* Yerel biçimli para girişi (arayüz testi son tur
+                        S-SELL): `type=number` Türkçe "12,50"yi 1250
+                        kaydediyordu (×100) ve ürün öyle yayımlanıyordu. */}
+                    <div className="w-32">
+                      <MoneyInputNumber
+                        aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
+                        value={t.unitPrice}
+                        hasError={!isTierComplete(t)}
+                        onChange={(v) => {
+                          const next = [...tiers];
+                          next[i] = { ...t, unitPrice: v ?? Number.NaN };
+                          onChange({ tiers: next });
+                        }}
+                      />
+                    </div>
+                    <span className="text-sm text-zinc-500">{currency}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ tiers: tiers.filter((_, x) => x !== i) })}
+                    className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                    aria-label={tr("kademeyiSil")}
+                  >
+                    <TrashIcon aria-hidden className="size-4" />
+                  </button>
+                </div>
+                {isTierComplete(t) ? null : (
+                  <p className="mt-1 text-xs text-amber-700">{tr("kademeEksik")}</p>
+                )}
               </li>
             ))}
           </ul>
@@ -165,9 +173,12 @@ export function PriceModeField({
                 onChange({
                   tiers: [
                     ...tiers,
+                    // Fiyat BOŞ başlar (arayüz testi D-050): eskiden 0 ya da
+                    // önceki satırın fiyatı kopyalanıyordu; 0 fiyat taslak
+                    // kaydını bile 400'e düşürüyordu.
                     {
-                      minQty: (tiers.at(-1)?.minQty ?? 0) + 100,
-                      unitPrice: tiers.at(-1)?.unitPrice ?? 0,
+                      minQty: lastFiniteQty(tiers) + 100,
+                      unitPrice: Number.NaN,
                     },
                   ],
                 })
@@ -175,7 +186,7 @@ export function PriceModeField({
               className="mt-3 inline-flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
               <PlusIcon aria-hidden className="size-4" />
-              Kademe ekle
+              {tr("kademeEkle")}
             </button>
           ) : null}
         </div>
@@ -183,17 +194,29 @@ export function PriceModeField({
 
       {mode === "ON_REQUEST" ? (
         <p className="rounded-xl bg-zinc-50 p-4 text-sm/6 text-zinc-600 ring-1 ring-zinc-950/5">
-          Ürün sayfasında <strong>“Fiyat için teklif isteyin”</strong>{" "}
-          yazacak. Bu bir eksiklik değil, açık bir beyandır — alıcı fiyatın
-          görüşmeye bağlı olduğunu bilir.
+          {tr.rich("urunSayfasindaFiyatIcinTeklifIsteyinYazacak", { strong: (c) => <strong>{c}</strong> })}
         </p>
       ) : null}
     </div>
   );
 }
 
-const CURRENCIES = ["TRY", "USD", "EUR", "GBP"];
+// Kademe alanları BOŞ olabilir (arayüz testi D-050): boş değer `NaN` olarak
+// tutulur ve kutuda boş görünür (MoneyInputNumber NaN'ı boş basar) — eskiden
+// `Number("")` 0'a dönüyor, silinen fiyat "0" olarak geri geliyordu.
 
+function lastFiniteQty(tiers: PriceTier[]): number {
+  const q = tiers.at(-1)?.minQty;
+  return q != null && Number.isFinite(q) ? q : 0;
+}
+
+/** API kuralıyla aynı: miktar ≥ 1, fiyat > 0 (`PriceTierDto`). */
+export function isTierComplete(t: PriceTier): boolean {
+  return Number.isFinite(t.minQty) && t.minQty >= 1 && Number.isFinite(t.unitPrice) && t.unitPrice > 0;
+}
+
+// Tüm desteklenen birimler (eskiden yalnız TRY/USD/EUR/GBP — AZN/SEK/KRW
+// satan firma ürününü kendi biriminde fiyatlayamıyordu). TEK KAYNAK labels.ts.
 function CurrencySelect({
   value,
   onChange,
@@ -201,11 +224,12 @@ function CurrencySelect({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("web.panel.trade.priceModeField");
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Para birimi"
+      aria-label={t("paraBirimi")}
       className="rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900"
     >
       {CURRENCIES.map((c) => (

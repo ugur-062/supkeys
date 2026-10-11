@@ -1,3 +1,5 @@
+import { foldSearchText } from "@rothern/shared";
+
 /**
  * PANELDE SON ARAMALAR — ürün tavsiyesinin girdisi (2026-09-07).
  *
@@ -41,7 +43,7 @@ export function rememberSearch(portal: Portal, term: string): void {
   if (t.length < 2) return;
   try {
     const all = read();
-    const fold = (s: string) => s.toLocaleLowerCase("tr");
+    const fold = foldSearchText;
     const next = [t, ...(all[portal] ?? []).filter((x) => fold(x) !== fold(t))].slice(0, MAX);
     window.localStorage.setItem(KEY, JSON.stringify({ ...all, [portal]: next }));
   } catch {

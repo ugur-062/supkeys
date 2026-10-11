@@ -1,13 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export type Period = "month" | "quarter" | "year";
 
 const OPTIONS: { value: Period; label: string }[] = [
-  { value: "month", label: "Bu Ay" },
-  { value: "quarter", label: "Bu Çeyrek" },
-  { value: "year", label: "Bu Yıl" },
+  { value: "month", label: "buAy" },
+  { value: "quarter", label: "buCeyrek" },
+  { value: "year", label: "buYil" },
 ];
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
  * tab'larında metrik kartlarında üst-sağ köşede kullanılır.
  */
 export function PeriodToggle({ value, onChange, className }: Props) {
+  const t = useTranslations("web.panel.shell.periodToggle");
   return (
     <div
       // Dalga B-4 (denetim P10): `role="tablist"` YANLIŞTI — bu bir sekme
@@ -28,7 +30,7 @@ export function PeriodToggle({ value, onChange, className }: Props) {
       // ekran okuyucu "sekme 1/2" diyerek olmayan bir panel vaat ediyordu.
       // Doğru semantik: basılı-durumlu düğme grubu.
       role="group"
-      aria-label="Dönem"
+      aria-label={t("donem")}
       className={cn(
         "inline-flex rounded-lg bg-zinc-200/70 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/10",
         className,
@@ -49,7 +51,7 @@ export function PeriodToggle({ value, onChange, className }: Props) {
                 : "text-zinc-600 hover:text-zinc-900",
             )}
           >
-            {opt.label}
+            {t(opt.label as never)}
           </button>
         );
       })}

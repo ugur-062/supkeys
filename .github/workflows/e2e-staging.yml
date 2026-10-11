@@ -103,6 +103,8 @@ jobs:
           E2E_EMAIL: uguray156+qa-alici-kurucu@gmail.com
           E2E_PASSWORD: ${{ secrets.STAGING_QA_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.STAGING_ADMIN_PASSWORD }}
+          # Admin 2FA (MU-01) — tanımsızsa boş gelir, yardımcılar kod göndermez.
+          E2E_ADMIN_TOTP_SECRET: ${{ secrets.STAGING_ADMIN_TOTP_SECRET }}
           E2E_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           E2E_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
           E2E_SUPABASE_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
@@ -112,7 +114,9 @@ jobs:
             --reporter=line,html
 
       - name: Safari motoru (gecelik ek koşum)
-        if: github.event_name == 'schedule'
+        # `!cancelled()`: koşulsuz `if` örtük `success()` taşır → Chromium adımı
+        # kızarınca Safari koşumu HİÇ çalışmıyordu (son 31 gecenin 29'u).
+        if: ${{ !cancelled() && github.event_name == 'schedule' }}
         working-directory: apps/web
         env:
           PLAYWRIGHT_BASE_URL: https://staging.supkeys.com

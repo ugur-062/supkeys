@@ -10,6 +10,7 @@ import * as dotenv from "dotenv";
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 import * as Sentry from "@sentry/nestjs";
+import { maskQueryString, maskSensitiveQuery, maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 
 const dsn = process.env.SENTRY_DSN;
 
@@ -38,13 +39,29 @@ if (dsn) {
 
 export const sentryEnabled = !!dsn;
 
-/** Olaydaki istek verisinden cookie/header/gövde'yi düşürür (kemer-pantolon askısı). */
+/**
+ * Olaydaki istek verisinden cookie/header/gövde'yi düşürür (kemer-pantolon
+ * askısı); adres ve sorgudaki davet/çıkış/sıfırlama jetonlarını maskeler
+ * (yayın denetimi 2026-09-28 Bölüm 5: `query_string: true` ile `?ref=`/`?t=`
+ * 5xx olaylarında Sentry'e düz metin gidiyordu — web tarafı zaten maskeliydi).
+ */
 export function scrubRequestPii<T extends { request?: object }>(event: T): T {
   const r = event.request as Record<string, unknown> | undefined;
   if (r) {
     delete r.cookies;
     delete r.headers;
     delete r.data;
+    if (typeof r.url === "string") r.url = maskSensitiveUrl(r.url);
+    if (typeof r.query_string === "string") r.query_string = maskQueryString(r.query_string);
+    else if (Array.isArray(r.query_string)) {
+      r.query_string = (r.query_string as unknown[]).map((pair) =>
+        Array.isArray(pair) && typeof pair[0] === "string" && maskSensitiveQuery({ [pair[0]]: pair[1] })[pair[0]] === "[redacted]"
+          ? [pair[0], "[redacted]"]
+          : pair,
+      );
+    } else if (r.query_string && typeof r.query_string === "object") {
+      r.query_string = maskSensitiveQuery(r.query_string);
+    }
   }
   return event;
 }

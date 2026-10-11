@@ -22,6 +22,29 @@ export class RealtimeService {
     this.server = server;
   }
 
+  /**
+   * Çıkış yapılan oturumun AÇIK soketlerini kapat (H2). Handshake kapısı yeni
+   * bağlantıyı zaten reddeder; bu, çıkış ANINDA açık olan soket jeton ömrü
+   * dolana dek dinlemeyi sürdürmesin diye. Yalnız BU örnekteki soketler
+   * (Redis adaptörü yok) — öteki örnektekiler exp zamanlayıcısıyla düşer ve
+   * yeniden bağlanamaz. Sunucu bağlı değilken (test, cron) no-op.
+   */
+  disconnectSession(sessionId: string): number {
+    if (!this.server || !sessionId) return 0;
+    let closed = 0;
+    try {
+      for (const socket of this.server.sockets.sockets.values()) {
+        if (socket.data?.sessionId === sessionId) {
+          socket.disconnect(true);
+          closed += 1;
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Could not close session sockets: ${String(err)}`);
+    }
+    return closed;
+  }
+
   /** İlan değişti: ilan odası + ilgili firma odalarına ping.
    *  Odalar TEK emit'te birleşir — iki odada birden olan istemci sinyali
    *  bir kez alır (Socket.IO oda birleşimi dedup yapar). */

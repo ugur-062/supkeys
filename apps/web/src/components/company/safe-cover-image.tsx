@@ -14,6 +14,13 @@ import { useEffect, useRef, useState } from "react";
  * tarayıcı `onError` ateşlenene kadar ikonu basıyordu; `alt=""` + görsel
  * yüklenene dek `opacity-0` ile o ara kare de gizlenir). Kapsayıcının
  * yüksekliği sabit sınıf (`h-40 sm:h-56`) — yükleme kayması yok.
+ *
+ * LCP (yayın denetimi 2026-09-28 Bölüm 11): kapak profil sayfasının en büyük
+ * boyanan öğesi; `opacity-0` başlayıp hidrasyon sonrası açılması LCP'yi
+ * JavaScript'e bağlıyordu (4× CPU'da 3,0 sn). Artık İLK KAREDEN görünür ve
+ * `fetchpriority="high"`; kırık görselde ikon çıkmasın diye `alt` yüklenene dek
+ * BOŞ (tarayıcılar boş alt'lı kırık görselde ikon çizmez), yüklenince gerçek
+ * metin. Kırık URL'de yine logo yedeğine düşer.
  */
 export function SafeCoverImage({
   src,
@@ -51,8 +58,9 @@ export function SafeCoverImage({
       <img
         ref={ref}
         src={src}
-        alt={alt}
-        className={`h-full w-full object-cover transition-opacity ${state === "ok" ? "opacity-100" : "opacity-0"}`}
+        alt={state === "ok" ? alt : ""}
+        fetchPriority="high"
+        className="h-full w-full object-cover"
         onLoad={() => setState("ok")}
         onError={() => setState("broken")}
       />

@@ -8,9 +8,10 @@
  * Europages'in 90.000'ine karşı 464x az. Terimler tek tek VAR ama hiçbir
  * düğümde BİRLİKTE geçmiyor, o yüzden çok kelimeli arama boş dönüyor.
  *
- * NE YAPAR: aktif L2/L3/L4 düğümleri gruplar hâlinde Gemini'ye verir, her
- * düğüm için Türkçe piyasa terimleri ister, sonucu
- * `src/seeds/category-keywords.generated.tsv` dosyasına yazar.
+ * NE YAPAR: aktif ve GÖRÜNÜR L2/L3/L4 düğümleri gruplar hâlinde Gemini'ye
+ * verir, her düğüm için Türkçe piyasa terimleri ister, sonucu
+ * `src/seeds/category-keywords.generated.tsv` dosyasına yazar. Gizli bir dalın
+ * düğümü modele gitmez (`lib/seed-category-guard.ts` `visiblePromptNodes`).
  *
  * TASARIM KARARLARI
  *  · ÇEVRİMDIŞI ve TEK SEFERLİK. Firma AI bütçesine (AiService.callAi)
@@ -37,9 +38,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { generateJson, priceOf, readGeminiKey } from "./lib/gemini";
+import { visiblePromptNodes } from "./lib/seed-category-guard";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("gen-category-keywords") });
 
 const OUT_PATH = path.resolve(
   __dirname,
@@ -183,7 +186,11 @@ async function main() {
   });
   const byId = new Map(all.map((c) => [c.id, c]));
 
-  const nodes: Node[] = rows
+  // GİZLİ DAL İSTEME GİRMEZ (`visiblePromptNodes`): her düğüm adı ve üst yoluyla
+  // modele gider; gizli bir dalın (segment, aile ya da sınıf) adı hiçbir model
+  // istemine yazılmaz. `--segments 46` yalnız görünür aileleri üretir.
+  const candidates = visiblePromptNodes(rows);
+  const nodes: Node[] = candidates
     .filter((r) => !done.has(r.code))
     .filter((r) => !segments || segments.includes(r.code.slice(0, 2)))
     .map((r) => {
@@ -196,7 +203,8 @@ async function main() {
       return { code: r.code, nameTr: r.nameTr, level: r.level, path: parts.join(" › ") };
     });
 
-  const nameByCode = new Map(rows.map((r) => [r.code, r.nameTr]));
+  // Yanıt yalnız aday (görünür) kodlarla eşleşir: model gizli bir kod uydursa da satırı yazılmaz.
+  const nameByCode = new Map(candidates.map((r) => [r.code, r.nameTr]));
 
   console.log(
     `Üretilecek: ${nodes.length} düğüm (${done.size} zaten sözlüklü)`,

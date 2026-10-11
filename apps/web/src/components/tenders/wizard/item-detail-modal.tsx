@@ -1,6 +1,7 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
+import { useTranslations } from "next-intl";
+import { useEntityLabels } from "@/i18n/domain";
 
 import { Button } from "@/components/catalyst/button";
 import {
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export function ItemDetailModal({ open, onClose, index }: Props) {
+  const t = useTranslations("web.panel.requests.itemDetailModal");
   const {
     register,
     getValues,
@@ -34,7 +36,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
     watch,
     formState: { errors },
   } = useFormContext<TenderFormData>();
-  const L = entityLabels();
+  const L = useEntityLabels();
   const showTarget = watch("showTargetToSuppliers");
 
   const itemErrors = errors.items?.[index];
@@ -74,9 +76,9 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
           <FileText className="h-5 w-5 text-zinc-700" />
         </div>
         <div className="min-w-0">
-          <DialogTitle>Kalem {index + 1} Detayları</DialogTitle>
+          <DialogTitle>{t("kalemDetaylari", { n: index + 1 })}</DialogTitle>
           <DialogDescription>
-            {`${L.counterpartyPluralDat} göstereceğiniz ek bilgiler ve dahili notlar.`}
+            {t("gostereceginizEkBilgilerVeDahili", { counterpartyPluralDat: L.counterpartyPluralDat })}
           </DialogDescription>
         </div>
       </div>
@@ -84,16 +86,16 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
       <DialogBody className="space-y-4">
         <Field
           error={itemErrors?.description?.message}
-          hint="Tedarikçiye gösterilir."
+          hint={t("tedarikciyeGosterilir")}
         >
           <Label htmlFor={`detail-description-${index}`}>
-            Açıklama / Spesifikasyon
+            {t("aciklamaSpesifikasyon")}
           </Label>
           <Textarea
             id={`detail-description-${index}`}
             rows={4}
             maxLength={2000}
-            placeholder="Marka, model, kalite gereksinimleri, teknik özellikler…"
+            placeholder={t("markaModelKaliteGereksinimleriTeknik")}
             hasError={!!itemErrors?.description}
             {...register(`items.${index}.description`)}
           />
@@ -102,10 +104,10 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field
             error={itemErrors?.requiredByDate?.message}
-            hint="Tedarikçiye gösterilir."
+            hint={t("tedarikciyeGosterilir")}
           >
             <Label htmlFor={`detail-requiredByDate-${index}`}>
-              Gereksinim Tarihi
+              {t("gereksinimTarihi")}
             </Label>
             <Input
               id={`detail-requiredByDate-${index}`}
@@ -118,12 +120,12 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
             error={itemErrors?.targetUnitPrice?.message}
             hint={
               showTarget
-                ? `${L.counterpartyPlural} bu fiyatı görecek (${L.rules}'nda açık).`
-                : "Yalnız sizin için — karşı tarafa gösterilmez."
+                ? t("buFiyatiGorecekNdaAcik", { counterpartyPlural: L.counterpartyPlural, rules: L.rules })
+                : t("yalnizSizinIcinKarsiTarafa")
             }
           >
             <Label htmlFor={`detail-targetUnitPrice-${index}`}>
-              Hedef Birim Fiyat
+              {t("hedefBirimFiyat")}
             </Label>
             <Controller
               name={`items.${index}.targetUnitPrice`}
@@ -143,9 +145,9 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
 
       <DialogActions>
         <Button plain onClick={handleCancel}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
-        <Button onClick={onClose}>Kaydet</Button>
+        <Button onClick={onClose}>{t("kaydet")}</Button>
       </DialogActions>
     </Dialog>
   );

@@ -1,4 +1,5 @@
-import { formatDate as canonical } from "@/lib/format-date";
+import { formatDate as canonical, zoneSuffix } from "@/lib/format-date";
+import type { Locale } from "@rothern/i18n";
 import { wallClock } from "@/lib/time-zone";
 
 type DateInput = Date | string | number | null | undefined;
@@ -6,28 +7,35 @@ type DateInput = Date | string | number | null | undefined;
 /**
  * B9 — İNCE KABUK: tüm çıktılar kanonik formatlayıcıya (lib/format-date.ts)
  * delege edilir; iki util'in formatları birbirinden KAYAMAZ. Yeni kod doğrudan
- * `formatDate(value, variant)` kullansın.
+ * `formatDate(value, variant, locale)` ya da `useFormatDate()` kullansın.
+ *
+ * Dil ZORUNLU (2026-09-27): dilsiz çağrılar İngilizce arayüzde Türkçe ay adı
+ * ve dilim etiketsiz saat basıyordu (yurt dışındaki satıcı kapanışı kendi
+ * saati sanıyordu).
  */
 
 /** Tarih (gün) — "5 Tem 2026". Geçersiz/boş girdide "—". */
-export function formatDate(value: DateInput): string {
-  return canonical(normalize(value), "short");
+export function formatDate(value: DateInput, locale: Locale): string {
+  return canonical(normalize(value), "short", locale);
 }
 
-/** Tarih + saat — "5 Tem 2026 14:30". Geçersiz/boş girdide "—". */
-export function formatDateTime(value: DateInput): string {
-  return canonical(normalize(value), "datetime");
+/** Tarih + saat — "5 Tem 2026 14:30" (TR dışı: "… 14:30 (GMT+3)"). Geçersiz/boş girdide "—". */
+export function formatDateTime(value: DateInput, locale: Locale): string {
+  return canonical(normalize(value), "datetime", locale);
 }
 
-/** Yalnızca saat — "14:30". Geçersiz/boş girdide "—". */
-export function formatTime(value: DateInput): string {
+/**
+ * Yalnızca saat — "14:30". Geçersiz/boş girdide "—". `locale` Türkçe dışıysa
+ * dilim etiketi eklenir ("14:30 (GMT+3)").
+ */
+export function formatTime(value: DateInput, locale: Locale | string): string {
   const d = normalize(value);
   if (!d) return "—";
   const dd = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(dd.getTime())) return "—";
   // Ürün saat dilimi (2026-09-22) — `getHours` sunucuda UTC basıyordu.
   const w = wallClock(dd);
-  return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
+  return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}${zoneSuffix(locale, dd)}`;
 }
 
 function normalize(value: DateInput): Date | string | null {

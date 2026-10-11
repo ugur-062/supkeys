@@ -6,6 +6,10 @@ export interface AuthenticatedAdmin {
   firstName: string;
   lastName: string;
   role: string;
+  /** AdminJwtStrategy DB'den taze okur; AdminRolesGuard 2FA kapısı kullanır. */
+  twoFactorEnabled?: boolean;
+  /** Geçici parola kilidi (D-025) — AdminRolesGuard okur. */
+  mustChangePassword?: boolean;
 }
 
 export const CurrentAdmin = createParamDecorator(

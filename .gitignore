@@ -57,3 +57,8 @@ CLAUDE.md.local
 # Staging sırları (Cowork üretir) — asla commit edilmez
 .env.staging
 *.staging.env
+
+# Claude Code geçici yardımcı betikleri (git dışı)
+apps/web/.tmp-*
+apps/api/.tmp-*
+packages/db/prisma/scripts/.tmp-*
