@@ -1609,6 +1609,9 @@ Kategori FOTOĞRAFI yine yok. Sözleşme: `listing-card-footer.test`,
 amber · Elendi gri), numara pili | "Açık Talep" mavi çip, `text-xl` başlık,
 ikon karolu "Alıcı" · dikey ayraç · mavi tutar pili · taahhüt; alt satır
 ayraçlı: takvim "Verildi", sağda gri geri sayım pili (saat ikonu).
+**Boyut talep satırıyla AYNI (2026-10-11, kullanıcı: "kutular çok büyük, diğer sayfalarla eşitle"):** px-3 py-2.5,
+başlık 13 px, piller 10 px, ikon karosu size-7, 3 px şerit, kartlar arası gap-2; düzen ve renkler aynı (`text-xl`
+başlık ve büyük piller geri gelmez).
 **Taleplerim satırı sütunları (2026-09-19 akşam, kullanıcı: "teklifler ve
 davetli yerlerini değiştir"):** `IhaleListRow` metrik şeridi Sorumlu ·
 **Teklifler** (bağlantı) · Kapsam · Yayın · Kapanış · Kategori; **Davetli**

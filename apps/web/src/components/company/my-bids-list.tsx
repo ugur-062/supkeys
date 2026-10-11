@@ -126,10 +126,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   // numara pili | "Açık Talep" mavi çip, büyük başlık, ikon karolu "Alıcı"
   // satırı · dikey ayraç · mavi tutar pili · taahhüt; alt satır ayraçlı —
   // solda takvim "Verildi", sağda gri geri sayım pili (saat ikonu).
+  // BOYUT (2026-10-11, kullanıcı: "kutular çok büyük, diğer sayfalarla
+  // eşitle"): ölçüler talep satırıyla (`ListingCard row`) aynı — px-3 py-2.5,
+  // başlık 13 px, piller 10 px, ikon karosu size-7, 3 px şerit. Düzen ve
+  // renkler değişmedi.
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-5 pl-7 shadow-sm ring-1 ring-zinc-950/5 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover hover:ring-blue-300",
+        "group relative flex h-full flex-col overflow-hidden rounded-xl bg-white px-3 py-2.5 pl-4 ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-blue-300",
       )}
     >
         {/* C52: sol şerit STATÜ rengi (tek harita) — önceden ihale TİPİ
@@ -137,21 +141,21 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         <span
           aria-hidden
           className={cn(
-            "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl",
+            "absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl",
             STATUS_STRIP[b.status] ?? "bg-gradient-to-b from-zinc-400 to-zinc-300",
           )}
         />
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium tabular-nums text-zinc-600">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
               {b.listing.number ?? "—"}
             </span>
-            <span aria-hidden className="h-5 w-px bg-zinc-200" />
-            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">{t("acikTalep")}</span>
+            <span aria-hidden className="h-3.5 w-px bg-zinc-200" />
+            <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-blue-600">{t("acikTalep")}</span>
           </div>
           <span
             className={cn(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium",
+              "shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold leading-none",
               st.color === "violet" && "bg-violet-100 text-violet-700",
               st.color === "green" && "bg-emerald-100 text-emerald-700",
               st.color === "amber" && "bg-amber-100 text-amber-800",
@@ -164,7 +168,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         </div>
         <h3
           className={cn(
-            "mt-2.5 line-clamp-2 text-xl leading-snug font-bold text-zinc-950 transition-colors",
+            "mt-1 line-clamp-2 text-[13px] leading-tight font-semibold text-zinc-950 transition-colors",
             "group-hover:text-blue-700",
           )}
         >
@@ -176,21 +180,21 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           </Link>
         </h3>
 
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <span className="inline-flex min-w-0 items-center gap-2.5 text-zinc-600">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
-              <Building2 className="size-4 text-zinc-600" aria-hidden="true" />
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs">
+          <span className="inline-flex min-w-0 items-center gap-2 text-zinc-600">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+              <Building2 className="size-3.5 text-zinc-600" aria-hidden="true" />
             </span>
             <span className="truncate">
               {t("alici", { name: b.listing.ownerName })}
             </span>
           </span>
-          <span aria-hidden className="hidden h-7 w-px bg-zinc-200 sm:block" />
-          <span className="inline-flex items-center rounded-xl bg-blue-50 px-3.5 py-1.5 text-base font-bold tabular-nums text-blue-700">
+          <span aria-hidden className="hidden h-5 w-px bg-zinc-200 sm:block" />
+          <span className="inline-flex items-center rounded-lg bg-blue-50 px-2 py-0.5 text-[13px] font-bold tabular-nums text-blue-700">
             {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
-            <span className="text-xs tabular-nums text-zinc-500">
+            <span className="text-[11px] tabular-nums text-zinc-500">
               ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}
@@ -205,13 +209,13 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
-            <span className="text-xs text-zinc-500">{t("tur", { round: b.round })}</span>
+            <span className="text-[11px] text-zinc-500">{t("tur", { round: b.round })}</span>
           ) : null}
           {/* Revizyon = GÖNDERİM sayısı (O-036): `version` eşzamanlılık
               sayacıdır, taslak kaydında da artar. */}
           {b.submitCount > 1 ? (
             <span
-              className="text-xs text-zinc-500"
+              className="text-[11px] text-zinc-500"
               title={t("buTeklifinRevizyonu", { version: b.submitCount })}
             >
               {t("revizyon", { version: b.submitCount })}
@@ -220,25 +224,25 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         </div>
 
         {canRebid ? (
-          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-800">
             {t("talepHalaAcikGuncellenmisTeklifle")}
           </p>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-sm">
-          <div className="flex items-center gap-2 text-zinc-600">
-            <Calendar className="size-4" aria-hidden="true" />
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2 text-xs">
+          <div className="flex items-center gap-1.5 text-zinc-600">
+            <Calendar className="size-3.5" aria-hidden="true" />
             <span>{t("verildi", { date: formatDate(b.createdAt, "short") })}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {b.listing.status === "OPEN" && b.listing.closesAt ? (
               <span
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3.5 py-1.5 font-medium whitespace-nowrap text-zinc-700",
+                  "inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-zinc-700",
                   urgency?.className,
                 )}
               >
-                <Clock className="size-4" aria-hidden="true" />
+                <Clock className="size-3.5" aria-hidden="true" />
                 {t("kapanisa")}{" "}
                 <CountdownFull
                   deadline={b.listing.closesAt}
@@ -256,18 +260,18 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             {won && b.orderId ? (
               <Link
                 href={`/company/siparis/${b.orderId}`}
-                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
                 {t("sipariseGit")}
-                <ArrowRightIcon className="size-4" aria-hidden />
+                <ArrowRightIcon className="size-3.5" aria-hidden />
               </Link>
             ) : canRebid ? (
               <Link
                 href={`/company/ilan/${b.listing.id}/teklif-ver`}
-                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
                 {t("yenidenTeklifVer")}
-                <ArrowRightIcon className="size-4" aria-hidden />
+                <ArrowRightIcon className="size-3.5" aria-hidden />
               </Link>
             ) : null}
           </div>
@@ -558,7 +562,7 @@ export function MyBidsList() {
         />
       ) : (
         <>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {rows.map((b) => (
               <MyBidCard key={b.id} b={b} fromHref={fromHref} />
             ))}
