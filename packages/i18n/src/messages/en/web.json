@@ -1585,7 +1585,8 @@
       "company_user_invitation_cancelled": "Member invitation cancelled",
       "company_user_profile_updated": "User details updated",
       "company_user_terms_accepted": "Terms of use accepted",
-      "company_vies_checked": "VIES VAT number checked"
+      "company_vies_checked": "VIES VAT number checked",
+      "company_user_self_deleted": "User deleted their account"
     },
     "auditActionOther": "Other action",
     "listingDocKind": {
@@ -6609,6 +6610,18 @@
         "INCOMPLETE": "The document is incomplete — upload all pages.",
         "COUNTRY_CHANGED": "Your registration country has changed; complete the documents required for the new country and resubmit.",
         "note": "Note: {note}"
+      },
+      "deleteAccountSection": {
+        "title": "Delete account",
+        "body": "Your account is deleted permanently: your login and personal details are removed, and this can't be undone. Your company's request, quote and order records are kept without your personal details for the legal retention period.",
+        "bodyLastMember": "If you are the company's only user, the company account is closed as well and its public profile is taken down.",
+        "open": "Delete my account",
+        "passwordLabel": "Your password, to confirm",
+        "passwordRequired": "Enter your password",
+        "confirm": "Delete my account permanently",
+        "cancel": "Cancel",
+        "failed": "The account couldn't be deleted",
+        "done": "Your account has been deleted"
       }
     },
     "company": {

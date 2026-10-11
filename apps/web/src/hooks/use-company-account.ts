@@ -46,6 +46,23 @@ export function useUpdateMe() {
   });
 }
 
+/**
+ * Kişinin kendi hesabını silmesi (şifreyle). Hata metnini bölüm kendi satırında
+ * gösterir → global toast yok.
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async (input: { password: string }) => {
+      const { data } = await companyApi.post<{ ok: boolean; companyClosed: boolean }>(
+        "/company-auth/delete-account",
+        input,
+        { skipErrorToast: true },
+      );
+      return data;
+    },
+  });
+}
+
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (input: {

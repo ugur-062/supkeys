@@ -123,7 +123,11 @@
       "headOfficeTitle": "Head office",
       "deliverySameTitle": "Delivery (same as billing)",
       "deliveryTitle": "Delivery"
-    }
+    },
+    "hesapSilmeOnceKuruculukDevri": "Your company has other users. Transfer the Founder role to another user before deleting your account.",
+    "hesapSilmeAcikIsVar": "An account can't be deleted while you have orders in progress or open requests. Complete them first.",
+    "silinmisKullaniciAd": "Deleted",
+    "silinmisKullaniciSoyad": "User"
   },
   "publicProfile": {
     "profilBulunamadi": "Profile not found",

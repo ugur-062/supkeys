@@ -25,6 +25,7 @@ import {
 import {
   AcceptTermsDto,
   ChangePasswordDto,
+  DeleteAccountDto,
   TwoFactorCodeDto,
   UpdateMeDto,
   UpdateNotificationPrefsDto,
@@ -40,6 +41,7 @@ import { CompleteOnboardingDto, ViesCheckDto } from "../dto/onboarding.dto";
 import { RequireCompanyPermission } from "../decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../guards/company-permissions.guard";
+import { AccountDeletionService } from "../services/account-deletion.service";
 import { CompanyAuthService } from "../services/company-auth.service";
 import { PasswordResetService } from "../../password-reset/password-reset.service";
 import { CompanyForgotPasswordDto } from "../dto/company-forgot-password.dto";
@@ -52,6 +54,7 @@ export class CompanyAuthController {
     private readonly config: ConfigService,
     private readonly sessions: SessionRevocationService,
     private readonly realtime: RealtimeService,
+    private readonly accountDeletion: AccountDeletionService,
   ) {}
 
   /**
@@ -211,6 +214,29 @@ export class CompanyAuthController {
       dto.newPassword,
       ip,
     );
+  }
+
+  /**
+   * Kişinin KENDİ hesabını silmesi (şifreyle; iki uygulama mağazası da ister).
+   * Kural ve sıra `AccountDeletionService`te. Başarıda çıkıştaki gibi çerez
+   * silinir ve bu oturum iptal edilir; öteki cihazlar `tokenVersion` ile düşer.
+   */
+  @Post("delete-account")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async deleteAccount(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: DeleteAccountDto,
+    @ClientIp() ip: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.accountDeletion.deleteOwnAccount(user.userId, dto.password, ip);
+    clearAuthCookies(res, "company", this.config);
+    const revoked = await this.sessions.revokeFromRequest(req, "company");
+    for (const sessionId of revoked) this.realtime.disconnectSession(sessionId);
+    return result;
   }
 
   @Post("2fa/setup")

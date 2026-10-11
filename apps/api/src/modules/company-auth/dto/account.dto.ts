@@ -60,6 +60,13 @@ export class ChangePasswordDto {
   newPassword!: string;
 }
 
+export class DeleteAccountDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  password!: string;
+}
+
 export class UpdateNotificationPrefsDto {
   @IsObject()
   prefs!: Record<string, boolean>;

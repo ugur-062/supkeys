@@ -4906,10 +4906,19 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
 - **Devredilen bağlantı** kök düzendeki `NativeShellBridge` ile açılır: yalnız aynı köken, tam adresle
   `location.assign` (dış / dil ön ekli adres istemci yönlendiricisine verilmez); açılış bağlantısı WebView
   oturumu başına bir kez.
-- **Sırada (onaylı plan, 2026-10-11):** anlık bildirim (API cihaz kaydı + `firebase-admin`), uygulama içinden
-  hesap silme (iki mağaza da zorunlu tutar), mağaza metinleri. Hesap silme kuralı: kişi kendi hesabını siler,
-  oturum hemen kapanır, kişisel veri 30 günde silinir, firmanın sipariş / teklif kayıtları anonim kalır; tek
-  yönetici ve başka üye varsa önce devir, tek üyeyse firma da kapanır.
+- **Hesap silme (iki mağaza da uygulama içinden ister):** `POST company-auth/delete-account { password }` →
+  `AccountDeletionService` (bypass istemcisi, firma + kullanıcı satırları `FOR UPDATE`); arayüz Ayarlar › Hesap
+  Bilgileri `DeleteAccountSection`. Kural: şifre doğrulanır; ÜYE hemen anonimleşir (e-posta
+  `deleted-<id>@deleted.rothern`, ad yer tutucu, telefon / 2FA / bildirim / AI sohbeti silinir, `tokenVersion`++),
+  açtığı yaşayan talepler Kurucu'ya geçer; başka kullanıcısı olan KURUCU önce devreder (400
+  `ACCOUNT_OWNER_MUST_TRANSFER`); SON kullanıcı firmayı da kapatır (askı + `publicEnabled=false` +
+  `seo.companyChanged`; süren sipariş ya da açık talep varsa 400 `ACCOUNT_HAS_OPEN_WORK`). Kapanan firmanın
+  firma düzeyi KVKK silmesini yönetici mevcut `deleteOrAnonymize` ile tamamlar (askı notu "Hesap sahibi
+  sildi"). Kimlik sağlayıcı kullanıcısı işlemin EN SONUNDA `deleteUserStrict` ile silinir; hata her şeyi geri
+  alır. Denetim `company.user.self_deleted` (e-posta yazılmaz). Sözleşme `account-deletion.spec`, web
+  `delete-account-section.test`. Sözleşme metinleri (gizlilik / KVKK) uygulama içi silme yolunu henüz ANMIYOR
+  — metin değişikliği kullanıcı kararı.
+- **Sırada (onaylı plan, 2026-10-11):** anlık bildirim (API cihaz kaydı + `firebase-admin`), mağaza metinleri.
 - Mağaza hesapları ŞİRKET adına (D-U-N-S gerekir); iOS / Android paketleri kullanıcının Mac'inde derlenir.
 
 ## Bekleyen / Yapılacaklar

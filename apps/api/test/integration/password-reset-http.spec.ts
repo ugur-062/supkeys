@@ -29,6 +29,7 @@ import { PerKeyThrottlerStorage } from "../../src/common/http/throttler-storage"
 import { CompanyAuthController } from "../../src/modules/company-auth/controllers/company-auth.controller";
 import { CompanyForgotPasswordDto } from "../../src/modules/company-auth/dto/company-forgot-password.dto";
 import { CompanyLoginDto } from "../../src/modules/company-auth/dto/company-login.dto";
+import { AccountDeletionService } from "../../src/modules/company-auth/services/account-deletion.service";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
 import { PasswordResetController } from "../../src/modules/password-reset/password-reset.controller";
 import { PasswordResetService } from "../../src/modules/password-reset/password-reset.service";
@@ -77,6 +78,7 @@ beforeAll(async () => {
       { provide: ConfigService, useValue: config },
       // forgot-password touches none of these.
       { provide: CompanyAuthService, useValue: {} },
+      { provide: AccountDeletionService, useValue: {} },
       { provide: SessionRevocationService, useValue: {} },
       { provide: RealtimeService, useValue: {} },
       { provide: APP_GUARD, useClass: ClientIpThrottlerGuard },

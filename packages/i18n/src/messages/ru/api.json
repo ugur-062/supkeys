@@ -123,7 +123,11 @@
       "headOfficeTitle": "Головной офис",
       "deliverySameTitle": "Доставка (совпадает с адресом для счетов)",
       "deliveryTitle": "Доставка"
-    }
+    },
+    "hesapSilmeOnceKuruculukDevri": "В компании есть другие пользователи. Перед удалением аккаунта передайте роль основателя другому пользователю.",
+    "hesapSilmeAcikIsVar": "Аккаунт нельзя удалить, пока у Вас есть незавершённые заказы или открытые запросы. Сначала завершите их.",
+    "silinmisKullaniciAd": "Удалённый",
+    "silinmisKullaniciSoyad": "пользователь"
   },
   "publicProfile": {
     "profilBulunamadi": "Профиль не найден",

@@ -1499,6 +1499,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyAuth.hesapSilmeAcikIsVar": {
+    "hash": "bd44945868",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "api.companyAuth.hesapSilmeOnceKuruculukDevri": {
+    "hash": "2783982775",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
   "api.companyAuth.ikiAdimliDogrulamaZatenAcik": {
     "hash": "a2481031e5",
     "status": "reviewed",
@@ -1558,6 +1568,16 @@
     "hash": "82d15f2d3e",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyAuth.silinmisKullaniciAd": {
+    "hash": "414bae0263",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "api.companyAuth.silinmisKullaniciSoyad": {
+    "hash": "07075bae9a",
+    "status": "reviewed",
+    "at": "2026-10-11"
   },
   "api.companyAuth.tuzelKisiIcin10HaneliVergiNo": {
     "hash": "6022202c3e",
@@ -10568,6 +10588,11 @@
     "hash": "4e16958b3e",
     "status": "reviewed",
     "at": "2026-10-08"
+  },
+  "web.domain.auditAction.company_user_self_deleted": {
+    "hash": "b8d22116dd",
+    "status": "reviewed",
+    "at": "2026-10-11"
   },
   "web.domain.auditAction.company_user_terms_accepted": {
     "hash": "8daac1f837",
@@ -32338,6 +32363,56 @@
     "hash": "2dfaaf8aee",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.deleteAccountSection.body": {
+    "hash": "08df1fec64",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.bodyLastMember": {
+    "hash": "8ce7f7f652",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.cancel": {
+    "hash": "14d2482077",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.confirm": {
+    "hash": "eedbee11b3",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.done": {
+    "hash": "50d975bd10",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.failed": {
+    "hash": "5e4af84f97",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.open": {
+    "hash": "ebd4b6f766",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.passwordLabel": {
+    "hash": "3f89bec426",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.passwordRequired": {
+    "hash": "ff699235e5",
+    "status": "reviewed",
+    "at": "2026-10-11"
+  },
+  "web.panel.settings.deleteAccountSection.title": {
+    "hash": "f7912169ff",
+    "status": "reviewed",
+    "at": "2026-10-11"
   },
   "web.panel.settings.inviteDelivery.allowlist": {
     "hash": "cb74bc288d",

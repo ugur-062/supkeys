@@ -123,7 +123,11 @@
       "headOfficeTitle": "Merkez",
       "deliverySameTitle": "Teslimat (fatura ile aynı)",
       "deliveryTitle": "Teslimat"
-    }
+    },
+    "hesapSilmeOnceKuruculukDevri": "Firmada başka kullanıcılar var. Hesabınızı silmeden önce kuruculuğu başka bir kullanıcıya devredin.",
+    "hesapSilmeAcikIsVar": "Süren siparişleriniz ya da açık talepleriniz varken hesap silinemez. Önce bunları sonuçlandırın.",
+    "silinmisKullaniciAd": "Silinmiş",
+    "silinmisKullaniciSoyad": "Kullanıcı"
   },
   "publicProfile": {
     "profilBulunamadi": "Profil bulunamadı",

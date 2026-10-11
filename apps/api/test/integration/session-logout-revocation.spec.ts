@@ -31,6 +31,7 @@ import { AdminAuthController } from "../../src/modules/admin-auth/admin-auth.con
 import { AdminAuthService } from "../../src/modules/admin-auth/admin-auth.service";
 import { AdminJwtStrategy } from "../../src/modules/admin-auth/strategies/admin-jwt.strategy";
 import { CompanyAuthController } from "../../src/modules/company-auth/controllers/company-auth.controller";
+import { AccountDeletionService } from "../../src/modules/company-auth/services/account-deletion.service";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { PasswordResetService } from "../../src/modules/password-reset/password-reset.service";
@@ -89,6 +90,7 @@ beforeAll(async () => {
       { provide: JwtService, useValue: jwt },
       { provide: PrismaBypassService, useValue: prisma },
       { provide: CompanyAuthService, useValue: rig.service },
+      { provide: AccountDeletionService, useValue: {} },
       { provide: AdminAuthService, useValue: adminService },
       {
         provide: PasswordResetService,

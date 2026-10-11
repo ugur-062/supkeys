@@ -1585,7 +1585,8 @@
       "company_user_invitation_cancelled": "Üye daveti iptal edildi",
       "company_user_profile_updated": "Kullanıcı bilgileri güncellendi",
       "company_user_terms_accepted": "Kullanım koşulları kabul edildi",
-      "company_vies_checked": "VIES vergi numarası sorgulandı"
+      "company_vies_checked": "VIES vergi numarası sorgulandı",
+      "company_user_self_deleted": "Kullanıcı hesabını sildi"
     },
     "auditActionOther": "Diğer işlem",
     "listingDocKind": {
@@ -6609,6 +6610,18 @@
         "INCOMPLETE": "Belge eksik — tüm sayfaları yükleyin.",
         "COUNTRY_CHANGED": "Kayıt ülkeniz değişti; yeni ülkenin zorunlu belgelerini tamamlayıp yeniden gönderin.",
         "note": "Not: {note}"
+      },
+      "deleteAccountSection": {
+        "title": "Hesabı sil",
+        "body": "Hesabınız kalıcı olarak silinir: giriş bilgileriniz ve kişisel bilgileriniz kaldırılır, bu işlem geri alınamaz. Firmanızın talep, teklif ve sipariş kayıtları yasal saklama süresi boyunca kişisel bilgileriniz olmadan tutulur.",
+        "bodyLastMember": "Firmanın tek kullanıcısı sizseniz firma hesabı da kapanır ve herkese açık profili yayından kalkar.",
+        "open": "Hesabımı sil",
+        "passwordLabel": "Onaylamak için şifreniz",
+        "passwordRequired": "Şifrenizi girin",
+        "confirm": "Hesabımı kalıcı olarak sil",
+        "cancel": "Vazgeç",
+        "failed": "Hesap silinemedi",
+        "done": "Hesabınız silindi"
       }
     },
     "company": {

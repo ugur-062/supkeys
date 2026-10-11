@@ -73,6 +73,8 @@ export const PORTAL_LABEL: Record<string, string> = {
 
 // ── Detay (metadata) ──
 const KEY_LABEL: Record<string, string> = {
+  companyClosed: "firma kapandı",
+  listingsTransferred: "devredilen talep",
   from: "önce",
   to: "sonra",
   before: "önce",
