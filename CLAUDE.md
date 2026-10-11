@@ -4887,6 +4887,31 @@ sorgu değişince sayfayı yeniden bağlamaz). Geniş `i18n:sync --mark-reviewed
 değiştirir → ardından `rothern-qa-2026-10/i18n-status-minimize.mjs`; işaretlemeden önce
 `i18n-changed-keys-check.mjs` (TR değişen her anahtarın EN / RU'su da değişmiş mi).
 
+## MOBİL UYGULAMA KABUĞU 2026-10-11 — kalıcı kurallar
+
+Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı siteyi açan Capacitor kabuğu
+(yeniden yazım yok). Adımlar ve Mac komutları `mobile/README.md`.
+
+- **Kabuk `mobile/` klasöründe, pnpm çalışma alanının DIŞINDA ve npm ile kurulur.** `apps/*` altına
+  TAŞINMAZ: API ve web Dockerfile'ları manifestleri tek tek kopyalayıp `--frozen-lockfile` kurar, yeni
+  çalışma alanı paketi o derlemeleri kırar. Kabuk `server.url` ile `https://www.rothern.com`'u açar
+  (başlangıç `/company`); `www/` yalnız yedek + bağlantı yokken gösterilen `offline.html`.
+- **`appId` `com.rothern.app` DEĞİŞMEZ** (mağaza kaydı); eşi web `lib/mobile-app-links.ts` `MOBILE_APP_ID`.
+- **Web'e Capacitor bağımlılığı GİRMEZ:** köprü WebView'in enjekte ettiği `window.Capacitor`'dan okunur
+  (`lib/native-shell.ts` `nativeAppPlugin`). Kabuğu tanımak için kullanıcı aracısındaki `RothernApp/` eki.
+- **Bağlantı beyanları rota işleyicisi, env'den:** `/.well-known/assetlinks.json` ve
+  `/.well-known/apple-app-site-association` (`MOBILE_ANDROID_SHA256`, `MOBILE_IOS_TEAM_ID`; yoksa / bozuksa
+  404). `/.well-known/*` middleware'de next-intl'e GİRMEZ (uzantısız dosya `/tr/…`e yazılıp 404 olurdu).
+  `/api/*` uygulamaya devredilmez (tek tık e-posta çıkışı tarayıcıda kalır).
+- **Devredilen bağlantı** kök düzendeki `NativeShellBridge` ile açılır: yalnız aynı köken, tam adresle
+  `location.assign` (dış / dil ön ekli adres istemci yönlendiricisine verilmez); açılış bağlantısı WebView
+  oturumu başına bir kez.
+- **Sırada (onaylı plan, 2026-10-11):** anlık bildirim (API cihaz kaydı + `firebase-admin`), uygulama içinden
+  hesap silme (iki mağaza da zorunlu tutar), mağaza metinleri. Hesap silme kuralı: kişi kendi hesabını siler,
+  oturum hemen kapanır, kişisel veri 30 günde silinir, firmanın sipariş / teklif kayıtları anonim kalır; tek
+  yönetici ve başka üye varsa önce devir, tek üyeyse firma da kapanır.
+- Mağaza hesapları ŞİRKET adına (D-U-N-S gerekir); iOS / Android paketleri kullanıcının Mac'inde derlenir.
+
 ## Bekleyen / Yapılacaklar
 
 > Sürüm/faz kademesi YOK — tek backlog, gruplar yalnızca konuya göre.
