@@ -72,6 +72,8 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/company/bildirimler": P("/company/bildirimler", "/company/notifications", "/kompaniya/uvedomleniya"),
   "/company/mesajlar": P("/company/mesajlar", "/company/messages", "/kompaniya/soobshcheniya"),
   "/company/onaylar": P("/company/onaylar", "/company/approvals", "/kompaniya/soglasovaniya"),
+  // Portaldan bağımsız Bağlantılar girişi: bildirim kişinin açabildiği portala yönlendirir.
+  "/company/baglantilar": P("/company/baglantilar", "/company/connections", "/kompaniya/kontakty"),
   "/company/firma/[id]": P("/company/firma/[id]", "/company/companies/[id]", "/kompaniya/kompanii/[id]"),
   // Üyenin paket bilmeyen iniş adresleri (arayüz testi Y-03): ürün ve firma dizini.
   "/company/urun/[firmaSlug]/[urunSlug]": P("/company/urun/[firmaSlug]/[urunSlug]", "/company/product/[firmaSlug]/[urunSlug]", "/kompaniya/tovar/[firmaSlug]/[urunSlug]"),

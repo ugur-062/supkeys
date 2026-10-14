@@ -96,10 +96,11 @@ describe("bağlantı yaşam döngüsü", () => {
     // Hedefe istek bildirimi.
     expect(notifications.pushToCompany).toHaveBeenCalledWith(
       b.company.id,
-      // Zil satırı ve telefon bildirimi gelen isteklere açılır (Gold → satınalma portalı).
+      // Zil satırı ve telefon bildirimi gelen isteklere açılır; portalı web kişinin
+      // izniyle seçer (bildirim connections:manage taşıyan her üyeye gider).
       expect.objectContaining({
         type: "connection_request",
-        ctaPath: "/company/satinalma/tedarikcilerim?view=incoming",
+        ctaPath: "/company/baglantilar?view=incoming",
       }),
     );
 
@@ -130,7 +131,7 @@ describe("bağlantı yaşam döngüsü", () => {
       a.company.id,
       expect.objectContaining({
         type: "connection_accepted",
-        ctaPath: "/company/satinalma/tedarikcilerim",
+        ctaPath: "/company/baglantilar",
       }),
     );
 

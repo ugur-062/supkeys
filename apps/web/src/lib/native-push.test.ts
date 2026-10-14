@@ -7,9 +7,11 @@ import {
   PUSH_UNREGISTER_PENDING_KEY,
   clearPendingPushUnregister,
   clearPushToken,
+  markPushFinished,
   markPushStarted,
   nativePush,
   pushActionTarget,
+  pushFinishedThisSession,
   pushStartedThisSession,
   pushTokenValue,
   readPushToken,
@@ -130,6 +132,23 @@ describe("belirteç deposu", () => {
     unmarkPushStarted("u1");
     expect(pushStartedThisSession("u1")).toBe(false);
     markPushStarted("u1");
+    clearPushToken();
+    expect(pushStartedThisSession("u1")).toBe(false);
+  });
+
+  it("biten akış ayrı işaretlenir: başlamış sayılır, bitmiş sayılır; unmark ikisini de siler", () => {
+    markPushStarted("u1");
+    expect(pushFinishedThisSession("u1")).toBe(false);
+    markPushFinished("u1");
+    expect(pushStartedThisSession("u1")).toBe(true);
+    expect(pushFinishedThisSession("u1")).toBe(true);
+    expect(pushStartedThisSession("u2")).toBe(false);
+    expect(pushFinishedThisSession("u2")).toBe(false);
+    unmarkPushStarted("u2");
+    expect(pushFinishedThisSession("u1")).toBe(true);
+    unmarkPushStarted("u1");
+    expect(pushStartedThisSession("u1")).toBe(false);
+    markPushFinished("u1");
     clearPushToken();
     expect(pushStartedThisSession("u1")).toBe(false);
   });

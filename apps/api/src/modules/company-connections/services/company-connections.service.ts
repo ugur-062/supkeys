@@ -1227,8 +1227,10 @@ export class CompanyConnectionsService {
         titleKey: "api.notifications.companyConnections.request.title",
         bodyKey: "api.notifications.companyConnections.request.body",
         params: { company: this.companyNameOr(me?.name) },
-        // Zil satırı ve telefon bildirimi gelen isteklere açılsın (e-postayla aynı hedef).
-        ctaPath: await this.connectionsCtaPath(target.id, "incoming"),
+        // Zil satırı ve telefon bildirimi gelen isteklere açılsın. Bildirim firmanın
+        // birden çok üyesine gider; portalı web kişinin izniyle seçer (e-posta tek
+        // alıcıya gittiği için orada portal firma paketinden seçilir).
+        ctaPath: appRoutes.connectionsEntry("", DEFAULT_LOCALE, "incoming"),
         ctaLabelKey: "api.notifications.companyConnections.emailCta",
       })
       .catch((err) =>
@@ -1262,25 +1264,6 @@ export class CompanyConnectionsService {
    */
   private companyNameOr(name?: string | null, locale: Locale = currentLocale()): string {
     return name ?? tApi("api.notifications.companyConnections.someCompany", undefined, locale);
-  }
-
-  /**
-   * Bildirimin açacağı Bağlantılar sayfası (iç yol; alıcının diline okuma anında
-   * çevrilir). Portal e-postadakiyle aynı kural: satınalma portalı yalnız efektif
-   * GOLD'da açık, değilse satış. Okunamazsa satış portalı.
-   */
-  private async connectionsCtaPath(companyId: string, view?: "incoming"): Promise<string> {
-    const c = await this.prisma.company
-      .findUnique({
-        where: { id: companyId },
-        select: { tier: true, membershipEndAt: true, companyVerificationStatus: true },
-      })
-      .catch(() => null);
-    const portal =
-      c && tierAtLeast(effectiveTier(c.tier, c.membershipEndAt, c.companyVerificationStatus), BUYING_TIER)
-        ? "satinalma"
-        : "satis";
-    return appRoutes.connections("", portal, DEFAULT_LOCALE, view);
   }
 
   /** Firmanın bildirim e-postasına (billingEmail → ilk aktif kullanıcı) bildirim
@@ -2206,7 +2189,7 @@ export class CompanyConnectionsService {
         titleKey: "api.notifications.companyConnections.accepted.title",
         bodyKey: "api.notifications.companyConnections.accepted.body",
         params: { company: this.companyNameOr(me?.name) },
-        ctaPath: await this.connectionsCtaPath(conn.inviterCompanyId),
+        ctaPath: appRoutes.connectionsEntry("", DEFAULT_LOCALE),
         ctaLabelKey: "api.notifications.companyConnections.emailCta",
       })
       .catch((err) =>

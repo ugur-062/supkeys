@@ -192,12 +192,38 @@ export function clearPushToken(): void {
   }
 }
 
-/** Bu uygulama açılışında akış bu kullanıcı için zaten başladı mı? */
-export function pushStartedThisSession(userId: string): boolean {
+/**
+ * Oturum işaretinin "akış bitti" biçimi (belirteç yazıldı, izin verilmedi ya
+ * da kayıt hatası). Başlamış ama bitmemiş akış — `register()`dan sonra
+ * belirteç gelmeden tam yükleme (söküm koşmaz) — sonraki yüklemede yeniden
+ * kayıt ister; biten akış istemez.
+ */
+const FINISHED_PREFIX = "done:";
+
+function sessionMarker(): string | null {
   try {
-    return sessionStore()?.getItem(PUSH_SESSION_KEY) === userId;
+    return sessionStore()?.getItem(PUSH_SESSION_KEY) ?? null;
   } catch {
-    return false;
+    return null;
+  }
+}
+
+/** Bu uygulama açılışında akış bu kullanıcı için zaten başladı mı (bitmiş ya da değil)? */
+export function pushStartedThisSession(userId: string): boolean {
+  const marker = sessionMarker();
+  return marker === userId || marker === `${FINISHED_PREFIX}${userId}`;
+}
+
+/** Bu açılışta akış bu kullanıcı için BİTTİ mi? */
+export function pushFinishedThisSession(userId: string): boolean {
+  return sessionMarker() === `${FINISHED_PREFIX}${userId}`;
+}
+
+export function markPushFinished(userId: string): void {
+  try {
+    sessionStore()?.setItem(PUSH_SESSION_KEY, `${FINISHED_PREFIX}${userId}`);
+  } catch {
+    // Depo kapalı: işaret hiç tutulmaz, akış her tam yüklemede yeniden koşar.
   }
 }
 
@@ -213,7 +239,8 @@ export function markPushStarted(userId: string): void {
 export function unmarkPushStarted(userId: string): void {
   try {
     const store = sessionStore();
-    if (store?.getItem(PUSH_SESSION_KEY) === userId) store.removeItem(PUSH_SESSION_KEY);
+    const marker = store?.getItem(PUSH_SESSION_KEY);
+    if (marker === userId || marker === `${FINISHED_PREFIX}${userId}`) store?.removeItem(PUSH_SESSION_KEY);
   } catch {
     // yok say
   }

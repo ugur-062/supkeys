@@ -4933,11 +4933,21 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   FCM ölü belirteç yanıtında satır silinir (proje çapındaki yetki hatasında SİLİNMEZ). Mesaj: başlık + gövde
   (kırpılmış), `data.url` = satırın mutlak `ctaUrl`'ü — hedefsiz satırda `PUSH_FALLBACK_PATH`
   (`/company/bildirimler`; dokunma hiçbir zaman yalnız uygulamayı öne getirmez), Android kanal `default` +
-  küçük ikon `ic_stat_rothern`. Bildirim yazan YENİ çağıran bir hedef (`ctaPath`) verir; bağlantı isteği /
-  kabulü portalın Bağlantılar sayfasına (`connectionsCtaPath`, e-postayla aynı Gold kuralı) gider.
+  küçük ikon `ic_stat_rothern`. Bildirim yazan YENİ çağıran bir hedef (`ctaPath`) verir. **Firmanın birden çok
+  üyesine giden bildirimde portal sunucuda SEÇİLMEZ:** bağlantı isteği / kabulü portaldan bağımsız
+  `/company/baglantilar[?view=incoming]` girişine gider (`appRoutes.connectionsEntry`; EN `/company/connections`,
+  RU `/kompaniya/kontakty`); web sayfası kişiyi KENDİ izinleriyle açabildiği portalın Bağlantılar sayfasına
+  yönlendirir (`lib/company/connections-entry.ts` `connectionsPagePath`: açılabilen son portal → satınalma →
+  satış; hiçbiri açılmıyorsa satınalma izni olana satınalma kapısı, kalanlara `/company`). Firma paketinden
+  seçmek Gold firmanın satışçısını "erişim yetkiniz yok" ekranına düşürüyordu. E-posta tek alıcıya gittiği için
+  orada portal firma paketinden seçilmeye devam eder.
   **Web:** `components/company/native-push-registrar.tsx` (oturumlu düzen; açılış başına izin → Android kanal
-  → `register()` → belirteç POST; `register()` istenmeden gelen belirteç YOK SAYILIR — Android eklentisi FCM'nin
-  açılışta ürettiği belirteci saklayıp ilk dinleyiciye veriyor, izin verilmeden kayıt yazılıyordu), dokunma `NativeShellBridge` (`data.url`, aynı köken kuralı), belirteç
+  → `register()` → belirteç POST; izin o kurulumda "granted" görülmeden gelen belirteç YAZILMAZ, bekletilir —
+  Android eklentisi FCM'nin açılışta ürettiği belirteci saklayıp ilk dinleyiciye veriyor, izin verilmeden kayıt
+  yazılıyordu; aynı açılıştaki sonraki kurulum izni yalnız OKUR, verilmişse bekletilen / yenilenen belirteci
+  yazar; oturum işareti `PUSH_SESSION_KEY` "başladı" ile "bitti"yi (`markPushFinished`: belirteç yazıldı, izin
+  yok, kayıt hatası) ayırır — belirteç gelmeden tam yükleme olduysa (iOS olayı saklamaz) sonraki kurulum
+  `register()`ı izin sormadan yeniden ister), dokunma `NativeShellBridge` (`data.url`, aynı köken kuralı), belirteç
   `localStorage` `rothern:push-token`; çıkışta ve HER 401'de (anlık görüntü olmasa da) `keepalive` ile
   bırakılır, başarısızsa bekleyen silme sonraki yüklemede yeniden denenir; şifre değişince
   `rebindStoredPushToken` belirteci taze oturumla yeniden yazar. Uygulama öndeyken sistem bildirimi

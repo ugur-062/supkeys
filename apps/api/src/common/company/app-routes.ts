@@ -70,6 +70,13 @@ export const appRoutes = {
       `${portal === "satinalma" ? "/company/satinalma/tedarikcilerim" : "/company/satis/musterilerim"}${view ? `?view=${view}` : ""}`,
       locale,
     )}`,
+  /**
+   * Portaldan bağımsız Bağlantılar girişi — firmanın birden çok üyesine giden
+   * bildirim için: web kişinin AÇABİLDİĞİ portala yönlendirir (satışçı
+   * satınalmayı, Gold altındaki satın almacı satışı açamaz).
+   */
+  connectionsEntry: (base: string, locale: Locale = DEFAULT_LOCALE, view?: "incoming") =>
+    `${base}${localize(`/company/baglantilar${view ? `?view=${view}` : ""}`, locale)}`,
   approvals: (base: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize("/company/onaylar", locale)}`,
   premium: (base: string, locale: Locale = DEFAULT_LOCALE) =>

@@ -71,6 +71,21 @@ describe("appRoutes — dil farkında derin bağlantılar", () => {
     );
   });
 
+  it("portaldan bağımsız Bağlantılar girişi üç dilde (bildirim portalı kişiye göre seçilsin)", () => {
+    expect(appRoutes.connectionsEntry("")).toBe("/company/baglantilar");
+    expect(appRoutes.connectionsEntry(BASE, "tr", "incoming")).toBe(
+      `${BASE}/company/baglantilar?view=incoming`,
+    );
+    expect(appRoutes.connectionsEntry(BASE, "en", "incoming")).toBe(
+      `${BASE}/en/company/connections?view=incoming`,
+    );
+    expect(appRoutes.connectionsEntry(BASE, "ru")).toBe(`${BASE}/ru/kompaniya/kontakty`);
+    // Okuma anındaki çeviri (bildirim satırı ctaPath → okuyanın dili) aynı sonucu verir.
+    expect(localizeAppPath("/company/baglantilar?view=incoming", "en")).toBe(
+      "/en/company/connections?view=incoming",
+    );
+  });
+
   it("sorgu dizesi her dilde korunur", () => {
     expect(appRoutes.messagesWith(BASE, "cmp1", "en")).toBe(
       `${BASE}/en/company/messages?with=cmp1`,

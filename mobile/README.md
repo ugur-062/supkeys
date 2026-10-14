@@ -68,23 +68,26 @@ ROTHERN_APP_URL=https://staging.supkeys.com ROTHERN_VERCEL_BYPASS=<anahtar> npx 
 ## Bilgisayarda öykünücüyle deneme (telefonsuz)
 
 Kurulu (2026-10-14): sistem görüntüsü `android-35 google_apis_playstore x86_64`, öykünücü `rothern` (Pixel 7).
-WSL'de KVM izni her yeniden başlatmadan sonra bir kez: `sudo chmod 666 /dev/kvm`. Uygulama yerel deneme
+WSL'de KVM için kullanıcı `kvm` grubunda olmalı (bir kez `sudo usermod -aG kvm $USER`; `sudo chmod 666 /dev/kvm` yalnız o açılış için geçerli). Uygulama yerel deneme
 yığınını açar (`http://localhost:3000`, API `:4000`); öykünücü bu adreslere `adb reverse` ile ulaşır.
 
 ```bash
 export JAVA_HOME=~/android-sdk/jdk ANDROID_HOME=~/android-sdk PATH=~/android-sdk/jdk/bin:$PATH
 ~/android-sdk/emulator/emulator -avd rothern -memory 2048 -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot-save &
+~/android-sdk/platform-tools/adb wait-for-device && until [ "$(~/android-sdk/platform-tools/adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; do sleep 2; done
 ~/android-sdk/platform-tools/adb reverse tcp:3000 tcp:3000 && ~/android-sdk/platform-tools/adb reverse tcp:4000 tcp:4000
 cd mobile && ROTHERN_APP_URL=http://localhost:3000 npx cap sync android
 cd android && ./gradlew --no-daemon assembleDebug && ~/android-sdk/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+- `adb reverse` öykünücü açıldıktan sonra kurulur ve öykünücü ya da adb sunucusu her yeniden başladığında
+  yeniden verilir; kurulmazsa uygulama yerel yığına ulaşamaz ve bağlantı yok sayfasını gösterir.
 - `http://` adres yalnız bu denemede şifresiz trafiği açar (`cleartext`); mağaza paketinde kapalı
   (`npm test` kilitler). Denemeden sonra düz `npx cap sync android`.
 - Yerel web, API adresi gömülerek derlenir (`NEXT_PUBLIC_API_URL=http://localhost:4000/api`); bildirim için
   yerel API'de `FIREBASE_SERVICE_ACCOUNT_JSON` tanımlı olmalı ve öykünücüye `google-services.json`'lı paket
   kurulmalı.
-- Bildirimleri görmek: `adb shell dumpsys notification --noredact | grep -A3 com.rothern.app`.
+- Bildirimleri görmek: `~/android-sdk/platform-tools/adb shell dumpsys notification --noredact | grep -A3 com.rothern.app`.
 
 ## Mağaza paketi
 

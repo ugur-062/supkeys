@@ -29,7 +29,8 @@ import { ListingCard, type ListingCardData } from "@/components/marketplace/list
 import { publicState } from "@/lib/public/marketplace";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { useActivePortal } from "@/hooks/use-active-portal";
-import { accessiblePortals, type PortalKey } from "@/lib/company/portals";
+import { accessiblePortals } from "@/lib/company/portals";
+import { connectionsPathFor } from "@/lib/company/connections-entry";
 import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -470,16 +471,6 @@ export default function CompanyProfilePage() {
       />
     </div>
   );
-}
-
-/**
- * Bulunulan portalın Bağlantılar sayfası. Portal `useActivePortal`dan gelir
- * (adres → son portal YALNIZ erişilebilirse → erişilebilir ilk portal): satış
- * koltuklu kullanıcının son portal bilgisi boşken satınalma ret ekranına
- * düşüyordu (arayüz testi D-069).
- */
-function connectionsPathFor(portal: PortalKey): string {
-  return portal === "satis" ? "/company/satis/musterilerim" : "/company/satinalma/tedarikcilerim";
 }
 
 /**

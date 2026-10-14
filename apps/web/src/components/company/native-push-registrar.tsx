@@ -8,9 +8,11 @@ import {
   PUSH_CHANNEL_ID,
   PUSH_DEVICES_PATH,
   clearPendingPushUnregister,
+  markPushFinished,
   markPushStarted,
   nativePush,
   pushStartedThisSession,
+  pushFinishedThisSession,
   pushTokenValue,
   runPushDeviceRequest,
   storePushToken,
@@ -37,8 +39,8 @@ const CHANNEL_IMPORTANCE = 4;
  * kez (`PUSH_SESSION_KEY`): izin sorulmamışsa ("prompt") bir kez sorulur;
  * verildiyse Android'de önce `default` kanalı (yerelleştirilmiş adla) kurulur,
  * sonra `register()`. `registration` olayında belirteç saklanır ve sunucuya
- * platformla yazılır (belirteç yenilenince de); `register()` istenmeden gelen
- * belirteç (eklentinin açılışta sakladığı) yok sayılır. Akış ancak belirteç (ya da kayıt
+ * platformla yazılır (belirteç yenilenince de); izin "granted" görülmeden gelen
+ * belirteç (eklentinin açılışta sakladığı) yazılmaz, bekletilir. Akış ancak belirteç (ya da kayıt
  * hatası) GELİNCE biter: `register()` hemen çözülür, belirteç sonra olay olarak
  * gelir ve iOS olayı dinleyicisiz anda düşürür — arada sökülen kurulum işareti
  * geri alır, sonraki kurulum yeniden kaydolur. Çıkış sürerken ya da oturum
@@ -61,40 +63,56 @@ export function NativePushRegistrar() {
     const { plugin, platform } = push;
     let disposed = false;
     let finished = false;
-    // Bu kurulum `register()` istedi mi. Android eklentisi FCM'nin açılışta
-    // kendiliğinden ürettiği belirteci saklayıp İLK dinleyiciye verir; izin
-    // sorulmadan (ya da reddedilmişken) o belirteç sunucuya yazılmasın.
-    let requested = false;
+    // İzin bu kurulumda "granted" olarak görüldü mü. Android eklentisi FCM'nin
+    // açılışta kendiliğinden ürettiği belirteci saklayıp İLK dinleyiciye verir;
+    // izin sorulmadan (ya da reddedilmişken) o belirteç sunucuya yazılmaz. İzin
+    // bilinmeden gelen son belirteç bekletilir (`parked`): izin verilmiş
+    // çıkarsa yazılır — aynı oturumdaki sonraki kurulumda (tam yükleme)
+    // `register()` çağrılmadığından yenilenen belirteç başka yoldan gelmez.
+    let allowed = false;
+    let parked: string | null = null;
+
+    const accept = (value: string) => {
+      // Çıkış bu cihazı sunucudan siliyor; oturum düştüyse (401 anlık
+      // görüntüyü sildi, söküm henüz koşmadı) kayıt zaten reddedilir. İkisinde
+      // de yazılan kayıt çıkan kişiye bağlı kalırdı.
+      if (isCompanyLoggingOut() || useCompanyAuthStore.getState().user?.id !== userId) return;
+      finished = true;
+      markPushFinished(userId);
+      // Önce saklanır: kayıt isteği sürerken çıkılırsa çıkış belirteci bilsin
+      // (ve silmeyi bu isteğin ardından göndersin).
+      storePushToken(value);
+      void runPushDeviceRequest(() =>
+        companyApi.post(PUSH_DEVICES_PATH, { token: value, platform }, { skipErrorToast: true }),
+      ).then(
+        // Yeniden bağlandı: önceki çıkıştan kalan silme artık gereksiz (ve zararlı).
+        () => clearPendingPushUnregister(value),
+        () => {
+          // Görünür bir şey yok. İşaret kalkar: sonraki kurulum / tam yükleme
+          // yeniden kaydolur (o yüklemedeki bekleyen silmenin ardından).
+          unmarkPushStarted(userId);
+        },
+      );
+    };
 
     const registration = nativeListener(() =>
       plugin.addListener("registration", (token) => {
         const value = pushTokenValue(token);
-        if (!value || disposed || !requested) return;
-        // Çıkış bu cihazı sunucudan siliyor; oturum düştüyse (401 anlık
-        // görüntüyü sildi, söküm henüz koşmadı) kayıt zaten reddedilir. İkisinde
-        // de yazılan kayıt çıkan kişiye bağlı kalırdı.
-        if (isCompanyLoggingOut() || useCompanyAuthStore.getState().user?.id !== userId) return;
-        finished = true;
-        // Önce saklanır: kayıt isteği sürerken çıkılırsa çıkış belirteci bilsin
-        // (ve silmeyi bu isteğin ardından göndersin).
-        storePushToken(value);
-        void runPushDeviceRequest(() =>
-          companyApi.post(PUSH_DEVICES_PATH, { token: value, platform }, { skipErrorToast: true }),
-        ).then(
-          // Yeniden bağlandı: önceki çıkıştan kalan silme artık gereksiz (ve zararlı).
-          () => clearPendingPushUnregister(value),
-          () => {
-            // Görünür bir şey yok. İşaret kalkar: sonraki kurulum / tam yükleme
-            // yeniden kaydolur (o yüklemedeki bekleyen silmenin ardından).
-            unmarkPushStarted(userId);
-          },
-        );
+        if (!value || disposed) return;
+        if (!allowed) {
+          parked = value;
+          return;
+        }
+        accept(value);
       }),
     );
     const registrationError = nativeListener(() =>
       plugin.addListener("registrationError", () => {
-        // Bilerek sessiz: kullanıcıya gösterilecek bir eylem yok.
-        if (!disposed) finished = true;
+        // Bilerek sessiz: kullanıcıya gösterilecek bir eylem yok. Bu açılışta
+        // yeniden denenmez.
+        if (disposed) return;
+        finished = true;
+        markPushFinished(userId);
       }),
     );
     const received = nativeListener(() =>
@@ -106,6 +124,25 @@ export function NativePushRegistrar() {
     const start = async () => {
       if (pushStartedThisSession(userId)) {
         finished = true;
+        // Bu oturumda akış koştu: izin yeniden SORULMAZ. Yalnız izin hâlâ
+        // verilmişse yenilenen belirteç (beklemedeki dahil) yazılır.
+        const current = (await plugin.checkPermissions())?.receive;
+        if (disposed || current !== "granted") return;
+        allowed = true;
+        if (parked) {
+          const value = parked;
+          parked = null;
+          accept(value);
+          return;
+        }
+        // Önceki yüklemede belirteç gelmeden tam yükleme olduysa (dil değişimi,
+        // bildirime dokunma) söküm koşmaz ve işaret "başladı"da kalır; iOS olayı
+        // saklamaz → akış bitmediyse kayıt yeniden istenir (izin penceresi açmaz).
+        if (pushFinishedThisSession(userId)) return;
+        await registration.ready;
+        if (disposed) return;
+        finished = false;
+        await plugin.register();
         return;
       }
       markPushStarted(userId);
@@ -117,6 +154,7 @@ export function NativePushRegistrar() {
       }
       if (state !== "granted") {
         finished = true;
+        markPushFinished(userId);
         return;
       }
       if (platform === "android" && typeof plugin.createChannel === "function") {
@@ -137,9 +175,10 @@ export function NativePushRegistrar() {
       if (disposed) return;
       // `finished` burada KONMAZ: iki eklenti de `register()`ı hemen çözer,
       // belirteç sonra `registration` olayıyla gelir (bkz. dinleyici). Her
-      // `register()` belirteci yeniden yayımlar; öncekinin yok sayılması
-      // kayıt kaybettirmez.
-      requested = true;
+      // `register()` belirteci yeniden yayımlar: bekletilen eski belirteç
+      // atılır (aynı belirteç iki kez yazılmasın).
+      allowed = true;
+      parked = null;
       await plugin.register();
     };
     void start().catch(() => {

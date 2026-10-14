@@ -6,6 +6,7 @@ import { NOTIFICATION_KEY } from "@/hooks/use-notifications";
 import { markCompanyLoggingOut, resetCompanyLoggingOut } from "@/lib/company-auth/logout-flag";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import {
+  PUSH_SESSION_KEY,
   PUSH_TOKEN_KEY,
   PUSH_UNREGISTER_PENDING_KEY,
   resetPushDeviceRequests,
@@ -250,8 +251,84 @@ describe("NativePushRegistrar", () => {
     renderRegistrar();
     await waitFor(() => expect(shell.count("registration")).toBe(1));
     await settle();
-    expect(shell.plugin.checkPermissions).toHaveBeenCalledTimes(1);
+    // İzin yalnız OKUNUR (yenilenen belirteç için); sorulmaz, yeniden kaydolunmaz.
+    expect(shell.plugin.requestPermissions).not.toHaveBeenCalled();
     expect(shell.plugin.register).toHaveBeenCalledTimes(1);
+  });
+
+  // İnceleme bulgusu: oturumda kayıt yapıldıktan sonraki kurulum `register()`
+  // çağırmaz; FCM belirteci o arada yenilerse (tam yükleme sırasında gelip
+  // eklentide saklanan ya da sonradan gelen) yazılmıyordu.
+  it("sonraki kurulumda yenilenen belirteç izin verilmişse yazılır (bekletilen dahil), kayıt tekrarlanmaz", async () => {
+    const shell = installShell();
+    const first = renderRegistrar();
+    await waitFor(() => expect(shell.plugin.register).toHaveBeenCalledTimes(1));
+    act(() => shell.emit("registration", { value: "fcm-token-1" }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    // Yeni kurulum: izin okunmadan önce saklanan belirteç dinleyiciye düşer.
+    let answer!: (v: { receive: string }) => void;
+    shell.plugin.checkPermissions.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    renderRegistrar();
+    await waitFor(() => expect(shell.count("registration")).toBe(1));
+    act(() => shell.emit("registration", { value: "fcm-token-2" }));
+    await settle();
+    expect(h.post).toHaveBeenCalledTimes(1);
+
+    await act(async () => answer({ receive: "granted" }));
+    await waitFor(() =>
+      expect(h.post).toHaveBeenLastCalledWith(
+        "/company-auth/push-devices",
+        { token: "fcm-token-2", platform: "android" },
+        { skipErrorToast: true },
+      ),
+    );
+    // Sonradan gelen yenileme de yazılır.
+    act(() => shell.emit("registration", { value: "fcm-token-3" }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledTimes(3));
+    expect(window.localStorage.getItem(PUSH_TOKEN_KEY)).toBe("fcm-token-3");
+    expect(shell.plugin.register).toHaveBeenCalledTimes(1);
+    expect(shell.plugin.requestPermissions).not.toHaveBeenCalled();
+  });
+
+  // İnceleme bulgusu (iOS): register() sonrası belirteç gelmeden tam yükleme
+  // olursa söküm koşmaz, oturum işareti kalır; iOS olayı saklamadığı için
+  // sonraki yüklemeler hiç kaydolmuyordu.
+  it("sonraki kurulumda hiç belirteç saklanmamışsa kayıt izin sorulmadan yeniden istenir", async () => {
+    const shell = installShell({ platform: "ios" });
+    // Önceki yükleme: akış başladı (işaret), belirteç gelmedi, söküm koşmadı.
+    window.sessionStorage.setItem(PUSH_SESSION_KEY, "u1");
+    renderRegistrar();
+    await waitFor(() => expect(shell.plugin.register).toHaveBeenCalledTimes(1));
+    expect(shell.plugin.requestPermissions).not.toHaveBeenCalled();
+    act(() => shell.emit("registration", { value: "apns-fcm" }));
+    await waitFor(() =>
+      expect(h.post).toHaveBeenCalledWith(
+        "/company-auth/push-devices",
+        { token: "apns-fcm", platform: "ios" },
+        { skipErrorToast: true },
+      ),
+    );
+  });
+
+  it("sonraki kurulumda izin geri alınmışsa yenilenen belirteç yazılmaz", async () => {
+    const shell = installShell();
+    const first = renderRegistrar();
+    await waitFor(() => expect(shell.plugin.register).toHaveBeenCalledTimes(1));
+    act(() => shell.emit("registration", { value: "fcm-token-1" }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    shell.plugin.checkPermissions.mockResolvedValueOnce({ receive: "denied" });
+    renderRegistrar();
+    await waitFor(() => expect(shell.plugin.checkPermissions).toHaveBeenCalledTimes(2));
+    act(() => shell.emit("registration", { value: "fcm-token-2" }));
+    await settle();
+    expect(h.post).toHaveBeenCalledTimes(1);
+    expect(shell.plugin.requestPermissions).not.toHaveBeenCalled();
   });
 
   it("akış yarıda sökülürse sonraki kurulumda yeniden koşar", async () => {
@@ -312,7 +389,7 @@ describe("NativePushRegistrar", () => {
 
   // Emülatörde görüldü: Android eklentisi FCM'nin açılışta ürettiği belirteci
   // saklayıp ilk dinleyiciye veriyor — izin penceresi açıkken kayıt yazılıyordu.
-  it("register() istenmeden gelen (eklentinin sakladığı) belirteç yazılmaz; izinden sonraki yazılır", async () => {
+  it("izin görülmeden gelen (eklentinin sakladığı) belirteç yazılmaz; izinden sonraki yazılır", async () => {
     const shell = installShell({ permission: "prompt", afterRequest: "denied" });
     let answer!: (v: { receive: string }) => void;
     shell.plugin.requestPermissions.mockImplementationOnce(
