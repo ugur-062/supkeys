@@ -47,3 +47,12 @@ test("iOS never hands the raw APNs token to the plugin (the backend sends throug
   const fallback = handler.slice(handler.indexOf("#endif"), handler.indexOf("didFailToRegisterForRemoteNotificationsWithError"));
   assert.match(fallback, /capacitorDidFailToRegisterForRemoteNotifications/, "the non-Firebase path must report a failure");
 });
+
+test("the store build never allows cleartext traffic and never carries the staging bypass", async () => {
+  delete process.env.ROTHERN_APP_URL;
+  delete process.env.ROTHERN_VERCEL_BYPASS;
+  const { default: config } = await import(`../capacitor.config.ts?store=${Date.now()}`);
+  assert.equal(config.server?.url, "https://www.rothern.com");
+  assert.equal(config.server?.cleartext, false);
+  assert.equal(config.server?.appStartPath, "/company");
+});

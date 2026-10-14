@@ -37,6 +37,9 @@ const config: CapacitorConfig = {
   backgroundColor: "#ffffff",
   server: {
     url: appUrl,
+    // Yalnız bilgisayardaki yerel deneme yığını (`http://localhost`, öykünücüde
+    // `adb reverse` ile). Canlı ve staging https'tir → mağaza paketinde şifresiz trafik kapalı.
+    cleartext: appUrl.startsWith("http://"),
     // Giriş yapılmamışsa web `/company/login`e yönlendirir.
     appStartPath,
     // Ağ yokken ya da site açılmazken gösterilen yerel sayfa.
