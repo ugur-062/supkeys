@@ -2707,6 +2707,9 @@
         "ayril": "Leave",
         "kal": "Stay on form"
       },
+      "nativePush": {
+        "channelName": "Notifications"
+      },
       "verificationGate": {
         "pageTitle": "This page requires company verification",
         "managerNote": "Your company administrator can apply for verification; please let them know.",

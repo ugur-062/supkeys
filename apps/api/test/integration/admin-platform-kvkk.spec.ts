@@ -389,6 +389,13 @@ describe("KVKK — export + silme/anonimleştirme", () => {
         status: "COMPLETED",
       },
     });
+    // Push devices (2026-10-14): both companies' phones are registered.
+    await prisma.pushDevice.createMany({
+      data: [
+        { token: "kvkk-buyer", platform: "android", companyUserId: buyer.user.id, companyId: buyer.company.id },
+        { token: "kvkk-seller", platform: "ios", companyUserId: seller.user.id, companyId: seller.company.id },
+      ],
+    });
     const oldEmail = buyer.user.email;
     const res = await service.deleteOrAnonymize(
       buyer.company.id,
@@ -418,6 +425,10 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     expect(user.email).toContain("@anon.rothern.local");
     expect(user.deletedAt).not.toBeNull();
     expect(user.isActive).toBe(false);
+    // Anonymised members' devices go; the counterparty's stay.
+    expect(await prisma.pushDevice.findMany({ select: { token: true } })).toEqual([
+      { token: "kvkk-seller" },
+    ]);
   });
 
   it("D-208: anonimleştirilmiş firma salt okunur — askı kaldırma/askı/bildirim/düzenleme/paket 409; detay ve liste 'anonymized' der", async () => {

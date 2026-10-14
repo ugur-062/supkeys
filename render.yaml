@@ -166,6 +166,13 @@ services:
         sync: false
       - key: GEMINI_VERTEX_LOCATION
         value: global
+      # ── Anlık bildirim (mobil uygulama, FCM — 2026-10-14) ──
+      # Firebase projesi rothern-98853 → Proje ayarları → Hizmet hesapları →
+      # yeni özel anahtar: JSON dosyasının TAM içeriği (ya da base64'ü).
+      # Boş/bozuksa anlık bildirim KAPALI (açılışta tek günlük satırı), API yine
+      # açılır. api-staging (blueprint dışı) için panelden ayrıca girilir.
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
       # SEO yayın anı bildirimi (Parça 5) — Vercel'deki değerlerle AYNI olmalı.
       - key: INDEXNOW_KEY
         sync: false

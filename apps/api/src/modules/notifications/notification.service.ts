@@ -25,6 +25,8 @@ import {
   type NotificationParams,
 } from "../../common/notifications/notification-params";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { PushService } from "../push/push.service";
+import type { PushNotificationRow } from "../push/push-message";
 import {
   hasCompanyPermission,
   type PermissionSubject,
@@ -346,7 +348,21 @@ export class NotificationService {
     @Optional() private readonly realtime?: RealtimeService,
     /** İçerik çevirisi (global modül) — SONDA ve isteğe bağlı; yoksa kaynak başlık. */
     @Optional() private readonly translations?: ContentTranslationService,
+    /**
+     * Push to the mobile app (global module) - LAST and optional: hand-built
+     * test rigs pass nothing and simply send no push.
+     */
+    @Optional() private readonly push?: PushService,
   ) {}
+
+  /**
+   * Mirrors written rows to the recipients' devices. Fire-and-forget: the
+   * request never waits for FCM and never fails because of it.
+   */
+  private firePush(rows: readonly PushNotificationRow[]): void {
+    if (!this.push || rows.length === 0) return;
+    void this.push.sendForNotifications(rows).catch(() => undefined);
+  }
 
   /** Tek firmanın (izinli) aktif kullanıcılarına in-app bildirim. */
   async pushToCompany(companyId: string, payload: InAppPayload): Promise<number> {
@@ -412,6 +428,15 @@ export class NotificationService {
       throw err;
     }
     this.realtime?.pingNotification(user.companyId);
+    this.firePush([
+      {
+        companyUserId: user.id,
+        type: payload.type,
+        title: text.title,
+        body: text.body,
+        ctaUrl: text.ctaUrl,
+      },
+    ]);
     return 1;
   }
 
@@ -517,6 +542,7 @@ export class NotificationService {
     for (const c of new Set(rows.map((r) => r.companyId))) {
       this.realtime?.pingNotification(c);
     }
+    this.firePush(rows);
     return rows.length;
   }
 

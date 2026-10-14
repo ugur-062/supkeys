@@ -1,6 +1,7 @@
 "use client";
 
 import { CompanyShell } from "@/components/company-shell/shell";
+import { NativePushRegistrar } from "@/components/company/native-push-registrar";
 import { TermsAcceptanceGate } from "@/components/company/terms-acceptance-gate";
 import { RequireCompanyAuth } from "@/components/providers/company-auth-hydration";
 import { ConfirmProvider } from "@/components/providers/confirm-dialog";
@@ -18,6 +19,8 @@ export function CompanyAuthedLayoutClient({
           <CompanyShell>{children}</CompanyShell>
           {/* Onay izi olmayan hesap (admin eliyle eklenen üye) — derin denetim MU-04. */}
           <TermsAcceptanceGate />
+          {/* Mobil kabukta anlık bildirim kaydı; tarayıcıda hiçbir şey yapmaz. */}
+          <NativePushRegistrar />
         </ConfirmProvider>
       </RealtimeProvider>
     </RequireCompanyAuth>

@@ -2508,6 +2508,7 @@ model CompanyUser {
   passwordResetTokens    PasswordResetToken[]
   emailVerificationCodes EmailVerificationCode[]
   notifications          Notification[]
+  pushDevices            PushDevice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2592,6 +2593,43 @@ model Notification {
   @@index([companyId, type, createdAt])
   @@index([listingId, type])
   @@map("notifications")
+}
+
+/**
+ * Push notification device (2026-10-14, mobile app shell). One row per FCM
+ * registration token. Registering upserts by token: the row is re-bound to the
+ * user who is signed in on that device now (a shared phone changes hands).
+ * The FCM message mirrors an in-app `Notification` row. Rows go away with the
+ * account (cascade, self deletion, team removal, KVKK anonymisation) and when
+ * FCM reports the token as unregistered/invalid. Not company scoped for RLS
+ * (no policy); only PrismaBypassService reads it for sending.
+ *
+ * A row lives only as long as the session that registered it: `tokenVersion`
+ * is the session version (`CompanyUser.tokenVersion`, JWT `tv`) at
+ * registration. Password change/reset, "drop sessions", e-mail change and
+ * deactivation bump the user's version, so the device stops getting pushes at
+ * once (the sender skips and deletes the row) until it registers again from a
+ * new session. A row not refreshed for 30 days (the app re-registers on every
+ * launch) is treated the same way.
+ */
+model PushDevice {
+  id            String      @id @default(cuid())
+  /// FCM registration token (Android and iOS both go through FCM).
+  token         String      @unique
+  /// "android" | "ios"
+  platform      String
+  companyUserId String
+  companyUser   CompanyUser @relation(fields: [companyUserId], references: [id], onDelete: Cascade)
+  /// Denormalised: company of the user at registration time (cleanup by company).
+  companyId     String
+  /// Session version (CompanyUser.tokenVersion) the device registered under.
+  tokenVersion  Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lastSeenAt    DateTime    @default(now())
+
+  @@index([companyUserId])
+  @@map("push_devices")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

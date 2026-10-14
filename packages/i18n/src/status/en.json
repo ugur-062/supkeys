@@ -33869,6 +33869,11 @@
     "status": "reviewed",
     "at": "2026-10-01"
   },
+  "web.panel.shell.nativePush.channelName": {
+    "hash": "ef68bc829c",
+    "status": "reviewed",
+    "at": "2026-10-14"
+  },
   "web.panel.shell.notificationBell.bildirimler": {
     "hash": "ef68bc829c",
     "status": "reviewed",

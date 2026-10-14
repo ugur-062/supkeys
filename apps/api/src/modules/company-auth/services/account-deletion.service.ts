@@ -190,6 +190,8 @@ export class AccountDeletionService {
         await tx.passwordResetToken.deleteMany({ where: { companyUserId: userId } });
         await tx.emailVerificationCode.deleteMany({ where: { companyUserId: userId } });
         await tx.notification.deleteMany({ where: { companyUserId: userId } });
+        // Push devices: the phone must stop receiving this account's pushes.
+        await tx.pushDevice.deleteMany({ where: { companyUserId: userId } });
         await tx.aiChatSession.deleteMany({ where: { companyId, userId } });
         await tx.companyUser.update({
           where: { id: userId },

@@ -30,6 +30,12 @@ function rig() {
   return { service, supabase, seo };
 }
 
+async function withDevice(userId: string, companyId: string, token: string) {
+  return prisma.pushDevice.create({
+    data: { token, platform: "android", companyUserId: userId, companyId },
+  });
+}
+
 async function withAuth(userId: string) {
   return prisma.companyUser.update({
     where: { id: userId },
@@ -66,6 +72,8 @@ describe("AccountDeletionService", () => {
     const owner = await makeCompanyWithUser(prisma);
     const member = await makeUser(prisma, owner.company.id, [CompanyRole.SATIN_ALMACI]);
     await withAuth(member.id);
+    await withDevice(member.id, owner.company.id, "tok-member");
+    await withDevice(owner.user.id, owner.company.id, "tok-owner");
     const listing = await makeListing(prisma, { companyId: owner.company.id, createdById: member.id });
     const { service, supabase, seo } = rig();
 
@@ -82,6 +90,11 @@ describe("AccountDeletionService", () => {
     expect(row.isActive).toBe(false);
     expect(row.deletedAt).not.toBeNull();
     expect(row.tokenVersion).toBe(member.tokenVersion + 1);
+    // Push devices (2026-10-14): the deleted account's phone stops getting
+    // pushes; the other members' devices stay.
+    expect(await prisma.pushDevice.findMany({ select: { token: true } })).toEqual([
+      { token: "tok-owner" },
+    ]);
     const moved = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
     expect(moved.createdById).toBe(owner.user.id);
     const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
@@ -142,6 +155,7 @@ describe("AccountDeletionService", () => {
     const owner = await makeCompanyWithUser(prisma);
     const member = await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
     await withAuth(member.id);
+    await withDevice(member.id, owner.company.id, "tok-member");
     const { service, supabase } = rig();
     supabase.deleteUserStrict.mockRejectedValueOnce(new Error("provider down"));
     await expect(service.deleteOwnAccount(member.id, "dogru")).rejects.toThrow("provider down");
@@ -149,6 +163,7 @@ describe("AccountDeletionService", () => {
     expect(row.deletedAt).toBeNull();
     expect(row.email).toBe(member.email);
     expect(row.authId).toBe(`auth-${member.id}`);
+    expect(await prisma.pushDevice.count({ where: { companyUserId: member.id } })).toBe(1);
   });
 
   it("a deleted account cannot be deleted again", async () => {

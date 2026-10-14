@@ -11,6 +11,7 @@ import { markCompanyLoggingOut } from "@/lib/company-auth/logout-flag";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { clearTenantSessionData } from "@/lib/company-auth/tenant-storage";
 import { PASSWORD_MAX_LENGTH } from "@/lib/company-auth/password-rules";
+import { clearPushToken } from "@/lib/native-push";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -61,6 +62,8 @@ export function DeleteAccountSection() {
       clear();
       queryClient.clear();
       clearTenantSessionData();
+      // Mobil kabuk: cihaz kayıtları sunucuda hesapla birlikte silindi; yerel belirteç de gider.
+      clearPushToken();
       window.location.href = localizePath("/company/login", runtimeLocale());
     });
 

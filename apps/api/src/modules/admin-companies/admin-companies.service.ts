@@ -3552,6 +3552,16 @@ export class AdminCompaniesService {
         },
       }),
       this.prisma.companyUserInvitation.deleteMany({ where: { companyId: id } }),
+      //  - Push devices of every member (2026-10-14): anonymised accounts
+      //    must not keep receiving pushes on their phones.
+      this.prisma.pushDevice.deleteMany({
+        where: {
+          OR: [
+            { companyId: id },
+            { companyUserId: { in: company.users.map((u) => u.id) } },
+          ],
+        },
+      }),
       this.prisma.contentTranslation.deleteMany({
         where: { entityType: "COMPANY", entityId: id },
       }),

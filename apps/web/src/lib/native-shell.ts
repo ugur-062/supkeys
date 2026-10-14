@@ -6,12 +6,22 @@
  * girmez. Tarayıcıda `window.Capacitor` yoktur ve bu dosyadaki hiçbir şey çalışmaz.
  */
 
+/** Yerel dinleyicinin kaldırma tutamacı. */
+export interface NativeListenerHandle {
+  remove: () => void | Promise<void>;
+}
+
+/**
+ * `addListener` dönüşü. Sayfa `@capacitor/core` taşımadığı için eklentiler
+ * kabuğun enjekte ettiği ESKİ biçimdedir (`window.Capacitor.Plugins.X`): orada
+ * `addListener` tutamacı SÖZ DEĞİL, doğrudan döner (`native-bridge.js`
+ * `cap.addListener`). Çekirdek paketin biçimi ise söz döner — ikisi de kabul.
+ */
+export type NativeListenerResult = NativeListenerHandle | Promise<NativeListenerHandle>;
+
 /** Kabuğun `App` eklentisinden kullandığımız kadarı. */
 export interface NativeAppPlugin {
-  addListener(
-    event: "appUrlOpen",
-    listener: (data: { url?: string }) => void,
-  ): Promise<{ remove: () => void | Promise<void> }>;
+  addListener(event: "appUrlOpen", listener: (data: { url?: string }) => void): NativeListenerResult;
   getLaunchUrl(): Promise<{ url?: string } | undefined>;
 }
 
@@ -22,9 +32,54 @@ interface NativeBridge {
 
 /** Sayfa kabuğun içindeyse `App` eklentisi, değilse null. */
 export function nativeAppPlugin(win: object | undefined): NativeAppPlugin | null {
-  const bridge = (win as { Capacitor?: NativeBridge } | undefined)?.Capacitor;
-  if (!bridge?.isNativePlatform?.()) return null;
-  return bridge.Plugins?.App ?? null;
+  try {
+    const bridge = (win as { Capacitor?: NativeBridge } | undefined)?.Capacitor;
+    if (!bridge?.isNativePlatform?.()) return null;
+    return bridge.Plugins?.App ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Yerel dinleyiciyi kurar; dönen kaldırıcı her an güvenle çağrılır (tutamaç
+ * henüz gelmediyse geldiğinde kaldırılır). Hiçbir yolda fırlatmaz.
+ * `ready` dinleyici kurulunca (ya da kurulamayınca) çözülür.
+ */
+export function nativeListener(attach: () => NativeListenerResult): {
+  ready: Promise<void>;
+  remove: () => void;
+} {
+  let disposed = false;
+  let handle: NativeListenerHandle | undefined;
+  const drop = (h: NativeListenerHandle) => {
+    try {
+      void Promise.resolve(h.remove()).catch(() => {});
+    } catch {
+      // Kaldırılamayan dinleyici: yapılacak bir şey yok.
+    }
+  };
+  let ready: Promise<void>;
+  try {
+    ready = Promise.resolve(attach()).then(
+      (h) => {
+        if (!h || typeof h.remove !== "function") return;
+        if (disposed) drop(h);
+        else handle = h;
+      },
+      () => {},
+    );
+  } catch {
+    ready = Promise.resolve();
+  }
+  return {
+    ready,
+    remove: () => {
+      disposed = true;
+      if (handle) drop(handle);
+      handle = undefined;
+    },
+  };
 }
 
 /**

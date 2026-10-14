@@ -1,0 +1,4 @@
+# Firebase istemci yapılandırması (anlık bildirim). Firebase konsolundan indirilip
+# elle konur, depoya GİRMEZ — bkz. README "Bildirimler (Firebase)".
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist

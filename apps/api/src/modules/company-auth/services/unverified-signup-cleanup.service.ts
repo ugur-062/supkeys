@@ -153,6 +153,8 @@ export const SIGNUP_USER_DEPENDENT_RELATIONS = [
   "passwordResetTokens",
   "emailVerificationCodes",
   "notifications",
+  // Push devices: an unverified account cannot sign in, so it never has one.
+  "pushDevices",
 ] as const;
 
 const BLOCKING_COUNTS = Object.fromEntries(

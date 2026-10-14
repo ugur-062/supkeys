@@ -11,6 +11,7 @@ import type { ResendEmailCodeResult } from "@/lib/company-auth/resend-code";
 import { clearSignupDraft } from "@/lib/company-auth/signup-draft";
 import { companyRememberEnabled, useCompanyAuthStore } from "@/lib/company-auth/store";
 import { bindSessionOwner, clearTenantSessionData } from "@/lib/company-auth/tenant-storage";
+import { readPushToken, releasePushToken } from "@/lib/native-push";
 import type {
   CompanyLoginResponse,
   CompanyMeResponse,
@@ -436,6 +437,25 @@ export function useCompanySessionProbe(): CompanySessionProbe {
 /** Çıkış isteğinin en uzun bekleneceği süre (ms). */
 export const LOGOUT_WAIT_MS = 3000;
 
+/** Çıkıştan önce cihaz belirtecini silme isteğinin en uzun bekleneceği süre (ms). */
+export const PUSH_UNREGISTER_WAIT_MS = 2000;
+
+/**
+ * Mobil kabuk: bu cihaz anlık bildirim belirteci kaydettiyse çıkıştan ÖNCE
+ * sunucudan silinir — yoksa çıkan kişinin bildirimleri cihaza gelmeye devam
+ * ederdi. Uç oturum istemez (oturum düşmüşken de çalışır). Silme, sürmekte olan
+ * kayıt isteğinin ARDINDAN gider (geç varan kayıt satırı yeniden bağlamasın);
+ * istek `keepalive` ile yönlendirmeyi atlatır, 2xx gelmezse belirteç bekleyen
+ * silme olarak kalır ve sonraki sayfa yüklemesi yeniden dener. Bekleme
+ * sınırlı; belirteç olmayan (tarayıcı) çıkışta hiç beklenmez.
+ */
+async function unregisterPushDevice(token: string): Promise<void> {
+  await Promise.race([
+    releasePushToken(token, { ordered: true }),
+    new Promise((resolve) => setTimeout(resolve, PUSH_UNREGISTER_WAIT_MS)),
+  ]);
+}
+
 export function useCompanyLogout() {
   const clear = useCompanyAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
@@ -443,6 +463,9 @@ export function useCompanyLogout() {
     // Açık çıkış: nöbetçi `?next=<son sayfa>` eklemesin — düz giriş sayfasına
     // bu kanca götürür (arayüz testi 2026-10 login-2, bkz. `logout-flag.ts`).
     markCompanyLoggingOut();
+    // Belirteç yoksa (tarayıcı) beklenmez: çıkış isteği hemen gider.
+    const pushToken = readPushToken();
+    if (pushToken) await unregisterPushDevice(pushToken);
     // Derin denetim MU-21: istek beklenmeden yönlendirilince tarayıcı bekleyen
     // logout isteğini iptal edebiliyordu → httpOnly oturum çerezi silinmeden
     // kalıyordu. Yanıt beklenir; API askıda kalırsa en çok LOGOUT_WAIT_MS.

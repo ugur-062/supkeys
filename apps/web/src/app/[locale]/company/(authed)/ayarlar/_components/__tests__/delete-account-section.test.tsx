@@ -26,7 +26,10 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { DeleteAccountSection } from "../delete-account-section";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.localStorage.clear();
+});
 
 describe("DeleteAccountSection", () => {
   async function openForm() {
@@ -47,6 +50,7 @@ describe("DeleteAccountSection", () => {
   });
 
   it("sunucu reddi satır içinde gösterilir, oturum temizlenmez", async () => {
+    window.localStorage.setItem("rothern:push-token", "fcm-token-1");
     h.mutateAsync.mockRejectedValueOnce(
       new AxiosError("403", "ERR_BAD_REQUEST", undefined, undefined, {
         status: 403,
@@ -59,9 +63,12 @@ describe("DeleteAccountSection", () => {
     expect(await screen.findByText("Mevcut şifre hatalı")).toBeInTheDocument();
     expect(h.clearStore).not.toHaveBeenCalled();
     expect(h.clearTenant).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem("rothern:push-token")).toBe("fcm-token-1");
   });
 
   it("başarıda şifre gönderilir ve istemci oturumu çıkıştaki gibi temizlenir", async () => {
+    // Mobil kabuk: sunucu cihaz kayıtlarını hesapla birlikte sildi; yerel belirteç de gider.
+    window.localStorage.setItem("rothern:push-token", "fcm-token-1");
     h.mutateAsync.mockResolvedValueOnce({ ok: true, companyClosed: false });
     const user = await openForm();
     await user.type(screen.getByLabelText("Onaylamak için şifreniz"), "Dogru!Sifre12");
@@ -71,6 +78,7 @@ describe("DeleteAccountSection", () => {
     expect(h.clearStore).toHaveBeenCalled();
     expect(h.clearQueries).toHaveBeenCalled();
     expect(h.clearTenant).toHaveBeenCalled();
+    expect(window.localStorage.getItem("rothern:push-token")).toBeNull();
   });
 
   it("Vazgeç yazılan şifreyi ve hatayı siler", async () => {

@@ -3,6 +3,7 @@
 import type { Locale } from "@rothern/i18n";
 
 import { companyApi } from "@/lib/company-auth/api";
+import { nativePush, PUSH_DEVICES_PATH, readPushToken, runPushDeviceRequest } from "@/lib/native-push";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -77,8 +78,32 @@ export function useChangePassword() {
     },
     // Parola değişimi diğer oturumları geçersiz kılar (tokenVersion). BU oturum
     // sunucunun döndürdüğü taze token'la devam eder — AuthCookieInterceptor
-    // yeni httpOnly cookie'yi otomatik yazdığı için istemcide iş kalmaz.
+    // yeni httpOnly cookie'yi otomatik yazar.
+    onSuccess: () => {
+      void rebindStoredPushToken();
+    },
   });
+}
+
+/**
+ * Mobil kabuk: anlık bildirim cihaz kaydı oturum sürümüne bağlıdır (sunucu
+ * sürümü eskiyen cihaza göndermez). Şifre değişimi sürümü artırır ama bu
+ * oturum sürer → bu cihazın saklı belirteci taze oturumla yeniden yazılır;
+ * yoksa telefon bir sonraki açılışa dek bildirim almazdı. Tarayıcıda ya da
+ * belirteç yokken hiçbir şey yapmaz; hata görünmez.
+ */
+export async function rebindStoredPushToken(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const push = nativePush(window);
+  const token = push ? readPushToken() : null;
+  if (!push || !token) return;
+  try {
+    await runPushDeviceRequest(() =>
+      companyApi.post(PUSH_DEVICES_PATH, { token, platform: push.platform }, { skipErrorToast: true }),
+    );
+  } catch {
+    // Görünür bir şey yok: sonraki açılışta kaydedici yeniden kaydeder.
+  }
 }
 
 export function useSetup2fa() {

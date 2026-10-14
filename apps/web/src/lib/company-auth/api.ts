@@ -5,6 +5,7 @@ import { runtimeLocale, tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { readCsrfToken } from "../csrf";
+import { readPushToken, releasePushToken } from "../native-push";
 import { resolveApiBaseUrl } from "../resolve-api-url";
 import {
   SERVICE_PROBE_TIMEOUT_MS,
@@ -191,6 +192,14 @@ companyApi.interceptors.response.use(
     if (status === 401) {
       // Oturum sinyali artık `user` (cookie geçersizse /me 401 verir).
       const { user, clear } = useCompanyAuthStore.getState();
+      // Mobil kabuk: oturum düştü (süre, başka yerde şifre sıfırlama, yönetici
+      // "tüm cihazlardan çıkar"). Cihaz belirteci sunucudan HEMEN bırakılır —
+      // yoksa giriş sayfasındaki telefona önceki kişinin bildirimleri gelmeye
+      // devam ederdi. Anlık görüntü olmasa da ("oturumu açık bırak" kapalıyken
+      // soğuk açılış) saklı belirteç bırakılır: 401 bu cihazda oturum yok
+      // demektir, sonraki girişte kaydedici yeniden kaydeder. `keepalive` isteği
+      // yönlendirmeyi atlatır; 2xx gelmezse bekleyen silme olarak kalır.
+      if (user || readPushToken()) void releasePushToken();
       if (user) {
         clear();
         const onLogin = stripLocale(window.location.pathname) === "/company/login";

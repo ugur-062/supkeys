@@ -1486,6 +1486,8 @@ export class CompanyUsersService {
           email: `deleted-${targetId}@deleted.rothern`,
         },
       });
+      // Push devices: the removed member's phone stops getting company pushes.
+      await tx.pushDevice.deleteMany({ where: { companyUserId: targetId } });
       return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
     });
     // INV-AUDIT-1: iş çıkışı (soft-delete) = tüm erişimin iptali — yetki tarafı.

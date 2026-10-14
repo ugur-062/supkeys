@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { deepLinkTarget, nativeAppPlugin } from "./native-shell";
+import { describe, expect, it, vi } from "vitest";
+import { deepLinkTarget, nativeAppPlugin, nativeListener } from "./native-shell";
 
 const HERE = "https://www.rothern.com/company";
 
@@ -27,5 +27,45 @@ describe("mobil kabuk köprüsü", () => {
     expect(deepLinkTarget("bozuk", HERE)).toBeNull();
     expect(deepLinkTarget(undefined, HERE)).toBeNull();
     expect(deepLinkTarget(HERE, HERE)).toBeNull();
+  });
+});
+
+describe("nativeListener — yerel dinleyici tutamacı", () => {
+  // Sayfa `@capacitor/core` taşımaz: kabuğun enjekte ettiği eski biçimde
+  // `addListener` tutamacı SÖZ DEĞİL, doğrudan döner (native-bridge.js).
+  it("eşzamanlı dönen tutamaç kabul edilir ve kaldırılır", async () => {
+    const remove = vi.fn();
+    const listener = nativeListener(() => ({ remove }));
+    await listener.ready;
+    listener.remove();
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("söz dönen tutamaç kabul edilir; söz gelmeden kaldırılırsa geldiğinde kaldırılır", async () => {
+    const remove = vi.fn();
+    let resolve!: (h: { remove: () => void }) => void;
+    const listener = nativeListener(() => new Promise((r) => (resolve = r)));
+    listener.remove();
+    expect(remove).not.toHaveBeenCalled();
+    resolve({ remove });
+    await listener.ready;
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("fırlatan ya da reddeden kurulum fırlatmaz; ready yine çözülür", async () => {
+    const thrown = nativeListener(() => {
+      throw new Error("bridge");
+    });
+    await expect(thrown.ready).resolves.toBeUndefined();
+    expect(() => thrown.remove()).not.toThrow();
+    const rejected = nativeListener(() => Promise.reject(new Error("bridge")));
+    await expect(rejected.ready).resolves.toBeUndefined();
+    const failingRemove = nativeListener(() => ({
+      remove: () => {
+        throw new Error("gone");
+      },
+    }));
+    await failingRemove.ready;
+    expect(() => failingRemove.remove()).not.toThrow();
   });
 });

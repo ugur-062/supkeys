@@ -14,6 +14,20 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const appUrl = process.env.ROTHERN_APP_URL ?? "https://www.rothern.com";
 
+/**
+ * YALNIZ elle dağıtılan staging deneme paketi: staging web Vercel girişinin
+ * arkasında; anahtar ilk açılışta atlatma çerezini yazdırır. Anahtar pakete
+ * gömülür → bu paket kimseyle paylaşılmaz; canlı adresle birlikte verilirse
+ * eşitleme durur (mağaza paketine sızmasın). Derledikten sonra düz `cap sync`.
+ */
+const stagingBypass = process.env.ROTHERN_VERCEL_BYPASS?.trim();
+if (stagingBypass && !process.env.ROTHERN_APP_URL) {
+  throw new Error("ROTHERN_VERCEL_BYPASS is only for staging builds (set ROTHERN_APP_URL)");
+}
+const appStartPath = stagingBypass
+  ? `/company?x-vercel-protection-bypass=${encodeURIComponent(stagingBypass)}&x-vercel-set-bypass-cookie=true`
+  : "/company";
+
 const config: CapacitorConfig = {
   appId: "com.rothern.app",
   appName: "Rothern",
@@ -24,7 +38,7 @@ const config: CapacitorConfig = {
   server: {
     url: appUrl,
     // Giriş yapılmamışsa web `/company/login`e yönlendirir.
-    appStartPath: "/company",
+    appStartPath,
     // Ağ yokken ya da site açılmazken gösterilen yerel sayfa.
     errorPath: "offline.html",
   },
@@ -36,7 +50,13 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"],
+      // Uygulama öndeyken gelen bildirim için sistem bandı / ses / Android'de üstte beliren
+      // bildirim YOK: aynı satırı web zaten uygulama içi kartla (`LiveToasts`) ve sesle
+      // gösteriyor, "alert" / "sound" her bildirimi iki kez gösterirdi. `pushNotificationReceived`
+      // yine web'e ulaşır (zil + Bildirimler tazelenir). Sözleşme:
+      // `apps/web/src/components/company/native-push-registrar.tsx`. Arka planda / kapalıyken
+      // gösterim bundan etkilenmez (onu işletim sistemi yapar).
+      presentationOptions: ["badge"],
     },
   },
 };

@@ -57,6 +57,13 @@ export interface AuthenticatedCompanyUser {
   permissions: string[];
   /** Kullanıcının seçtiği arayüz dili (`CompanyUser.locale`, varsayılan tr). */
   locale: string;
+  /**
+   * Session version this request's token carries (JWT `tv`, which the guard
+   * just matched against `CompanyUser.tokenVersion`). Set only on the request
+   * path; push device registration stores it so a revoked session's device
+   * stops getting pushes.
+   */
+  tokenVersion?: number;
 }
 
 /**
@@ -179,6 +186,6 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // İstek dili: Accept-Language yoksa kullanıcının kayıtlı dili (i18n Faz 0).
     applyUserLocale(user.locale);
 
-    return toAuthenticatedCompanyUser(user);
+    return { ...toAuthenticatedCompanyUser(user), tokenVersion: user.tokenVersion };
   }
 }

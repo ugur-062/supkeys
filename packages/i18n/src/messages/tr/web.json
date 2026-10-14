@@ -2707,6 +2707,9 @@
         "ayril": "Ayrıl",
         "kal": "Formda kal"
       },
+      "nativePush": {
+        "channelName": "Bildirimler"
+      },
       "verificationGate": {
         "pageTitle": "Bu sayfa firma doğrulaması gerektirir",
         "managerNote": "Doğrulama başvurusunu firma yöneticiniz yapabilir; kendisine iletin.",

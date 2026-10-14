@@ -4918,7 +4918,35 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   alır. Denetim `company.user.self_deleted` (e-posta yazılmaz). Sözleşme `account-deletion.spec`, web
   `delete-account-section.test`. Sözleşme metinleri (gizlilik / KVKK) uygulama içi silme yolunu henüz ANMIYOR
   — metin değişikliği kullanıcı kararı.
-- **Sırada (onaylı plan, 2026-10-11):** anlık bildirim (API cihaz kaydı + `firebase-admin`), mağaza metinleri.
+- **ANLIK BİLDİRİM (2026-10-14):** uygulama içi bildirimin AYNASIDIR — `NotificationService.pushToUser` /
+  `pushToCompanies` satırı yazdıktan sonra `PushService` (global `modules/push/`, `@Optional()` SON kurucu
+  parametresi) aynı satırları FCM'ye gönderir; istek yolu FCM'yi BEKLEMEZ ve FCM yüzünden düşmez. Firebase
+  projesi `rothern-98853`; sunucu kimliği env `FIREBASE_SERVICE_ACCOUNT_JSON` (ham JSON ya da base64; yoksa
+  push kapalı ve cihaz sorgusu bile atılmaz; değer hiçbir günlüğe yazılmaz). Uçlar `POST
+  company-auth/push-devices` (oturumlu; `{ token, platform }`, belirteç FCM biçimli) ve `POST
+  company-auth/push-devices/unregister` (OTURUMSUZ + CSRF muaf, belirteçle siler). Tablo `push_devices`
+  (migration `20261014120000_push_devices`). **Cihaz kaydı oturum sürümüne bağlıdır** (`PushDevice.tokenVersion`
+  = kaydı yapan oturumun, JWT stratejisinin denetlediği sürüm): `tokenVersion`'ı artıran her yol (şifre
+  sıfırlama / değişimi, yönetici "tüm cihazlardan çıkar", e-posta düzeltmesi, pasif-aktif) eski cihazın
+  bildirimini ANINDA keser; satır sonraki gönderimde / kayıtta silinir. 30 gündür yenilenmemiş kayıt da
+  gönderilmez. Hesap silme, ekipten çıkarma ve KVKK anonimleştirme satırları kendi transaction'ında siler.
+  FCM ölü belirteç yanıtında satır silinir (proje çapındaki yetki hatasında SİLİNMEZ). Mesaj: başlık + gövde
+  (kırpılmış), `data.url` = satırın mutlak `ctaUrl`'ü, Android kanal `default` + küçük ikon `ic_stat_rothern`.
+  **Web:** `components/company/native-push-registrar.tsx` (oturumlu düzen; açılış başına izin → Android kanal
+  → `register()` → belirteç POST), dokunma `NativeShellBridge` (`data.url`, aynı köken kuralı), belirteç
+  `localStorage` `rothern:push-token`; çıkışta ve HER 401'de (anlık görüntü olmasa da) `keepalive` ile
+  bırakılır, başarısızsa bekleyen silme sonraki yüklemede yeniden denenir; şifre değişince
+  `rebindStoredPushToken` belirteci taze oturumla yeniden yazar. Uygulama öndeyken sistem bildirimi
+  gösterilmez (`presentationOptions: ["badge"]`), zil tazelenir. iOS: Firebase iOS paketi + plist Mac'te
+  Xcode'dan eklenir, APNs anahtarı Apple hesabı açılınca Firebase'e yüklenir (`mobile/README.md`);
+  `AppDelegate` paket yokken ham APNs belirteci GÖNDERMEZ. `google-services.json` /
+  `GoogleService-Info.plist` depoda YOK (`mobile/.gitignore`); Android sürüm derlemesi dosya yoksa durur.
+  Sözleşme: API `push-devices.spec`, `push-message.spec`; web `native-push*.test`, `native-shell-bridge.test`,
+  `api-session-end-push.test`, `rebind-push-token.test`; kabuk `mobile/scripts/shell-config.test.mjs`
+  (`npm test`).
+- **Staging deneme paketi** `ROTHERN_APP_URL` + `ROTHERN_VERCEL_BYPASS` ile (anahtar pakete gömülür; canlı
+  adresle birlikte verilirse eşitleme durur). Android deneme paketi bu makinede derlenir (`~/android-sdk`).
+- **Sırada:** mağaza ekran görüntüleri; iOS derlemesi ve APNs (Mac + Apple hesabı).
 - Mağaza hesapları ŞİRKET adına (D-U-N-S gerekir); iOS / Android paketleri kullanıcının Mac'inde derlenir.
 
 ## Bekleyen / Yapılacaklar

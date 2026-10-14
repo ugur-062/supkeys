@@ -74,6 +74,7 @@ import { CompanyUsersModule } from "./modules/company-users/company-users.module
 import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 import { NotificationModule } from "./modules/notifications/notification.module";
+import { PushModule } from "./modules/push/push.module";
 import { PasswordResetModule } from "./modules/password-reset/password-reset.module";
 import { ResendWebhookModule } from "./modules/resend-webhook/resend-webhook.module";
 import { EmailProgramsModule } from "./modules/email-programs/email-programs.module";
@@ -228,6 +229,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyComplaintsModule,
     CompanyListingsModule,
     NotificationModule,
+    // Push notifications to the mobile app (FCM), mirrors in-app rows (2026-10-14).
+    PushModule,
     CompanyApprovalsModule,
     CompanyAddressesModule,
     CompanyBankAccountsModule,

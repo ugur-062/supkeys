@@ -66,6 +66,10 @@ export class CsrfGuard implements CanActivate {
       "/resend-email-code",
       "/signup/change-email",
       "/forgot-password",
+      // Push device sign-out (company-auth/push-devices/unregister): runs on
+      // logout like the logout call itself, also with an expired session; the
+      // FCM token in the body is the only credential, no session is touched.
+      "/push-devices/unregister",
     ];
     if (
       isAuthController &&

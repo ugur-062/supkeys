@@ -7,7 +7,8 @@
     "sync": "cap sync",
     "android": "cap open android",
     "ios": "cap open ios",
-    "sync:staging": "ROTHERN_APP_URL=https://staging.supkeys.com cap sync"
+    "sync:staging": "ROTHERN_APP_URL=https://staging.supkeys.com cap sync",
+    "test": "node --test scripts/shell-config.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

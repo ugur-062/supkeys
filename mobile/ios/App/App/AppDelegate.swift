@@ -1,5 +1,13 @@
 import UIKit
 import Capacitor
+// Firebase (anlık bildirim) Mac'te Xcode → Add Package Dependencies ile eklenir; paket yokken
+// proje yine derlenir ama cihaz bildirime KAYDOLMAZ (aşağıda kayıt hatası gider).
+#if canImport(FirebaseCore)
+import FirebaseCore
+#endif
+#if canImport(FirebaseMessaging)
+import FirebaseMessaging
+#endif
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +15,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        #if canImport(FirebaseCore)
+        // GoogleService-Info.plist depoda yok (elle konur); dosya pakette değilken configure()
+        // uygulamayı çökertir → yalnız dosya varsa.
+        if FirebaseApp.app() == nil,
+           Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            FirebaseApp.configure()
+        }
+        #endif
         return true
     }
 
@@ -33,9 +48,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
-    // Anlık bildirim: APNs sonucu Capacitor eklentisine aktarılır.
+    // Anlık bildirim: APNs sonucu Capacitor eklentisine aktarılır. Firebase varken APNs belirteci
+    // FCM'ye verilir ve eklentiye FCM belirteci (String) gider — sunucu YALNIZ FCM üzerinden gönderir.
+    // Firebase yokken (paket eklenmemiş ya da GoogleService-Info.plist pakette değil) ham APNs
+    // belirteci eklentiye VERİLMEZ: web onu cihaz olarak kaydeder, FCM hiç teslim edemez ve satır
+    // silinmeden kalır. Bunun yerine kayıt hatası gider (web sessizce yok sayar, cihaz kaydolmaz).
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+        if FirebaseApp.app() != nil {
+            Messaging.messaging().apnsToken = deviceToken
+            Messaging.messaging().token { token, error in
+                if let error = error {
+                    NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+                } else if let token = token {
+                    NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+                }
+            }
+            return
+        }
+        #endif
+        let error = NSError(domain: "com.rothern.app.push", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Firebase is not configured; the raw APNs token is not usable by the FCM-only backend"
+        ])
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

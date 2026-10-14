@@ -44,11 +44,25 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+// google-services.json is gitignored (mobile/.gitignore) and copied in by hand, see README
+// "Bildirimler (Firebase)". Without it the default FirebaseApp is never initialised and
+// PushNotifications.register() (called by the web on every launch once permission is granted)
+// throws on the plugin thread, which kills the app. Debug builds may skip it with a warning;
+// a release build (store package) must fail instead of shipping a shell that crashes.
+def servicesJSON = file('google-services.json')
+if (servicesJSON.isFile() && servicesJSON.text.trim()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.warn("WARNING: app/google-services.json is missing; push notifications are disabled and release builds will fail.")
+    gradle.taskGraph.whenReady { graph ->
+        def releaseTasks = graph.allTasks.findAll { it.project == project && it.name.contains('Release') }
+        if (!releaseTasks.isEmpty()) {
+            throw new GradleException(
+                "app/google-services.json is missing (Firebase project rothern-98853, package com.rothern.app). " +
+                "A release build without it crashes on launch once push is registered. " +
+                "Download it from the Firebase console into mobile/android/app/ (see mobile/README.md) " +
+                "before a release build (first release task: " + releaseTasks.first().path + ")."
+            )
+        }
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
