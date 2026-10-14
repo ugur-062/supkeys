@@ -310,6 +310,45 @@ describe("NativePushRegistrar", () => {
     expect(shell.plugin.register).toHaveBeenCalledTimes(1);
   });
 
+  // Emülatörde görüldü: Android eklentisi FCM'nin açılışta ürettiği belirteci
+  // saklayıp ilk dinleyiciye veriyor — izin penceresi açıkken kayıt yazılıyordu.
+  it("register() istenmeden gelen (eklentinin sakladığı) belirteç yazılmaz; izinden sonraki yazılır", async () => {
+    const shell = installShell({ permission: "prompt", afterRequest: "denied" });
+    let answer!: (v: { receive: string }) => void;
+    shell.plugin.requestPermissions.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    renderRegistrar();
+    await waitFor(() => expect(shell.count("registration")).toBe(1));
+    act(() => shell.emit("registration", { value: "auto-init-token" }));
+    await waitFor(() => expect(shell.plugin.requestPermissions).toHaveBeenCalled());
+    act(() => shell.emit("registration", { value: "auto-init-token" }));
+    await settle();
+    expect(h.post).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(PUSH_TOKEN_KEY)).toBeNull();
+
+    await act(async () => answer({ receive: "granted" }));
+    await waitFor(() => expect(shell.plugin.register).toHaveBeenCalled());
+    act(() => shell.emit("registration", { value: "auto-init-token" }));
+    await waitFor(() =>
+      expect(h.post).toHaveBeenCalledWith(
+        "/company-auth/push-devices",
+        { token: "auto-init-token", platform: "android" },
+        { skipErrorToast: true },
+      ),
+    );
+  });
+
+  it("izin reddedilmişken gelen belirteç hiç yazılmaz", async () => {
+    const shell = installShell({ permission: "denied" });
+    renderRegistrar();
+    await waitFor(() => expect(shell.plugin.checkPermissions).toHaveBeenCalled());
+    act(() => shell.emit("registration", { value: "auto-init-token" }));
+    await settle();
+    expect(h.post).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem(PUSH_TOKEN_KEY)).toBeNull();
+  });
+
   // İnceleme bulgusu: çıkış beklerken gelen belirteç saklanıp oturum hâlâ
   // geçerliyken kaydediliyordu → satır çıkıştan sonra kişiye bağlı kalıyordu.
   it("çıkış sürerken gelen belirteç saklanmaz ve sunucuya yazılmaz", async () => {

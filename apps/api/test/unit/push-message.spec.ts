@@ -110,6 +110,20 @@ describe("push message", () => {
       apns: { payload: { aps: { sound: "default" } } },
     });
   });
+
+  it("a row without a usable target still opens the notifications list", () => {
+    for (const ctaUrl of [null, "", "//evil.example/x"]) {
+      const m = buildPushMessage(
+        { companyUserId: "u", type: "seat_selection", title: "T", body: "B", ctaUrl },
+        ["a"],
+        "https://www.rothern.com/",
+      );
+      expect(m.data).toEqual({
+        type: "seat_selection",
+        url: "https://www.rothern.com/company/bildirimler",
+      });
+    }
+  });
 });
 
 describe("PushDeviceController wiring", () => {

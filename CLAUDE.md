@@ -4931,9 +4931,13 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   bildirimini ANINDA keser; satır sonraki gönderimde / kayıtta silinir. 30 gündür yenilenmemiş kayıt da
   gönderilmez. Hesap silme, ekipten çıkarma ve KVKK anonimleştirme satırları kendi transaction'ında siler.
   FCM ölü belirteç yanıtında satır silinir (proje çapındaki yetki hatasında SİLİNMEZ). Mesaj: başlık + gövde
-  (kırpılmış), `data.url` = satırın mutlak `ctaUrl`'ü, Android kanal `default` + küçük ikon `ic_stat_rothern`.
+  (kırpılmış), `data.url` = satırın mutlak `ctaUrl`'ü — hedefsiz satırda `PUSH_FALLBACK_PATH`
+  (`/company/bildirimler`; dokunma hiçbir zaman yalnız uygulamayı öne getirmez), Android kanal `default` +
+  küçük ikon `ic_stat_rothern`. Bildirim yazan YENİ çağıran bir hedef (`ctaPath`) verir; bağlantı isteği /
+  kabulü portalın Bağlantılar sayfasına (`connectionsCtaPath`, e-postayla aynı Gold kuralı) gider.
   **Web:** `components/company/native-push-registrar.tsx` (oturumlu düzen; açılış başına izin → Android kanal
-  → `register()` → belirteç POST), dokunma `NativeShellBridge` (`data.url`, aynı köken kuralı), belirteç
+  → `register()` → belirteç POST; `register()` istenmeden gelen belirteç YOK SAYILIR — Android eklentisi FCM'nin
+  açılışta ürettiği belirteci saklayıp ilk dinleyiciye veriyor, izin verilmeden kayıt yazılıyordu), dokunma `NativeShellBridge` (`data.url`, aynı köken kuralı), belirteç
   `localStorage` `rothern:push-token`; çıkışta ve HER 401'de (anlık görüntü olmasa da) `keepalive` ile
   bırakılır, başarısızsa bekleyen silme sonraki yüklemede yeniden denenir; şifre değişince
   `rebindStoredPushToken` belirteci taze oturumla yeniden yazar. Uygulama öndeyken sistem bildirimi

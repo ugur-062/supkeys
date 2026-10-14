@@ -58,13 +58,21 @@ export function absolutePushUrl(
   return null;
 }
 
+/**
+ * Where a tap goes when the row has no target of its own: the in-app
+ * notifications list (internal path; the web redirects to the reader's
+ * language). Without it a tap only brought the app to the front.
+ */
+export const PUSH_FALLBACK_PATH = "/company/bildirimler";
+
 /** One FCM multicast message for the given tokens (contract shared with the app). */
 export function buildPushMessage(
   row: PushNotificationRow,
   tokens: string[],
   webUrl: string,
 ): MulticastMessage {
-  const url = absolutePushUrl(row.ctaUrl, webUrl);
+  const url =
+    absolutePushUrl(row.ctaUrl, webUrl) ?? absolutePushUrl(PUSH_FALLBACK_PATH, webUrl);
   return {
     tokens,
     notification: {

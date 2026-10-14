@@ -96,7 +96,11 @@ describe("bağlantı yaşam döngüsü", () => {
     // Hedefe istek bildirimi.
     expect(notifications.pushToCompany).toHaveBeenCalledWith(
       b.company.id,
-      expect.objectContaining({ type: "connection_request" }),
+      // Zil satırı ve telefon bildirimi gelen isteklere açılır (Gold → satınalma portalı).
+      expect.objectContaining({
+        type: "connection_request",
+        ctaPath: "/company/satinalma/tedarikcilerim?view=incoming",
+      }),
     );
 
     // Giden (a) / gelen (b) listeleri.
@@ -124,7 +128,10 @@ describe("bağlantı yaşam döngüsü", () => {
     await service.accept(b.auth, res.id);
     expect(notifications.pushToCompany).toHaveBeenCalledWith(
       a.company.id,
-      expect.objectContaining({ type: "connection_accepted" }),
+      expect.objectContaining({
+        type: "connection_accepted",
+        ctaPath: "/company/satinalma/tedarikcilerim",
+      }),
     );
 
     const aList = await service.list(a.company.id);

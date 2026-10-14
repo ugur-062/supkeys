@@ -440,7 +440,7 @@ describe("PushService.sendForNotifications", () => {
     expect(await prisma.pushDevice.count()).toBe(4);
   });
 
-  it("no ctaUrl -> no url in data; an absolute ctaUrl is passed as is", async () => {
+  it("no ctaUrl -> the notifications page; an absolute ctaUrl is passed as is", async () => {
     const co = await makeCompanyWithUser(prisma);
     const other = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
     await device("tok-a", co.user.id, co.company.id);
@@ -453,7 +453,11 @@ describe("PushService.sendForNotifications", () => {
     ]);
 
     const byToken = new Map(sent.map((m) => [m.tokens[0], m.data] as const));
-    expect(byToken.get("tok-a")).toEqual({ type: "connection_request" });
+    // Every push opens somewhere: a tap on a row without a target lands on the notifications list.
+    expect(byToken.get("tok-a")).toEqual({
+      type: "connection_request",
+      url: `${WEB}/company/bildirimler`,
+    });
     expect(byToken.get("tok-b")).toEqual({
       type: "connection_request",
       url: "https://www.rothern.com/en/company",

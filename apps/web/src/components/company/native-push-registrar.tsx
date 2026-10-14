@@ -37,7 +37,8 @@ const CHANNEL_IMPORTANCE = 4;
  * kez (`PUSH_SESSION_KEY`): izin sorulmamışsa ("prompt") bir kez sorulur;
  * verildiyse Android'de önce `default` kanalı (yerelleştirilmiş adla) kurulur,
  * sonra `register()`. `registration` olayında belirteç saklanır ve sunucuya
- * platformla yazılır (belirteç yenilenince de). Akış ancak belirteç (ya da kayıt
+ * platformla yazılır (belirteç yenilenince de); `register()` istenmeden gelen
+ * belirteç (eklentinin açılışta sakladığı) yok sayılır. Akış ancak belirteç (ya da kayıt
  * hatası) GELİNCE biter: `register()` hemen çözülür, belirteç sonra olay olarak
  * gelir ve iOS olayı dinleyicisiz anda düşürür — arada sökülen kurulum işareti
  * geri alır, sonraki kurulum yeniden kaydolur. Çıkış sürerken ya da oturum
@@ -60,11 +61,15 @@ export function NativePushRegistrar() {
     const { plugin, platform } = push;
     let disposed = false;
     let finished = false;
+    // Bu kurulum `register()` istedi mi. Android eklentisi FCM'nin açılışta
+    // kendiliğinden ürettiği belirteci saklayıp İLK dinleyiciye verir; izin
+    // sorulmadan (ya da reddedilmişken) o belirteç sunucuya yazılmasın.
+    let requested = false;
 
     const registration = nativeListener(() =>
       plugin.addListener("registration", (token) => {
         const value = pushTokenValue(token);
-        if (!value || disposed) return;
+        if (!value || disposed || !requested) return;
         // Çıkış bu cihazı sunucudan siliyor; oturum düştüyse (401 anlık
         // görüntüyü sildi, söküm henüz koşmadı) kayıt zaten reddedilir. İkisinde
         // de yazılan kayıt çıkan kişiye bağlı kalırdı.
@@ -131,7 +136,10 @@ export function NativePushRegistrar() {
       await registration.ready;
       if (disposed) return;
       // `finished` burada KONMAZ: iki eklenti de `register()`ı hemen çözer,
-      // belirteç sonra `registration` olayıyla gelir (bkz. dinleyici).
+      // belirteç sonra `registration` olayıyla gelir (bkz. dinleyici). Her
+      // `register()` belirteci yeniden yayımlar; öncekinin yok sayılması
+      // kayıt kaybettirmez.
+      requested = true;
       await plugin.register();
     };
     void start().catch(() => {
