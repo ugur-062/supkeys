@@ -27,6 +27,7 @@ import { useTouchTyping } from "@/components/bids/use-touch-typing";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
+import { ViewportLayer } from "@/components/ui/viewport-layer";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
@@ -1508,23 +1509,29 @@ export function QuickRequest({
             GİZLİ (`useTouchTyping`; teklif formuyla aynı).
           - `data-sticky-cta`: görünürken kökün `scroll-padding-bottom`u
             (globals.css) Sekme odağını çubuğun arkasından çıkarır; AI düğmesi
-            alt çubuğu bu işaretle de tanır. */}
+            alt çubuğu bu işaretle de tanır.
+          - `ViewportLayer`: çubuk `body`ye taşınır — `<main>` bir kapsayıcı
+            (`@container/panel`), eski WebView/Safari'de `fixed` öğeyi ekranın
+            değil formun sonuna koyuyordu. Düğme `type="button"` + onClick:
+            forma bağlı değil, taşınınca da aynı çalışır. */}
       {canManage ? (
-        // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
-        <div
-          data-sticky-cta=""
-          className={cn(
-            "fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
-            touchTyping && "hidden",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
-            <button type="button" data-keeps-validation-toast="" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {isLiveEdit ? tr("kaydet") : tr("yayinla")}
-            </button>
+        <ViewportLayer>
+          {/* Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı. */}
+          <div
+            data-sticky-cta=""
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
+              touchTyping && "hidden",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
+              <button type="button" data-keeps-validation-toast="" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {isLiveEdit ? tr("kaydet") : tr("yayinla")}
+              </button>
+            </div>
           </div>
-        </div>
+        </ViewportLayer>
       ) : null}
       <SaveTemplateDialog
         open={templateOpen}

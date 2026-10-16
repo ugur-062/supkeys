@@ -1316,6 +1316,25 @@ describe("QuickRequest — mobil denetim fix4", () => {
     }
   }, 30_000);
 
+  // Öykünücü / WebView 124: panel `<main>`i `@container/panel`; eski motor onu
+  // `fixed` öğenin içerik bloğu yapıyor, çubuk formun SONUNA düşüyordu
+  // (top 5268 px) → çubuk `ViewportLayer` ile `body`ye taşınır.
+  it("alt çubuk body'de (ViewportLayer): kapsayıcı main'in içinde değil; Yayınla forma bağlı değil (type=button)", async () => {
+    wrap(
+      <main className="@container/panel">
+        <QuickRequest />
+      </main>,
+    );
+    await screen.findByLabelText(/^Kalem Adı/);
+    const bar = stickyBar();
+    expect(bar.parentElement).toBe(document.body);
+    expect(document.querySelector("main")).not.toContainElement(bar);
+    expect(barClasses()).toEqual(expect.arrayContaining(["fixed", "inset-x-0", "bottom-0", "z-20", "mb-0", "lg:hidden"]));
+    // Düğme `type="button"` + onClick: forma bağlı değil, taşınınca da yayın akışını çalıştırır.
+    const publish = within(bar).getByRole("button", { name: "Talebi yayınla (mobil)" });
+    expect(publish).toHaveAttribute("type", "button");
+  }, 30_000);
+
   it("fareli cihazda (kaba işaretçi yok) yazarken çubuk yerinde kalır", async () => {
     wrap(<QuickRequest />);
     const name = await screen.findByLabelText(/^Kalem Adı/);

@@ -5003,6 +5003,15 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   `interactiveWidget` bilinçli YOK (klavyenin düzeni küçültmesi her sayfayı etkiler; kullanıcı kararı bekliyor).
   Kabuğun `<html>` `style`ına yazdığı `--safe-area-inset-*` değerlerini React'in kök öznitelik değişimi (bulunamadı
   kabuğu) silmesin diye `NativeShellBridge` son değerleri `lib/native-shell.ts` `keepSafeAreaInsets` ile korur.
+  **SAYFA İÇERİĞİNDEKİ `fixed` ÖĞE `ViewportLayer`DAN GEÇER (2026-10-16, öykünücü / WebView 124):** panel `<main>`i
+  `@container/panel`, herkese açık `<main>` `@container`; eski motorlar (Chrome / WebView ~128 öncesi, eski Safari)
+  kapsayıcıya yerleşim kapsaması da uygular ve `<main>` içindeki `fixed` öğe ekrana değil `<main>`e göre konumlanır
+  (yeni talebin "Yayınla" çubuğu formun sonunda kalıyordu; Playwright'ın yeni Chromium'u yapmaz, testler görmez).
+  `<main>` altında çizilen portalsız her `fixed` öğe `components/ui/viewport-layer.tsx` `ViewportLayer` ile `body`ye
+  taşınır (SSR / hidrasyonda çizilmez, hemen ardından portal): bugün hızlı talep ve teklif-ver alt çubukları, Profilim
+  kaydet çubuğu, `FloatingRequestDock`. Taşınan öğe DOM'da `body`nin sonundadır: içindeki `type="submit"` düğmesi
+  `form="<id>"` taşır, öğeyi ölçen efekt `[]`e değil öğeye (geri çağırımlı ref) bağlanır, yerel dinleyici `document`te.
+  Pencere / çekmece / menü Headless UI portalından zaten `body`de. Sözleşme `viewport-layer.test` + dört yerin testi.
 - **Hesap silme (iki mağaza da uygulama içinden ister):** `POST company-auth/delete-account { password }` →
   `AccountDeletionService` (bypass istemcisi, firma + kullanıcı satırları `FOR UPDATE`); arayüz Ayarlar › Hesap
   Bilgileri `DeleteAccountSection`. Kural: şifre doğrulanır; ÜYE hemen anonimleşir (e-posta

@@ -63,9 +63,13 @@ export function PublicLayout({
           anasayfa hero'su — `heroBandClass`) gövdenin yatay güvenli alan
           payı DÜŞÜLMÜŞ genişliği ölçer; kapsayıcı yokken `100cqw` görünüm
           alanının tamamıydı ve yatay iPhone'da arama kutusu ile "Ara"
-          çentik tarafına taşıyordu. Panelde `main` zaten kapsayıcı. Kapsayıcı
-          sabit konumlu öğeler için içerik bloğu kurmaz (yüzen düğmeler
-          görünüm alanına göre kalır). */}
+          çentik tarafına taşıyordu. Panelde `main` zaten kapsayıcı.
+          DİKKAT: eski motorlar (WebView/Chrome ~128 öncesi, eski Safari)
+          kapsayıcıya yerleşim kapsaması da uygular ve `main` içindeki `fixed`
+          öğenin içerik bloğu olur — yüzen düğme / alt çubuk görünüm alanına
+          değil `main`e göre konumlanır. Sayfa içeriğindeki her `fixed` öğe
+          `ViewportLayer` ile `body`ye taşınır (yüzen "Talep aç":
+          `FloatingRequestDock`). */}
       <main className="@container pt-(--safe-top)">{children}</main>
       <MarketplaceFooter />
     </div>

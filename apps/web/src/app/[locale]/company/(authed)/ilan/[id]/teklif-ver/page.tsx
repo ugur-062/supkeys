@@ -8,6 +8,7 @@ import { VerificationButton, VerificationLockCard } from "@/components/company/v
 import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
+import { ViewportLayer } from "@/components/ui/viewport-layer";
 import {
   Dialog,
   DialogActions,
@@ -323,6 +324,9 @@ export default function TeklifVerPage() {
   // görünür alana getirilir ve kısa süre vurgulanır (mobil denetim g08).
   const problemsRef = useRef<HTMLUListElement>(null);
   const problemsId = useId();
+  // Formun kimliği: mobil yapışkan çubuk `ViewportLayer` ile `body`ye taşınır
+  // (DOM'da formun dışında); oradaki `type="submit"` düğmesi forma `form` ile bağlı.
+  const formId = useId();
   const [problemsFlash, setProblemsFlash] = useState(false);
   useEffect(() => {
     if (!problemsFlash) return;
@@ -1458,6 +1462,7 @@ export default function TeklifVerPage() {
     // temizse onay diyaloğunu açar (buton akışıyla birebir).
     <form
       ref={attachForm}
+      id={formId}
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
@@ -2240,69 +2245,77 @@ export default function TeklifVerPage() {
           - Toplam sütunu kalan genişliği alır, düğme en çok yarı genişlik ve
             gerekirse iki satır: RU "Отправить предложение" tek satırda
             240 px tutup tutarı düğmenin altına itiyordu.
-          - `data-sticky-cta`: AI düğmesi alt çubukları bu işaretle de tanır. */}
-      <div
-        data-sticky-cta=""
-        className={cn(
-          // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
-          "fixed inset-x-0 bottom-0 z-20 mb-0 items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
-          touchTyping ? "hidden" : "flex",
-        )}
-      >
-        <div className="@container min-w-0 flex-1">
-          <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-            {tr("toplamTeklif")}
-          </p>
-          <p className="text-base font-bold text-zinc-950 tabular-nums" style={{ fontSize: totalFontBar }}>
-            {totalLabel}
-          </p>
-          {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
-          {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
-            <p
-              className={cn(
-                "text-xs tabular-nums",
-                workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
-              )}
-            >
-              {workbenchTarget.met
-                ? tr("indirim", { money: money(
-                    Number(
-                      decSub(
-                        workbenchTarget.ownLastTotal,
-                        workbenchTarget.comparableTotalStr,
-                      ),
-                    ),
-                    effectiveCurrency,
-                  ) })
-                : tr("oncekindenDusukOlmali")}
-            </p>
-          ) : null}
-        </div>
-        {/* Eksik varken düğme PASİF DEĞİL (mobil denetim g08): pasif düğmeye
-            dokunmak hiçbir şey yapmıyordu, nedenler formun en altındaydı.
-            Görünümü pasif gibi kalır (`data-incomplete`; `aria-disabled`
-            KULLANILMAZ — Headless UI o öznitelikte tıklama işleyicisini
-            söker), eksik listesi açıklama olarak bağlı; basınca liste görünür
-            alana gelir. Masaüstü sağ kolon düğmesi ve Enter (formun ilk
-            gönder düğmesi o) değişmedi. */}
-        <Button
-          type="submit"
-          color="emerald"
-          disabled={busy}
-          data-incomplete={problems.length > 0 ? "" : undefined}
-          aria-describedby={problems.length > 0 ? problemsId : undefined}
-          onClick={(e) => {
-            if (problems.length === 0) return;
-            e.preventDefault();
-            revealProblems();
-          }}
-          // Telefonda iki satıra sarabilir: satır yüksekliği sıkı, dolgu 2 px
-          // fazla → tek satırlık etiket (TR/EN) yine 44 px, RU iki satır 64 px.
-          className="max-w-[50%] shrink-0 text-center leading-tight whitespace-normal max-sm:py-[calc(--spacing(3)-1px)] data-incomplete:text-zinc-400 data-incomplete:[--btn-hover-overlay:transparent] data-incomplete:[--btn-icon:var(--color-zinc-400)] data-incomplete:before:shadow-none data-incomplete:after:shadow-none sm:max-w-none sm:whitespace-nowrap"
+          - `data-sticky-cta`: AI düğmesi alt çubukları bu işaretle de tanır.
+          - `ViewportLayer`: çubuk `body`ye taşınır — `<main>` bir kapsayıcı
+            (`@container/panel`), eski WebView/Safari'de `fixed` öğeyi ekranın
+            değil sayfanın sonuna koyuyordu. DOM'da formun dışında kaldığı için
+            gönder düğmesi forma `form={formId}` ile bağlı (Enter'ın varsayılan
+            düğmesi yine sağ kolondaki, ağaç sırasında önce gelen düğme). */}
+      <ViewportLayer>
+        <div
+          data-sticky-cta=""
+          className={cn(
+            // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
+            "fixed inset-x-0 bottom-0 z-20 mb-0 items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
+            touchTyping ? "hidden" : "flex",
+          )}
         >
-          {tr("teklifGonder")}
-        </Button>
-      </div>
+          <div className="@container min-w-0 flex-1">
+            <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+              {tr("toplamTeklif")}
+            </p>
+            <p className="text-base font-bold text-zinc-950 tabular-nums" style={{ fontSize: totalFontBar }}>
+              {totalLabel}
+            </p>
+            {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
+            {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
+              <p
+                className={cn(
+                  "text-xs tabular-nums",
+                  workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
+                )}
+              >
+                {workbenchTarget.met
+                  ? tr("indirim", { money: money(
+                      Number(
+                        decSub(
+                          workbenchTarget.ownLastTotal,
+                          workbenchTarget.comparableTotalStr,
+                        ),
+                      ),
+                      effectiveCurrency,
+                    ) })
+                  : tr("oncekindenDusukOlmali")}
+              </p>
+            ) : null}
+          </div>
+          {/* Eksik varken düğme PASİF DEĞİL (mobil denetim g08): pasif düğmeye
+              dokunmak hiçbir şey yapmıyordu, nedenler formun en altındaydı.
+              Görünümü pasif gibi kalır (`data-incomplete`; `aria-disabled`
+              KULLANILMAZ — Headless UI o öznitelikte tıklama işleyicisini
+              söker), eksik listesi açıklama olarak bağlı; basınca liste görünür
+              alana gelir. Masaüstü sağ kolon düğmesi ve Enter (formun ilk
+              gönder düğmesi o) değişmedi. */}
+          <Button
+            type="submit"
+            form={formId}
+            color="emerald"
+            disabled={busy}
+            data-incomplete={problems.length > 0 ? "" : undefined}
+            aria-describedby={problems.length > 0 ? problemsId : undefined}
+            onClick={(e) => {
+              if (problems.length === 0) return;
+              e.preventDefault();
+              revealProblems();
+            }}
+            // Telefonda iki satıra sarabilir: satır yüksekliği sıkı, dolgu 2 px
+            // fazla → tek satırlık etiket (TR/EN) yine 44 px, RU iki satır 64 px.
+            className="max-w-[50%] shrink-0 text-center leading-tight whitespace-normal max-sm:py-[calc(--spacing(3)-1px)] data-incomplete:text-zinc-400 data-incomplete:[--btn-hover-overlay:transparent] data-incomplete:[--btn-icon:var(--color-zinc-400)] data-incomplete:before:shadow-none data-incomplete:after:shadow-none sm:max-w-none sm:whitespace-nowrap"
+          >
+            {tr("teklifGonder")}
+          </Button>
+        </div>
+      </ViewportLayer>
       {/* Yapışkan çubuk içeriği örtmesin */}
       <div className="h-16 lg:hidden" />
 

@@ -1115,6 +1115,42 @@ describe("TeklifVerPage — mobil denetim 2026-10 g08", () => {
     expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
   });
 
+  // Öykünücü / WebView 124: panel `<main>`i `@container/panel`; eski motor onu
+  // `fixed` öğenin içerik bloğu yapıyor → çubuk `ViewportLayer` ile `body`ye
+  // taşınır. DOM'da formun DIŞINDA kaldığı için gönder düğmesi forma `form`
+  // özniteliğiyle bağlıdır; Enter'ın varsayılan düğmesi masaüstü düğmesi kalır.
+  it("yapışkan çubuk body'de (ViewportLayer): main ve formun içinde değil; gönder düğmesi forma `form` ile bağlı", async () => {
+    const user = userEvent.setup();
+    render(
+      <main className="@container/panel">
+        <TeklifVerPage />
+      </main>,
+    );
+    const bar = stickyBar();
+    expect(bar.parentElement).toBe(document.body);
+    expect(document.querySelector("main")).not.toContainElement(bar);
+    const form = document.querySelector("main form") as HTMLFormElement;
+    expect(form).not.toContainElement(bar);
+    expect(form.id).not.toBe("");
+    const sticky = within(bar).getByRole<HTMLButtonElement>("button", { name: "Teklif Gönder" });
+    expect(sticky).toHaveAttribute("type", "submit");
+    expect(sticky).toHaveAttribute("form", form.id);
+    expect(sticky.form).toBe(form);
+    // Formun varsayılan (Enter) düğmesi ağaç sırasında önce gelen masaüstü düğmesi.
+    const submits = Array.from(form.elements).filter(
+      (el): el is HTMLButtonElement => el instanceof HTMLButtonElement && el.type === "submit",
+    );
+    expect(submits[0]).not.toBe(sticky);
+    expect(form).toContainElement(submits[0]!);
+
+    // Taşınan düğme formu gönderir: eksik kalmayınca onay penceresi açılır.
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    await user.click(sticky);
+    expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+  });
+
   it("dokunmatik cihazda metin alanı odaktayken (ekran klavyesi) yapışkan çubuk gizlenir, odak çıkınca geri gelir", async () => {
     const restore = withCoarsePointer();
     try {

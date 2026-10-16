@@ -220,6 +220,32 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Yeni tanıtım");
   });
 
+  // Öykünücü / WebView 124: panel `<main>`i `@container/panel`; eski motor onu
+  // `fixed` öğenin içerik bloğu yapıyor, kaydet çubuğu ekranın değil sayfanın
+  // sonuna düşüyordu → çubuk `ViewportLayer` ile `body`ye taşınır.
+  it("kaydet çubuğu body'de (ViewportLayer): kapsayıcı main'in içinde değil; Kaydet / Vazgeç yine çalışır", async () => {
+    render(
+      <main className="@container/panel">
+        <ProfileEditor profile={PROFILE} canEdit />
+      </main>,
+    );
+    fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Yeni tanıtım" } });
+    const bar = screen.getByText("Kaydedilmemiş değişiklikler var.").closest('[role="status"]') as HTMLElement;
+    expect(bar.parentElement).toBe(document.body);
+    expect(document.querySelector("main")).not.toContainElement(bar);
+    expect(bar.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["fixed", "inset-x-0", "bottom-0", "z-20", "mb-0", "sm:pl-72"]),
+    );
+    fireEvent.click(within(bar).getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update.mock.calls[0]![0]).toEqual({ aboutText: "Yeni tanıtım" });
+    // Temizlenince çubuk body'den de kalkar.
+    fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Geçici" } });
+    fireEvent.click(within(screen.getByText("Kaydedilmemiş değişiklikler var.").closest('[role="status"]') as HTMLElement).getByRole("button", { name: "Vazgeç" }));
+    expect(screen.queryByText("Kaydedilmemiş değişiklikler var.")).toBeNull();
+    expect(document.body.querySelector(':scope > [role="status"].fixed')).toBeNull();
+  });
+
   it("hizmet chip'i ekle/kaldır taslağa yansır; kayıt gövdesi photos TAŞIMAZ", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     const input = screen.getByLabelText("Hizmet ekle");

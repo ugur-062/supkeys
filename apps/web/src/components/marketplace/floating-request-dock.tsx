@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useTouchTyping } from "@/components/bids/use-touch-typing";
+import { ViewportLayer } from "@/components/ui/viewport-layer";
 
 /**
  * YÜZEN "TALEP AÇ" KÖŞESİ — ürün dizininin sağ-alt köşedeki düğmesi (mobil
@@ -23,6 +24,13 @@ import { useTouchTyping } from "@/components/bids/use-touch-typing";
  *    düğme geri gelir. Ölçüm kaydırma / boyut değişiminde kare başına bir kez.
  * Gizliyken kutu yerinde kalır (yalnız saydam): ölçüm kendi gizlenişinden
  * etkilenmez, düğme yanıp sönmez.
+ *
+ * Kutu `ViewportLayer` ile `body`ye taşınır: herkese açık `<main>` bir
+ * kapsayıcı (`@container`), eski WebView/Safari'de `fixed` köşe ona göre
+ * konumlanıp sayfanın sonuna düşüyordu. Hidrasyon yolunda kutu bir çizim
+ * SONRA bağlanır → ölçüm efekti `[]`e değil kutunun kendisine bağlı
+ * (geri çağırımlı ref); yoksa ilk ölçüm boş ref görür, kaydırmadan önce
+ * örtüşme yakalanmazdı.
  */
 export const FLOAT_AVOID_ATTR = "data-float-avoid";
 
@@ -46,7 +54,7 @@ export function FloatingRequestDock({
   /** Konum sınıfları (`fixed`, köşe payları, güvenli alan). */
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const [dock, setDock] = useState<HTMLDivElement | null>(null);
   // Yazım kuralı sayfanın tamamına bakar (arama kutusu, süzgeç alanları…).
   const pageRef = useRef<HTMLElement | null>(typeof document === "undefined" ? null : document.body);
   const typing = useTouchTyping(pageRef);
@@ -54,11 +62,11 @@ export function FloatingRequestDock({
 
   useEffect(() => {
     pageRef.current = document.body;
+    if (!dock) return;
     let raf = 0;
     const measure = () => {
       raf = 0;
-      const el = ref.current;
-      setOverlaps(el ? floatOverlapsAvoid(el) : false);
+      setOverlaps(floatOverlapsAvoid(dock));
     };
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(measure);
@@ -80,20 +88,22 @@ export function FloatingRequestDock({
       vv?.removeEventListener("scroll", schedule);
       ro?.disconnect();
     };
-  }, []);
+  }, [dock]);
 
   const hidden = typing || overlaps;
   return (
-    <div
-      ref={ref}
-      aria-hidden={hidden || undefined}
-      inert={hidden || undefined}
-      data-float-hidden={hidden ? (typing ? "typing" : "overlap") : undefined}
-      className={`${className} transition-opacity duration-200 motion-reduce:transition-none ${
-        hidden ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
-    >
-      {children}
-    </div>
+    <ViewportLayer>
+      <div
+        ref={setDock}
+        aria-hidden={hidden || undefined}
+        inert={hidden || undefined}
+        data-float-hidden={hidden ? (typing ? "typing" : "overlap") : undefined}
+        className={`${className} transition-opacity duration-200 motion-reduce:transition-none ${
+          hidden ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+      >
+        {children}
+      </div>
+    </ViewportLayer>
   );
 }

@@ -9,8 +9,13 @@
  *  · 844×390 yatay: sayfa başında arama satırı zaten köşede → düğmenin kutusu
  *    `[data-float-avoid]` bölgesiyle kesişirken düğme çekilir; arama kaydırılıp
  *    gidince geri gelir.
+ *  · Kab `ViewportLayer` ile `body`de (herkese açık `main` kapsayıcı; eski
+ *    WebView/Safari `fixed` köşeyi ona göre konumluyordu); hidrasyon yolunda
+ *    ilk ölçüm kab bağlanınca yapılır.
  */
 import { act, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FloatingRequestDock, floatOverlapsAvoid } from "../floating-request-dock";
@@ -173,5 +178,52 @@ describe("FloatingRequestDock", () => {
     render(<Page />);
     expect(dock()).toHaveClass("fixed", "right-3", "bottom-3", "flex");
     expect(dock()).toContainElement(screen.getByRole("button", { name: "Talep aç" }));
+  });
+
+  // Öykünücü / WebView 124: herkese açık `<main>` `@container`; eski motor onu
+  // `fixed` köşenin içerik bloğu yapıyor, düğme sayfanın sonuna düşüyordu →
+  // kab kendini `ViewportLayer` ile `body`ye taşır.
+  it("köşe kabı body'de (ViewportLayer): kapsayıcı main'in içinde değil", () => {
+    render(
+      <main className="@container">
+        <Page />
+      </main>,
+    );
+    expect(dock().parentElement).toBe(document.body);
+    expect(document.querySelector("main")).not.toContainElement(dock());
+    expect(document.querySelector("main")).toContainElement(screen.getByTestId("arama"));
+  });
+
+  it("hidrasyon yolunda kab bir çizim sonra gelir: ilk ölçüm kaydırma beklemeden yapılır (köşe aramayla kesişiyorsa çekilir)", async () => {
+    // Kab hidrasyondan SONRA yaratılır → kutular öğeye değil seçiciye göre.
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.matches("[data-float-avoid]")) return rect({ left: 24, top: 296, width: 796, height: 72 });
+      if (this.matches(".fixed")) return rect({ left: 722, top: 326, width: 102, height: 44 });
+      return rect({ left: 0, top: 0, width: 0, height: 0 });
+    };
+    const ui = (
+      <main className="@container">
+        <Page />
+      </main>
+    );
+    const html = renderToString(ui);
+    expect(html).not.toContain("Talep aç");
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    document.body.appendChild(root);
+    const onRecoverableError = vi.fn();
+    let hydrated: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => {
+      hydrated = hydrateRoot(root, ui, { onRecoverableError });
+    });
+    try {
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(dock().parentElement).toBe(document.body);
+      // Kaydırma / boyut olayı YOK: ölçüm kab bağlanınca koştu.
+      expect(dock()).toHaveAttribute("data-float-hidden", "overlap");
+    } finally {
+      act(() => hydrated?.unmount());
+      root.remove();
+    }
   });
 });

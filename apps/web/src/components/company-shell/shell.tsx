@@ -150,7 +150,11 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
              yukarıda durur. `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
              1320px ile sınırlı; hero bandı gibi tam genişlik isteyen bir
              bölüm bu sınırı ancak kapsayıcı sorgusuyla aşabilir
-             (`100cqw`) — `100vw` sol menünün altına taşardı. */
+             (`100cqw`) — `100vw` sol menünün altına taşardı. DİKKAT: eski
+             WebView/Safari kapsayıcıya yerleşim kapsaması da uygular, `main`
+             içindeki `fixed` öğe ekrana değil `main`e göre konumlanır →
+             sayfa içeriğindeki her `fixed` öğe `ViewportLayer` ile `body`ye
+             taşınır (alt yapışkan çubuklar). */
           "@container/panel flex min-h-svh flex-col pt-(--topbar-h) pb-(--safe-bottom) transition-[padding] duration-200 ease-out",
           expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}

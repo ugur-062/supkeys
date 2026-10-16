@@ -4,6 +4,7 @@ import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
+import { ViewportLayer } from "@/components/ui/viewport-layer";
 import { useShowcaseItems } from "@/hooks/use-company-items";
 import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks, visibleCompanyCategorySelection } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
@@ -669,38 +670,43 @@ export function ProfileEditor({
         </aside>
       </div>
 
-      {/* Yapışkan kaydet çubuğu — yalnız kirliyken. */}
+      {/* Yapışkan kaydet çubuğu — yalnız kirliyken. `ViewportLayer`: çubuk
+          `body`ye taşınır — `<main>` bir kapsayıcı (`@container/panel`), eski
+          WebView/Safari'de `fixed` öğeyi ekranın değil sayfanın sonuna
+          koyuyordu. Düğmeler onClick'li, forma bağlı değil. */}
       {dirty ? (
-        <div
-          role="status"
-          // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
-          className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] shadow-2xl backdrop-blur sm:pl-72"
-        >
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
-            {/* GERİ YÜKLENEN TASLAK ÇUBUKTA DA SÖYLENİR (canlı doğrulama PD-R4).
-                Sayfa en üstten açılır; ayrıntılı not Hakkında kutusunun altında,
-                görünür alanın dışındadır (1440×900'de y = 999 px; telefonda
-                birkaç ekran aşağıda). Çubuk her zaman görünür: kullanıcı neden
-                kaydedilmemiş değişiklik olduğunu indiği yerde okur. */}
-            <p className="min-w-0 text-sm text-zinc-700">
-              <span>{t("kaydedilmemisDegisikliklerVar")}</span>
-              {aboutRestored && aboutDirty ? (
-                <>
-                  {" "}
-                  <span className="font-medium text-zinc-900">{t("aboutAi.restoredBar")}</span>
-                </>
-              ) : null}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button plain onClick={discard} disabled={update.isPending}>
-                {t("vazgec")}
-              </Button>
-              <Button onClick={() => void save()} disabled={update.isPending}>
-                {update.isPending ? t("kaydediliyor") : t("kaydet")}
-              </Button>
+        <ViewportLayer>
+          <div
+            role="status"
+            // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
+            className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] shadow-2xl backdrop-blur sm:pl-72"
+          >
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
+              {/* GERİ YÜKLENEN TASLAK ÇUBUKTA DA SÖYLENİR (canlı doğrulama PD-R4).
+                  Sayfa en üstten açılır; ayrıntılı not Hakkında kutusunun altında,
+                  görünür alanın dışındadır (1440×900'de y = 999 px; telefonda
+                  birkaç ekran aşağıda). Çubuk her zaman görünür: kullanıcı neden
+                  kaydedilmemiş değişiklik olduğunu indiği yerde okur. */}
+              <p className="min-w-0 text-sm text-zinc-700">
+                <span>{t("kaydedilmemisDegisikliklerVar")}</span>
+                {aboutRestored && aboutDirty ? (
+                  <>
+                    {" "}
+                    <span className="font-medium text-zinc-900">{t("aboutAi.restoredBar")}</span>
+                  </>
+                ) : null}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button plain onClick={discard} disabled={update.isPending}>
+                  {t("vazgec")}
+                </Button>
+                <Button onClick={() => void save()} disabled={update.isPending}>
+                  {update.isPending ? t("kaydediliyor") : t("kaydet")}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </ViewportLayer>
       ) : null}
     </div>
   );

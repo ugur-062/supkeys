@@ -147,6 +147,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   // Konum köşe kabında (`FloatingRequestDock`, 2. tur g02): telefonda yazarken
   // ve köşe arama satırının üstüne düştüğünde (klavye açık, yatay telefon)
   // düğme çekilir — yoksa "Ara"nın üstüne binip dokunuşu kayda götürüyordu.
+  // Kab kendini `body`ye taşır (`ViewportLayer`): `main` bir kapsayıcı, eski
+  // WebView/Safari'de `fixed` köşe ona göre konumlanıyordu.
   const floatDockCls =
     "fixed right-3 bottom-3 mr-(--safe-right) mb-(--safe-bottom) z-30 flex sm:right-5 sm:bottom-5";
   const floatCls =
