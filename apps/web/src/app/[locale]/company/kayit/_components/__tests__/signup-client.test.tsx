@@ -228,7 +228,6 @@ describe("CompanySignupClient — form aşaması", () => {
         "marketingConsent",
         "mediationAccepted",
         "password",
-        "profileImprovementConsent",
         "referralToken",
         "termsAccepted",
       ].sort(),
@@ -486,7 +485,7 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     const user = userEvent.setup();
     const first = render(<CompanySignupClient />);
     await fillValidForm(user);
-    await user.click(screen.getByRole("checkbox", { name: "Pazarlama ve analitik / ticari ileti (opsiyonel)" }));
+    await user.click(screen.getByRole("checkbox", { name: "Rothern'in kampanya ve tanıtımlarına ilişkin ticari elektronik ileti almak istiyorum (isteğe bağlı)" }));
     // Depoda şifre YOK; telefon alanı da yok (form sormuyor).
     const raw = sessionStorage.getItem(DRAFT_KEY) ?? "";
     expect(raw).toContain("ada@firma.com");
@@ -505,13 +504,13 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
     for (const name of [
       "Kullanıcı sözleşmesini okudum ve kabul ediyorum",
       "Platform aracılık ve kullanım sözleşmesini kabul ediyorum",
-      "Pazarlama ve analitik / ticari ileti (opsiyonel)",
+      "Rothern'in kampanya ve tanıtımlarına ilişkin ticari elektronik ileti almak istiyorum (isteğe bağlı)",
     ]) {
       expect(screen.getByRole("checkbox", { name })).toHaveAttribute("aria-checked", "true");
     }
     expect(
-      screen.getByRole("checkbox", { name: "Profil ve hizmet iyileştirme (opsiyonel)" }),
-    ).toHaveAttribute("aria-checked", "false");
+      screen.getByRole("checkbox", { name: "KVKK Aydınlatma Metni bilgilendirmesini okudum" }),
+    ).toHaveAttribute("aria-checked", "true");
   });
 
   it("kod adımında yenileme: kod adımı aynı adresle geri gelir (boş forma dönmez)", async () => {
@@ -546,7 +545,7 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
         email: "ada@firma.com",
         // Eski sürümün yazdığı taslak telefon taşır: okunmaz, akış bozulmaz.
         phone: "+90 5551112233",
-        consents: { terms: true, mediation: true, kvkk: true, marketing: false, profile: false },
+        consents: { terms: true, mediation: true, kvkk: true, marketing: false },
         verifyEmail: "ada@firma.com",
         emailSeed: "",
       }),
@@ -613,7 +612,7 @@ describe("CompanySignupClient — taslak: dil değişimi ve yenileme (code-auth-
         firstName: "Ada",
         lastName: "",
         email: "ada@firma.com",
-        consents: { terms: false, mediation: false, kvkk: false, marketing: false, profile: false },
+        consents: { terms: false, mediation: false, kvkk: false, marketing: false },
         verifyEmail: null,
         emailSeed,
       });
@@ -767,7 +766,7 @@ describe("CompanySignupClient — kayıt denetimi 2026-10 üçüncü tur", () =>
         firstName: "Ada",
         lastName: "Yılmaz",
         email: "ada@firma.com",
-        consents: { terms: true, mediation: true, kvkk: true, marketing: false, profile: false },
+        consents: { terms: true, mediation: true, kvkk: true, marketing: false },
         verifyEmail: "ada@firma.com",
         emailSeed: "",
       }),

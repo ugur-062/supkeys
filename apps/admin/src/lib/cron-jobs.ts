@@ -30,6 +30,15 @@ export const CRON_JOB_META: Record<string, { label: string; schedule: string }> 
     label: "E-postası 7 gündür doğrulanmayan kayıtları sil (adres yeniden kullanılabilir)",
     schedule: "Her gece 05:10 (İstanbul)",
   },
+  "retention.purge": {
+    label:
+      "Saklama ve İmha Politikası: süresi dolan kişisel verileri sil veya ayıkla (bağlantılar, kodlar, davetler, bildirimler, e-posta ve denetim kayıtları…); her koşu imha kaydı yazar",
+    schedule: "Her gece 05:30 (İstanbul) + açılışta telafi",
+  },
+  "account.closedCompanyErasure": {
+    label: "Son kullanıcısı hesabını silen ve 7 gündür KVKK silmesi bekleyen firmaları bildir (30 gün sözü)",
+    schedule: "Her gün 09:30 (İstanbul)",
+  },
   "views.replyTimes": {
     label: "Firmaların ortanca ilk yanıt süresini hesapla (\"hızlı yanıt\")",
     schedule: "Her gece 04:35 (İstanbul)",

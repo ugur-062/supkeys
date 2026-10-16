@@ -8,6 +8,18 @@ Servis fail davranışları [dış servis envanteri](#dış-servis-fail-davranı
 tablosunda özetlendi — **hangi eksik sessizce geçer, hangisi app'i boot ettirmez**
 ayrımı kritik.
 
+> **KVKK METİN KAPISI (2026-10-16, BLOKLAYICI):** yeni KVKK Aydınlatma, Gizlilik,
+> Saklama ve İmha Politikası, Kullanıcı Sözleşmesi m.8, `/hesap-silme` metinleri ve
+> kayıt formu onay satırları, `docs/kvkk-uyum.md` "Canlı kapısı"ndaki her madde
+> bitip `docs/legal/dpa/README.md`'ye işlenmeden canlıya çıkmaz
+> (`docs/release-process.md` Kurallar).
+>
+> - [ ] SS-2: sağlayıcılarla imza + 5 iş günü içinde Kurum bildirimi (kvkk-uyum 1–4)
+> - [ ] Trafik kayıtları kapalı R2 kovasına akıyor, yaşam döngüsü 400 gün (kvkk-uyum 6)
+> - [ ] Apple (APNs) ve yurt dışı karşı taraf için avukat yanıtı metne işlendi (kvkk-uyum §10 soru 3, 5)
+> - [ ] Kurul yeterlilik kararı kontrolü (karar çıktıysa m.4 dayanağı değişir)
+> - [ ] Kullanıcı Sözleşmesi m.8 değişikliği mevcut kullanıcılara bildirildi (uygulama içi + e-posta)
+
 > **En tehlikeli tek nokta:** `SENTRY_DSN`. Diğer tüm çekirdek servisler (Supabase,
 > R2, Resend) env'i eksikse app **boot etmez** (fail-closed, hatayı hemen görürsün).
 > Sentry ise eksikse **sessizce no-op** olur — error tracking + kritik-audit/webhook

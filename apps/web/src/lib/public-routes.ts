@@ -48,6 +48,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/sss", // sık sorulan sorular — FAQPage şeması (GEO)
   "/hakkimizda",
   "/iletisim",
+  "/hesap-silme", // hesap silme adımları — mağazaların istediği girişsiz sayfa
   "/sozlesmeler",
   // HTML OLMAYAN herkese açık uçlar (SEO Parça 5): sitemap parçaları ve
   // IndexNow anahtar dosyası. CSP/nonce anlamsız (XML/metin) ama liste

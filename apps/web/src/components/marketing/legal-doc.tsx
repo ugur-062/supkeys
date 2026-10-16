@@ -4,15 +4,36 @@ import { PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { formatDate } from "@/lib/format-date";
 import { localizePath } from "@/i18n/href";
+import { Link } from "@/i18n/navigation";
 import { SITE_ID, breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import { absoluteUrl } from "@/lib/seo/meta";
 import type { ReactNode } from "react";
+
+/**
+ * Sözleşme metnindeki tablo (Saklama ve İmha Politikası: Silme Yönetmeliği
+ * m.6/1-g "saklama ve imha sürelerini gösteren tablo"). Her satır sütun
+ * sayısı kadar hücre taşır; hücre düz metindir (e-posta adresi tıklanır).
+ */
+export interface LegalTable {
+  columns: string[];
+  rows: string[][];
+  /** Ekran okuyucuya tablonun adı (görünmez). */
+  caption?: string;
+}
 
 export interface LegalSection {
   heading?: string;
   paragraphs?: string[];
   /** Madde işaretli liste — paragraphs'tan sonra render edilir. */
   list?: string[];
+  /** Tablo — listeden sonra, bağlantılardan önce. */
+  table?: LegalTable;
+  /**
+   * Site içi bağlantılar (İÇ yol, dil ön ekini `Link` ekler) — listeden sonra.
+   * Metindeki adres düz yazıdır ve tıklanmaz; okuyucunun gitmesi gereken sayfa
+   * (ör. hesap silme adımları) buradan verilir.
+   */
+  links?: { href: string; label: string }[];
 }
 
 /**
@@ -29,7 +50,8 @@ export interface LegalSection {
  * sokakta kalıyor, kayıt formundan yeni sekmede açılınca ikinci bir kayıt
  * sekmesi doğuyordu. Artık `PublicLayout` (logo, menü, altbilgi) sarar; kayda
  * özel geri bağlantısı KALKTI. Numaralı başlıklar `#madde-N` çapası taşır,
- * metindeki e-posta adresleri tıklanabilir.
+ * metindeki e-posta adresleri tıklanabilir; site içi sayfa bağlantısı bölümün
+ * `links` alanıyla verilir (gövde düz metin kalır).
  */
 const EMAIL_RE = /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
 
@@ -52,6 +74,50 @@ function withMailto(text: string): ReactNode {
 function sectionId(heading: string, index: number): string {
   const n = heading.match(/^\s*(\d+)[.)]/)?.[1];
   return n ? `madde-${n}` : `bolum-${index + 1}`;
+}
+
+/**
+ * Tablo: geniş ekranda gerçek tablo; telefonda (sm altı) her satır, sütun
+ * adları hücrenin üstünde yazılı bir kart olur — dört sütunlu saklama tablosu
+ * 360 px'te yatay kaydırma isterdi. Sütun adı hücrenin `data-label`ından
+ * `::before` ile basılır (metin DOM'da bir kez; başlık satırı telefonda gizli).
+ * İlk sütun satırın adıdır (kalın).
+ */
+function LegalTableView({ table }: { table: LegalTable }) {
+  return (
+    <table className="w-full border-collapse text-left max-sm:block">
+      {table.caption ? <caption className="sr-only">{table.caption}</caption> : null}
+      <thead className="max-sm:hidden">
+        <tr className="border-b border-zinc-300">
+          {table.columns.map((c) => (
+            <th key={c} scope="col" className="py-2 pr-4 align-bottom text-xs font-semibold text-zinc-900 last:pr-0">
+              {c}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="max-sm:block max-sm:space-y-3">
+        {table.rows.map((row, i) => (
+          <tr
+            key={i}
+            className="border-b border-zinc-200 align-top max-sm:block max-sm:rounded-lg max-sm:border max-sm:px-3 max-sm:py-2"
+          >
+            {row.map((cell, j) => (
+              <td
+                key={j}
+                data-label={table.columns[j]}
+                className={`py-2 pr-4 last:pr-0 max-sm:block max-sm:py-1 max-sm:pr-0 max-sm:before:block max-sm:before:text-xs max-sm:before:font-semibold max-sm:before:text-zinc-900 max-sm:before:content-[attr(data-label)] ${
+                  j === 0 ? "font-medium text-zinc-900" : ""
+                }`}
+              >
+                {withMailto(cell)}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 export async function LegalDoc({
   title,
@@ -122,6 +188,16 @@ export async function LegalDoc({
                       <li key={j}>{withMailto(li)}</li>
                     ))}
                   </ul>
+                ) : null}
+                {s.table ? <LegalTableView table={s.table} /> : null}
+                {s.links?.length ? (
+                  <p className="flex flex-wrap gap-x-4 gap-y-1">
+                    {s.links.map((l) => (
+                      <Link key={l.href} href={l.href} className="font-medium text-blue-700 underline hover:text-blue-800">
+                        {l.label}
+                      </Link>
+                    ))}
+                  </p>
                 ) : null}
               </div>
             </section>

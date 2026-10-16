@@ -40,7 +40,7 @@ describe("cron job dictionary", () => {
 
   it("finds the API cron registrations (scanner sanity)", () => {
     expect(jobs.size).toBeGreaterThanOrEqual(20);
-    for (const key of ["listing.closeExpired", "sessions.purgeRevoked", "signup.purgeUnverified"]) {
+    for (const key of ["listing.closeExpired", "sessions.purgeRevoked", "signup.purgeUnverified", "retention.purge"]) {
       expect(jobs.has(key), key).toBe(true);
     }
   });

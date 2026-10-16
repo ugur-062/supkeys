@@ -126,7 +126,11 @@ describe("resolveComplaint — askida ic not firmaya gitmez", () => {
         findUnique: jest.fn(async () => ({ id: "k1", againstCompanyId: "c2", status: "OPEN" })),
         updateMany: jest.fn(async () => ({ count: 1 })),
       },
-      company: { update: jest.fn(async () => ({})) },
+      company: {
+        // Askı yan etkisi önce firmayı okur (anonim / son kullanıcısı silmiş firma reddedilir).
+        findUnique: jest.fn(async () => ({ id: "c2", isActive: true, isBlocked: false, blockedReason: null })),
+        update: jest.fn(async () => ({})),
+      },
     };
     const seo = { companyChanged: jest.fn() };
     const { svc } = makeSvc(prisma, seo);

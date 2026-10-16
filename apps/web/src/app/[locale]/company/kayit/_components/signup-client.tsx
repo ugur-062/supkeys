@@ -135,7 +135,6 @@ export function CompanySignupClient() {
     mediation: false,
     kvkk: false,
     marketing: false,
-    profile: false,
   });
   const [error, setError] = useState<string | null>(null);
   // "Hesap Oluştur"a basıldı: geçersiz her alan iletisini gösterir (arayüz
@@ -280,7 +279,6 @@ export function CompanySignupClient() {
         mediationAccepted: consents.mediation,
         kvkkAccepted: consents.kvkk,
         marketingConsent: consents.marketing,
-        profileImprovementConsent: consents.profile,
         referralToken,
       });
       setStep("verify");
@@ -654,12 +652,7 @@ export function CompanySignupClient() {
           {fieldError.passwordConfirm ? <ErrorMessage>{fieldError.passwordConfirm}</ErrorMessage> : null}
         </Field>
 
-        <ConsentRows
-          consents={consents}
-          onChange={setConsents}
-          showProviders
-          requiredError={fieldError.consents}
-        />
+        <ConsentRows consents={consents} onChange={setConsents} requiredError={fieldError.consents} />
 
         {error ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -15,6 +15,8 @@ describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
       "manageStaff",
       "announce",
       "deleteCompany",
+      // KVKK ile tek kullanıcı silme (2026-10-16) — geri alınamaz.
+      "eraseCompanyUser",
     ] as const) {
       expect(canAdminDo("SUPER_ADMIN", a)).toBe(true);
       expect(canAdminDo("SALES", a)).toBe(false);

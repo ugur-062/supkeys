@@ -15,7 +15,8 @@ import { entityTypeLabel } from "../audit-format";
 const API_SRC = join(__dirname, "..", "..", "..", "..", "api", "src");
 // Parçalar rakamla başlayabilir (`auth.2fa_enabled`); `ai.` ve `connection.`
 // aileleri de yazılıyor — eski ifade bunları kaçırıyordu (arayüz testi D-016).
-const FAMILY = String.raw`(?:admin|ai|auth|company|connection|email)\.[a-z0-9_]+(?:\.[a-z0-9_]+)*`;
+// `system.` = periyodik imha kaydı (Saklama ve İmha Politikası, 2026-10-16).
+const FAMILY = String.raw`(?:admin|ai|auth|company|connection|email|system)\.[a-z0-9_]+(?:\.[a-z0-9_]+)*`;
 const PATTERNS = [
   new RegExp(String.raw`action:\s*"(${FAMILY})"`, "g"),
   new RegExp(String.raw`action:\s*[\w.!=\s"]*?\?\s*"(${FAMILY})"\s*:\s*"(${FAMILY})"`, "g"),
@@ -64,6 +65,7 @@ describe("audit action dictionary", () => {
       "admin.self.2fa_disabled",
       "ai.action_executed",
       "connection.external_tender_invite",
+      "system.retention_purge",
     ]) {
       expect(actions.has(a), a).toBe(true);
     }

@@ -2,7 +2,9 @@
 
 import { SessionCheck } from "@/components/auth/session-check";
 import { AuthShell } from "@/components/marketing/auth-shell";
+import { Callout } from "@/components/ui/callout";
 import { SESSION_PROBE_WAIT_MS, useCompanySessionWait } from "@/hooks/use-company-session-wait";
+import { takeAccountDeletedNotice } from "@/lib/company-auth/account-deleted-notice";
 import { safeNextPath, signupLinkFromLogin } from "@/lib/company-auth/next-path";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +19,7 @@ export { SESSION_PROBE_WAIT_MS };
 
 export function CompanyLoginClient() {
   const t = useTranslations("web.auth.login");
+  const tDeleted = useTranslations("web.auth.deleteAccount");
   const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
@@ -25,6 +28,13 @@ export function CompanyLoginClient() {
   // (`/company/../urunler` panel dışına çıkarıyordu — login-12).
   const nextPath = safeNextPath(searchParams.get("next"));
   const [step, setStep] = useState<CompanyLoginStep>("login");
+  // Hesap silmenin onayı: silme formu tam sayfa yüklemesiyle buraya gelir,
+  // bildirim yüklemede kaybolurdu (`account-deleted-notice.ts`). Bir kez,
+  // yalnız silmeyi yapan sekmede.
+  const [accountDeleted, setAccountDeleted] = useState(false);
+  useEffect(() => {
+    if (takeAccountDeletedNotice()) setAccountDeleted(true);
+  }, []);
 
   useEffect(() => {
     if (isHydrated && user) {
@@ -63,6 +73,13 @@ export function CompanyLoginClient() {
         </>
       }
     >
+      {accountDeleted ? (
+        <div role="status" className="mb-6">
+          <Callout variant="success" title={tDeleted("done")}>
+            {tDeleted("doneBody")}
+          </Callout>
+        </div>
+      ) : null}
       {waiting ? (
         <SessionCheck />
       ) : (

@@ -2,6 +2,39 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { reportToSentry } from "../../instrument";
+import { tApi } from "../../common/i18n/i18n.service";
+import { deletedAccountIdOf, deletedAccountTag } from "../company-auth/account-closure";
+
+/**
+ * The name a deleted account is shown under: the placeholder the deletion
+ * writes to the row (one fixed language, `AccountDeletionService`) and a
+ * short code from its id, so two deleted accounts stay apart in the log
+ * (whoever awarded, changed or approved something stays attributable to ONE
+ * account). No personal data: the code comes from the internal id.
+ */
+function placeholderName(): { first: string; last: string } {
+  return {
+    first: tApi("api.companyAuth.silinmisKullaniciAd", undefined, "tr"),
+    last: tApi("api.companyAuth.silinmisKullaniciSoyad", undefined, "tr"),
+  };
+}
+function deletedAccountLabel(userId: string): string {
+  const { first, last } = placeholderName();
+  return `${first} ${last} · ${deletedAccountTag(userId)}`;
+}
+/** A row's name in the log: the deletion placeholder gets its code; any other name as it is. */
+function personLabel(u: { id: string; firstName: string; lastName: string }): string {
+  const { first, last } = placeholderName();
+  if (u.firstName === first && u.lastName === last) return deletedAccountLabel(u.id);
+  return `${u.firstName} ${u.lastName}`.trim();
+}
+
+/**
+ * Greppable marker of a lost critical audit entry (server log and Sentry
+ * message). One constant: the imha record writer (`RetentionRecordService`)
+ * reports with the same marker.
+ */
+export const AUDIT_CRITICAL_LOSS_MARKER = "[AUDIT-KRİTİK-KAYIP]";
 
 export type AuditActorType =
   | "tenant"
@@ -145,7 +178,7 @@ export class AuditService {
       if (entry.critical) {
         // Sabit, greplenebilir marker — para/yetki izinin kaybı sessizce geçmesin.
         this.logger.error(
-          `[AUDIT-KRİTİK-KAYIP] action=${entry.action} actorId=${
+          `${AUDIT_CRITICAL_LOSS_MARKER} action=${entry.action} actorId=${
             entry.actorId ?? "-"
           } entityType=${entry.entityType ?? "-"} entityId=${
             entry.entityId ?? "-"
@@ -154,7 +187,7 @@ export class AuditService {
         // Log stdout'ta kalır; kritik audit kaybı alarm üretmeli → Sentry'e de
         // bildir. PII GÖNDERME: actorEmail/metadata/ip/userAgent hariç, yalnız
         // kimlik/eylem context'i. DSN yoksa reportToSentry sessiz no-op.
-        reportToSentry("[AUDIT-KRİTİK-KAYIP]", "error", {
+        reportToSentry(AUDIT_CRITICAL_LOSS_MARKER, "error", {
           tags: { audit: "critical-loss", action: entry.action },
           extra: {
             actorId: entry.actorId ?? null,
@@ -202,6 +235,9 @@ export class AuditService {
         select: {
           id: true,
           action: true,
+          // Read only to hide a deleted account's address (below); not in the response.
+          actorType: true,
+          actorId: true,
           actorEmail: true,
           entityType: true,
           entityId: true,
@@ -210,6 +246,29 @@ export class AuditService {
         },
       }),
     ]);
+    // SİLİNEN HESABIN E-POSTASI FİRMAYA GÖSTERİLMEZ (2026-10-16, mağaza / KVKK
+    // metinleri): satır yazım anındaki e-postayı tutar ve güvenlik kaydı olarak
+    // değişmeden kalır (admin Denetim Kaydı görür), ama firmanın Aktivite
+    // Logu'nda hesabı silinmiş ya da ekipten çıkarılmış kişi KAYITTAKİ adıyla
+    // görünür ("Silinmiş Kullanıcı · 4F2K" — kod hesabın kimliğinden, silinen
+    // hesaplar birbirinden ayrılsın; çıkarılan üye için yönetimin bildiği ad).
+    // Metinler "e-posta adresiniz hesap kaydından kaldırılır, kayıtlarda
+    // Silinmiş Kullanıcı olarak (Aktivite Logu'nda kısa bir kodla) görünürsünüz"
+    // der. Yalnız AYNI firmanın kişisi.
+    const actorIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.actorType === "company" && r.actorId)
+          .map((r) => r.actorId as string),
+      ),
+    ];
+    const goneActors = actorIds.length
+      ? await this.prisma.companyUser.findMany({
+          where: { id: { in: actorIds }, companyId: tenantId, deletedAt: { not: null } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const goneActorLabel = new Map(goneActors.map((u) => [u.id, personLabel(u) || deletedAccountLabel(u.id)]));
     // Hedef kişi: kullanıcı yönetimi kayıtları (rol/izin/aktiflik) yalnız
     // `entityId` taşır; Detay'da "kimin" değiştiği görünmüyordu (arayüz testi
     // api2-01 yeniden doğrulama). Yalnız AYNI firmanın kullanıcıları çözülür —
@@ -227,9 +286,7 @@ export class AuditService {
           select: { id: true, firstName: true, lastName: true, email: true },
         })
       : [];
-    const labelById = new Map(
-      people.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim() || u.email]),
-    );
+    const labelById = new Map(people.map((u) => [u.id, personLabel(u) || u.email]));
     // Davet kayıtları (invited / invitation_cancelled) hedefi davet edilen
     // ADRESTİR: e-posta (PII) audit metadata'sına yazılmaz, okuma anında yine
     // AYNI firmanın davet satırından çözülür — Kullanıcı Yönetimi bu adresleri
@@ -250,17 +307,23 @@ export class AuditService {
         })
       : [];
     const inviteEmailById = new Map(invitations.map((i) => [i.id, i.email]));
-    const entityLabelOf = (r: (typeof rows)[number]): string | null => {
+    const entityLabelOf = (r: { entityType: string | null; entityId: string | null }): string | null => {
       if (!r.entityId) return null;
       if (r.entityType === "company_user") return labelById.get(r.entityId) ?? null;
-      if (r.entityType === "company_user_invitation")
-        return inviteEmailById.get(r.entityId) ?? null;
+      if (r.entityType === "company_user_invitation") {
+        const email = inviteEmailById.get(r.entityId) ?? null;
+        // Hesabını silen kişiye giden davetin adresi silmede yer tutucuya
+        // döndü; yer tutucu hesabın kimliğini taşır → aynı ad ve kod.
+        const deletedId = deletedAccountIdOf(email);
+        return deletedId ? deletedAccountLabel(deletedId) : email;
+      }
       return null;
     };
     return {
       // JsonValue tip-referansı dışa sızmasın (TS2742) — metadata unknown.
-      items: rows.map((r) => ({
+      items: rows.map(({ actorType: _actorType, actorId, ...r }) => ({
         ...r,
+        actorEmail: (actorId ? goneActorLabel.get(actorId) : undefined) ?? r.actorEmail,
         metadata: r.metadata as unknown,
         entityLabel: entityLabelOf(r),
       })),

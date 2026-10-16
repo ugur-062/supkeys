@@ -93,14 +93,32 @@ Rothern — B2B-платформа для закупок, которая объ�
 
 | Alan | Değer |
 |---|---|
-| Gizlilik politikası | https://www.rothern.com/sozlesmeler/gizlilik |
+| Alan | TR | EN | RU |
+|---|---|---|---|
+| Gizlilik politikası (App Store Connect: dil başına; Play: tek adres) | https://www.rothern.com/sozlesmeler/gizlilik | https://www.rothern.com/en/legal/privacy | https://www.rothern.com/ru/dokumenty/konfidentsialnost |
+| Kullanıcı gizlilik seçenekleri adresi (App Store Connect "User Privacy Choices URL", dil başına, isteğe bağlı) | https://www.rothern.com/hesap-silme | https://www.rothern.com/en/account-deletion | https://www.rothern.com/ru/udalenie-akkaunta |
+
+| Alan | Değer |
+|---|---|
+| Hesap silme adresi (Play "Veri güvenliği" › Hesap silme URL'si, zorunlu, TEK adres) | **https://www.rothern.com/en/account-deletion** |
+| Play gizlilik politikası (tek adres) | https://www.rothern.com/sozlesmeler/gizlilik |
 | Destek adresi | https://www.rothern.com/iletisim |
 | Destek e-postası | support@rothern.com |
-| Hesap silme adresi (Play, zorunlu) | https://www.rothern.com/company/ayarlar/hesap-bilgileri |
 | Geliştirici | Rothern Teknoloji Limited Şirketi |
 
-Not: Play "hesap silme adresi" için girişsiz de okunabilen bir açıklama bekleyebilir. Gizlilik metnine uygulama
-içi silme cümlesi eklenirse (kullanıcı kararı bekliyor) bu satır gizlilik sayfasına çevrilebilir.
+Hesap silme sayfası (2026-10-16) girişsiz açılır ve üç dile çevrilidir. **Play'e İngilizce adres yazılır**
+(inceleme ekibi İngilizce okur; sayfanın dil seçicisi TR / RU'yu açar); App Store Connect'te her dil kendi
+adresini alır. Hukuki metinler (Gizlilik, KVKK) her dilde Türkçe çizilir ve Türkçesi esastır — EN / RU
+sayfada üstte "Türkçe metin esastır" notu çıkar; silme ve saklamanın İngilizce özeti hesap silme sayfasıdır
+(inceleme notunda da yazılı). Sayfa Play'in istediklerini taşır: uygulama ve geliştirici adı ("Rothern",
+"Rothern Teknoloji Limited Şirketi"), ilk blokta adım adım silme yolu (Ayarlar › Hesap Bilgileri › Hesabı sil;
+şirket kurulumu bitmemiş ya da sözleşme onayı bekleyen hesapta o ekrandaki "Hesabımı sil"), uygulamayı yeniden
+yüklemeden talep yolu (kvkk@rothern.com), hemen silinen ve saklanan bilgiler (neden ve ne kadar: ticari kayıtlar
+kaydın oluştuğu yılın sonundan itibaren 10 yıl; süreler Saklama ve İmha Politikası'ndan), ek adımlar
+(Kurucu devri, son yönetici, firmanın son kullanıcısında süren sipariş / açık talep) ve bu adımları tamamlayamayan için destek yolu (kvkk@rothern.com). Gizlilik Politikası'nda aynı konu madde 6
+("Hesabınızı Silme", https://www.rothern.com/sozlesmeler/gizlilik#madde-6), KVKK Aydınlatma Metni'nde madde 7
+ve 9. Adres değişirse burası, konsol ve `pathnames.test` "hesap silme sayfası üç dilde sabit adreste" birlikte
+güncellenir.
 
 ## Veri beyanı (Play "Veri güvenliği" + App Store "Uygulama gizliliği")
 
@@ -110,7 +128,10 @@ Koddan çıkarılan durum; formu doldururken son kez doğrula.
 |---|---|
 | Veri toplanıyor mu | Evet |
 | Aktarımda şifreleme | Evet (HTTPS) |
-| Kullanıcı silme isteyebilir mi | Evet — uygulama içinden (Ayarlar › Hesap Bilgileri) ve kvkk@rothern.com |
+| Kullanıcı silme isteyebilir mi | Evet — uygulama içinden ve web sitesinden (Ayarlar › Hesap Bilgileri › Hesabı sil; şirket kurulumu bitmemiş ya da sözleşme onayı bekleyen hesapta o ekrandaki "Hesabımı sil"); giriş yapamayan ya da ek adımı tamamlayamayan kvkk@rothern.com (admin "KVKK: Hesabı Sil" ile yapılır) |
+| Hesap silme URL'si | https://www.rothern.com/en/account-deletion |
+| Hesabı silmeden bazı verileri silme | Evet — telefon numarası Ayarlar › Hesap Bilgileri'nden kaldırılır; diğer kişisel veriler kvkk@rothern.com talebiyle (açıklama: https://www.rothern.com/hesap-silme#kismi-silme) |
+| Silmede saklanan veri | Firmanın ticari kayıtları (talep, teklif, sipariş, mesaj, belge; mesajda gönderen adı), güvenlik / denetim kayıtları (işlem anındaki e-postayla), e-posta gönderim kayıtları, sözleşme onay tarihleri, e-posta abonelikten çıkma kaydı (adresle); diğer kullanıcılara gitmiş bildirim / e-postalarda ad geçebilir — Kişisel Veri Saklama ve İmha Politikası'ndaki süreler boyunca (ticari kayıt ve ticari işleme ilişkin e-posta gönderim kaydı yıl sonundan itibaren 10 yıl, diğer e-posta gönderim kayıtları 1–2 yıl, denetim kaydı 10 yıl / IP 2 yıl dolmadan silinir; sayfada yazılı; https://www.rothern.com/sozlesmeler/saklama-imha). Firma kaydındaki bilgiler (şahıs firmasında TCKN, yetkili kimlik no ve kimlik belgesi görüntüsü, adres, fatura e-posta / telefonu) firmayla kalır — Kurucu devredip hesabını silse de; firma kapanırsa en geç 30 günde silinir. Saklanan veri rozet seçimine engel değil |
 | Reklam / izleme (tracking) | Hayır; reklam SDK'sı ve üçüncü taraf analitik yok |
 | Üçüncü tarafa satış | Hayır |
 
@@ -120,11 +141,12 @@ Koddan çıkarılan durum; formu doldururken son kez doğrula.
 | E-posta | Evet | Hesap, giriş, bildirim | Evet |
 | Telefon | İsteğe bağlı | Uygulama işlevi | Evet |
 | Firma bilgileri, adres, vergi no, banka bilgisi | Evet | Uygulama işlevi, firma doğrulaması | Evet |
+| Kimlik numarası (firma yetkilisinin T.C. kimlik / pasaport no; şahıs firmasında vergi no olan TCKN) ve kimlik belgesi görüntüsü | Evet | Firma doğrulaması | Evet — Play "Kişisel bilgiler › Diğer bilgiler", Apple "Diğer veriler" (Other Data) |
 | Yüklenen belgeler (doğrulama, talep ekleri) | Evet | Uygulama işlevi | Evet |
 | Mesajlar (firmalar arası) | Evet | Uygulama işlevi | Evet |
 | Uygulama içi etkinlik (görüntülenen profil / ürün) | Evet | Uygulama işlevi (Ziyaret Edenler) | Evet |
 | Hata kayıtları | Evet | Teşhis | Hayır (çerezsiz, jetonlar ayıklanır) |
-| Cihaz bildirimi jetonu | Bildirim eklenince evet | Anlık bildirim | Evet |
+| Cihaz bildirimi jetonu | Evet (bildirime izin verilirse) | Anlık bildirim (Firebase Cloud Messaging; iOS'ta Apple) | Evet |
 | Konum, kişiler, fotoğraf galerisi, sağlık, finansal ödeme | Hayır | — | — |
 
 Ödeme alınmıyor; "finansal bilgi" başlığında yalnız firmanın kendi girdiği banka hesabı (sipariş için karşı tarafa
@@ -134,11 +156,47 @@ gösterilir) beyan edilir.
 
 Girilecek demo hesap canlıda doğrulanmış bir firma olmalı (e-posta + şifre konsola yazılır, depoya YAZILMAZ).
 
-EN (konsola bu yazılır):
+**Silme denemesi için AYRI hesaplar verilir.** İnceleyici çoğu zaman silmeyi dener; demo hesap silme kurallarına
+takılırsa "silme çalışmıyor" ya da "gereksiz zor" diye ret gelebilir: başka kullanıcısı olan Kurucu önce devretmeli
+(400 `ACCOUNT_OWNER_MUST_TRANSFER`), firmanın tek kullanıcısı süren sipariş ya da açık talep varken silemez (400
+`ACCOUNT_HAS_OPEN_WORK`). Demo düzeni kendini bozmasın diye her gönderimden ÖNCE şunlar kurulur ve her inceleme
+turundan SONRA denetlenip yeniden kurulur:
+
+1. **Ana demo hesap** = firmanın Kurucusu (gezinti için). 2FA KAPALI (inceleyici kod alamaz). Dili İngilizce
+   (Ayarlar › Hesap Bilgileri › Dil → English).
+2. **Mağaza başına bir silme hesabı:** aynı firmada Kurucu OLMAYAN, kullanıcı yönetimi yetkisi olmayan iki üye —
+   biri Apple'a, biri Google'a yazılır (iki inceleme aynı anda koşabilir; ilk silen ötekinin hesabını götürmesin).
+   Yalnız görüntüleme yetkisiyle koltuk tüketmezler. Dilleri İngilizce. Silinen hesap Ayarlar › Kullanıcı
+   Yönetimi'nden yeniden davet edilir.
+3. **Firmada PASİF bir üçüncü üye** (Ayarlar › Kullanıcı Yönetimi'nde pasifleştirilmiş, silinmemiş). Silme kuralı
+   pasif üyeleri de sayar (`AccountDeletionService` `deletedAt: null`): inceleyici silme hesabını silip sonra
+   Kurucu ile silmeyi denerse Kurucu `ACCOUNT_OWNER_MUST_TRANSFER` alır ve demo firma KAPANAMAZ. Bu üye
+   olmadan Kurucu firmanın son kullanıcısı olur; açık talep / süren sipariş yoksa silme başarılı olur, demo firma
+   askıya alınır ve öteki mağazanın incelemesi ile sonraki turlar bozulur.
+4. Tur sonunda: demo firma askıda değil mi (admin Firmalar), Kurucu duruyor mu, pasif üye duruyor mu, silme
+   hesapları yeniden açıldı mı.
+
+EN (konsola bu yazılır; hesapları kendi alanlarına):
 
 > Rothern is a B2B procurement platform for registered companies. Sign in with the demo account below; it is a
 > verified company that can both post buying requests and send quotes. No payment is taken in the app and there
-> are no in-app purchases. Account deletion: Settings › Account details › Delete account.
+> are no in-app purchases.
+>
+> Language: the app opens in Turkish. On the sign-in screen, tap the language menu (top right) and choose
+> English before signing in; the account then stays in English. The demo accounts are already set to English.
+>
+> Account deletion: Settings › Account details › Delete account › "Delete my account", then enter the password
+> and confirm with "Delete my account permanently". The deletion is immediate. Please use the deletion test
+> account below to test it: it is a regular team member, so deleting it does not affect the demo company. If you
+> create a new account in the app instead, Settings opens only after the company details are completed; until
+> then, the company details screen has a "Delete my account" button at the top. The main demo account is the
+> company's Founder; the app asks a Founder to hand the company over to another user before deleting, and asks
+> the last user of a company to finish open orders and requests first (both rules are shown on the deletion
+> card and explained at https://www.rothern.com/en/account-deletion). Users who cannot sign in, or cannot
+> complete these steps, can request deletion at kvkk@rothern.com.
+>
+> The legal texts (Privacy Policy, KVKK notice) are authoritative in Turkish; an English summary of what is
+> deleted and what is kept is at https://www.rothern.com/en/account-deletion.
 
 ## Ekran görüntüleri (hazırlanacak)
 

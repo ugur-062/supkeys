@@ -516,6 +516,25 @@ describe("ContentTranslationService", () => {
     expect(svc.modelCandidates()).not.toContain("gemini-pro-latest");
   });
 
+  /* KVKK (2026-10-16): Google'ın veri işleme şartları yalnız GA modelleri
+     kapsar. Yedeklerde ön-sürüm yok; production'da env'den gelen ön-sürüm ad da elenir. */
+  it("ön-sürüm model yedekte yok; production'da env'deki ön-sürüm ad da aday olmaz", () => {
+    const { svc } = rig();
+    const prev = { node: process.env.NODE_ENV, model: process.env.CONTENT_TRANSLATION_MODEL };
+    try {
+      process.env.CONTENT_TRANSLATION_MODEL = "gemini-3.1-pro-preview";
+      process.env.NODE_ENV = "test";
+      expect(svc.modelCandidates()[0]).toBe("gemini-3.1-pro-preview");
+      process.env.NODE_ENV = "production";
+      expect(svc.modelCandidates()).not.toContain("gemini-3.1-pro-preview");
+      expect(svc.modelCandidates().some((m) => /preview|-exp/.test(m))).toBe(false);
+    } finally {
+      process.env.NODE_ENV = prev.node;
+      if (prev.model === undefined) delete process.env.CONTENT_TRANSLATION_MODEL;
+      else process.env.CONTENT_TRANSLATION_MODEL = prev.model;
+    }
+  });
+
   it("sağlayıcı yoksa kuyruk açılır ama kick etmez; okuma yolu özgün metni döndürür", async () => {
     const { svc } = rig({ providerFails: true });
     expect(svc.enabled).toBe(false);

@@ -12,6 +12,7 @@ import { Select } from "@/components/catalyst/select";
 import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
 import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
 import { RothernLogo } from "@/components/brand/logo";
+import { DeleteAccountDialog } from "@/components/company/delete-account-form";
 import { useCategoriesByIds, useRoots } from "@/hooks/use-categories";
 import { useUpdateMe } from "@/hooks/use-company-account";
 import {
@@ -1850,9 +1851,16 @@ function FieldError({ message, className = "mt-1" }: { message: string | null; c
 }
 
 /**
- * Sihirbazın üst çubuğu (arayüz testi O-122): logo, dil seçici ve "Oturumu
- * kapat". Eskiden yalın kapsayıcıydı — ortak bilgisayarda ya da yanlış
- * hesapla kaydolan kurucu onboarding bitene kadar çıkamıyordu.
+ * Sihirbazın üst çubuğu (arayüz testi O-122): logo, dil seçici, "Oturumu
+ * kapat" ve "Hesabımı sil". Eskiden yalın kapsayıcıydı — ortak bilgisayarda
+ * ya da yanlış hesapla kaydolan kurucu onboarding bitene kadar çıkamıyordu.
+ *
+ * HESABIMI SİL (2026-10-16, mağaza incelemesi): kurulum bitmeden panelin hiçbir
+ * sayfası (Ayarlar dahil) açılmaz; uygulamada hesap açıp silmeyi arayan
+ * inceleyici ve vazgeçen kişi silme yolunu burada bulur (Apple 5.1.1(v),
+ * Google Play). Metinler (Gizlilik m.6, `/hesap-silme`) bu düğmeyi
+ * "kurulum ekranının üstündeki Hesabımı sil" diye anar. Dar ekranda düğmeler
+ * alt satıra kırılır (yatay kayma yok).
  */
 function OnboardingShell({
   children,
@@ -1866,15 +1874,17 @@ function OnboardingShell({
   onBeforeLogout?: () => void;
 }) {
   const t = useTranslations("web.auth.onboarding");
+  const tDelete = useTranslations("web.auth.deleteAccount");
   const logout = useCompanyLogout();
+  const [deleting, setDeleting] = useState(false);
   return (
     // Güvenli alan (mobil kabuk): başlık durum çubuğunun altında kalmaz.
     <div className="mx-auto max-w-2xl px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:pt-[calc(2rem+var(--safe-top))] sm:pb-[calc(2rem+var(--safe-bottom))]">
-      <header className="mb-6 flex items-center justify-between gap-3">
+      <header className="mb-6 flex items-start justify-between gap-3">
         {/* Telefonda yalnız ikon: dil seçici + çıkış düğmesiyle tek satıra sığsın. */}
         <RothernLogo variant="icon" size="sm" className="sm:hidden" />
         <RothernLogo variant="full-light" size="sm" className="hidden sm:block" />
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
           <OnboardingLanguageSelect onBeforeSwitch={onBeforeLocaleSwitch} />
           <Button
             plain
@@ -1885,9 +1895,18 @@ function OnboardingShell({
           >
             {t("logout")}
           </Button>
+          <Button plain onClick={() => setDeleting(true)}>
+            {tDelete("open")}
+          </Button>
         </div>
       </header>
       {children}
+      <DeleteAccountDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        // Silme oturumu kapatır: bekleyen taslak yazımı silinen hesaba geri yazmasın.
+        onBeforeLeave={onBeforeLogout}
+      />
     </div>
   );
 }
@@ -1975,19 +1994,28 @@ function Summary({ label, value, lines }: { label: string; value?: string | null
   );
 }
 
-/** Kurucu olmayan üye: şirket bilgileri Kurucu tarafından tamamlanmalı. */
+/**
+ * Kurucu olmayan üye: şirket bilgileri Kurucu tarafından tamamlanmalı. Panel
+ * açılmadığı için hesabını silmek isteyen üyenin yolu da burada (2026-10-16).
+ */
 function OwnerMustCompleteNotice() {
   const t = useTranslations("web.auth.onboarding");
+  const tDelete = useTranslations("web.auth.deleteAccount");
   const logout = useCompanyLogout();
+  const [deleting, setDeleting] = useState(false);
   return (
     <div className="mx-auto max-w-lg px-4 py-16 text-center">
       <h1 className="text-xl font-bold text-zinc-900">{t("ownerOnlyTitle")}</h1>
       <p className="mt-2 text-sm text-zinc-600">{t("ownerOnlyBody")}</p>
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Button plain onClick={() => void logout()}>
           {t("ownerOnlyLogout")}
         </Button>
+        <Button plain onClick={() => setDeleting(true)}>
+          {tDelete("open")}
+        </Button>
       </div>
+      <DeleteAccountDialog open={deleting} onClose={() => setDeleting(false)} />
     </div>
   );
 }

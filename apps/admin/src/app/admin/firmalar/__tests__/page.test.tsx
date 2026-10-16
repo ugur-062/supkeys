@@ -207,6 +207,39 @@ describe("FirmalarView — KVKK ile anonimleştirilmiş firma (D-208)", () => {
   });
 });
 
+/* Hesap silme metinleri (2026-10-16): son kullanıcısı hesabını silen firmanın
+   firma düzeyi KVKK silmesi en geç 30 günde söz verildi; silme elle yapıldığı
+   için kuyruk görünür olmalı. */
+describe("FirmalarView — KVKK silme bekleyen firmalar", () => {
+  it("Askı süzgecinde 'KVKK silme bekliyor' seçeneği var; seçilince sorguya blocked=kvkk gider", async () => {
+    h.search = "blocked=kvkk";
+    h.companiesParams = [];
+    render(<AdminFirmalarPage />);
+    expect(screen.getByRole("option", { name: "KVKK silme bekliyor" })).toBeInTheDocument();
+    expect(h.companiesParams.at(-1)).toMatchObject({ blocked: "kvkk" });
+    h.search = "";
+  });
+
+  it("bekleyen firma satırı geçen günü sayar; 21. günden sonra kırmızı", () => {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000 - 60_000).toISOString();
+    h.companies = {
+      data: paged([
+        row({ id: "c1", name: "Yeni Kapanan", isBlocked: true, erasurePendingSince: daysAgo(3) }),
+        row({ id: "c2", name: "Eski Kapanan", isBlocked: true, erasurePendingSince: daysAgo(25) }),
+      ]),
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminFirmalarPage />);
+    const fresh = screen.getByRole("link", { name: "Yeni Kapanan" }).closest("tr")!;
+    expect(within(fresh).getByText("KVKK silme bekliyor · 3/30 gün")).toBeInTheDocument();
+    expect(within(fresh).queryByText("Askıda")).not.toBeInTheDocument();
+    const late = screen.getByRole("link", { name: "Eski Kapanan" }).closest("tr")!;
+    const badge = within(late).getByText("KVKK silme bekliyor · 25/30 gün");
+    expect(badge.className).toMatch(/red/);
+  });
+});
+
 describe("FirmalarView — rol kapısı (canAdminDo)", () => {
   it("SALES: askı işlemleri menüsü GÖRÜNMEZ (yalnız SUPER_ADMIN)", () => {
     h.admin = { role: "SALES" };

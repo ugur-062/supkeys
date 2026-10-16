@@ -12,7 +12,6 @@ export interface Consents {
   mediation: boolean;
   kvkk: boolean;
   marketing: boolean;
-  profile: boolean;
 }
 
 /**
@@ -35,21 +34,30 @@ export interface Consents {
  * aynı kalır), bağlantı altında kısa ve ayrı bir satırdır. Kutunun dokunma
  * hedefi görünmeyen çerçeveyle 38 px'e büyür (`TICK_HIT`).
  *
+ * KVKK SATIRI YALNIZ AYDINLATMANIN OKUNDUĞUNU BİLDİRİR (2026-10-16, kullanıcı
+ * kararı): yurt dışına aktarımın dayanağı KVKK m.9/4-c standart sözleşmedir,
+ * açık rıza değildir. Zorunlu kutuda sağlayıcı listesi ya da aktarım sözü
+ * YAZILMAZ — hizmeti aktarım rızasına bağlayan kutu gibi okunurdu (eskiden
+ * kayıt formunda "(yurt dışı sağlayıcılar: …)" parantezi vardı). Açık rıza
+ * yalnız isteğe bağlı TEK satırdadır: Rothern'in kampanya ve tanıtımlarına
+ * ilişkin ticari elektronik ileti onayı (belirli konu; "analitik" yok). Eski
+ * "Profil ve hizmet iyileştirme" kutusu kaldırıldı (inceleme 2026-10-16): ona
+ * dayanan bir işleme yoktu, belirli bir konuya ilişkin rıza da değildi.
+ * Hizmete ilişkin bilgilendirme e-postaları rızaya değil m.5/2-f'ye dayanır
+ * (KVKK Aydınlatma m.2-m.3); onay İYS'ye kaydedilmeden ticari ileti gitmez.
+ *
  * `requiredError` (arayüz testi 2026-10 signup-tr-8): gönder düğmesi sessizce
  * pasif kalmaz; basılınca işaretlenmemiş ZORUNLU her kutu `aria-invalid` olur
  * ve altında bu ileti çizilir (Headless `Description` → kutunun
- * `aria-describedby`ı). İsteğe bağlı iki kutu hiçbir zaman hata almaz.
+ * `aria-describedby`ı). İsteğe bağlı kutu hiçbir zaman hata almaz.
  */
 export function ConsentRows({
   consents,
   onChange,
-  showProviders = false,
   requiredError,
 }: {
   consents: Consents;
   onChange: (next: Consents) => void;
-  /** KVKK satırında yurt dışı sağlayıcı parantezi (kayıt formunda). */
-  showProviders?: boolean;
   /** Doluysa işaretlenmemiş zorunlu kutuların altında gösterilir. */
   requiredError?: string | null;
 }) {
@@ -83,12 +91,8 @@ export function ConsentRows({
         doc={{ href: "/sozlesmeler/kvkk", label: t("readKvkk") }}
       >
         {t.rich("kvkk", { a: plain })}
-        {showProviders ? <> {t("kvkkProviders")}</> : null}
       </CheckRow>
       <div className="space-y-3 border-t border-zinc-200/70 pt-2 sm:space-y-2">
-        <CheckRow checked={consents.profile} onChange={setKey("profile")}>
-          <span className="text-zinc-500">{t("profile")}</span>
-        </CheckRow>
         <CheckRow checked={consents.marketing} onChange={setKey("marketing")}>
           <span className="text-zinc-500">{t("marketing")}</span>
         </CheckRow>

@@ -22,6 +22,7 @@ const PUBLIC_DIRS = [
   "app/[locale]/nasil-calisir",
   "app/[locale]/hakkimizda",
   "app/[locale]/iletisim",
+  "app/[locale]/hesap-silme",
   "app/[locale]/talep-onayla",
   "components/marketplace",
   "components/marketing",

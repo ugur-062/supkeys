@@ -141,6 +141,17 @@ const DEFAULT_PRICING: Record<string, AiModelPricing> = {
   "gemini-3.1-pro": { inputPerMTok: 2, outputPerMTok: 12, cacheReadPerMTok: 0.2 },
 };
 
+/**
+ * PRE-GA MODEL ID (preview / experimental). Google's data processing terms
+ * (Cloud DPA, and with it the KVKK standard-contract plan of
+ * `docs/kvkk-uyum.md` step 1.3) cover GA models only: personal data must not
+ * reach a pre-GA model in production. `-latest` aliases cannot be judged from
+ * the name - production pins GA ids (operator list, `docs/kvkk-uyum.md`).
+ */
+export function isPreGaModelId(id: string): boolean {
+  return /(^|-)(preview|exp|experimental)(-|$)/i.test(id.trim());
+}
+
 /** Env erişimini soyutlar — ConfigService veya düz kayıt (testler) alır. */
 export type AiEnvSource =
   | Pick<ConfigService, "get">
@@ -229,6 +240,19 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
     timeoutMs: Number(g("AI_TIMEOUT_MS") ?? 60_000),
     maxPages: Number(g("AI_MAX_PAGES") ?? 20),
   };
+
+  // KVKK (2026-10-16): production'da ön-sürüm model kişisel veri işleyemez
+  // (DPA yalnız GA modelleri kapsar) — fiyat denetimi gibi boot'ta patlar.
+  // Render yeni sürümü sağlık denetiminden geçirmeden eskisini bırakmaz.
+  if (g("NODE_ENV") === "production") {
+    const preGa = Object.values(cfg.models).filter(isPreGaModelId);
+    if (preGa.length > 0) {
+      throw new Error(
+        `AI config error: pre-GA model id(s) ${preGa.join(", ")} in production. ` +
+          "Google's data processing terms cover GA models only; set AI_MODEL_DEFAULT / AI_MODEL_VISION / AI_MODEL_PREMIUM to GA model ids.",
+      );
+    }
+  }
 
   // Fail-closed: seçili modellerin fiyatı yoksa maliyet hesaplanamaz →
   // bütçe garantisi verilemez. Sessizce 0 maliyet saymak yerine boot'ta patla.

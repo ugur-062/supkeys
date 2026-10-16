@@ -58,6 +58,21 @@ const PAGE_SIZE = 25;
 const KVKK_ANON_LABEL = "KVKK ile anonimleştirildi";
 
 /**
+ * Son kullanıcısı hesabını silen firma (2026-10-16): askıda, firma düzeyi
+ * KVKK silmesini bekliyor. Gizlilik Politikası m.6 bunu kapanıştan itibaren
+ * en geç 30 günde söz verir; rozet kaç gün geçtiğini söyler, 21. günden
+ * sonra kırmızı. Silme: firma detayı › Özet › "Kalıcı Olarak Sil / Anonimleştir".
+ */
+const ERASURE_DEADLINE_DAYS = 30;
+function erasureBadge(since: string): { label: string; color: "amber" | "red" } {
+  const days = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 86_400_000));
+  return {
+    label: `KVKK silme bekliyor · ${days}/${ERASURE_DEADLINE_DAYS} gün`,
+    color: days >= ERASURE_DEADLINE_DAYS - 9 ? "red" : "amber",
+  };
+}
+
+/**
  * Filtreli TÜM sonucu sayfa sayfa çekip CSV indir (tavan 2000 kayıt —
  * sunucu pageSize=100 sınırıyla 20 istek).
  */
@@ -215,6 +230,8 @@ function FirmalarView() {
           options={[
             { value: "", label: "Hepsi" },
             { value: "true", label: "Askıda" },
+            // Son kullanıcı hesabını sildi; en eski önce (30 gün sözü).
+            { value: "kvkk", label: "KVKK silme bekliyor" },
           ]}
         />
         <SearchInput
@@ -270,6 +287,13 @@ function FirmalarView() {
                       {c.anonymized ? (
                         <Badge color="zinc" className="ml-2">
                           {KVKK_ANON_LABEL}
+                        </Badge>
+                      ) : c.erasurePendingSince ? (
+                        <Badge
+                          color={erasureBadge(c.erasurePendingSince).color}
+                          className="ml-2"
+                        >
+                          {erasureBadge(c.erasurePendingSince).label}
                         </Badge>
                       ) : c.isBlocked ? (
                         <Badge color="red" className="ml-2">

@@ -46,6 +46,15 @@ Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.pro
 - Riskli özellik anahtarla (`MARKETPLACE_LIVE` kalıbı): kod çıkar, anahtar staging'de
   doğrulanınca açılır.
 - Haftada bir toplu sürüm; acil düzeltme aynı akıştan, beklemeden.
+- **KVKK metin kapısı (2026-10-16, BLOKLAYICI).** 2026-10-16 tarihli değişiklikler
+  — `sozlesmeler/{kvkk,gizlilik,saklama-imha,kullanici}`, `/hesap-silme` metinleri
+  ve kayıt formundaki onay satırları — `docs/kvkk-uyum.md` "Canlı kapısı"
+  maddelerinin TAMAMI bitip `docs/legal/dpa/README.md`'ye işlenmeden `production`'a
+  BİRLEŞTİRİLMEZ (SS-2 imza + 5 iş günü bildirim, Sentry DPA + veri ayıklama,
+  trafik kayıtlarının kapalı kovaya akması, Apple ve yurt dışı karşı taraf için
+  avukat yanıtı, yeterlilik kararı kontrolü, kullanıcılara m.8 bildirimi). `main`
+  staging'e kendiliğinden kurulur: staging'de görünmesi sorun değil, canlıya
+  çıkan PR bu dosyaları kapı bitene dek içermez (gerekirse ayrı dal).
 
 ## Staging verisi
 
@@ -133,6 +142,36 @@ anında adresin serbest bırakılması. İkisi de TEK anahtara bağlıdır:
   satırlarına göre verir (`docs/backup-restore-drill.md` "Bilinen tuzaklar").
 - İlk gece birikmiş kayıtların en fazla 500'ü silinir; her silme denetim
   kaydına `company.signup_expired` olarak düşer.
+
+**Periyodik imha anahtarı (2026-10-16).** Kişisel Veri Saklama ve İmha
+Politikası'nın (`/sozlesmeler/saklama-imha`) otomatik sürelerini gece 05:30 işi
+`retention.purge` uygular (`apps/api/src/modules/data-retention/`; süreler
+`retention-policy.ts`, tablo satırlarıyla aynı). Anahtar
+`DATA_RETENTION_PURGE_ENABLED`, kural yukarıdaki tabloyla AYNI: `api` ve
+`api-staging`'de **TANIMLANMAZ** (production kipinde açık), yerel geliştirme,
+yerel arayüz test yığını, testler ve betikler kapalı; acil durdurma panelden
+`false`. Açılış günlüğü `Data retention purge is ON/OFF (…)` yazar. **Staging
+bilinçli olarak canlıyla aynı koşar** (kayıt temizliği gibi): staging verisi
+test verisidir, iş orada canlıdan önce sınanır; staging'e yedekten dönülmüş bir
+canlı kopyası bağlanırsa `false` verilir (`docs/backup-restore-drill.md`).
+- İş yalnız kendi veritabanına dokunur (auth sağlayıcısına gitmez); kategori
+  başına gecede en fazla 50 000 satır (1 000'lik deyimler), fazlası ertesi geceye
+  kalır ve günlüğe `… stopped at the per-run limit for …` yazılır. Açılışta bir
+  kez telafi koşar (uyuyan örnek gece işini kaçırmasın).
+- Her koşu TEK imha kaydı yazar: denetim kaydı `system.retention_purge`, sistem
+  aktörü, metadata `{ job, <kategori>: sayı, capped?, failed?, through? }` (kişisel
+  veri yok). Hiçbir şey yapmayan koşu günde en fazla bir kayıt yazar. Eski temizlik
+  işleri (`views.purge`, `ai.cleanupChatSessions`, `ai.cleanupExtractFiles`,
+  `sessions.purgeRevoked`, `signup.purgeUnverified`) aynı eylemle kendi `job`
+  anahtarıyla yazar. Admin › Denetim Kaydı süzgeci "Sistem: periyodik imha".
+- Bir kategori patlarsa öbürleri yine koşar, kayıt `failed` listesini taşır ve iş
+  `[CRON-HATA] retention.purge` ile Sentry'ye düşer. İmha kaydının KENDİSİ
+  yazılamazsa da koşu başarısız sayılır (`[AUDIT-KRİTİK-KAYIP]` +
+  `[CRON-HATA]`): kaydı olmayan imha kanıtsız imhadır.
+- Yerinde ayıklanan kategoriler (denetim IP / tarayıcı, ziyaretçi talebi IP'si, AI
+  kullanım e-postası) son tam koşunun kesiminden başlar; **pazar günleri
+  (İstanbul) tam tarama** yapılır — filigrandan aşağı düşmüş satır (yedekten
+  dönüş, elle eklenen kayıt) en geç bir haftada temizlenir.
 
 **AI sağlayıcı hatası teşhisi (2026-10-07).** Sağlayıcı bir çağrıyı reddettiğinde
 (kullanıcıya 502 `api.ai.saglayiciHataDondurdu`) `ai_usage` satırı `FAILED` +

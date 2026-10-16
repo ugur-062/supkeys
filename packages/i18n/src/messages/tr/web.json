@@ -32,6 +32,8 @@
       "mediation": "Aracılık Sözleşmesi",
       "privacy": "Gizlilik",
       "kvkk": "KVKK Aydınlatma",
+      "retention": "Saklama ve İmha Politikası",
+      "accountDeletion": "Hesap Silme",
       "distanceSales": "Mesafeli Satış",
       "refund": "İptal ve İade",
       "tagline": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
@@ -182,6 +184,50 @@
       "web": "Web",
       "footer": "Rothern'in nasıl çalıştığına dair sorular için <faq>sık sorulan sorular</faq> sayfası, sözleşme metinleri için <terms>Kullanıcı Sözleşmesi</terms> ve <kvkk>KVKK aydınlatma metni</kvkk>."
     },
+    "accountDeletion": {
+      "metaTitle": "Hesap silme",
+      "metaDesc": "Rothern hesabınızı uygulamada ya da web sitesinde nasıl silersiniz: adımlar, hemen silinen ve yasal olarak saklanan bilgiler, giriş yapamıyorsanız başvuru yolu.",
+      "title": "Rothern hesabınızı silme",
+      "intro": "Bu sayfa, {legalName} tarafından işletilen <b>Rothern</b> platformundaki (www.rothern.com ve Rothern iOS ve Android uygulamaları) hesabınızı nasıl sileceğinizi ve silindiğinde bilgilerinize ne olduğunu anlatır.",
+      "stepsTitle": "Uygulamada ya da web sitesinde silme",
+      "stepsIntro": "Hesabınızı kendiniz silebilirsiniz; e-posta göndermeniz ya da destekle görüşmeniz gerekmez. Adımlar uygulamada ve www.rothern.com'da aynıdır.",
+      "step1": "Rothern uygulamasında ya da www.rothern.com'da hesabınızla giriş yapın.",
+      "step2": "<b>Ayarlar › Hesap Bilgileri</b> sayfasını açın.",
+      "step3": "<b>Hesabı sil</b> bölümünde <b>Hesabımı sil</b> düğmesine basın.",
+      "step4": "Şifrenizi girin ve <b>Hesabımı kalıcı olarak sil</b> düğmesiyle onaylayın.",
+      "stepsSetupNote": "Şirket bilgilerini henüz tamamlamadıysanız ya da açılışta sözleşme onayı penceresi çıkıyorsa Ayarlar sayfası açılmaz: o ekrandaki <b>Hesabımı sil</b> düğmesine basın ve şifrenizle onaylayın.",
+      "stepsResult": "Silme hemen gerçekleşir ve geri alınamaz: ekranda “Hesabınız silindi” bildirimi görünür, oturumunuz kapanır ve diğer cihazlardaki oturumlarınız da geçersiz olur.",
+      "openSettings": "Hesap Bilgileri'ni aç",
+      "openSettingsHint": "Giriş yapmadıysanız önce giriş sayfası açılır.",
+      "forgotPassword": "Şifrenizi hatırlamıyorsanız önce <link>şifrenizi sıfırlayın</link>.",
+      "noLoginTitle": "Giriş yapamıyorsanız",
+      "noLoginBody": "Uygulamayı yeniden yüklemeniz gerekmez: aynı adımları www.rothern.com'da izleyebilirsiniz. Hesabınıza hiç giriş yapamıyorsanız (örneğin firma hesabınız askıya alındıysa, firma yöneticiniz hesabınızı pasifleştirdiyse ya da sizi ekipten çıkardıysa) silme talebinizi, hesabınıza kayıtlı e-posta adresinden <mail>{email}</mail> adresine yazarak iletebilirsiniz. Talebinize adınızı, soyadınızı ve firma adınızı ekleyin. Talebi doğrulamak için hesabınıza kayıtlı (ekipten çıkarıldıysanız en son kullandığınız) e-posta adresine yazar ve onayınızı oradan isteriz; gerekirse ek bilgi de isteyebiliriz. Ekipten çıkarıldıysanız giriş bilgileriniz, e-posta adresiniz, telefon numaranız ve iki adımlı doğrulama bilgileriniz çıkarıldığınız anda silinmiştir; firmanın kayıtlarında kalan adınızın silinmesini de bu yoldan isteyebilirsiniz. Talepler en geç 30 gün içinde ücretsiz olarak sonuçlandırılır.",
+      "deletedTitle": "Hemen silinen bilgiler",
+      "deleted1": "Giriş bilgileriniz silinir; e-posta adresiniz yeni bir kayıt için yeniden kullanılabilir.",
+      "deleted2": "Adınız, soyadınız, telefon numaranız ve e-posta adresiniz hesap kaydından kaldırılır; kayıt bundan sonra “Silinmiş Kullanıcı” adıyla görünür (firmanızın Aktivite Logu'nda da; orada silinen hesapları birbirinden ayırmak için adın yanında kısa bir kod bulunur).",
+      "deleted3": "Bildirimleriniz, cihaz bildirim kayıtlarınız (anlık bildirim belirteçleri), iki adımlı doğrulama ayarlarınız ve kurtarma kodlarınız, bekleyen şifre sıfırlama ve doğrulama kodlarınız silinir.",
+      "deleted4": "Yapay zekâ asistanıyla yaptığınız sohbetler silinir; e-posta adresiniz yapay zekâ kullanım kayıtlarından ve size gönderilmiş ekip davetlerinden de kaldırılır.",
+      "deleted5": "İsteğe bağlı ticari elektronik ileti onayınız geri alınır.",
+      "keptTitle": "Saklanan bilgiler ve nedenleri",
+      "keptIntro": "Aşağıdaki kayıtlar hesabınızla birlikte silinmez; çünkü firmanıza ve karşı taraflara aittir ya da kanunen saklanmaları gerekir.",
+      "kept1": "Firmanızın satın alma talepleri, teklifleri, siparişleri, onayları, mesajları ve yüklenen belgeleri firmada kalır. Bu kayıtlarda hesabınız “Silinmiş Kullanıcı” olarak görünür; yazışmanın bütünlüğü için gönderdiğiniz mesajlarda gönderen adı, gönderim anındaki hâliyle kalır.",
+      "kept2": "Ticari kayıtlar ve ticari yazışmalar (talep, teklif, sipariş, mesaj ve ticari işlemlere ilişkin e-posta gönderim kayıtları), yasal saklama yükümlülükleri ve 10 yıllık zamanaşımı süresi gözetilerek kaydın oluştuğu takvim yılının sonundan itibaren 10 yıl saklanır. Diğer e-posta gönderim kayıtları daha kısa sürede silinir: güvenlik ve doğrulama e-postalarının kayıtları 1 yıl, öneri, özet ve duyuru e-postalarının kayıtları 2 yıl sonra.",
+      "kept3": "Denetim kayıtları (işlem kayıtları; işlem anındaki e-posta adresinizle birlikte) platform güvenliği ve olası uyuşmazlıklarda ispat amacıyla 10 yıl saklanır; bu kayıtlardaki IP adresi ve tarayıcı bilgisi 2 yıl dolmadan silinir. Sunucu erişim (trafik) kayıtları 5651 sayılı Kanun uyarınca en az 1, en fazla 2 yıl saklanır. Sözleşme onay tarihleriniz, ispat amacıyla bağlı ticari kayıtlar saklandığı sürece kalır.",
+      "kept4": "Sistem yedeklerindeki kopyalar, yedeklerin olağan yenilenme döngüsünde silinir.",
+      "kept5": "Diğer kullanıcılara daha önce gönderilmiş bildirimlerde ve e-postalarda adınız geçebilir; bunlar alıcıların hesabında ve gönderim kayıtlarında kalır. E-posta aboneliğinden çıktıysanız bu kayıt (yalnız adresiniz ve çıkış kapsamı), size yeniden e-posta gönderilmemesi için süresiz saklanır.",
+      "kept6": "Firma kaydındaki bilgiler firmaya aittir ve firma faaliyetini sürdürdükçe firmada kalır: firma yetkilisinin kimlik numarası ve yüklenen kimlik belgesi görüntüleri (bunlar sizin bilgileriniz olabilir), şahıs firmalarında vergi numarası olarak kullanılan T.C. kimlik numarası, işyeri adresi ve firmanın fatura e-posta adresi ile telefonu. Bu bilgiler, firma kapandığında “Özel durumlar” bölümündeki kurala göre silinir.",
+      "keptOutro": "Saklama sürelerinin tamamı ve gerekçeleri <policy>Kişisel Veri Saklama ve İmha Politikası</policy> içinde, kişisel verilerinizin nasıl işlendiği <kvkk>KVKK Aydınlatma Metni</kvkk> içinde yer alır.",
+      "specialTitle": "Özel durumlar",
+      "special1": "<b>Firmada başka kullanıcılar varsa</b> yalnız sizin hesabınız silinir; firma ve diğer kullanıcılar etkilenmez. Açtığınız taslak ve süren talepler firmanın Kurucusuna devredilir. Hesabınız silindikten sonra firmada kullanıcıları yönetebilecek en az bir aktif kişi (Kurucu ya da kullanıcı yönetimi yetkisi olan bir kullanıcı) kalmalıdır.",
+      "special2": "<b>Firmanın Kurucusuysanız</b> ve firmada başka kullanıcılar varsa (pasif olanlar dahil), önce Ayarlar › Kullanıcı Yönetimi sayfasında kuruculuğu başka bir kullanıcıya devredin ya da diğer kullanıcıları firmadan çıkarın.",
+      "special3": "<b>Firmanın tek kullanıcısıysanız</b> firma hesabı da hesabınızla birlikte kapanır; firma profili, ürünleri ve herkese açık talepleri yayından kalkar. Süren siparişler (tamamlanmamış, iptal edilmemiş ve reddedilmemiş; teslim edilmiş ama henüz tamamlanmamış siparişler dahil) veya açık talepler (yayın onayı bekleyen, teklif toplayan, değerlendirme ya da kazandırma aşamasındaki) varken bu yapılamaz; önce bunları sonuçlandırın. Tamamlanmış siparişler ve başka firmaların taleplerine verdiğiniz teklifler silmeye engel değildir.",
+      "special4": "Kapanan firmanın unvan, vergi, adres, banka hesabı ve doğrulama belgeleri gibi bilgileri, saklanması kanunen zorunlu olan kayıtlar (ör. tamamlanmış siparişler) dışında, Rothern tarafından en geç 30 gün içinde silinir; firmanın geçmiş ticari kayıtları varsa firma kaydı “Silinmiş Firma” adıyla kalır.",
+      "specialUnverified": "Kayıt formundan açıp e-posta adresini doğrulamadığınız hesaplar, 7 gün dolduktan sonra firma kaydıyla birlikte kendiliğinden silinir; ayrıca bir şey yapmanız gerekmez.",
+      "specialHelp": "Bu adımları tamamlayamıyorsanız (örneğin kuruculuğu devredecek kimse yoksa ya da bir sipariş sonuçlandırılamıyorsa) <mail>{email}</mail> adresine yazın; silmeyi birlikte tamamlarız.",
+      "partialTitle": "Hesabı silmeden bazı bilgileri silmek",
+      "partialBody": "Telefon numaranızı Ayarlar › Hesap Bilgileri sayfasından istediğiniz zaman kaldırabilirsiniz. Hesabınızı silmeden belirli kişisel verilerinizin silinmesini KVKK kapsamında <mail>{email}</mail> adresinden isteyebilirsiniz.",
+      "footer": "Kişisel verilerinizin nasıl işlendiği <privacy>Gizlilik Politikası</privacy> ve <kvkk>KVKK Aydınlatma Metni</kvkk> sayfalarında anlatılır; sorularınız için <contact>İletişim</contact> sayfasına bakabilirsiniz."
+    },
     "faq": {
       "metaTitle": "Sık sorulan sorular",
       "metaDesc": "Rothern nasıl çalışır: kapalı zarf teklif, alıcı kimliğinin gizliliği, ücretsiz vitrin, firma doğrulaması, kategori ağacı ve kullanıcı yetkileri hakkında sık sorulan sorular.",
@@ -241,6 +287,10 @@
       "kvkk": {
         "metaTitle": "KVKK Aydınlatma Metni",
         "metaDesc": "6698 sayılı KVKK kapsamında veri sorumlusu, işleme amaçları, aktarım, saklama süreleri ve ilgili kişi hakları."
+      },
+      "saklamaImha": {
+        "metaTitle": "Kişisel Veri Saklama ve İmha Politikası",
+        "metaDesc": "Rothern'de kişisel verilerin ne kadar süre saklandığı, saklama sebepleri, imha yöntemleri ve periyodik imha süreleri."
       },
       "aracilik": {
         "metaTitle": "Aracılık ve Kullanım Sözleşmesi",
@@ -2023,9 +2073,7 @@
       "terms": "<a>Kullanıcı sözleşmesini</a> okudum ve kabul ediyorum",
       "mediation": "<a>Platform aracılık ve kullanım sözleşmesini</a> kabul ediyorum",
       "kvkk": "<a>KVKK Aydınlatma Metni</a> bilgilendirmesini okudum",
-      "kvkkProviders": "(yurt dışı sağlayıcılar: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
-      "profile": "Profil ve hizmet iyileştirme (opsiyonel)",
-      "marketing": "Pazarlama ve analitik / ticari ileti (opsiyonel)",
+      "marketing": "Rothern'in kampanya ve tanıtımlarına ilişkin ticari elektronik ileti almak istiyorum (isteğe bağlı)",
       "readTerms": "Kullanıcı sözleşmesini oku",
       "readMediation": "Aracılık sözleşmesini oku",
       "readKvkk": "Aydınlatma metnini oku"
@@ -2178,6 +2226,22 @@
       "authorizedHeading": "Yetkili kişi",
       "summaryHeading": "Özet",
       "summaryHint": "Kaydedilecek bilgileri kontrol edin; düzeltmek için önceki adımlara dönebilirsiniz."
+    },
+    "deleteAccount": {
+      "open": "Hesabımı sil",
+      "title": "Hesabı sil",
+      "body": "Hesabınız kalıcı olarak silinir ve bu işlem geri alınamaz: giriş bilgileriniz silinir; adınız, telefonunuz ve e-posta adresiniz hesaptan kaldırılır. Firmanın tek kullanıcısıysanız firma hesabı da kapanır.",
+      "bodyRules": "Firmanın Kurucusuysanız ve firmada başka kullanıcılar varsa (pasif olanlar dahil), önce kuruculuğu başka bir kullanıcıya devretmeniz gerekir; bu, şirket kurulumu ve sözleşme onayı tamamlandıktan sonra Ayarlar › Kullanıcı Yönetimi sayfasında yapılır. Firmanın tek kullanıcısıysanız süren sipariş ya da açık talep varken hesap silinemez.",
+      "bodyHelp": "Bu koşulları yerine getiremiyorsanız <mail>{email}</mail> adresine yazın; silmeyi birlikte tamamlarız.",
+      "details": "Neyin silinip neyin saklandığı: <deletion>Hesap silme</deletion> · <privacy>Gizlilik Politikası</privacy>",
+      "passwordLabel": "Onaylamak için şifreniz",
+      "passwordRequired": "Şifrenizi girin",
+      "confirm": "Hesabımı kalıcı olarak sil",
+      "cancel": "Vazgeç",
+      "failed": "Hesap silinemedi",
+      "ownerMustTransferSetup": "Firmada başka kullanıcılar olduğu için hesabınız silinemedi: önce kuruculuğun başka bir kullanıcıya devredilmesi gerekir. Kullanıcı Yönetimi bu ekrandan açılmaz; yardım için {email} adresine yazın.",
+      "done": "Hesabınız silindi",
+      "doneBody": "Oturumunuz kapatıldı; diğer cihazlardaki oturumlarınız da sona erdi."
     }
   },
   "panel": {
@@ -6279,6 +6343,7 @@
         "karmasikIslerIcinSisteminOtomatik": "Karmaşık işler için sistemin otomatik seçtiği gelişmiş model, havuzun ayrı bir bölümünden harcar. Dolduğunda istekler standart modelle sürdürülür.",
         "kullaniciKirilimi": "Kullanıcı kırılımı",
         "kullanici": "Kullanıcı",
+        "silinmisKullanici": "Silinmiş Kullanıcı",
         "istek": "İstek",
         "havuzPayi": "Havuz payı",
         "buAyAiKullanimiYok": "Bu ay AI kullanımı yok",
@@ -6482,6 +6547,7 @@
         "bankName": "Banka adı",
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
         "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin.",
+        "idMaskHint": "Kimlik belgesinde din, kan grubu gibi bilgiler varsa yüklemeden önce karartın; doğrulama için bunlar gerekmez.",
         "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez",
         "dogrulamaBilgileriYuklenemedi": "Doğrulama bilgileri yüklenemedi.",
         "yenidenDene": "Yeniden dene",
@@ -6522,7 +6588,7 @@
       "settingsPages": {
         "hesap": {
           "title": "Hesap Bilgileri",
-          "description": "Ad, soyad, telefon ve iletişim bilgileriniz"
+          "description": "Ad, soyad, telefon, dil tercihi ve hesabı silme"
         },
         "sifre": {
           "title": "Şifre İşlemleri",
@@ -6634,15 +6700,12 @@
       },
       "deleteAccountSection": {
         "title": "Hesabı sil",
-        "body": "Hesabınız kalıcı olarak silinir: giriş bilgileriniz ve kişisel bilgileriniz kaldırılır, bu işlem geri alınamaz. Firmanızın talep, teklif ve sipariş kayıtları yasal saklama süresi boyunca kişisel bilgileriniz olmadan tutulur.",
-        "bodyLastMember": "Firmanın tek kullanıcısı sizseniz firma hesabı da kapanır ve herkese açık profili yayından kalkar.",
-        "open": "Hesabımı sil",
-        "passwordLabel": "Onaylamak için şifreniz",
-        "passwordRequired": "Şifrenizi girin",
-        "confirm": "Hesabımı kalıcı olarak sil",
-        "cancel": "Vazgeç",
-        "failed": "Hesap silinemedi",
-        "done": "Hesabınız silindi"
+        "body": "Hesabınız kalıcı olarak silinir ve bu işlem geri alınamaz: giriş bilgileriniz silinir; adınız, telefonunuz ve e-posta adresiniz hesaptan kaldırılır. Firmanızın talep, teklif, sipariş ve mesaj kayıtları firmada kalır ve kaydın oluştuğu yılın sonundan itibaren 10 yıl saklanır; bu kayıtlarda hesabınız “Silinmiş Kullanıcı” olarak görünür.",
+        "bodyFounder": "Firmanın Kurucusuysanız ve başka kullanıcılar varsa (pasif olanlar dahil) önce <users>Kullanıcı Yönetimi</users> sayfasında kuruculuğu devredin.",
+        "bodyLastMember": "Firmanın tek kullanıcısı sizseniz firma hesabı da kapanır ve herkese açık profili yayından kalkar; süren sipariş ya da açık talep varken bu yapılamaz.",
+        "bodyHelp": "Bu koşulları yerine getiremiyorsanız <mail>{email}</mail> adresine yazın; silmeyi birlikte tamamlarız.",
+        "details": "Neyin silinip neyin saklandığı: <deletion>Hesap silme</deletion> · <privacy>Gizlilik Politikası</privacy>",
+        "open": "Hesabımı sil"
       }
     },
     "company": {

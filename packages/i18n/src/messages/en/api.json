@@ -145,6 +145,10 @@
   },
   "adminCompanies": {
     "firmaKvkkIleAnonimlestirildi": "This company was anonymised under a data-deletion (KVKK) request — this action is not available",
+    "kvkkSilmeGirisYapabilir": "This account can still sign in, so it isn't erased here. The person deletes it with “Delete my account” in the app (resetting the password first if they have forgotten it).",
+    "kvkkSilmeFirmaAskida": "The company is suspended and this person is its last user: the erasure would close the company and replace the suspension record. Decide the suspension first (lift it, or delete / anonymise the company under Summary › KVKK).",
+    "firmaHesapSahibiSildi": "The company's last user deleted their account; the company is waiting for the KVKK erasure. Its suspension can't be changed and no users can be added; delete / anonymise the company under Summary › KVKK.",
+    "askiSebebiSistemNotu": "This text is reserved as a system note; enter a different suspension reason.",
     "firmaBulunamadi": "Company not found",
     "firmaSahibiDevreDisiBirakilamazOnce": "The company owner cannot be deactivated — transfer ownership first",
     "gecerliBirEPostaGirin": "Enter a valid email address",
@@ -549,6 +553,7 @@
     "ePostaKaydiBulunamadi": "Email record not found",
     "buEPostaTekKullanimlikKod": "This email carries a one-time code/token, so its content is not stored — it cannot be resent. The user has to request the code or invitation again (password reset, verification code or resend invitation flow).",
     "icKayitYenidenGonderilemez": "This entry is an internal system record (e.g. a suppression clear marker), not a real email — it cannot be resent.",
+    "icerikVerisiYokYenidenGonderilemez": "This entry has no content data (deleted when its retention period ended, or never stored) — it cannot be resent.",
     "ePostaLoguBulunamadi": "Email log not found"
   },
   "companyActivity": {
@@ -1109,7 +1114,7 @@
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "You must accept the user agreement",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "You must accept the intermediation and use agreement",
-      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm the KVKK privacy notice",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm that you have read the KVKK privacy notice",
       "enAzBirRolSecin": "Select at least one role"
     },
     "account": {
@@ -1137,7 +1142,7 @@
       "parolaEnAzBirOzelKarakterIcermeli": "Password must contain at least one special character",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "You must accept the user agreement",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "You must accept the intermediation and use agreement",
-      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm the KVKK privacy notice",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm that you have read the KVKK privacy notice",
       "altiHaneliKodGiriniz": "Enter the 6-digit code"
     },
     "onboarding": {

@@ -11,13 +11,14 @@ vi.mock("next/navigation", () => ({
 
 import { ConsentRows, type Consents } from "../consent-rows";
 
+const MARKETING = "Rothern'in kampanya ve tanıtımlarına ilişkin ticari elektronik ileti almak istiyorum (isteğe bağlı)";
+
 function Harness({ requiredError }: { requiredError?: string | null }) {
   const [c, setC] = useState<Consents>({
     terms: false,
     mediation: false,
     kvkk: false,
     marketing: false,
-    profile: false,
   });
   return <ConsentRows consents={c} onChange={setC} requiredError={requiredError} />;
 }
@@ -31,11 +32,11 @@ describe("ConsentRows", () => {
   it("metne tıklamak kutuyu işaretler/kaldırır", async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    const box = screen.getByRole("checkbox", { name: "Pazarlama ve analitik / ticari ileti (opsiyonel)" });
+    const box = screen.getByRole("checkbox", { name: MARKETING });
     expect(box).toHaveAttribute("aria-checked", "false");
-    await user.click(screen.getByText("Pazarlama ve analitik / ticari ileti (opsiyonel)"));
+    await user.click(screen.getByText(MARKETING));
     expect(box).toHaveAttribute("aria-checked", "true");
-    await user.click(screen.getByText("Pazarlama ve analitik / ticari ileti (opsiyonel)"));
+    await user.click(screen.getByText(MARKETING));
     expect(box).toHaveAttribute("aria-checked", "false");
   });
 
@@ -114,8 +115,8 @@ describe("ConsentRows", () => {
       expect(box).toHaveAttribute("aria-invalid", "true");
       expect(box).toHaveAccessibleDescription("Bu onay gereklidir.");
     }
-    for (const name of ["Profil ve hizmet iyileştirme (opsiyonel)", "Pazarlama ve analitik / ticari ileti (opsiyonel)"]) {
-      const box = screen.getByRole("checkbox", { name });
+    {
+      const box = screen.getByRole("checkbox", { name: MARKETING });
       expect(box).not.toHaveAttribute("aria-invalid");
       expect(box).not.toHaveAttribute("aria-describedby");
     }
@@ -124,6 +125,36 @@ describe("ConsentRows", () => {
     await user.click(required[0]);
     expect(required[0]).not.toHaveAttribute("aria-invalid");
     expect(screen.getAllByText("Bu onay gereklidir.")).toHaveLength(2);
+  });
+
+  /* 2026-10-16 (kullanıcı kararı): yurt dışına aktarımın dayanağı KVKK m.9/4-c
+     standart sözleşmedir. Zorunlu KVKK kutusu yalnız aydınlatma metninin
+     okunduğunu bildirir: sağlayıcı listesi, aktarım ya da rıza sözü taşımaz
+     (eskiden kayıt formunda "(yurt dışı sağlayıcılar: …)" parantezi vardı). */
+  it("zorunlu KVKK kutusu yalnız okunduğunu bildirir; aktarım / sağlayıcı / rıza sözü yok, rıza yalnız isteğe bağlı satırlarda", () => {
+    render(<Harness requiredError="Bu onay gereklidir." />);
+    const kvkk = screen.getByRole("checkbox", { name: "KVKK Aydınlatma Metni bilgilendirmesini okudum" });
+    const label = document.getElementById(kvkk.getAttribute("aria-labelledby") ?? "")!;
+    expect(label.textContent).toBe("KVKK Aydınlatma Metni bilgilendirmesini okudum");
+    expect(label.textContent).not.toMatch(/yurt dışı|aktarım|rıza|Supabase|Google|Apple/i);
+    // Zorunlu üç kutu: hiçbiri rıza/aktarım sözü taşımaz.
+    for (const box of screen.getAllByRole("checkbox").filter((b) => b.getAttribute("aria-invalid") === "true")) {
+      const l = document.getElementById(box.getAttribute("aria-labelledby") ?? "")!;
+      expect(l.textContent).not.toMatch(/yurt dışı|aktarım|rıza/i);
+    }
+    // İsteğe bağlı TEK kutu "(isteğe bağlı)" der ve zorunlu değildir.
+    expect(screen.getByRole("checkbox", { name: MARKETING })).not.toHaveAttribute("aria-invalid");
+    expect(document.body.textContent).not.toMatch(/Supabase|Vercel|Cloudflare/);
+  });
+
+  /* İnceleme 2026-10-16: "Profil ve hizmet iyileştirme" kutusu kaldırıldı (ona
+     dayanan işleme yoktu, rıza belirli bir konuya ilişkin değildi); ticari ileti
+     kutusu belirli amacı söyler, "analitik" sözü taşımaz. */
+  it("isteğe bağlı tek kutu: belirli amaçlı ticari ileti onayı; profil iyileştirme ve analitik yok", () => {
+    render(<Harness />);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(4);
+    expect(document.body.textContent).not.toMatch(/Profil ve hizmet iyileştirme|analitik/i);
+    expect(screen.getByRole("checkbox", { name: MARKETING })).toHaveAttribute("aria-checked", "false");
   });
 
   it("requiredError verilmezse hiçbir kutu hatalı değildir (davet kabul formu)", () => {

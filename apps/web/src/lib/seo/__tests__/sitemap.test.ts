@@ -241,9 +241,14 @@ describe("sabit sayfalar parçası — sözleşme metinleri (2026-09-27)", () =>
   it("sözleşmeler yalnız Türkçe listelenir (EN/RU sayfanın kanoniği Türkçe); diğer sayfalar üç dilde", async () => {
     const locs = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
     expect(locs).toContain(`${S}/sozlesmeler/kvkk`);
+    expect(locs).toContain(`${S}/sozlesmeler/saklama-imha`);
     expect(locs.some((l) => l.includes("/legal/") || l.includes("/dokumenty/"))).toBe(false);
     expect(locs).toContain(`${S}/en/how-it-works`);
     expect(locs).toContain(`${S}/ru/faq`);
+    // Hesap silme sayfası sözleşme değil, çevrilmiş sayfa → üç dilde.
+    expect(locs).toContain(`${S}/hesap-silme`);
+    expect(locs).toContain(`${S}/en/account-deletion`);
+    expect(locs).toContain(`${S}/ru/udalenie-akkaunta`);
   });
 
   it("boş dizin (noindex) sitemap'e girmez; dolu dizin üç dilde listelenir", async () => {

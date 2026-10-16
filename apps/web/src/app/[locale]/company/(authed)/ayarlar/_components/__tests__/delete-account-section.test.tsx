@@ -29,6 +29,7 @@ import { DeleteAccountSection } from "../delete-account-section";
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 describe("DeleteAccountSection", () => {
@@ -38,6 +39,24 @@ describe("DeleteAccountSection", () => {
     await user.click(screen.getByRole("button", { name: "Hesabımı sil" }));
     return user;
   }
+
+  /* Mağaza incelemesi (2026-10-16): silmenin ön koşulları kartta önceden yazılı;
+     neyin silinip neyin saklandığı herkese açık sayfada, gizlilik politikası
+     uygulama içinden bir dokunuşla açılır (Apple 5.1.1). */
+  it("Kurucu devri ve son kullanıcı kuralı yazılı; hesap silme, gizlilik ve kullanıcı yönetimi bağlantıları", () => {
+    render(<DeleteAccountSection />);
+    expect(screen.getByText(/önce .*kuruculuğu devredin/)).toBeInTheDocument();
+    // Pasif kullanıcı da devri gerektirir (API `others` deletedAt=null sayar).
+    expect(screen.getByText(/pasif olanlar dahil/)).toBeInTheDocument();
+    expect(screen.getByText(/süren sipariş ya da açık talep varken bu yapılamaz/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kullanıcı Yönetimi" })).toHaveAttribute("href", "/company/ayarlar/kullanicilar");
+    expect(screen.getByRole("link", { name: "Hesap silme" })).toHaveAttribute("href", "/hesap-silme");
+    expect(screen.getByRole("link", { name: "Gizlilik Politikası" })).toHaveAttribute("href", "/sozlesmeler/gizlilik");
+    // Gövde artık "kişisel bilgileriniz olmadan" demiyor: mesajlarda gönderen adı kalıyor.
+    expect(screen.queryByText(/kişisel bilgileriniz olmadan/)).toBeNull();
+    // Koşulu yerine getiremeyen için destek yolu (Google Play: ek adım varsa destek yolu).
+    expect(screen.getByRole("link", { name: "kvkk@rothern.com" })).toHaveAttribute("href", "mailto:kvkk@rothern.com");
+  });
 
   it("şifre alanı ancak düğmeye basınca açılır; boş şifreyle istek atılmaz", async () => {
     render(<DeleteAccountSection />);
@@ -79,6 +98,22 @@ describe("DeleteAccountSection", () => {
     expect(h.clearQueries).toHaveBeenCalled();
     expect(h.clearTenant).toHaveBeenCalled();
     expect(window.localStorage.getItem("rothern:push-token")).toBeNull();
+    // Onay tam sayfa yüklemesini aşar: giriş sayfası okur ("Hesabınız silindi").
+    expect(window.sessionStorage.getItem("rothern.account-deleted-notice")).toBe("1");
+  });
+
+  it("sunucu reddinde onay işareti yazılmaz", async () => {
+    h.mutateAsync.mockRejectedValueOnce(
+      new AxiosError("400", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        data: { code: "ACCOUNT_HAS_OPEN_WORK", message: "Süren siparişleriniz varken hesap silinemez." },
+      } as never),
+    );
+    const user = await openForm();
+    await user.type(screen.getByLabelText("Onaylamak için şifreniz"), "Dogru!Sifre12");
+    await user.click(screen.getByRole("button", { name: "Hesabımı kalıcı olarak sil" }));
+    expect(await screen.findByText("Süren siparişleriniz varken hesap silinemez.")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("rothern.account-deleted-notice")).toBeNull();
   });
 
   it("Vazgeç yazılan şifreyi ve hatayı siler", async () => {

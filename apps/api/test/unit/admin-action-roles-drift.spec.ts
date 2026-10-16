@@ -55,6 +55,10 @@ const EXPECTED: Record<string, Spec> = {
   notify: { kind: "method", ctrl: AdminCompaniesController, method: "notify", roles: KYC },
   resolveComplaint: { kind: "method", ctrl: AdminCompaniesController, method: "resolve", roles: KYC },
   manageCompanyUser: { kind: "method", ctrl: AdminCompanyUsersController, method: "addUser", roles: KYC },
+  // KVKK silme talebi (2026-10-16): giriş yapamayan kişinin hesabını silme — geri alınamaz.
+  eraseCompanyUser: { kind: "method", ctrl: AdminCompanyUsersController, method: "erase", roles: SUPER },
+  // Onay penceresinin ön bilgisi (son kullanılan adres, askı, ret nedeni) aynı aksiyonun ucu.
+  "eraseCompanyUser:preview": { kind: "method", ctrl: AdminCompanyUsersController, method: "erasePreview", roles: SUPER },
   recoverAccount: { kind: "any", ctrl: AdminCompanyUsersController, method: "sendPasswordReset" },
   manageStaff: { kind: "class", ctrl: AdminStaffController, roles: SUPER },
   // Denetim 2026-08-26 Parça 10 B2: admin/sistem'in üç yıkıcı aksiyonu

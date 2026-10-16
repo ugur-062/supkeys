@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import * as nextIntl from "next-intl";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type React from "react";
 
 const h = vi.hoisted(() => ({
   meData: {
@@ -27,6 +29,8 @@ const h = vi.hoisted(() => ({
   meRefetch: vi.fn(),
   meArgs: vi.fn(),
   updateMeAsync: vi.fn(),
+  deleteAsync: vi.fn(),
+  clearStore: vi.fn(),
   // Seçilen ürün/hizmetlerin adları (özet aynı sorguyu okur).
   cats: [] as Array<{ id: string; nameTr: string }>,
   // Sihirbazın `useCategoriesByIds` çağrıları (id listesi + seçenek).
@@ -40,7 +44,7 @@ const h = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ user: { id: "u1" }, isHydrated: true }),
+    sel({ user: { id: "u1" }, isHydrated: true, clear: h.clearStore }),
 }));
 vi.mock("@/hooks/use-categories", () => ({
   useRoots: (...args: unknown[]) => {
@@ -75,6 +79,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
 
 vi.mock("@/hooks/use-company-account", () => ({
   useUpdateMe: () => ({ mutateAsync: h.updateMeAsync, isPending: false }),
+  useDeleteAccount: () => ({ mutateAsync: h.deleteAsync, isPending: false }),
 }));
 
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
@@ -2803,3 +2808,63 @@ describe("OnboardingClient — kayıt denetimi 2026-10 üçüncü tur", () => {
     }
   });
 });
+
+/**
+ * MAĞAZA İNCELEMESİ (2026-10-16): kurulum bitmeden panelin hiçbir sayfası
+ * (Ayarlar dahil) açılmaz; uygulamada hesap açıp silmeyi arayan inceleyici ve
+ * vazgeçen kişi silme yolunu kurulum ekranında bulur (Apple 5.1.1(v), Google
+ * Play). Form Ayarlar'daki ile ortak (`DeleteAccountDialog`).
+ */
+describe("OnboardingClient — hesabı silme", () => {
+  const withQuery = (ui: React.ReactElement) => (
+    <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>
+  );
+
+  it("Kurucu sihirbazında 'Hesabımı sil' şifreyle onaylanan pencereyi açar; Vazgeç kapatır", async () => {
+    h.meData = {
+      user: { firstName: "Ada", lastName: "Yılmaz", isOwner: true },
+      company: { onboardingCompletedAt: null },
+    };
+    const user = userEvent.setup();
+    render(withQuery(<OnboardingClient />));
+    await user.click(screen.getByRole("button", { name: "Hesabımı sil" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Hesabı sil")).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Hesap silme" })).toHaveAttribute("href", "/hesap-silme");
+    await user.click(within(dialog).getByRole("button", { name: "Hesabımı kalıcı olarak sil" }));
+    expect(within(dialog).getByText("Şifrenizi girin")).toBeInTheDocument();
+    expect(h.deleteAsync).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("şifreyle onaylanınca silme isteği gider; oturumu kapatma çağrılmaz (silme oturumu kendi kapatır)", async () => {
+    h.meData = {
+      user: { firstName: "Ada", lastName: "Yılmaz", isOwner: true },
+      company: { onboardingCompletedAt: null },
+    };
+    h.deleteAsync.mockResolvedValueOnce({ ok: true, companyClosed: true });
+    const user = userEvent.setup();
+    render(withQuery(<OnboardingClient />));
+    await user.click(screen.getByRole("button", { name: "Hesabımı sil" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Onaylamak için şifreniz"), "Dogru!Sifre12");
+    await user.click(within(dialog).getByRole("button", { name: "Hesabımı kalıcı olarak sil" }));
+    await waitFor(() => expect(h.deleteAsync).toHaveBeenCalledWith({ password: "Dogru!Sifre12" }));
+    // İstemci oturumu çıkıştaki sırayla temizlenir; ayrı çıkış isteği atılmaz.
+    await waitFor(() => expect(h.clearStore).toHaveBeenCalled());
+    expect(h.logout).not.toHaveBeenCalled();
+  });
+
+  it("Kurucu olmayan üyenin 'Kurucu tamamlamalı' ekranında da 'Hesabımı sil' var", async () => {
+    h.meData = {
+      user: { firstName: "Can", lastName: "Demir", isOwner: false },
+      company: { onboardingCompletedAt: null },
+    };
+    const user = userEvent.setup();
+    render(withQuery(<OnboardingClient />));
+    await user.click(screen.getByRole("button", { name: "Hesabımı sil" }));
+    expect(await screen.findByLabelText("Onaylamak için şifreniz")).toBeInTheDocument();
+  });
+});
+

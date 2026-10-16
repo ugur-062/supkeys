@@ -1,12 +1,15 @@
-import { Injectable, Optional, type OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import {
   CronRegistryService,
   trackCronRun,
 } from "../../../common/cron/cron-registry.service";
+import { RetentionRecordService } from "../../data-retention/retention-record.service";
 import {
+  SignupPurgeFailedError,
   UNVERIFIED_SIGNUP_TTL_DAYS,
   UnverifiedSignupCleanupService,
+  type SignupPurgeRunResult,
 } from "../services/unverified-signup-cleanup.service";
 
 /**
@@ -27,10 +30,15 @@ import {
  */
 @Injectable()
 export class UnverifiedSignupScheduler implements OnModuleInit {
+  private readonly logger = new Logger(UnverifiedSignupScheduler.name);
+
   constructor(
     private readonly cleanup: UnverifiedSignupCleanupService,
     // @Optional: tests build the scheduler by hand, outside the DI container.
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Imha record of the run (Saklama ve İmha Politikası section 10), next to
+    // the per-account `company.signup_expired` entries.
+    @Optional() private readonly records?: RetentionRecordService,
   ) {}
 
   onModuleInit(): void {
@@ -47,8 +55,36 @@ export class UnverifiedSignupScheduler implements OnModuleInit {
     return trackCronRun(this.cronRegistry, "signup.purgeUnverified", async () => {
       // The service logs the totals (and a cap that was hit) and throws when
       // an account could not be removed, which is what marks the run as
-      // failed here.
-      await this.cleanup.purgeExpired();
+      // failed here (each removal already has its own audit entry then). The
+      // imha record is written either way: a run that removed some accounts
+      // and failed on others destroyed data too.
+      let result: SignupPurgeRunResult;
+      try {
+        result = await this.cleanup.purgeExpired();
+      } catch (err) {
+        if (err instanceof SignupPurgeFailedError) {
+          // The run's own failure is the error that counts; a record that
+          // cannot be written has already raised its alarm.
+          await this.writeRecord(err.result, true).catch((recordErr: unknown) =>
+            this.logger.error(
+              `Imha record of a failed sign-up sweep not written: ${recordErr instanceof Error ? recordErr.message : String(recordErr)}`,
+            ),
+          );
+        }
+        throw err;
+      }
+      await this.writeRecord(result, false);
     });
+  }
+
+  private async writeRecord(result: SignupPurgeRunResult, failed: boolean): Promise<void> {
+    await this.records?.record(
+      "signup.purgeUnverified",
+      { unverifiedSignups: result.deleted },
+      {
+        capped: result.capped ? ["unverifiedSignups"] : [],
+        failed: failed ? ["unverifiedSignups"] : [],
+      },
+    );
   }
 }

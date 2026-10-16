@@ -41,6 +41,9 @@ services:
       # ve api-staging). Acil durdurma: panelden "false". Bu ortamın auth
       # anahtarlarıyla açılan bir veritabanı KOPYASINDA "false" zorunlu
       # (.env.production.example, docs/backup-restore-drill.md).
+      # DATA_RETENTION_PURGE_ENABLED da TANIMLANMAZ: periyodik imha işi
+      # (retention.purge, Saklama ve İmha Politikası) production kipinde açık;
+      # acil durdurma panelden "false".
       # Render trafiği Cloudflare'den geçer → gerçek istemci IP'si cf-connecting-ip
       # (throttle/audit). Self-host/CF'siz kurulumda false bırak.
       - key: TRUST_CF_CONNECTING_IP

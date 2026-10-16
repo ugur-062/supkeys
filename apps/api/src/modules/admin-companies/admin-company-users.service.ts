@@ -12,6 +12,7 @@ import { isValidEmailLike, permissionsForRoles, seatGroupsOf } from "@rothern/sh
 import { assertSeatAvailable, lockCompanyRow } from "../../common/company/seat-gate";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { isClosedByOwner } from "../company-auth/account-closure";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import { PasswordResetService } from "../password-reset/password-reset.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -23,6 +24,18 @@ const ASSIGNABLE_ROLES: CompanyRole[] = [
   "SATISCI",
   "ONAYLAYICI",
 ];
+
+function assertNotClosedByOwner(company: {
+  isActive: boolean;
+  isBlocked: boolean;
+  blockedReason: string | null;
+}): void {
+  if (isClosedByOwner(company)) {
+    throw new ConflictException(
+      i18nMessage("api.adminCompanies.firmaHesapSahibiSildi", undefined, "COMPANY_CLOSED_BY_OWNER"),
+    );
+  }
+}
 
 /**
  * Admin kullanıcı kurtarma — destek çağrılarının en yoğun konusu: "şifremi
@@ -297,9 +310,13 @@ export class AdminCompanyUsersService {
   ) {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { id: true },
+      select: { id: true, isActive: true, isBlocked: true, blockedReason: true },
     });
     if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
+    // Son kullanıcısı hesabını silen firmaya kimse eklenmez: KVKK silme
+    // kuyruğundaki firmada canlı hesap olurdu ve firma silmesi onu da silerdi.
+    // Kilitli tx'te yeniden okunur (kapanışla yarış).
+    assertNotClosedByOwner(company);
     const email = input.email.trim().toLowerCase();
     if (!ASSIGNABLE_ROLES.includes(input.role as CompanyRole)) {
       throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizRol"));
@@ -336,6 +353,12 @@ export class AdminCompanyUsersService {
     try {
       user = await this.prisma.$transaction(async (tx) => {
         await lockCompanyRow(tx, companyId);
+        assertNotClosedByOwner(
+          await tx.company.findUniqueOrThrow({
+            where: { id: companyId },
+            select: { isActive: true, isBlocked: true, blockedReason: true },
+          }),
+        );
         await seatGate(tx);
         return tx.companyUser.create({
           data: {

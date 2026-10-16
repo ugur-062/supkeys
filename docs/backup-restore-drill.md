@@ -32,14 +32,16 @@
 5. **Uygulamayı bağla (isteğe bağlı ama önerilir).** Staging API'sini geçici
    olarak restore projesine yönlendir (`DATABASE_URL`/`DIRECT_URL`), giriş yap,
    bir talep aç. Amaç: şema + veri + Auth birlikte çalışıyor mu?
-   **Bağlamadan ÖNCE o API'ye `UNVERIFIED_SIGNUP_PURGE_ENABLED=false` ver**
-   (gerekçe aşağıda "Bilinen tuzaklar"; temizlikte geri al).
+   **Bağlamadan ÖNCE o API'ye `UNVERIFIED_SIGNUP_PURGE_ENABLED=false` ve
+   `DATA_RETENTION_PURGE_ENABLED=false` ver** (gerekçe aşağıda "Bilinen
+   tuzaklar"; temizlikte geri al).
    **Auth kullanıcıları ayrı taşınır** — `auth.users` PITR ile gelir, ama
    restore projesinin API anahtarları FARKLIDIR; env'leri güncellemeden giriş
    çalışmaz. Provanın en sık takıldığı yer burasıdır.
 6. **Temizle.** Restore projesini SİL (ücret işlemesin), staging env'ini geri al
-   (`UNVERIFIED_SIGNUP_PURGE_ENABLED` satırını da SİL — staging'de tanımsız
-   kalmalı, yoksa temizlik orada kapalı kalır).
+   (`UNVERIFIED_SIGNUP_PURGE_ENABLED` ve `DATA_RETENTION_PURGE_ENABLED`
+   satırlarını da SİL — staging'de tanımsız kalmalı, yoksa iki temizlik de
+   orada kapalı kalır).
 
 ## Kurtarma hedefleri
 
@@ -74,6 +76,12 @@
   Prova API'sinin `WEB_URL`'i `rothern.com` altında VE `NODE_ENV=production` ise
   dolu `EMAIL_ALLOWLIST` açılışı keser: `WEB_URL`'i staging alan adında bırak
   (ya da yalnız o prova ortamında `ALLOW_STAGING_ONLY_ENV=true`; canlıda ASLA).
+- **Saklama ve imha işi (`retention.purge`) incelenen kopyayı değiştirir:**
+  staging `NODE_ENV=production` koştuğu için iş, değişken tanımsızken açılıştan
+  ~90 sn sonra ve her gece 05:30'da çalışır; kopyadaki süresi dolmuş kayıtları
+  siler, IP / e-posta alanlarını boşaltır ve imha kaydı yazar. Auth sağlayıcısına
+  dokunmaz (kaynağa zarar vermez) ama kopya kaynağıyla aynı kalmaz → prova
+  süresince `DATA_RETENTION_PURGE_ENABLED=false` (5. adım).
 - **Doğrulanmamış kayıt temizliği kaynağın GİRİŞ KİMLİKLERİNİ siler:** yedekten
   dönülen kopyaya bağlanan API MUTLAKA `UNVERIFIED_SIGNUP_PURGE_ENABLED=false`
   ile açılır. Bu iş (gece 05:10 + kayıt / ekip daveti anında) e-postası 7 gündür

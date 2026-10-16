@@ -6,7 +6,10 @@
  * doğrulanıyor ve hiçbir sayfada çizilmiyordu. Kural İZİNLİ LİSTE:
  * YouTube ve Vimeo. Başka her adres (ve `javascript:` gibi şemalar) `null`
  * döner — API kaydı reddeder, web çizmez. YouTube çerezsiz alana
- * (`youtube-nocookie.com`) çevrilir; CSP `frame-src` yalnız bu iki konağı açar.
+ * (`youtube-nocookie.com`) çevrilir, Vimeo oynatıcısı izleme kapalı kipte
+ * (`dnt=1`: oynatıcı çerez ve oturum verisi yazmaz) açılır; CSP `frame-src`
+ * yalnız bu iki konağı açar. KVKK Aydınlatma m.6 ve Gizlilik m.5 bunu yazar
+ * (ziyaretçinin IP adresi gömülü oynatıcı yüklenince sağlayıcıya gider).
  */
 export const PRODUCT_VIDEO_FRAME_HOSTS = [
   "https://www.youtube-nocookie.com",
@@ -46,7 +49,7 @@ export function productVideoEmbedUrl(raw: string | null | undefined): string | n
   let vimeoId: string | null = null;
   if (host === "vimeo.com") vimeoId = parts[0] ?? null;
   else if (host === "player.vimeo.com" && parts[0] === "video") vimeoId = parts[1] ?? null;
-  if (vimeoId && VIMEO_ID.test(vimeoId)) return `https://player.vimeo.com/video/${vimeoId}`;
+  if (vimeoId && VIMEO_ID.test(vimeoId)) return `https://player.vimeo.com/video/${vimeoId}?dnt=1`;
   return null;
 }
 

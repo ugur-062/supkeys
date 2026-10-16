@@ -481,6 +481,12 @@ export default function DogrulamaPage() {
                     {!isTR && d.key === "idFront" && editable ? (
                       <p className="pl-6 text-xs text-zinc-500">{t("idBothSidesHint")}</p>
                     ) : null}
+                    {/* KVKK (inceleme 2026-10-16): doğrulama özel nitelikli veri
+                        istemez — kimlikteki din / kan grubu karartılır
+                        (KVKK Aydınlatma m.1 aynı cümle). */}
+                    {d.key === "idFront" && editable ? (
+                      <p className="pl-6 text-xs text-zinc-500">{t("idMaskHint")}</p>
+                    ) : null}
                     {/* Faz Y: reddedilen güncelleme — mevcut belge geçerli kalır. */}
                     {rev?.status === "REJECTED" ? (
                       <p className="pl-6 text-xs text-red-600">

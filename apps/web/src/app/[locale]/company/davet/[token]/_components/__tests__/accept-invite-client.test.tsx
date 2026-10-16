@@ -111,7 +111,6 @@ describe("AcceptInviteClient", () => {
         "marketingConsent",
         "mediationAccepted",
         "password",
-        "profileImprovementConsent",
         "termsAccepted",
       ].sort(),
     );

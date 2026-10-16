@@ -148,3 +148,17 @@ describe("AiKullanimPage — kırılım tabloları telefonda", () => {
     expect(email.className.split(/\s+/)).toContain("max-sm:pr-2");
   });
 });
+
+// Hesap silme (2026-10-16): silinen kişinin adresi AI kullanım satırından
+// kaldırılır; satır maliyetiyle kalır ve ham kullanıcı kimliği yerine
+// "Silinmiş Kullanıcı" yazar (metinler bu adı söylüyor).
+describe("AiKullanimPage — hesabı silinmiş kişi", () => {
+  it("adresi olmayan satır 'Silinmiş Kullanıcı' yazar, kullanıcı kimliğini basmaz", () => {
+    h.data = company({
+      byUser: [{ userId: "cmdeleteduser01", userEmail: null, requests: 3, percentOfPool: 1 }],
+    });
+    render(<AiKullanimPage />);
+    expect(screen.getByText("Silinmiş Kullanıcı").tagName).toBe("TD");
+    expect(screen.queryByText("cmdeleteduser01")).toBeNull();
+  });
+});

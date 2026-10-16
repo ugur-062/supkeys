@@ -104,6 +104,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminCompanies.askiSebebiSistemNotu": {
+    "hash": "b5d9873119",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
   "api.adminCompanies.ayniDuyuruAzOnceGonderildi": {
     "hash": "80844caa54",
     "status": "reviewed",
@@ -173,6 +178,11 @@
     "hash": "e410513815",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.adminCompanies.firmaHesapSahibiSildi": {
+    "hash": "50cf3e6b13",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "api.adminCompanies.firmaKurulumuTamamlanmadiDogrulanamaz": {
     "hash": "5aa66d89a5",
@@ -258,6 +268,16 @@
     "hash": "89a4cf5165",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.adminCompanies.kvkkSilmeFirmaAskida": {
+    "hash": "218029e9e8",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "api.adminCompanies.kvkkSilmeGirisYapabilir": {
+    "hash": "8c85ac3632",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "api.adminCompanies.notBulunamadi": {
     "hash": "bdf64f16d8",
@@ -4805,9 +4825,9 @@
     "at": "2026-10-08"
   },
   "api.dto.companySignup.kvkkAydinlatmaMetniniOnaylamalisiniz": {
-    "hash": "019b20933c",
+    "hash": "fd0a6f43dd",
     "status": "reviewed",
-    "at": "2026-10-08"
+    "at": "2026-10-16"
   },
   "api.dto.companySignup.parolaEnAz10KarakterOlmali": {
     "hash": "85bf5542e3",
@@ -4880,9 +4900,9 @@
     "at": "2026-10-08"
   },
   "api.dto.companyUser.kvkkAydinlatmaMetniniOnaylamalisiniz": {
-    "hash": "019b20933c",
+    "hash": "fd0a6f43dd",
     "status": "reviewed",
-    "at": "2026-10-08"
+    "at": "2026-10-16"
   },
   "api.dto.companyUser.soyadBosOlamaz": {
     "hash": "326013560d",
@@ -5188,6 +5208,11 @@
     "hash": "dd5d0b810c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.email.icerikVerisiYokYenidenGonderilemez": {
+    "hash": "f0e52c97a4",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "api.email.icKayitYenidenGonderilemez": {
     "hash": "cfca23f6ee",
@@ -8824,23 +8849,13 @@
     "status": "reviewed",
     "at": "2026-10-08"
   },
-  "web.auth.consents.kvkkProviders": {
-    "hash": "cc7d068719",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
   "web.auth.consents.marketing": {
-    "hash": "4eb38daf6b",
+    "hash": "9bd50dd099",
     "status": "reviewed",
-    "at": "2026-10-08"
+    "at": "2026-10-16"
   },
   "web.auth.consents.mediation": {
     "hash": "52e9fa542d",
-    "status": "reviewed",
-    "at": "2026-10-08"
-  },
-  "web.auth.consents.profile": {
-    "hash": "2f07307b63",
     "status": "reviewed",
     "at": "2026-10-08"
   },
@@ -8863,6 +8878,76 @@
     "hash": "f654597fe9",
     "status": "reviewed",
     "at": "2026-10-08"
+  },
+  "web.auth.deleteAccount.body": {
+    "hash": "ef4da6e584",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.bodyHelp": {
+    "hash": "f48a420fb0",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.bodyRules": {
+    "hash": "382559ef24",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.cancel": {
+    "hash": "14d2482077",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.confirm": {
+    "hash": "eedbee11b3",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.details": {
+    "hash": "0800c1325c",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.done": {
+    "hash": "50d975bd10",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.doneBody": {
+    "hash": "68185959e8",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.failed": {
+    "hash": "5e4af84f97",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.open": {
+    "hash": "ebd4b6f766",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.ownerMustTransferSetup": {
+    "hash": "cf9aec69f8",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.passwordLabel": {
+    "hash": "3f89bec426",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.passwordRequired": {
+    "hash": "ff699235e5",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.auth.deleteAccount.title": {
+    "hash": "f7912169ff",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "web.auth.forgot.emailInvalid": {
     "hash": "b3eb62c01d",
@@ -12324,6 +12409,216 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.accountDeletion.deleted1": {
+    "hash": "8febc2d14f",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.deleted2": {
+    "hash": "4c57610fd3",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.deleted3": {
+    "hash": "8c87642eb9",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.deleted4": {
+    "hash": "753e4d2f56",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.deleted5": {
+    "hash": "6809d4c0d0",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.deletedTitle": {
+    "hash": "6ddf5bf8c4",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.footer": {
+    "hash": "efcddd22fb",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.forgotPassword": {
+    "hash": "107e35e44b",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.intro": {
+    "hash": "ec84b8e8ea",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept1": {
+    "hash": "2157685b65",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept2": {
+    "hash": "6081f245af",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept3": {
+    "hash": "3a892ea2ae",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept4": {
+    "hash": "cb02ad22b7",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept5": {
+    "hash": "1873c6340b",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.kept6": {
+    "hash": "3e8b172051",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.keptIntro": {
+    "hash": "34c14f8305",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.keptOutro": {
+    "hash": "2fc88d1050",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.keptTitle": {
+    "hash": "c6ae43c3b4",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.metaDesc": {
+    "hash": "248878b786",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.metaTitle": {
+    "hash": "fc14ac0936",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.noLoginBody": {
+    "hash": "2d6e56dd81",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.noLoginTitle": {
+    "hash": "a9e5faaca2",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.openSettings": {
+    "hash": "3cc99f408e",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.openSettingsHint": {
+    "hash": "eb72db520d",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.partialBody": {
+    "hash": "1a7998f609",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.partialTitle": {
+    "hash": "9de456b235",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.special1": {
+    "hash": "b5c2677bd5",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.special2": {
+    "hash": "1b914aec46",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.special3": {
+    "hash": "22cb022745",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.special4": {
+    "hash": "ba3f3811c2",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.specialHelp": {
+    "hash": "62cde0932a",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.specialTitle": {
+    "hash": "a1cec02a9b",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.specialUnverified": {
+    "hash": "ad5beb7457",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.step1": {
+    "hash": "acbb1bb312",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.step2": {
+    "hash": "ad54cfb7c9",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.step3": {
+    "hash": "b6700d864d",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.step4": {
+    "hash": "fbffb4ccc0",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.stepsIntro": {
+    "hash": "fb4628e26e",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.stepsResult": {
+    "hash": "5a42d2ce04",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.stepsSetupNote": {
+    "hash": "f687edec8f",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.stepsTitle": {
+    "hash": "8d3c8a19e2",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.accountDeletion.title": {
+    "hash": "4a16c4eec3",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
   "web.marketing.audience.buyer": {
     "hash": "44f8b40563",
     "status": "reviewed",
@@ -12859,6 +13154,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.footer.accountDeletion": {
+    "hash": "eac97ca985",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
   "web.marketing.footer.categories": {
     "hash": "5df5fd5714",
     "status": "reviewed",
@@ -12918,6 +13218,11 @@
     "hash": "48fc3709b3",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketing.footer.retention": {
+    "hash": "97e12f73af",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "web.marketing.footer.rothern": {
     "hash": "9b27418e62",
@@ -14388,6 +14693,16 @@
     "hash": "31d7688ce1",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketing.legal.saklamaImha.metaDesc": {
+    "hash": "0a198a8791",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.marketing.legal.saklamaImha.metaTitle": {
+    "hash": "6083b9138b",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "web.marketing.llms.aboutLink": {
     "hash": "aaaa29d519",
@@ -30189,6 +30504,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarAiKullanimPage.silinmisKullanici": {
+    "hash": "603a3e1c7d",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
   "web.panel.settings.ayarlarAiKullanimPage.uyariEsigiAsildi": {
     "hash": "69422a9451",
     "status": "reviewed",
@@ -30988,6 +31308,11 @@
     "hash": "a1f4349ebc",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.settings.ayarlarDogrulamaPage.idMaskHint": {
+    "hash": "5ec5d52471",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "web.panel.settings.ayarlarDogrulamaPage.incelemeSurerkenBuBilgilerDegistirilemez": {
     "hash": "556998094f",
@@ -32395,47 +32720,32 @@
     "at": "2026-09-24"
   },
   "web.panel.settings.deleteAccountSection.body": {
-    "hash": "08df1fec64",
+    "hash": "f670ed206f",
     "status": "reviewed",
-    "at": "2026-10-11"
+    "at": "2026-10-16"
+  },
+  "web.panel.settings.deleteAccountSection.bodyFounder": {
+    "hash": "1b1930e27c",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.panel.settings.deleteAccountSection.bodyHelp": {
+    "hash": "f48a420fb0",
+    "status": "reviewed",
+    "at": "2026-10-16"
   },
   "web.panel.settings.deleteAccountSection.bodyLastMember": {
-    "hash": "8ce7f7f652",
+    "hash": "c26c0782d5",
     "status": "reviewed",
-    "at": "2026-10-11"
+    "at": "2026-10-16"
   },
-  "web.panel.settings.deleteAccountSection.cancel": {
-    "hash": "14d2482077",
+  "web.panel.settings.deleteAccountSection.details": {
+    "hash": "0800c1325c",
     "status": "reviewed",
-    "at": "2026-10-11"
-  },
-  "web.panel.settings.deleteAccountSection.confirm": {
-    "hash": "eedbee11b3",
-    "status": "reviewed",
-    "at": "2026-10-11"
-  },
-  "web.panel.settings.deleteAccountSection.done": {
-    "hash": "50d975bd10",
-    "status": "reviewed",
-    "at": "2026-10-11"
-  },
-  "web.panel.settings.deleteAccountSection.failed": {
-    "hash": "5e4af84f97",
-    "status": "reviewed",
-    "at": "2026-10-11"
+    "at": "2026-10-16"
   },
   "web.panel.settings.deleteAccountSection.open": {
     "hash": "ebd4b6f766",
-    "status": "reviewed",
-    "at": "2026-10-11"
-  },
-  "web.panel.settings.deleteAccountSection.passwordLabel": {
-    "hash": "3f89bec426",
-    "status": "reviewed",
-    "at": "2026-10-11"
-  },
-  "web.panel.settings.deleteAccountSection.passwordRequired": {
-    "hash": "ff699235e5",
     "status": "reviewed",
     "at": "2026-10-11"
   },
@@ -32630,9 +32940,9 @@
     "at": "2026-09-24"
   },
   "web.panel.settings.settingsPages.hesap.description": {
-    "hash": "1ec79447f6",
+    "hash": "b16dde4607",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-16"
   },
   "web.panel.settings.settingsPages.hesap.title": {
     "hash": "f8b5865288",

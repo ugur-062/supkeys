@@ -127,7 +127,9 @@ E-postalar Resend test domain'inden GERÇEKTEN gönderilir → kayıtlı gerçek
    derin denetim 2026-09-29 Y-01): istemci upload-url'e verdiği `mimeType`ı PUT'ta
    BİREBİR gönderir, yoksa R2 403. HEAD MIME kontrolü (`assertUploadedObjectValid`)
    ikinci hat; reddedilen nesnenin silme hatası yutulmaz, anahtar loglanır.
-10. **Audit log append-only.** AI agent event-bus ileride.
+10. **Audit log append-only.** AI agent event-bus ileride. Tek istisna: Saklama ve İmha
+    Politikası işi `retention.purge` (bypass istemcisi; IP/tarayıcı 5651 tavanından 7 gün önce
+    null, satır 10 yılda silinir — `docs/invariants.md` INV-AUDIT-1).
 11. **Siparişte belge yükleme YOK:** platform muhasebe arşivi değil. Kalan:
     ödeme bildir/onayla/reddet, IBAN snapshot, LC adımları BEYAN olarak.
 
@@ -1144,7 +1146,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   satırları `SELECT … FOR UPDATE` ile kilitle. Deneme hakkı (e-posta kodu `claimCodeAttempt`)
   hash karşılaştırmasından ÖNCE koşullu `updateMany` ile ayrılır. Pasifleştirme her realm'de
   `tokenVersion`'ı artırır.
-- **Audit log append-only (LU-05/20):** akış durumu için mevcut satır UPDATE edilmez; bitiş ayrı
+- **Audit log append-only (LU-05/20)** — tek istisna `retention.purge` (IP/tarayıcı 2 yıl dolmadan
+  null, satır 10 yılda silinir; append-only DB koruması eklenirse bu iş hariç tutulur):
+  akış durumu için mevcut satır UPDATE edilmez; bitiş ayrı
   eylemle, `entityId` ile ilk satıra bağlanır (profil AI `company.profile_enrich_attempt` +
   `company.profile_enrich_settled`). Firma aktivite logu modül süzgeci `audit.service`
   `TENANT_ACTIVITY_MODULE_PREFIXES` (yeni `company.<modül>_xxx.*` ailesi listeye); Detay
@@ -1311,6 +1315,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Bildirim metninin okuma anında yeniden üretimi | `modules/notifications/notification-i18n.ts` · `NotificationService.localizeRows` |
 | Oturum iptali (çıkış) | `common/auth/session-revocation.service.ts` |
 | Doğrulanmamış kayıt temizliği (7 gün) · e-postası kanıtlanmış hesap süzgeci | `modules/company-auth/services/unverified-signup-cleanup.service.ts` · `common/company/proven-account.ts` |
+| Kişisel veri saklama süreleri (KVKK) | web `[locale]/sozlesmeler/saklama-imha/page.tsx` tablosu ⇔ API `modules/data-retention/retention-policy.ts` (`legal-retention-policy.test` karşılaştırır) |
 | Ülkeye göre hukuki yapı listesi + enum eşlemesi | `@rothern/shared` `data/legal-forms.ts` (`resolveLegalForm`) |
 | Şifre politikası · web sitesi biçimi · LIKE kaçışı | `common/auth/password-policy.ts` · `common/company/website-address.ts` · `common/prisma/like-literal.ts` |
 | Hız sınırı deposu | `common/http/throttler-storage.ts` (`PerKeyThrottlerStorage`) |
@@ -3882,7 +3887,7 @@ pnpm --filter @rothern/api test:db:down
 
 ### Zamanlanmış işler (cron) — çift tetikleme kilidi
 
-20 `@Cron` işi var (2026-10-08 sayımı; admin `cron-jobs.test` API kayıt anahtarlarını etiket listesiyle karşılaştırır) ve hepsi tek ortak sarmalayıcıdan
+23 `@Cron` tetiği / 22 kayıtlı iş var (2026-10-16 sayımı; admin `cron-jobs.test` API kayıt anahtarlarını etiket listesiyle karşılaştırır) ve hepsi tek ortak sarmalayıcıdan
 geçmeli (`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
 örneği açıldığı gün her iş iki kez koşacaktı (çift hatırlatma, çift özet,
 çift temizlik). Kilit `CronLockService`'te, `trackCronRun` onu
@@ -4216,7 +4221,10 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
   (`privacyNoticeUrl`, `EmailEnv.privacyNotice`); günlükte adres maskeli (`maskEmail`).
 - **Kayıtsız adrese davet SİLİNMEZ**, iptal edilir (kullanıcı iptali ve paket
   düşüşü — `cancelOutgoingReferralInvites`): silmek talep davetlerini cascade ile
-  ve adres freni geçmişini götürür.
+  ve adres freni geçmişini götürür. Süre dolumu hariç: `retention.purge` talep
+  davetlerini talep teklif toplamayı bitirip 1 yıl geçince, bağlantı daveti
+  kaydını bağlı talep daveti kalmayınca ve son gönderim / tıklamadan 1 yıl sonra
+  siler (politika satır 13; fren ve tavan yalnız son günlere bakar).
 - **AI:** çeviri çıktısı kaynakta olmayan bağlantı/e-posta/telefon içeremez
   (`injectedContactErrors`); önceden onay ülkesi ipuçlarından HERHANGİ biriyle
   (`isConsentCountry`: etiket · e-posta · site uzantısı); site ile üye eşleşmesi
@@ -4229,6 +4237,10 @@ kapanış 2026-10-02/03) `docs/qa-ui-test-2026-10-01.md`. Bir daha bozulmasın d
 - **Pazarlama rızası (`marketingConsent`) gönderimde OKUNMAZ — bilinçli**
   (kullanıcı kararı 2026-09-29, denetim H-2): karşılama/teşvik e-postaları
   hizmet iletisi; İYS avukat görüşü (H-3) aksi derse teşvik adımları ona bağlanır.
+  2026-10-16: kutu "Rothern'in kampanya ve tanıtımlarına ilişkin ticari elektronik
+  ileti" der ve Aydınlatma m.3 bu iletilerin YALNIZ onay verenlere ve onay İYS'ye
+  kaydedildikten sonra gideceğini vaat eder — kampanya e-postası eklenirse önce
+  İYS + `marketingConsent` kapısı (`docs/kvkk-uyum.md` §7).
 - **Tedarikçiye giden bildirim/e-posta "alım talebi"** (kullanıcı kararı
   2026-09-29, B6-4); alıcıya giden (kendi talebi) "satın alma talebi" kalır.
   Tedarikçi tarafındaki bidImport hata/şablon metinleri, teklif içe aktarma diyaloğu ve
@@ -5013,17 +5025,58 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   `form="<id>"` taşır, öğeyi ölçen efekt `[]`e değil öğeye (geri çağırımlı ref) bağlanır, yerel dinleyici `document`te.
   Pencere / çekmece / menü Headless UI portalından zaten `body`de. Sözleşme `viewport-layer.test` + dört yerin testi.
 - **Hesap silme (iki mağaza da uygulama içinden ister):** `POST company-auth/delete-account { password }` →
-  `AccountDeletionService` (bypass istemcisi, firma + kullanıcı satırları `FOR UPDATE`); arayüz Ayarlar › Hesap
-  Bilgileri `DeleteAccountSection`. Kural: şifre doğrulanır; ÜYE hemen anonimleşir (e-posta
-  `deleted-<id>@deleted.rothern`, ad yer tutucu, telefon / 2FA / bildirim / AI sohbeti silinir, `tokenVersion`++),
-  açtığı yaşayan talepler Kurucu'ya geçer; başka kullanıcısı olan KURUCU önce devreder (400
-  `ACCOUNT_OWNER_MUST_TRANSFER`); SON kullanıcı firmayı da kapatır (askı + `publicEnabled=false` +
-  `seo.companyChanged`; süren sipariş ya da açık talep varsa 400 `ACCOUNT_HAS_OPEN_WORK`). Kapanan firmanın
-  firma düzeyi KVKK silmesini yönetici mevcut `deleteOrAnonymize` ile tamamlar (askı notu "Hesap sahibi
-  sildi"). Kimlik sağlayıcı kullanıcısı işlemin EN SONUNDA `deleteUserStrict` ile silinir; hata her şeyi geri
-  alır. Denetim `company.user.self_deleted` (e-posta yazılmaz). Sözleşme `account-deletion.spec`, web
-  `delete-account-section.test`. Sözleşme metinleri (gizlilik / KVKK) uygulama içi silme yolunu henüz ANMIYOR
-  — metin değişikliği kullanıcı kararı.
+  `AccountDeletionService` (bypass istemcisi, firma + kullanıcı satırları `FOR UPDATE`; yalnız oturum ister —
+  kurulum ve sözleşme onayı BEKLEMEZ). Kural: şifre doğrulanır; ÜYENİN kişisel alanları hemen silinir (e-posta
+  `deleted-<id>@deleted.rothern` = `account-closure.ts` `deletedAccountEmail`, ad yer tutucu "Silinmiş
+  Kullanıcı", telefon / 2FA / bildirim / cihaz / AI sohbeti silinir, `ai_usage.userEmail` null, aynı firmada ona
+  giden ekip davetlerinin adresi yer tutucuya, pazarlama + profil iyileştirme izni false, bildirim tercihleri
+  ve `twoFactorEnabledAt` null, `tokenVersion`++).
+  Kayıt TAKMA ADLIDIR, anonim DEĞİL (kimliği firma kayıtlarına, denetim satırlarına bağlı) — metinlerde "anonim"
+  yazılmaz. Açtığı yaşayan talepler Kurucu'ya geçer; başka kullanıcısı (pasif dahil) olan KURUCU önce devreder
+  (400 `ACCOUNT_OWNER_MUST_TRANSFER`), aktif yönetici kalmayacaksa 400 `ACCOUNT_LAST_MANAGER`; SON kullanıcı
+  firmayı da kapatır (askı + not `CLOSED_BY_OWNER_NOTE` + `blockedAt` + `publicEnabled=false` +
+  `seo.companyChanged`; süren sipariş ya da açık talep varsa 400 `ACCOUNT_HAS_OPEN_WORK`). Kimlik sağlayıcı
+  kullanıcısı işlemin EN SONUNDA `deleteUserStrict` ile silinir; hata her şeyi geri alır. Denetim
+  `company.user.self_deleted` (e-posta yazılmaz).
+  **SİLME YOLU HER EKRANDA (2026-10-16, mağaza incelemesi):** şifre formu TEK bileşen
+  `components/company/delete-account-form.tsx` (`DeleteAccountForm` / `DeleteAccountDialog`, metinler
+  `web.auth.deleteAccount` — kurulum sayfası panel sağlayıcısının DIŞINDA, `web.panel` orada yok): Ayarlar ›
+  Hesap Bilgileri `DeleteAccountSection`, şirket kurulum sihirbazının üst çubuğu ve "Kurucu tamamlamalı" ekranı
+  (kurulum bitmeden `/company/*` açılmaz — uygulamada yeni hesap açıp silmeyi arayan inceleyici buraya düşer),
+  sözleşme onayı kapısı `TermsAcceptanceGate` (pencere şifre formuna döner). Yeni bir "panele girmeden önce"
+  ekranı eklenirse oraya da "Hesabımı sil" konur.
+  **GİRİŞSİZ TALEP (kvkk@):** admin firma › Kullanıcılar › "KVKK: Hesabı Sil" → `POST admin/companies/:id/users/
+  :userId/erase` (yalnız SUPER_ADMIN; `eraseByAdmin`: aynı kurallar şifresiz, ekipten çıkarılmış hesapta kalan ad /
+  telefonu da siler; denetim `admin.user.erased`). **KAPANAN FİRMA (30 gün sözü):** firma düzeyi silme hâlâ
+  ELLE (`deleteOrAnonymize`) ama görünür: admin Firmalar süzgeci "KVKK silme bekliyor" (`blocked=kvkk`, en eski
+  önce, satırda gün rozeti) + günlük iş `account.closedCompanyErasure` (`ClosedCompanyErasureScheduler`, 7.
+  günden itibaren Sentry `[KVKK-SILME-BEKLIYOR]`, 30'u geçince "error"). Operatör rutini
+  `docs/pending-operator-tasks.md` §8. **Firmanın Aktivite Logu** silinmiş / çıkarılmış kişinin e-postasını
+  göstermez (`AuditService.queryForTenant` kayıttaki adı basar; satırın kendisi değişmez, admin görür). Sözleşme
+  `account-deletion.spec`, `account-closure.spec`, web `delete-account-section.test`, `terms-acceptance-gate.test`,
+  `onboarding-client.test` "hesabı silme", admin `users-tab.test` "KVKK silme talebi".
+  **METİNLER VE HERKESE AÇIK SAYFA (2026-10-16, kullanıcı onayı):** Gizlilik m.6 "Hesabınızı Silme" (`#madde-6`;
+  uygulama içi yol + kurulum / onay ekranı düğmesi, e-posta gerekmez, hemen silinen / saklanan (catch-all:
+  diğerlerine giden bildirimde ad, abonelik çıkış kaydı, yedek), Kurucu devri (pasif dahil) + son yönetici, son
+  kullanıcı + süren iş, kapanan firmanın firma bilgisi en geç 30 günde silinir ("Silinmiş Firma"), girişsiz ya da
+  koşulu yerine getiremeyen için `kvkk@`, doğrulanmamış kayıt 7 gün), KVKK m.1 (yetkili kimlik no + belge), m.7
+  (Saklama ve İmha Politikası özeti + silmede kalanlar alan adıyla, firma kaydı bilgisi firmayla kalır) ve m.9
+  (uygulama içi silme yazılı başvuru gerektirmez, yalnız isteğe bağlı iki rızanın geri alınması — yurt dışı
+  aktarım rızası YOK, bildirim kapatma yolları); Kullanıcı Sözleşmesi m.8 kapatma hakkını gerçek koşullarıyla
+  yazar (Kurucu devri, son yönetici, tek kullanıcıda süren iş, kapanan firma 30 gün); Gizlilik m.1 ödeme
+  ALINMADIĞINI söyler (m.4'te ödeme sağlayıcısı yok). Girişsiz
+  çevrilmiş sayfa `/hesap-silme` (EN `/account-deletion`, RU `/udalenie-akkaunta`; `web.marketing.accountDeletion`,
+  sunucuya özel ad alanı) = Play "hesap silme URL'si" (konsola EN adres) ve App Store "User Privacy Choices URL"
+  (dil başına; `docs/store-listing.md`); altbilgi Sözleşmeler sütunu, sitemap (üç dil), robots,
+  `PUBLIC_ROUTE_PREFIXES`. Silme kartı ön koşulları ve destek yolunu yazar, `/hesap-silme` ve Gizlilik'e bağlanır;
+  kimlik kabuğu (`AuthShell`: giriş, kayıt, davet, şifre) kartın altında Gizlilik + KVKK taşır (yeni sekme +
+  `data-shell-browser`) — Apple 5.1.1(i) uygulama içi gizlilik bağlantısı. `LegalDoc` bölümü `links` ile site içi
+  bağlantı taşır (gövde düz metin). Kural: `AccountDeletionService` davranışı değişirse Gizlilik m.6, KVKK m.7/9,
+  Kullanıcı Sözleşmesi m.8, Saklama ve İmha Politikası tablosu (satır 1–2), `/hesap-silme` metni, kartın metni ve
+  `docs/store-listing.md` veri beyanı BİRLİKTE güncellenir; arayüz etiketi
+  değişirse sayfa testi (`hesap-silme/__tests__/page.test`) panel ve `web.auth.deleteAccount` kataloğuyla üç
+  dilde karşılaştırır. Sözleşme `updatedAt` değişimi yeniden onay İSTEMEZ (kapı yalnız boş `*AcceptedAt` alanına
+  bakar, sürüm sabiti yok — eklenmez).
 - **ANLIK BİLDİRİM (2026-10-14):** uygulama içi bildirimin AYNASIDIR — `NotificationService.pushToUser` /
   `pushToCompanies` satırı yazdıktan sonra `PushService` (global `modules/push/`, `@Optional()` SON kurucu
   parametresi) aynı satırları FCM'ye gönderir; istek yolu FCM'yi BEKLEMEZ ve FCM yüzünden düşmez. Firebase
@@ -5068,6 +5121,62 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   adresle birlikte verilirse eşitleme durur). Android deneme paketi bu makinede derlenir (`~/android-sdk`).
 - **Sırada:** mağaza ekran görüntüleri; iOS derlemesi ve APNs (Mac + Apple hesabı).
 - Mağaza hesapları ŞİRKET adına (D-U-N-S gerekir); iOS / Android paketleri kullanıcının Mac'inde derlenir.
+
+## KVKK SAKLAMA VE İMHA 2026-10-16 — kalıcı kurallar
+
+Kullanıcı kararı: "mağazalar ve KVKK kabul etsin". Operatör listesi (DPA, SS-2, VERBİS, 5651, İYS, avukat):
+`docs/kvkk-uyum.md`.
+
+- **Süreler TEK KAYNAK:** `/sozlesmeler/saklama-imha` (Kişisel Veri Saklama ve İmha Politikası, Silme
+  Yönetmeliği m.6 a–h) madde 8 tablosu + onu uygulayan API işleri (`modules/data-retention/retention-policy.ts`
+  sabitleri ve gece işi; hesap / firma / sohbet / görüntülenme / oturum / doğrulanmamış kayıt kendi işlerinde).
+  Bir süre değişirse tablo, API sabiti, admin `cron-jobs.ts` etiketi ve özet metinler (KVKK m.7, Gizlilik m.6,
+  `/hesap-silme` kept2/kept3/kept5, Ayarlar silme kartı, Kullanıcı Sözleşmesi m.8) AYNI değişiklikte;
+  web `legal-retention-policy.test` API sabitlerini kaynak dosyadan okuyup tablo satırlarıyla karşılaştırır.
+- **Gece imha işi `retention.purge`** (05:30 İstanbul + açılışta telafi; anahtar `DATA_RETENTION_PURGE_ENABLED`,
+  kural `UNVERIFIED_SIGNUP_PURGE_ENABLED` ile aynı: tanımsızsa yalnız production'da açık — staging dahil,
+  bilinçli). Her kuralın TAM where'i `retention-policy.ts`te; iş id seçer, AYNI where ile siler/günceller
+  (1 000'lik deyim, kategori başına koşuda en fazla 50 000, fazlası ertesi gece `capped`; yabancı anahtarı
+  olmayan özet kalemi kuralı tek `Prisma.sql` parçası). Her koşu TEK imha kaydı: `system.retention_purge`,
+  sistem aktörü, metadata yalnız `job` + kategori sayıları (+ `capped`/`failed`/`through`); boş koşu günde bir.
+  Kayıt `AuditService.log` ile DEĞİL, bypass istemcisiyle yazılır ve hata YUTULMAZ (kaydı yazılamayan imha
+  başarısız koşudur: `[AUDIT-KRİTİK-KAYIP]` + `[CRON-HATA]`). Eski temizlik işleri (`views.purge`,
+  `ai.cleanup*`, `sessions.purgeRevoked`, `signup.purgeUnverified` — kısmi hatada da) aynı kaydı
+  `RetentionRecordService` (@Global, `@Optional`) ile kendi `job` anahtarıyla yazar. Yerinde ayıklanan
+  kategoriler (ziyaretçi talebi IP'si, denetim IP/tarayıcı, AI kullanım e-postası) son TAM koşunun `through`
+  kesiminden (−1 gün) başlar; **pazar günü (İstanbul) filigran yok sayılır** (`isFullScanDay`, kendini onarma).
+  **Talebe bağlı satırlar talep açıkken silinmez:** kayıtsız adrese talep daveti, AI keşif adayı ve gönderilmiş
+  özet kalemi ancak talep OPEN dışına çıkıp `updatedAt`'i de süre kadar eskiyince (attach, önizleme, ikinci tur
+  ve "bu talebi zaten aldı" denetimleri bunlara bakar). **E-posta kayıtları türe göre:** ticari işlem 10 yıl
+  (yıl sonundan); `SECURITY_EMAIL_CONTEXTS` ve davet akışı 1 yıl; NOTIFICATION (DISCOVERY) ve `lifecycle_*`
+  2 yıl (yeni bağlam tipi sınıflanmazsa 10 yıl kalır — güvenli taraf). Spam şikâyeti (`COMPLAINED` YA DA
+  `complainedAt` dolu — webhook sert geri dönüşte durumu BOUNCED'a çevirir) silinmez, ret kaydına indirgenir
+  (adres + durum + tarih; konu ASCII işaret `[[RETENTION_REDUCED]] …`, admin yeniden gönderemez); engel
+  kaldırma işareti hiç ellenmez (gönderim kapısı ikisini okur); sert geri dönüş silinir. IP/tarayıcı 5651
+  tavanından 7 gün ÖNCE silinir (`LEGAL_MAXIMUM_MARGIN_DAYS`). Yeni kategori = `RETENTION_CATEGORIES` + admin
+  `RETENTION_CATEGORY_LABEL` (admin `audit-format.test` API kaynağını okur). Sözleşme
+  `test/unit/data-retention-policy.spec.ts`, `test/integration/data-retention.spec.ts`.
+- **Ekipten çıkarma = hesap verisinin sonu (politika satır 1):** `CompanyUsersService.remove` aynı işlemde
+  telefon, 2FA, bildirim tercihleri, izinler, bekleyen bağlantı/kod, bildirimler, asistan sohbetleri ve
+  adresi (AI kullanım kaydı, ekip daveti) siler; AD kalır (firma kaydıyla, firma imhasında gider).
+- **Kişisel veri taşıyan YENİ tablo / kolon** politikaya satır almadan eklenmez (veri, süre, sebep, imha yöntemi)
+  ve süresi bir işe ya da "elle, en geç 6 ayda bir gözden geçirme" kaydına bağlanır. Satırı olmayan eski
+  tablolar `docs/kvkk-uyum.md` "Açık işler"de.
+- **Yurt dışına aktarımın dayanağı KVKK m.9/4-c standart sözleşme (SS-2)**, açık rıza DEĞİL. Açık rıza yalnız
+  arızi aktarım (m.9/6-a) ve isteğe bağlı TEK işleme (Rothern'in kampanya / tanıtım ticari iletisi; İYS'ye
+  kaydedilmeden gönderilmez) içindir; "profil iyileştirme" kutusu kaldırıldı, hizmet hiçbir rızaya bağlanmaz,
+  bilgilendirme e-postaları m.5/2-f. Zorunlu KVKK kutusu yalnız "Aydınlatma Metni'ni okudum" der — aktarım,
+  sağlayıcı ya da rıza sözü eklenmez (`consent-rows.test`). Yeni yurt dışı sağlayıcı (günlük toplayıcı dahil)
+  = önce SS-2 + 5 iş günü içinde Kurum bildirimi, sonra Aydınlatma m.4 listesine unvan + ülke + veri yeri + veri
+  ve `docs/kvkk-uyum.md` sağlayıcı tablosuna satır. **Apple (APNs) listede DEĞİL** (SS imzalamıyor; ayrı
+  paragraf, dayanak avukat yanıtıyla). Metin mekanizmayı ŞİMDİKİ zamanla yazar ("imzalanır ve bildirilir");
+  **canlıya çıkış `docs/kvkk-uyum.md` "Canlı kapısı"na bağlı** (`docs/release-process.md` Kurallar).
+- **Yapay zekâ: production'da ön-sürüm model YOK** (Google DPA yalnız GA): `loadAiConfig` `-preview`/`-exp`
+  model id'sinde açılışı keser (`isPreGaModelId`), içerik çevirisi yedeklerinde ön-sürüm yok.
+- "Anonim" YAZILMAZ: hesap kaydı da kapanan firmanın firma kaydı da ticari kayıtlara bağlı kalır (takma adlı) —
+  kişisel veri SİLİNİR, kayıt "Silinmiş Kullanıcı" / "Silinmiş Firma" adıyla kalır. Anonim hâle getirme yalnız
+  gerçekten geri döndürülemeyen sonuç için (politika m.6). Sözleşme tablosu `LegalSection.table` (telefonda
+  satır başına kart, yatay kaydırma yok); tablo satırları SONA eklenir (API yorumları ve testler numaraya bakar).
 
 ## Bekleyen / Yapılacaklar
 

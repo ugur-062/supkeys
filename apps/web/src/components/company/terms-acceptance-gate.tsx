@@ -3,6 +3,11 @@
 import { ConsentRows, type Consents } from "@/components/auth/consent-rows";
 import { Button } from "@/components/catalyst/button";
 import {
+  DeleteAccountDetails,
+  DeleteAccountForm,
+  DeleteAccountRules,
+} from "@/components/company/delete-account-form";
+import {
   Dialog,
   DialogActions,
   DialogBody,
@@ -23,7 +28,13 @@ import { useState } from "react";
  * hesap (ör. destek ekibinin admin panelinden eklediği üye) panele girince
  * kullanıcı sözleşmesi, aracılık sözleşmesi ve KVKK aydınlatma onayını
  * KENDİSİ verir — kayıt ve davet kabulündeki satırların aynısı (`ConsentRows`).
- * Kapatılamaz; tek çıkış onay ya da oturumu kapatmak.
+ * Kapatılamaz; çıkış onay, oturumu kapatmak ya da hesabı silmek.
+ *
+ * HESABI SİLME (2026-10-16, mağaza incelemesi): pencere paneli örttüğü için
+ * Ayarlar › Hesap Bilgileri'ne ulaşılamaz; sözleşmeleri kabul etmek istemeyen
+ * kişi hesabını buradan siler (Apple 5.1.1(v): silme uygulama içinden
+ * başlatılabilmeli). Pencerenin içeriği şifre formuna döner; "Vazgeç" onaya
+ * geri getirir. Form kurulum sihirbazı ve Ayarlar ile ortak.
  */
 export function TermsAcceptanceGate() {
   const needs = useCompanyAuthStore((s) => s.user?.needsTermsAcceptance === true);
@@ -33,6 +44,8 @@ export function TermsAcceptanceGate() {
 
 function TermsAcceptanceDialog() {
   const t = useTranslations("web.panel.termsGate");
+  const tDelete = useTranslations("web.auth.deleteAccount");
+  const [deleting, setDeleting] = useState(false);
   const setMe = useCompanyAuthStore((s) => s.setMe);
   const qc = useQueryClient();
   const logout = useCompanyLogout();
@@ -41,7 +54,6 @@ function TermsAcceptanceDialog() {
     mediation: false,
     kvkk: false,
     marketing: false,
-    profile: false,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +66,6 @@ function TermsAcceptanceDialog() {
           mediationAccepted: consents.mediation,
           kvkkAccepted: consents.kvkk,
           marketingConsent: consents.marketing,
-          profileImprovementConsent: consents.profile,
         },
       );
       return data;
@@ -67,6 +78,20 @@ function TermsAcceptanceDialog() {
   });
 
   const valid = consents.terms && consents.mediation && consents.kvkk;
+
+  if (deleting) {
+    return (
+      <Dialog open onClose={() => undefined} size="lg">
+        <DialogTitle>{tDelete("title")}</DialogTitle>
+        <DialogDescription>{tDelete("body")}</DialogDescription>
+        <DialogBody>
+          <DeleteAccountRules />
+          <DeleteAccountDetails className="mt-2 text-sm text-zinc-600" />
+          <DeleteAccountForm onCancel={() => setDeleting(false)} context="setup" />
+        </DialogBody>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open onClose={() => undefined} size="lg">
@@ -81,6 +106,9 @@ function TermsAcceptanceDialog() {
         ) : null}
       </DialogBody>
       <DialogActions>
+        <Button plain onClick={() => setDeleting(true)}>
+          {tDelete("open")}
+        </Button>
         <Button plain onClick={() => void logout()}>
           {t("logout")}
         </Button>

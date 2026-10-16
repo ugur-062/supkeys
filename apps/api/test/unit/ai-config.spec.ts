@@ -4,7 +4,7 @@
  * → prod'da boot FAIL (main.ts). loadAiConfig: fiyatsız model = config hatası.
  */
 import { checkAiKey } from "../../src/common/config/ai-config";
-import { loadAiConfig } from "../../src/modules/ai/ai.config";
+import { isPreGaModelId, loadAiConfig } from "../../src/modules/ai/ai.config";
 import { costFromUsage } from "../../src/modules/ai/ai-budget.service";
 
 function envSource(vars: Record<string, string | undefined>) {
@@ -83,5 +83,29 @@ describe("loadAiConfig", () => {
     expect(() =>
       loadAiConfig(envSource({ AI_MODEL_PREMIUM: "gemini-99-ultra" })),
     ).toThrow(/fiyat tanımı yok/);
+  });
+
+  /* KVKK (2026-10-16): Google'ın veri işleme şartları yalnız GA modelleri
+     kapsar — production'da ön-sürüm model id'si boot'ta reddedilir. */
+  it("production'da ön-sürüm (preview / exp) model → boot hatası; başka ortamda serbest", () => {
+    expect(() =>
+      loadAiConfig(envSource({ NODE_ENV: "production", AI_MODEL_PREMIUM: "gemini-3.1-pro-preview" })),
+    ).toThrow(/pre-GA model id\(s\) gemini-3.1-pro-preview in production/);
+    expect(loadAiConfig(envSource({ NODE_ENV: "development", AI_MODEL_PREMIUM: "gemini-3.1-pro-preview" })).models.premium).toBe(
+      "gemini-3.1-pro-preview",
+    );
+    // Varsayılanlar (alias) production'da açılır; alias'ın GA olduğu operatör teyididir.
+    expect(loadAiConfig(envSource({ NODE_ENV: "production" })).models.default).toBe("gemini-flash-latest");
+  });
+});
+
+describe("isPreGaModelId", () => {
+  it("preview / exp / experimental parçası ön-sürümdür; GA adı ve alias değil", () => {
+    for (const id of ["gemini-3.1-pro-preview", "gemini-3-flash-preview-09-2025", "gemini-2.0-flash-exp", "gemini-exp-1206", "gemini-experimental"]) {
+      expect([id, isPreGaModelId(id)]).toEqual([id, true]);
+    }
+    for (const id of ["gemini-3.1-pro", "gemini-2.5-pro", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-expert-pro"]) {
+      expect([id, isPreGaModelId(id)]).toEqual([id, false]);
+    }
   });
 });

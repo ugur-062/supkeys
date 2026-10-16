@@ -6,6 +6,7 @@ import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { useEmailLogDetail, useResendEmail } from "@/hooks/use-email-logs";
 import {
   EMAIL_EVENT_META,
+  displaySubject,
   emailResendBlock,
   getContextLabel,
   getTemplateLabel,
@@ -133,7 +134,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       <h2 className="font-display font-bold text-base text-admin-text truncate">
                         {resendBlock === "internal"
                           ? getTemplateLabel(item.template)
-                          : item.subject}
+                          : displaySubject(item.subject)}
                       </h2>
                       {resendBlock !== "internal" ? (
                         <p className="text-xs text-admin-text-muted mt-0.5">
@@ -153,6 +154,11 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       Tek kullanımlık kod ya da davet bağlantısı taşıdığı için
                       içeriği saklanmaz ve yeniden gönderilemez. Kullanıcı kodu
                       veya daveti yeniden talep etmeli.
+                    </p>
+                  ) : resendBlock === "noContent" ? (
+                    <p className="text-admin-text-muted text-xs">
+                      İçerik verisi yok (saklama süresi dolduğu için silinmiş ya
+                      da hiç saklanmamış) — yeniden gönderilemez.
                     </p>
                   ) : confirmResend ? (
                     <div className="flex items-center gap-2">

@@ -30,7 +30,7 @@ describe("MarketplaceFooter — sütun bağlantıları", () => {
     // Pazar yeri · Rothern · Sözleşmeler.
     expect(lists).toHaveLength(3);
     const links = lists.flatMap((ul) => within(ul).getAllByRole("link"));
-    expect(links).toHaveLength(14);
+    expect(links).toHaveLength(16);
     for (const link of links) {
       const cls = link.className.split(/\s+/);
       expect(cls).toContain("break-words");
@@ -47,6 +47,23 @@ describe("MarketplaceFooter — sütun bağlantıları", () => {
       expect(cls).not.toContain("whitespace-nowrap");
     }
     expect(within(lists[2]!).getByRole("link", { name: "Gizlilik" })).toHaveAttribute("href", "/sozlesmeler/gizlilik");
+  });
+  /* Mağazalar (Google Play) hesap silme yolunun web sitesinden de bulunmasını
+     ister: her herkese açık sayfanın altbilgisinde, Sözleşmeler sütununda. */
+  it("Sözleşmeler sütununda girişsiz hesap silme sayfasına bağlantı", () => {
+    const { container } = render(<MarketplaceFooter />);
+    const legal = [...container.querySelectorAll("footer ul")][2] as HTMLElement;
+    expect(within(legal).getByRole("link", { name: "Hesap Silme" })).toHaveAttribute("href", "/hesap-silme");
+  });
+  /* Kişisel Veri Saklama ve İmha Politikası (2026-10-16) öteki sözleşmeler gibi
+     Sözleşmeler sütununda. */
+  it("Sözleşmeler sütununda Saklama ve İmha Politikası bağlantısı", () => {
+    const { container } = render(<MarketplaceFooter />);
+    const legal = [...container.querySelectorAll("footer ul")][2] as HTMLElement;
+    expect(within(legal).getByRole("link", { name: "Saklama ve İmha Politikası" })).toHaveAttribute(
+      "href",
+      "/sozlesmeler/saklama-imha",
+    );
   });
   /* Mobil denetim 2026-10 g01: sütun bağlantıları 17 px, alt satır ve dil
      bağlantıları 20 px yüksekti (24 px tabanın altında). Telefonda her biri

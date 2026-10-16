@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { CronRegistryService, trackCronRun } from "../../common/cron/cron-registry.service";
+import { RetentionRecordService } from "../data-retention/retention-record.service";
 import { CompanyViewsService, VIEW_RETENTION_DAYS } from "./company-views.service";
 
 /**
@@ -16,6 +17,8 @@ export class CompanyViewsScheduler implements OnModuleInit {
   constructor(
     private readonly views: CompanyViewsService,
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Imha record of the purge (Saklama ve İmha Politikası section 10); optional for hand-built tests.
+    @Optional() private readonly records?: RetentionRecordService,
   ) {}
 
   onModuleInit(): void {
@@ -36,6 +39,7 @@ export class CompanyViewsScheduler implements OnModuleInit {
     return trackCronRun(this.cronRegistry, "views.purge", async () => {
       const n = await this.views.purgeExpired();
       if (n > 0) this.logger.log(`${n} görüntülenme kaydı silindi (> ${VIEW_RETENTION_DAYS} gün)`);
+      await this.records?.record("views.purge", { viewRecords: n });
     });
   }
 

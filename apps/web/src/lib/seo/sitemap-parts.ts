@@ -122,6 +122,8 @@ const STATIC_PAGES: (SitemapUrl & { dizin?: DizinTuru })[] = [
   { loc: "/sss", changefreq: "monthly", priority: 0.6 },
   { loc: "/hakkimizda", changefreq: "monthly", priority: 0.5 },
   { loc: "/iletisim", changefreq: "monthly", priority: 0.4 },
+  // Çevrilmiş sayfa (sözleşme değil) → üç dilde listelenir.
+  { loc: "/hesap-silme", changefreq: "yearly", priority: 0.3 },
 ];
 
 /** Sözleşme metinleri YALNIZ Türkçe listelenir (EN/RU sayfanın kanoniği Türkçe, `LEGAL_DOC_LOCALES`). */
@@ -130,6 +132,7 @@ const LEGAL_PAGES: SitemapUrl[] = [
   "/sozlesmeler/aracilik",
   "/sozlesmeler/gizlilik",
   "/sozlesmeler/kvkk",
+  "/sozlesmeler/saklama-imha",
   "/sozlesmeler/mesafeli-satis",
   "/sozlesmeler/iade",
 ].map((loc) => ({ loc, changefreq: "yearly" as const, priority: 0.3 }));

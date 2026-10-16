@@ -145,6 +145,10 @@
   },
   "adminCompanies": {
     "firmaKvkkIleAnonimlestirildi": "Bu firma KVKK talebiyle anonimleştirildi — bu işlem yapılamaz",
+    "kvkkSilmeGirisYapabilir": "Bu hesap hâlâ giriş yapabiliyor; KVKK silmesi buradan yapılmaz. Kişi hesabını uygulamadaki “Hesabımı sil” düğmesiyle kendisi siler (şifresini unuttuysa önce sıfırlar).",
+    "kvkkSilmeFirmaAskida": "Firma askıda ve bu kişi firmanın son kullanıcısı: silme firmayı kapatır ve askı kaydının yerine geçer. Önce askı kararını sonuçlandırın (askıyı kaldırın ya da firmayı Özet › KVKK ile silin / anonimleştirin).",
+    "firmaHesapSahibiSildi": "Firmanın son kullanıcısı hesabını sildi; firma KVKK silmesini bekliyor. Askı durumu değiştirilemez ve firmaya kullanıcı eklenemez; firmayı Özet › KVKK ile silin / anonimleştirin.",
+    "askiSebebiSistemNotu": "Bu metin sistem notu olarak ayrılmıştır; farklı bir askı sebebi yazın.",
     "firmaBulunamadi": "Firma bulunamadı",
     "firmaSahibiDevreDisiBirakilamazOnce": "Firma sahibi devre dışı bırakılamaz — önce sahipliği devredin",
     "gecerliBirEPostaGirin": "Geçerli bir e-posta girin",
@@ -549,6 +553,7 @@
     "ePostaKaydiBulunamadi": "E-posta kaydı bulunamadı",
     "buEPostaTekKullanimlikKod": "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (şifre sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
     "icKayitYenidenGonderilemez": "Bu kayıt sistemin iç kaydıdır (ör. engel kaldırma işareti), gerçek bir e-posta değildir — yeniden gönderilemez.",
+    "icerikVerisiYokYenidenGonderilemez": "Bu kaydın içerik verisi yok (saklama süresi dolduğu için silinmiş ya da hiç saklanmamış) — yeniden gönderilemez.",
     "ePostaLoguBulunamadi": "E-posta logu bulunamadı"
   },
   "companyActivity": {
@@ -1109,7 +1114,7 @@
       "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
-      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK Aydınlatma Metni'ni okuduğunuzu onaylamalısınız",
       "enAzBirRolSecin": "En az bir rol seçin"
     },
     "account": {
@@ -1137,7 +1142,7 @@
       "parolaEnAzBirOzelKarakterIcermeli": "Şifre en az bir özel karakter içermeli",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
-      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK Aydınlatma Metni'ni okuduğunuzu onaylamalısınız",
       "altiHaneliKodGiriniz": "6 haneli kod giriniz"
     },
     "onboarding": {

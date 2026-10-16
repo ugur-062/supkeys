@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/kullanici"
       title="Kullanıcı Sözleşmesi"
-      updatedAt="2026-10-07"
+      updatedAt="2026-10-16"
       sections={[
         {
           heading: "1. Taraflar ve Konu",
@@ -80,9 +80,36 @@ export default async function Page({ params }: { params: LocaleParams }) {
           ],
         },
         {
-          heading: "8. Askıya Alma ve Fesih",
+          /* Kapatma koşulları `AccountDeletionService`in kurallarıdır (Kurucu
+             devri, son yönetici, son kullanıcıda süren iş); TBK m.20-25 gereği
+             fiilî kısıt sözleşmede açıkça yazılır. Kural değişirse bu madde,
+             Gizlilik m.6, KVKK m.7/m.9, `/hesap-silme` ve Saklama ve İmha
+             Politikası birlikte güncellenir. Metin değişikliği yeniden onay
+             istemez (onay kapısı yalnız boş onay tarihine bakar); m.11 gereği
+             esaslı değişiklik kullanıcılara bildirilir — canlıya çıkışta
+             uygulama içi + e-posta bildirimi operatör adımıdır
+             (`docs/kvkk-uyum.md` Canlı kapısı; yeniden onay gerekip
+             gerekmediği avukat sorusu 9). */
+          heading: "8. Askıya Alma, Hesabın Kapatılması ve Fesih",
           paragraphs: [
-            "Platform; işbu Sözleşme'ye, Aracılık Sözleşmesi'ne veya mevzuata aykırılık hâlinde Kullanıcı hesabını geçici olarak askıya alabilir veya Sözleşme'yi haklı nedenle feshedebilir. Kullanıcı, hesabını dilediği zaman kapatabilir; devam eden satın alma talebi, teklif veya sipariş süreçlerinden doğan yükümlülükler hesabın kapatılmasından etkilenmez.",
+            "Platform; işbu Sözleşme'ye, Aracılık Sözleşmesi'ne veya mevzuata aykırılık hâlinde Kullanıcı hesabını geçici olarak askıya alabilir veya Sözleşme'yi haklı nedenle feshedebilir.",
+            "Kullanıcı, hesabını Platform'da Ayarlar › Hesap Bilgileri › Hesabı sil adımlarıyla (şirket bilgileri henüz tamamlanmamışsa ya da sözleşme onayı penceresi açıksa o ekrandaki \"Hesabımı sil\" düğmesiyle) şifresini girerek kapatabilir ve böylece işbu Sözleşme'yi kendisi bakımından sona erdirebilir; firmada başka kullanıcı varsa Sözleşme firma ve diğer kullanıcılar bakımından devam eder. Kapatma hemen gerçekleşir ve geri alınamaz. Hesabın kapatılması aşağıdaki koşullara bağlıdır; koşullar sağlanmadıkça Platform kapatma işlemini gerçekleştirmez ve nedenini Kullanıcı'ya bildirir:",
+          ],
+          list: [
+            "Firmanın Kurucusu olan Kullanıcı, firmada başka kullanıcılar (pasif olanlar dâhil) bulunduğu sürece hesabını kapatamaz; önce Kurucu rolünü başka bir kullanıcıya devretmesi ya da diğer kullanıcıları firmadan çıkarması gerekir.",
+            "Hesabın kapatılmasından sonra firmada, kullanıcıları yönetebilecek en az bir aktif kullanıcı (Kurucu ya da kullanıcı yönetimi yetkisi olan bir kullanıcı) kalmalıdır.",
+            "Firmanın tek kullanıcısı olan Kullanıcı'nın hesabını kapatması firma hesabını da kapatır ve firmanın herkese açık profili yayından kalkar. Firmanın süren bir siparişi (tamamlanmamış, iptal edilmemiş ve reddedilmemiş) ya da açık bir satın alma talebi (yayın onayı bekleyen, teklif toplayan, değerlendirme ya da kazandırma aşamasındaki) varken bu yapılamaz; Kullanıcı önce bunları sonuçlandırır.",
+          ],
+        },
+        {
+          paragraphs: [
+            "Hesabın kapatılmasıyla Kullanıcı'nın kişisel verileri Gizlilik Politikası'nın \"Hesabınızı Silme\" maddesi ve Kişisel Veri Saklama ve İmha Politikası uyarınca silinir. Firmanın ve karşı tarafların ticari kayıtları (satın alma talebi, teklif, sipariş, onay, mesaj ve belgeler) silinmez: bu kayıtlar, tarafı olan firmaların ve kullanıcılarının erişiminde kalır ve yasal saklama yükümlülükleri ile 10 yıllık zamanaşımı süresi gözetilerek Kişisel Veri Saklama ve İmha Politikası'ndaki süre boyunca saklanır; Kullanıcı bu kayıtlarda \"Silinmiş Kullanıcı\" olarak görünür, gönderdiği mesajlarda gönderen adı gönderim anındaki hâliyle kalır. Kapanan firmanın firma bilgileri, saklanması kanunen zorunlu olanlar dışında, kapanıştan itibaren en geç 30 gün içinde silinir; firmanın geçmiş ticari kayıtları varsa firma kaydı yalnız \"Silinmiş Firma\" adıyla kalır.",
+            `Hesabın kapatılması, kapatmadan önce firma adına yürütülen satın alma talebi, teklif ve sipariş süreçlerinden doğan yükümlülükleri ortadan kaldırmaz. Hesabına giriş yapamayan ya da yukarıdaki koşulları yerine getiremeyen (örneğin Kurucu rolünü devredecek kimse bulunmayan) Kullanıcı, kapatma talebini ${OPERATOR.kvkkEmail} adresine iletebilir; talep en geç 30 gün içinde sonuçlandırılır.`,
+          ],
+          links: [
+            { href: "/hesap-silme", label: "Hesap silme: adımlar, silinen ve saklanan bilgiler" },
+            { href: "/sozlesmeler/gizlilik#madde-6", label: "Gizlilik Politikası — Hesabınızı Silme" },
+            { href: "/sozlesmeler/saklama-imha", label: "Kişisel Veri Saklama ve İmha Politikası" },
           ],
         },
         {

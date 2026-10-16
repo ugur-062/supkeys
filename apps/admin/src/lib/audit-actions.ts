@@ -158,6 +158,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "admin.user.email_changed": "Admin: kullanıcı e-postası değişti",
   "admin.user.password_reset_sent": "Admin: şifre sıfırlama bağlantısı gönderildi",
   "admin.user.verification_resent": "Admin: doğrulama e-postası yeniden gönderildi",
+  "admin.user.erased": "Admin: kullanıcının kişisel verileri silindi (KVKK)",
   "admin.user.sessions_dropped": "Admin: kullanıcı oturumları kapatıldı",
 
   // Admin: davetler
@@ -199,6 +200,10 @@ export const ACTION_LABELS: Record<string, string> = {
   "admin.announcement.email_completed": "Admin: duyuru e-postaları tamamlandı",
   "admin.complaint.resolved": "Admin: şikayet sonuçlandırıldı",
   "email.resent": "E-posta yeniden gönderildi",
+
+  // Sistem: periyodik imha (Saklama ve İmha Politikası, 2026-10-16). Her
+  // otomatik silme/ayıklama koşusunun kaydı; `job` hangi işin yazdığını söyler.
+  "system.retention_purge": "Periyodik imha kaydı (saklama süresi dolan veriler, otomatik)",
 
   // Eski model — yalnız geçmiş satırlar
   "supplier.updated": "Tedarikçi güncellendi",
@@ -261,4 +266,5 @@ export const ACTION_FILTERS: { value: string; label: string }[] = [
   { value: "admin.announcement.", label: "Admin: duyurular" },
   { value: "admin.complaint.", label: "Admin: şikayetler" },
   { value: "email.resent", label: "E-posta yeniden gönderimi" },
+  { value: "system.", label: "Sistem: periyodik imha" },
 ];

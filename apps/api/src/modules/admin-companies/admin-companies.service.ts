@@ -58,6 +58,11 @@ import { enforceProductLimit } from "../../common/company/product-limit";
 import { ensureOwnerBuySeat } from "../../common/company/owner-buy-seat";
 import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
 import { AuditService } from "../audit/audit.service";
+import {
+  CLOSED_COMPANY_WHERE,
+  isClosedByOwner,
+  isReservedBlockedReason,
+} from "../company-auth/account-closure";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { EmailService } from "../email/email.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
@@ -470,6 +475,14 @@ export class AdminCompaniesService {
       where.companyVerificationStatus = query.status as CompanyVerificationStatus;
     }
     if (query.blocked === "true") where.isBlocked = true;
+    const erasureQueue = query.blocked === "kvkk";
+    if (erasureQueue) {
+      // Hesap sahibi sildi, firma düzeyi KVKK silmesi bekliyor (anonimleştirilen
+      // firma `isActive=false` olur ve listeden düşer; sert silinen zaten yok).
+      // Tanım hatırlatma işiyle ORTAK (`CLOSED_COMPANY_WHERE`: canlı kullanıcısı
+      // olan firma kuyruğa girmez).
+      Object.assign(where, CLOSED_COMPANY_WHERE);
+    }
     if (query.country) where.country = query.country.trim().toUpperCase();
     if (query.tier) {
       // DTO @IsIn ile 4 kademeye doğrulanmış.
@@ -523,6 +536,8 @@ export class AdminCompaniesService {
       companyVerificationStatus: true,
       isBlocked: true,
       isActive: true,
+      blockedReason: true,
+      blockedAt: true,
       createdAt: true,
       updatedAt: true,
       _count: {
@@ -589,9 +604,11 @@ export class AdminCompaniesService {
           // deterministik tie-break.
           orderBy: expiring
             ? [{ membershipEndAt: "asc" }, { id: "asc" }]
-            : query.sort === "oldest"
-              ? [{ updatedAt: "asc" }, { id: "asc" }]
-              : [{ createdAt: "desc" }, { id: "desc" }],
+            : erasureQueue
+              ? [{ blockedAt: "asc" }, { id: "asc" }]
+              : query.sort === "oldest"
+                ? [{ updatedAt: "asc" }, { id: "asc" }]
+                : [{ createdAt: "desc" }, { id: "desc" }],
           skip: (page - 1) * pageSize,
           take: pageSize,
         }),
@@ -612,6 +629,12 @@ export class AdminCompaniesService {
         isBlocked: c.isBlocked,
         // KVKK ile anonimlestirildi (D-208): askı/paket menusu kapanir.
         anonymized: c.isActive === false,
+        /**
+         * Son kullanıcı hesabını sildi, firma düzeyi KVKK silmesi bekliyor:
+         * kapanış anı (metinlerdeki 30 gün buradan sayılır). Diğer firmada null.
+         */
+        erasurePendingSince:
+          isClosedByOwner(c) && c._count.users === 0 ? c.blockedAt : null,
         complaintCount: c._count.complaintsReceived,
         userCount: c._count.users,
         pendingRevisionCount: c._count.kycRevisions,
@@ -1056,6 +1079,11 @@ export class AdminCompaniesService {
       // KVKK ile anonimlestirildi (D-208): admin ekrani askiyi kaldir /
       // bildirim / duzenle / paket eylemlerini kapatir (API de 409 doner).
       anonymized: isActive === false,
+      // Son kullanıcı hesabını sildi, firma düzeyi KVKK silmesi bekliyor
+      // (listeyle aynı kural): kapanış anı; ekran "Askıyı Kaldır"ı çizmez
+      // (API de 409 döner), askı şeridinde kalan günü yazar.
+      erasurePendingSince:
+        isClosedByOwner({ ...c, isActive }) && c._count.users === 0 ? c.blockedAt : null,
       // Yetkili kimlik no MASKELİ (KVKK veri-minimizasyonu; firma tarafıyla
       // aynı `maskNationalId`) — tanımaya yeter, kopyalamaya yetmez.
       authorizedTckn: authorizedTckn ? maskNationalId(authorizedTckn) : null,
@@ -2371,7 +2399,14 @@ export class AdminCompaniesService {
   }
 
   async suspend(id: string, reason: string, adminId?: string) {
-    await this.requireCompany(id, { notAnonymized: true });
+    await this.requireCompany(id, { notAnonymized: true, notClosedByOwner: true });
+    // Kapanan firmanın işareti serbest metin bir askı sebebidir; aynı metni
+    // elle yazmak canlı firmayı KVKK silme kuyruğuna sokar.
+    if (isReservedBlockedReason(reason)) {
+      throw new BadRequestException(
+        i18nMessage("api.adminCompanies.askiSebebiSistemNotu", undefined, "SUSPEND_REASON_RESERVED"),
+      );
+    }
     // blockedReason yalnız admin panelinde görünen TR iç kayıttır. Firmaya
     // giden bildirimde gerekçe YOKSA bu sabit metin `{gerekce}` olarak EN/RU
     // şablona girmez; alıcının dilinde çözülen parametresiz anahtar gider
@@ -2422,7 +2457,10 @@ export class AdminCompaniesService {
   }
 
   async unsuspend(id: string, adminId?: string) {
-    await this.requireCompany(id, { notAnonymized: true });
+    // Son kullanıcısı hesabını silen firmanın askısı kaldırılmaz: kimsesi
+    // olmayan firma yeniden açılır ve KVKK silme kuyruğundan (30 gün sözü)
+    // sessizce düşerdi.
+    await this.requireCompany(id, { notAnonymized: true, notClosedByOwner: true });
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: false, blockedReason: null, blockedAt: null },
@@ -2975,6 +3013,17 @@ export class AdminCompaniesService {
     if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.sikayetBulunamadi"));
     if (c.status !== "OPEN") {
       throw new BadRequestException(i18nMessage("api.adminCompanies.buSikayetZatenSonuclanmis"));
+    }
+    if (input.suspend) {
+      // Askı yan etkisi `suspend()` ile aynı kapılardan geçer — şikâyet ÇÖZÜLMEDEN
+      // önce: anonimleştirilmiş ya da son kullanıcısı hesabını silmiş firmanın
+      // askı kaydı ezilmez (KVKK kuyruğu ve 30 gün sözü), sistem notu elle yazılmaz.
+      await this.requireCompany(c.againstCompanyId, { notAnonymized: true, notClosedByOwner: true });
+      if (isReservedBlockedReason(input.suspendReason)) {
+        throw new BadRequestException(
+          i18nMessage("api.adminCompanies.askiSebebiSistemNotu", undefined, "SUSPEND_REASON_RESERVED"),
+        );
+      }
     }
     // Atomik CAS: yalnız hâlâ OPEN ise sonuçlandır — tekrar-resolve / eşzamanlı
     // ikinci karar tekrar suspend/üzerine yazma yapamaz.
@@ -3630,14 +3679,21 @@ export class AdminCompaniesService {
 
   private async requireCompany(
     id: string,
-    opts: { notAnonymized?: boolean } = {},
+    opts: { notAnonymized?: boolean; notClosedByOwner?: boolean } = {},
   ) {
     const exists = await this.prisma.company.findUnique({
       where: { id },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, isBlocked: true, blockedReason: true },
     });
     if (!exists) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     if (opts.notAnonymized) this.assertNotAnonymized(exists);
+    if (opts.notClosedByOwner && isClosedByOwner(exists)) {
+      // Son kullanıcısı hesabını sildi; askı kaydı KVKK silme kuyruğunun tek
+      // işareti (`CLOSED_BY_OWNER_NOTE`) — askıya alma / kaldırma onu ezmez.
+      throw new ConflictException(
+        i18nMessage("api.adminCompanies.firmaHesapSahibiSildi", undefined, "COMPANY_CLOSED_BY_OWNER"),
+      );
+    }
   }
 
   /**

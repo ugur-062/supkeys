@@ -61,6 +61,8 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/ru")).toBe(true);
     expect(isPublicRoute("/en/urunler")).toBe(true);
     expect(isPublicRoute("/ru/sozlesmeler/kvkk")).toBe(true);
+    expect(isPublicRoute("/sozlesmeler/saklama-imha")).toBe(true);
+    expect(isPublicRoute("/en/legal/data-retention")).toBe(true);
     expect(isPublicRoute("/en/firma/acme-metal")).toBe(true);
     expect(isPublicRoute("/en/company")).toBe(false);
     expect(isPublicRoute("/en/company/login")).toBe(false);
@@ -76,6 +78,10 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/en/companies/acme-metal")).toBe(true);
     expect(isPublicRoute("/ru/zayavki/rot-000042-boru")).toBe(true);
     expect(isPublicRoute("/en/legal/privacy")).toBe(true);
+    // Hesap silme sayfası (2026-10-16): mağazanın hesap silme adresi girişsiz açılmalı.
+    expect(isPublicRoute("/hesap-silme")).toBe(true);
+    expect(isPublicRoute("/en/account-deletion")).toBe(true);
+    expect(isPublicRoute("/ru/udalenie-akkaunta")).toBe(true);
     expect(isPublicRoute("/ru/kompaniya")).toBe(false);
     expect(isPublicRoute("/ru/kompaniya/vhod")).toBe(false);
     expect(isPublicRoute("/en/company/purchasing/my-requests")).toBe(false);

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { clearSignupDraft, readSignupDraft, saveSignupDraft, SIGNUP_DRAFT_KEY, type SignupDraft } from "../signup-draft";
 import { bindSessionOwner, clearTenantSessionData } from "../tenant-storage";
 
-const consents = { terms: true, mediation: true, kvkk: false, marketing: false, profile: true };
+const consents = { terms: true, mediation: true, kvkk: false, marketing: true };
 const draft: SignupDraft = {
   firstName: "Ada",
   lastName: "Yılmaz",
@@ -42,7 +42,7 @@ describe("kayıt taslağı", () => {
       firstName: "",
       lastName: "",
       email: "",
-      consents: { terms: false, mediation: false, kvkk: false, marketing: false, profile: false },
+      consents: { terms: false, mediation: false, kvkk: false, marketing: false },
     });
     expect(sessionStorage.getItem(SIGNUP_DRAFT_KEY)).toBeNull();
     expect(readSignupDraft()).toBeNull();
@@ -59,7 +59,7 @@ describe("kayıt taslağı", () => {
       firstName: "",
       lastName: "",
       email: "",
-      consents: { terms: false, mediation: false, kvkk: true, marketing: false, profile: false },
+      consents: { terms: false, mediation: false, kvkk: true, marketing: false },
       verifyEmail: null,
       emailSeed: "",
     });
@@ -83,7 +83,7 @@ describe("kayıt taslağı", () => {
   });
 
   it("yalnız telefon taşıyan eski taslak boş sayılır: yeniden yazılınca depoda yer tutmaz", () => {
-    const empty = { terms: false, mediation: false, kvkk: false, marketing: false, profile: false };
+    const empty = { terms: false, mediation: false, kvkk: false, marketing: false };
     sessionStorage.setItem(
       SIGNUP_DRAFT_KEY,
       JSON.stringify({ firstName: "", lastName: "", email: "", phone: "+90 5551112233", consents: empty, verifyEmail: null, emailSeed: "" }),

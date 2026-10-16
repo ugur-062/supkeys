@@ -148,9 +148,16 @@ async function main() {
     "/sozlesmeler/kullanici",
     "/sozlesmeler/gizlilik",
     "/sozlesmeler/kvkk",
+    "/sozlesmeler/saklama-imha",
     "/sozlesmeler/mesafeli-satis",
     "/sozlesmeler/iade",
     "/sozlesmeler/aracilik",
+    "/hesap-silme",
+    // Mağaza konsollarına girilen hesap silme adresleri (docs/store-listing.md):
+    // Play "Delete account URL" EN sayfası, App Store "User Privacy Choices URL"
+    // dil başına. Google: "the weblink must be functional (loads without error)".
+    "/en/account-deletion",
+    "/ru/udalenie-akkaunta",
     "/iletisim",
   ]) {
     const r = await get(`${SITE}${yol}`);

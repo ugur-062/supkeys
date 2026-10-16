@@ -68,7 +68,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
     mediation: false,
     kvkk: false,
     marketing: false,
-    profile: false,
   });
   const [error, setError] = useState<string | null>(null);
   // Gönder düğmesine basıldı: geçersiz her alan iletisini gösterir.
@@ -133,7 +132,6 @@ export function AcceptInviteClient({ token }: { token: string }) {
         mediationAccepted: consents.mediation,
         kvkkAccepted: consents.kvkk,
         marketingConsent: consents.marketing,
-        profileImprovementConsent: consents.profile,
       });
       setAuth({ user: res.user, company: res.company });
       router.replace("/company");

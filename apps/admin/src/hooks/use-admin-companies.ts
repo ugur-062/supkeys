@@ -33,6 +33,11 @@ export interface AdminCompanyRow {
    * gönderimi / bekleyen revizyon) — "Başvuru" tarihi ve bekleme rozeti (O-075).
    */
   submittedAt?: string | null;
+  /**
+   * Son kullanıcı hesabını sildi, firma düzeyi KVKK silmesi bekliyor: kapanış
+   * anı (Gizlilik m.6'daki 30 gün buradan sayılır). Diğer firmada null.
+   */
+  erasurePendingSince?: string | null;
 }
 
 export interface AdminCompanyListResponse {
@@ -250,6 +255,12 @@ export interface AdminCompanyDetail {
    * bildirim ve düzenleme işlemleri kapalı; API de 409 döner (D-208).
    */
   anonymized?: boolean;
+  /**
+   * Son kullanıcı hesabını sildi, firma düzeyi KVKK silmesi bekliyor: kapanış
+   * anı (Gizlilik m.6'daki 30 gün buradan sayılır). Askı kaldırılamaz / yeniden
+   * askıya alınamaz (API 409); diğer firmada null.
+   */
+  erasurePendingSince?: string | null;
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;

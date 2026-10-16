@@ -11,6 +11,12 @@ const h = vi.hoisted(() => ({
     Promise.resolve({ email: _v.email }),
   ),
   addUserMutate: vi.fn(),
+  eraseMutate: vi.fn<(userId: string) => Promise<unknown>>(() =>
+    Promise.resolve({ ok: true, companyClosed: false, alreadyRemoved: false }),
+  ),
+  preview: { data: undefined as unknown, isError: false, refetch: vi.fn() },
+  previewUserId: null as string | null,
+  role: "SALES" as string,
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
@@ -21,6 +27,14 @@ vi.mock("@/hooks/use-admin-company-users", () => ({
   useSetUserActive: () => ({ mutateAsync: h.setActiveMutate, isPending: false }),
   useChangeUserEmail: () => ({ mutateAsync: h.changeEmailMutate, isPending: false }),
   useAddCompanyUser: () => ({ mutate: h.addUserMutate, mutateAsync: (...a: unknown[]) => { (h.addUserMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve(undefined); }, isPending: false }),
+  useEraseCompanyUser: () => ({ mutateAsync: h.eraseMutate, isPending: false }),
+  useEraseUserPreview: (_companyId: string, userId: string | null) => {
+    h.previewUserId = userId;
+    return userId ? h.preview : { data: undefined, isError: false, refetch: vi.fn() };
+  },
+}));
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: { role: h.role } }),
 }));
 
 import { UsersTab } from "../users-tab";
@@ -44,9 +58,28 @@ function user(id: string, over: Record<string, unknown> = {}) {
   };
 }
 
+/** API `adminErasurePreview` yanıtı — varsayılan: silinebilir, ekipte bir üye. */
+function preview(over: Record<string, unknown> = {}) {
+  return {
+    name: "Kişi U1",
+    email: "u1@firma.com",
+    lastKnownEmail: null,
+    removedAt: null,
+    nothingLeft: false,
+    closesCompany: false,
+    companySuspension: null,
+    sameNameCount: 0,
+    blocker: null,
+    ...over,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  h.role = "SALES";
   h.users = { data: [user("u1")], isLoading: false, isError: false };
+  h.preview = { data: preview(), isError: false, refetch: vi.fn() };
+  h.previewUserId = null;
 });
 
 describe("UsersTab — kullanıcı kurtarma", () => {
@@ -253,5 +286,146 @@ describe("UsersTab — rol sütunu", () => {
     const n = screen.getByText("n1@firma.com").closest("tr")!;
     expect(within(v).getByText("Görüntüleyici")).toBeTruthy();
     expect(within(n).getByText("Yetki yok")).toBeTruthy();
+  });
+});
+
+/**
+ * KVKK SİLME TALEBİ (2026-10-16): metinler giriş yapamayan kişiye kvkk@ yolunu
+ * vaat ediyor; operatör bunu SQL'siz yapar. Geri alınamaz → yalnız SUPER_ADMIN;
+ * ekipten çıkarılmış hesapta kalan ad / telefon için de çıkar; kural retleri
+ * admin cümlesiyle.
+ */
+describe("UsersTab — KVKK silme talebi", () => {
+  it("SALES menüde KVKK silmesini görmez", async () => {
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    expect(screen.queryByRole("menuitem", { name: /KVKK/ })).toBeNull();
+  });
+
+  it("SUPER_ADMIN: menü → onay penceresi; Vazgeç'te istek gitmez, onayda gider", async () => {
+    h.role = "SUPER_ADMIN";
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    await uev.click(await screen.findByRole("menuitem", { name: "KVKK: Hesabı Sil" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Geri alınamaz/)).toBeInTheDocument();
+    await uev.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    expect(h.eraseMutate).not.toHaveBeenCalled();
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    await uev.click(await screen.findByRole("menuitem", { name: "KVKK: Hesabı Sil" }));
+    await uev.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Kalıcı Olarak Sil" }));
+    expect(h.eraseMutate).toHaveBeenCalledWith("u1");
+    expect(h.toast.success).toHaveBeenCalledWith("Hesap silindi");
+  });
+
+  it("kural reddi (Kurucu devri) admin cümlesiyle gösterilir", async () => {
+    h.role = "SUPER_ADMIN";
+    const { AxiosError } = await import("axios");
+    h.eraseMutate.mockRejectedValueOnce(
+      new AxiosError("400", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        data: { code: "ACCOUNT_OWNER_MUST_TRANSFER", message: "Hesabınızı silmeden önce…" },
+      } as never),
+    );
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    await uev.click(await screen.findByRole("menuitem", { name: "KVKK: Hesabı Sil" }));
+    await uev.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Kalıcı Olarak Sil" }));
+    // Önleyicinin bastığı API iletisinin YERİNE (aynı kimlik) — iki toast çıkmaz.
+    expect(h.toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/^Kurucu silinemez/),
+      expect.objectContaining({ id: "api-error:Hesabınızı silmeden önce…" }),
+    );
+  });
+
+  /* İnceleme 2026-10-16: silme yalnız bir e-postaya dayanır. Giriş yapabilen
+     hesap kişinin kendisi tarafından uygulamada silinir; askıdaki firmanın son
+     kullanıcısı silinirse askı kaydının yerine kapanış yazılırdı. API 409 verir,
+     pencere onayı hiç sunmaz ve nedenini yazar. */
+  it("giriş yapabilen hesap: onay pasif, kişinin uygulamadan silmesi söylenir", async () => {
+    h.role = "SUPER_ADMIN";
+    h.preview = { data: preview({ blocker: "ACCOUNT_CAN_SIGN_IN" }), isError: false, refetch: vi.fn() };
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    await uev.click(await screen.findByRole("menuitem", { name: "KVKK: Hesabı Sil" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("erase-blocker")).toHaveTextContent(/hâlâ giriş yapabiliyor/);
+    expect(within(dialog).getByRole("button", { name: "Kalıcı Olarak Sil" })).toBeDisabled();
+    expect(h.eraseMutate).not.toHaveBeenCalled();
+  });
+
+  it("askıdaki firmanın son kullanıcısı: onay pasif, önce askı kararı", async () => {
+    h.role = "SUPER_ADMIN";
+    h.preview = {
+      data: preview({
+        blocker: "ACCOUNT_COMPANY_SUSPENDED",
+        closesCompany: true,
+        companySuspension: { reason: "Dolandırıcılık şüphesi", since: "2026-09-01T10:00:00.000Z" },
+      }),
+      isError: false,
+      refetch: vi.fn(),
+    };
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "u1@firma.com işlemleri" }));
+    await uev.click(await screen.findByRole("menuitem", { name: "KVKK: Hesabı Sil" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("erase-blocker")).toHaveTextContent(/Önce askı kararını sonuçlandırın/);
+    expect(within(dialog).getByRole("button", { name: "Kalıcı Olarak Sil" })).toBeDisabled();
+  });
+
+  it("ekipten çıkarılmış hesap: yer tutucu yerine son kullandığı adres, çıkarılma tarihi, aynı ad uyarısı; o adrese yazarak doğrulama", async () => {
+    h.role = "SUPER_ADMIN";
+    h.users = {
+      data: [user("u1", { deletedAt: "2026-09-01T10:00:00.000Z", isActive: false, email: "deleted-u1@deleted.rothern" })],
+      isLoading: false,
+      isError: false,
+    };
+    h.preview = {
+      data: preview({
+        email: null,
+        lastKnownEmail: "ayse@firma.com",
+        removedAt: "2026-09-01T10:00:00.000Z",
+        sameNameCount: 1,
+      }),
+      isError: false,
+      refetch: vi.fn(),
+    };
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" />);
+    await uev.click(screen.getByRole("button", { name: "KVKK: Kişisel Verileri Sil" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("ayse@firma.com");
+    expect(dialog).not.toHaveTextContent("deleted-u1@deleted.rothern");
+    expect(dialog).toHaveTextContent("Ekipten çıkarılma");
+    expect(dialog).toHaveTextContent(/aynı adı taşıyan 1 kayıt daha var/);
+    expect(dialog).toHaveTextContent(/yukarıdaki son kullanılan adrese/);
+    expect(dialog).toHaveTextContent(/gönderen adresi\s+tek başına kanıt değildir/);
+    await uev.click(within(dialog).getByRole("button", { name: "Kalıcı Olarak Sil" }));
+    expect(h.eraseMutate).toHaveBeenCalledWith("u1");
+  });
+
+  it("ekipten çıkarılmış hesapta yalnız KVKK düğmesi; silinmiş (yer tutucu adlı) hesapta hiç işlem yok", () => {
+    h.role = "SUPER_ADMIN";
+    h.users = {
+      data: [
+        user("u1", { deletedAt: "2026-10-01T00:00:00.000Z", isActive: false }),
+        user("u2", {
+          deletedAt: "2026-10-01T00:00:00.000Z",
+          isActive: false,
+          firstName: "Silinmiş",
+          lastName: "Kullanıcı",
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    render(<UsersTab companyId="c1" />);
+    expect(screen.getAllByRole("button", { name: "KVKK: Kişisel Verileri Sil" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Şifre/ })).toBeNull();
   });
 });

@@ -29,7 +29,6 @@ export interface SignupDraftConsents {
   mediation: boolean;
   kvkk: boolean;
   marketing: boolean;
-  profile: boolean;
 }
 
 export interface SignupDraft {
@@ -48,7 +47,7 @@ export interface SignupDraft {
   emailSeed: string;
 }
 
-const CONSENT_KEYS = ["terms", "mediation", "kvkk", "marketing", "profile"] as const;
+const CONSENT_KEYS = ["terms", "mediation", "kvkk", "marketing"] as const;
 
 function isEmpty(d: SignupDraft): boolean {
   return (
@@ -77,7 +76,6 @@ export function saveSignupDraft(draft: SignupDraft): void {
         mediation: draft.consents.mediation,
         kvkk: draft.consents.kvkk,
         marketing: draft.consents.marketing,
-        profile: draft.consents.profile,
       },
       verifyEmail: draft.verifyEmail,
       emailSeed: draft.emailSeed,
@@ -108,7 +106,6 @@ export function readSignupDraft(): SignupDraft | null {
         mediation: c.mediation === true,
         kvkk: c.kvkk === true,
         marketing: c.marketing === true,
-        profile: c.profile === true,
       },
       verifyEmail: verifyEmail || null,
       emailSeed: str(p.emailSeed, 254),

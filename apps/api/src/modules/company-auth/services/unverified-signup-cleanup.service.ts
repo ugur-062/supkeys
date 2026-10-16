@@ -294,6 +294,22 @@ export interface SignupPurgeRunResult {
   capped: boolean;
 }
 
+/**
+ * `purgeExpired` could not remove some accounts. The run still removed
+ * others: `result` says what it did, so the scheduler can write the imha
+ * record of the run (Saklama ve İmha Politikası section 10) before the
+ * failure marks the run.
+ */
+export class SignupPurgeFailedError extends Error {
+  constructor(
+    message: string,
+    readonly result: SignupPurgeRunResult,
+  ) {
+    super(message);
+    this.name = "SignupPurgeFailedError";
+  }
+}
+
 const emptyRunResult = (): SignupPurgeRunResult => ({
   scanned: 0,
   deleted: 0,
@@ -509,8 +525,9 @@ export class UnverifiedSignupCleanupService implements OnModuleInit {
       );
     }
     if (result.failed > 0) {
-      throw new Error(
+      throw new SignupPurgeFailedError(
         `unverified sign-up sweep: ${result.failed} account(s) could not be removed (deleted=${result.deleted}, scanned=${result.scanned})`,
+        result,
       );
     }
     return result;

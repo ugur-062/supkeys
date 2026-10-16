@@ -114,3 +114,62 @@ export function useAddCompanyUser(companyId: string) {
     onSuccess: () => invalidate(qc, companyId),
   });
 }
+
+/**
+ * KVKK silme talebi (2026-10-16): giriş yapamayan kişinin `kvkk@` talebi.
+ * Kişinin kendi silmesiyle aynı kurallar; ekipten çıkarılmış hesapta kalan ad
+ * ve telefonu da siler. Geri alınamaz — yalnız SUPER_ADMIN.
+ */
+export function useEraseCompanyUser(companyId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.post<{
+        ok: boolean;
+        companyClosed: boolean;
+        alreadyRemoved: boolean;
+      }>(`/admin/companies/${companyId}/users/${userId}/erase`);
+      return data;
+    },
+    onSuccess: () => invalidate(qc, companyId),
+  });
+}
+
+/** API `AccountDeletionService.adminErasurePreview` — onay penceresinin ön bilgisi. */
+export interface AdminErasurePreview {
+  name: string;
+  /** Satırdaki adres; silme yer tutucusuysa null. */
+  email: string | null;
+  /** Ekipten çıkarılmış / silinmiş kaydın en son kullandığı adres (denetim kaydından; yoksa null). */
+  lastKnownEmail: string | null;
+  removedAt: string | null;
+  /** Ad, telefon ve giriş zaten silinmiş: silinecek bir şey kalmadı. */
+  nothingLeft: boolean;
+  /** Başka canlı kullanıcı yok: silme firmayı da kapatır. */
+  closesCompany: boolean;
+  /** Firma başka bir nedenle (yönetici, şikâyet) askıda. */
+  companySuspension: { reason: string | null; since: string | null } | null;
+  /** Firmada aynı adı taşıyan başka kayıt sayısı (canlı ya da çıkarılmış). */
+  sameNameCount: number;
+  /** Doluysa API silmeyi 409 ile reddeder; pencere onayı sunmaz. */
+  blocker: "ACCOUNT_CAN_SIGN_IN" | "ACCOUNT_COMPANY_SUSPENDED" | "COMPANY_ANONYMIZED" | null;
+}
+
+/**
+ * KVKK silme onay penceresinin ön bilgisi (yalnız SUPER_ADMIN). Her açılışta
+ * taze okunur: karar anındaki durum (askı, son kullanıcı) gösterilsin.
+ */
+export function useEraseUserPreview(companyId: string, userId: string | null) {
+  return useQuery({
+    queryKey: ["admin-company-user-erase-preview", companyId, userId],
+    enabled: !!userId,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () => {
+      const { data } = await api.get<AdminErasurePreview>(
+        `/admin/companies/${companyId}/users/${userId}/erase-preview`,
+      );
+      return data;
+    },
+  });
+}

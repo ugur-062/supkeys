@@ -49,6 +49,30 @@ beforeEach(() => {
   h.probe = "none";
   h.search = "";
   h.step = null;
+  window.sessionStorage.clear();
+});
+
+/* İnceleme 2026-10-16: hesap silindikten sonra giriş sayfası TAM yüklemeyle
+   açılır, bildirim kayboluyordu. `/hesap-silme` "ekranda “Hesabınız silindi”
+   bildirimi görünür" diyor (Apple 5.1.1(v): silme tamamlanınca onay). */
+describe("CompanyLoginClient — hesap silme onayı", () => {
+  it("silme formunun bıraktığı işaret: kalıcı 'Hesabınız silindi' kutusu, bir kez", async () => {
+    window.sessionStorage.setItem("rothern.account-deleted-notice", "1");
+    const { unmount } = render(<CompanyLoginClient />);
+    expect(await screen.findByText("Hesabınız silindi")).toBeInTheDocument();
+    expect(screen.getByText(/diğer cihazlardaki oturumlarınız da sona erdi/)).toBeInTheDocument();
+    expect(screen.getByTestId("login-form")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("rothern.account-deleted-notice")).toBeNull();
+    unmount();
+    render(<CompanyLoginClient />);
+    expect(screen.queryByText("Hesabınız silindi")).toBeNull();
+  });
+
+  it("işaret yoksa (ya da adres parametresiyle) onay çizilmez", () => {
+    h.search = "deleted=1";
+    render(<CompanyLoginClient />);
+    expect(screen.queryByText("Hesabınız silindi")).toBeNull();
+  });
 });
 
 describe("CompanyLoginClient — oturum durumu bilinene dek form yok", () => {

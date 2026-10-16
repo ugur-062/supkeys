@@ -48,6 +48,8 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   // ---- pazarlama / statik ------------------------------------------------
   "/hakkimizda": P("/hakkimizda", "/about", "/o-nas"),
   "/iletisim": P("/iletisim", "/contact", "/kontakty"),
+  // Hesap silme (2026-10-16): Play "hesap silme adresi" — girişsiz okunur, çevrilmiş sayfa.
+  "/hesap-silme": P("/hesap-silme", "/account-deletion", "/udalenie-akkaunta"),
   "/sss": P("/sss", "/faq", "/faq"),
   "/nasil-calisir": P("/nasil-calisir", "/how-it-works", "/kak-eto-rabotaet"),
   "/sozlesmeler/aracilik": P("/sozlesmeler/aracilik", "/legal/intermediation", "/dokumenty/posrednichestvo"),
@@ -56,6 +58,8 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/sozlesmeler/kullanici": P("/sozlesmeler/kullanici", "/legal/terms", "/dokumenty/polzovatelskoe-soglashenie"),
   "/sozlesmeler/kvkk": P("/sozlesmeler/kvkk", "/legal/personal-data", "/dokumenty/personalnye-dannye"),
   "/sozlesmeler/mesafeli-satis": P("/sozlesmeler/mesafeli-satis", "/legal/distance-sales", "/dokumenty/distantsionnaya-prodazha"),
+  // Kişisel Veri Saklama ve İmha Politikası (2026-10-16): yalnız Türkçe sözleşme metni.
+  "/sozlesmeler/saklama-imha": P("/sozlesmeler/saklama-imha", "/legal/data-retention", "/dokumenty/khranenie-dannykh"),
   "/talep-onayla": P("/talep-onayla", "/confirm-inquiry", "/podtverdit-zapros"),
   "/davet-kapat": P("/davet-kapat", "/stop-invitations", "/otkaz-ot-priglasheniy"),
   "/e-posta-tercihleri": P("/e-posta-tercihleri", "/email-preferences", "/nastroyki-pisem"),

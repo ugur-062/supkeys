@@ -175,7 +175,9 @@ export default function AiKullanimPage() {
                         (data.byUser ?? []).map((r) => (
                           <TableRow key={r.userId}>
                             <TableCell className={BREAKDOWN_LABEL_CELL}>
-                              {r.userEmail ?? r.userId}
+                              {/* Hesabını silen kişinin adresi silmede kayıttan kaldırılır
+                                  (`AccountDeletionService`); satır maliyetiyle kalır. */}
+                              {r.userEmail ?? t("silinmisKullanici")}
                             </TableCell>
                             <TableCell className={BREAKDOWN_NUM_CELL}>
                               {r.requests}

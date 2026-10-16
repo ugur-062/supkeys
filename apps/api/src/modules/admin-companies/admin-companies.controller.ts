@@ -51,8 +51,13 @@ class ListCompaniesDto {
   @IsIn(["kyc"])
   queue?: string;
 
+  /**
+   * "true" → askıdaki firmalar; "kvkk" → son kullanıcısı hesabını silip
+   * firma düzeyi KVKK silmesini bekleyen firmalar (en eski önce; metinlerdeki
+   * 30 gün sözü, 2026-10-16).
+   */
   @IsOptional()
-  @IsIn(["true"])
+  @IsIn(["true", "kvkk"])
   blocked?: string;
 
   @IsOptional()

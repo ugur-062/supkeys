@@ -112,6 +112,7 @@ export default function robots(): MetadataRoute.Robots {
           "/sss",
           "/hakkimizda",
           "/iletisim",
+          "/hesap-silme",
           "/sozlesmeler",
           "/sitemaps", // sitemap parçaları (indeks /sitemap.xml)
           "/indexnow", // IndexNow anahtar dosyası

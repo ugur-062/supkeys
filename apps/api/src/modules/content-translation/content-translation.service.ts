@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig, type AiModelPricing } from "../ai/ai.config";
+import { AI_CONFIG, AI_PROVIDER_TOKEN, isPreGaModelId, type AiConfig, type AiModelPricing } from "../ai/ai.config";
 import { costFromUsage } from "../ai/ai-budget.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import type { AiTokenUsage, BaseAiProvider } from "../ai/providers/ai-provider.interface";
@@ -91,8 +91,11 @@ function envNumber(name: string, fallback: number): number {
  * ile düştü); Generative Language API tanır. `CONTENT_TRANSLATION_MODEL`
  * env'i listenin başına geçer; sonra `AI_MODEL_PREMIUM`, sonra bilinen Pro
  * sürümleri (fiyat tablosunda olanlar; fiyatsız ad premium fiyatıyla sayılır — `pricingFor`).
+ * Yedeklerde ÖN-SÜRÜM YOK (KVKK 2026-10-16): Google'ın veri işleme şartları
+ * yalnız GA modelleri kapsar; çevrilen metin (firma, ürün, talep) kişisel veri
+ * taşıyabilir. Production'da env'den gelen ön-sürüm ad da elenir (`isPreGaModelId`).
  */
-const PRO_FALLBACKS = ["gemini-3.1-pro", "gemini-3.1-pro-preview", "gemini-2.5-pro"];
+const PRO_FALLBACKS = ["gemini-3.1-pro", "gemini-2.5-pro"];
 
 function isModelNotFound(err: unknown): boolean {
   const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
@@ -138,7 +141,8 @@ export class ContentTranslationService {
       ...(this.cfg ? [this.cfg.models.premium] : []),
       ...PRO_FALLBACKS,
     ];
-    return [...new Set(list)].filter((m) => !this.deadModels.has(m));
+    const production = process.env.NODE_ENV === "production";
+    return [...new Set(list)].filter((m) => !this.deadModels.has(m) && !(production && isPreGaModelId(m)));
   }
 
   constructor(

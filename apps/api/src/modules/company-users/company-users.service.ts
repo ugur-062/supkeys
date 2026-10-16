@@ -34,6 +34,7 @@ import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import { UnverifiedSignupCleanupService } from "../company-auth/services/unverified-signup-cleanup.service";
+import { deletedAccountEmail, isDeletedAccountEmail } from "../company-auth/account-closure";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
   ALL_COMPANY_PERMISSIONS,
@@ -584,6 +585,17 @@ export class CompanyUsersService {
         // kalır (upgrade sonrası yeniden kabul edilebilir); Supabase-user
         // telafisi dışarıdaki catch'te.
         await tx.$queryRaw`SELECT id FROM companies WHERE id = ${inv.companyId} FOR UPDATE`;
+        // Firma durumu kilit ALTINDA yeniden okunur: yukarıdaki okuma kilitsiz;
+        // aynı anda son kullanıcı hesabını silip firmayı kapatırsa (kapanış aynı
+        // satırı kilitler) kapanmış firmaya canlı hesap açılmasın — KVKK silme
+        // kuyruğundaki firmanın silmesi o hesabı da silerdi.
+        const live = await tx.company.findUnique({
+          where: { id: inv.companyId },
+          select: { isActive: true, isBlocked: true },
+        });
+        if (!live?.isActive || live.isBlocked) {
+          throw new BadRequestException(i18nMessage("api.companyUsers.firmaHesabiAktifDegil"));
+        }
         await this.assertSeatAvailable(tx, inv.companyId, {
           groups: seatGroupsOf({ permissions: inv.permissions, roles: inv.roles }),
           context: "accept",
@@ -1483,11 +1495,45 @@ export class CompanyUsersService {
           // E-postayı serbest bırak: global-unique email aksi halde bu kişiyi
           // yeniden davet edilemez kılar (accept'te Supabase/unique çakışması →
           // dead-end davet). KVKK ile de uyumlu (silinen PII tombstone'lanır).
-          email: `deleted-${targetId}@deleted.rothern`,
+          email: deletedAccountEmail(targetId),
+          // SAKLAMA VE İMHA POLİTİKASI satır 1 (2026-10-16): üyelik bitince
+          // hesap verisi gider — telefon, iki adımlı doğrulama, bildirim
+          // tercihleri ve izinler; oturumlar düşer. AD KALIR: firmanın
+          // kayıtlarında işlemi yapanın görünmesi için firma kaydı süresince
+          // (firma imhasında ad da silinir, `deleteOrAnonymize`); kişi silme
+          // isterse admin "KVKK: Hesabı Sil" (`eraseByAdmin`).
+          phone: null,
+          tokenVersion: { increment: 1 },
+          twoFactorEnabled: false,
+          twoFactorEnabledAt: null,
+          twoFactorSecret: null,
+          twoFactorRecoveryCodes: [],
+          notificationPrefs: Prisma.DbNull,
+          marketingConsent: false,
+          profileImprovementConsent: false,
         },
       });
       // Push devices: the removed member's phone stops getting company pushes.
       await tx.pushDevice.deleteMany({ where: { companyUserId: targetId } });
+      // Same personal records as a self-deletion (`AccountDeletionService.scrubAccount`):
+      // links and codes, the person's own notifications and assistant chats,
+      // the address in the company's AI usage ledger and in the team
+      // invitations sent to it (exact match; addresses are stored lower-cased).
+      await tx.passwordResetToken.deleteMany({ where: { companyUserId: targetId } });
+      await tx.emailVerificationCode.deleteMany({ where: { companyUserId: targetId } });
+      await tx.notification.deleteMany({ where: { companyUserId: targetId } });
+      await tx.aiChatSession.deleteMany({ where: { companyId: actor.companyId, userId: targetId } });
+      await tx.aiUsage.updateMany({
+        where: { companyId: actor.companyId, userId: targetId, userEmail: { not: null } },
+        data: { userEmail: null },
+      });
+      if (target.email && !isDeletedAccountEmail(target.email)) {
+        const addresses = [...new Set([target.email, target.email.toLowerCase()])];
+        await tx.companyUserInvitation.updateMany({
+          where: { companyId: actor.companyId, email: { in: addresses } },
+          data: { email: deletedAccountEmail(targetId) },
+        });
+      }
       return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
     });
     // INV-AUDIT-1: iş çıkışı (soft-delete) = tüm erişimin iptali — yetki tarafı.

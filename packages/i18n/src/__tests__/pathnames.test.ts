@@ -51,6 +51,22 @@ describe("ROUTE_PATHNAMES — yol parçaları üç dilde", () => {
     expect(translateRoutePath("/", "en")).toBe("/");
   });
 
+  // Hesap silme sayfası (2026-10-16): mağaza konsollarına yazılan adresler — değişirse konsol da güncellenir.
+  it("hesap silme sayfası üç dilde sabit adreste", () => {
+    expect(translateRoutePath("/hesap-silme", "tr")).toBe("/hesap-silme");
+    expect(translateRoutePath("/hesap-silme", "en")).toBe("/account-deletion");
+    expect(translateRoutePath("/hesap-silme#giris-yapamiyorsaniz", "ru")).toBe("/udalenie-akkaunta#giris-yapamiyorsaniz");
+    expect(internalRoutePath("/account-deletion", "en")).toBe("/hesap-silme");
+  });
+
+  // Kişisel Veri Saklama ve İmha Politikası (2026-10-16): öteki sözleşmeler gibi /legal ve /dokumenty altında.
+  it("saklama ve imha politikası üç dilde", () => {
+    expect(translateRoutePath("/sozlesmeler/saklama-imha", "tr")).toBe("/sozlesmeler/saklama-imha");
+    expect(translateRoutePath("/sozlesmeler/saklama-imha#madde-8", "en")).toBe("/legal/data-retention#madde-8");
+    expect(translateRoutePath("/sozlesmeler/saklama-imha", "ru")).toBe("/dokumenty/khranenie-dannykh");
+    expect(internalRoutePath("/legal/data-retention", "en")).toBe("/sozlesmeler/saklama-imha");
+  });
+
   it("tanınmayan yol, mutlak adres ve özel şemalar olduğu gibi döner", () => {
     expect(translateRoutePath("/dev/ui", "en")).toBe("/dev/ui");
     expect(translateRoutePath("/api/health", "ru")).toBe("/api/health");

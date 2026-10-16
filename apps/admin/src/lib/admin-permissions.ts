@@ -33,6 +33,7 @@ export type AdminAction =
   | "notify" // POST companies/:id/notify
   | "resolveComplaint" // POST complaints/:id/resolve
   | "manageCompanyUser" // POST companies/:id/users (+active/email)
+  | "eraseCompanyUser" // POST companies/:id/users/:userId/erase (KVKK, geri alınamaz)
   | "recoverAccount"
   // Denetim 2026-08-26 Parça 10 B2: admin/sistem'deki üç SUPER_ADMIN aksiyonu
   // matriste HİÇ yoktu → hem UI kapısız hem drift nöbetçisi kapsamı dışındaydı.
@@ -78,6 +79,7 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   notify: KYC,
   resolveComplaint: KYC,
   manageCompanyUser: KYC,
+  eraseCompanyUser: SUPER,
   recoverAccount: ANY,
   manualRate: SUPER,
   clearSuppression: SUPER,

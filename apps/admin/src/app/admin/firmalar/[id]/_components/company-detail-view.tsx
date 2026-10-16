@@ -120,9 +120,13 @@ export function CompanyDetailView({
   // KVKK ile anonimleştirilmiş firma salt okunur (D-208) — askı kaldırma
   // KVKK gerekçesini siliyordu; bildirim/düzenleme de anlamsız.
   const anonymized = !!data.anonymized;
+  // Son kullanıcı hesabını sildi: askı kaydı KVKK silme kuyruğunun işareti —
+  // askı kaldırılamaz (API 409, kimsesi olmayan firma yeniden açılırdı).
+  const erasurePendingSince = data.erasurePendingSince ?? null;
   const canNotify = canAdminDo(role, "notify") && !anonymized;
   const canSuspendAct =
     !anonymized &&
+    !erasurePendingSince &&
     (data.isBlocked ? canAdminDo(role, "unsuspend") : canAdminDo(role, "suspend"));
 
   return (
@@ -143,6 +147,8 @@ export function CompanyDetailView({
             {anonymized ? null : <Badge color={meta.color}>{meta.label}</Badge>}
             {anonymized ? (
               <Badge color="zinc">KVKK ile anonimleştirildi</Badge>
+            ) : erasurePendingSince ? (
+              <Badge color="amber">KVKK silme bekliyor</Badge>
             ) : data.isBlocked ? (
               <Badge color="red">Askıda</Badge>
             ) : null}
@@ -233,6 +239,14 @@ export function CompanyDetailView({
           Kimlik ve iletişim bilgileri silindi, kullanıcılar kapatıldı; sipariş
           geçmişi yasal saklama için korunuyor. Bu kayıt üzerinde işlem
           yapılamaz.
+        </div>
+      ) : erasurePendingSince ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Son kullanıcı hesabını sildi — KVKK silmesi bekliyor</strong>
+          {` — kapanış ${safeFormat(erasurePendingSince, "d MMM yyyy HH:mm")}`}.
+          Firma bilgileri kapanıştan itibaren en geç 30 gün içinde Özet ›
+          &quot;Kalıcı Olarak Sil / Anonimleştir&quot; ile silinmeli. Askı
+          kaldırılamaz ve firmaya kullanıcı eklenemez.
         </div>
       ) : data.isBlocked ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

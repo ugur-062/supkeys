@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 import { LanguageSwitcher } from "./language-switcher";
@@ -28,7 +29,16 @@ import { LanguageSwitcher } from "./language-switcher";
  * zaten açılmış ve dili belli; dil değiştirmek sayfayı yeni ön ekle yeniden
  * yüklüyor, bellekteki adım kayboluyor ve aynı bilgilerle yeniden kayıt 409
  * veriyordu. O adımda seçici çizilmez.
+ *
+ * GİZLİLİK BAĞLANTILARI (2026-10-16, mağaza incelemesi): Apple 5.1.1(i)
+ * gizlilik politikasının uygulama İÇİNDEN kolay erişilir olmasını ister; mobil
+ * uygulama giriş ekranıyla açılır ve bu kabukta pazarlama altbilgisi yok. Kartın
+ * altında Gizlilik + KVKK. Yarım formun (kayıt, davet) altında durduğu için
+ * kayıt onay satırlarının kalıbıyla: yeni sekme + `data-shell-browser` (kabukta
+ * uygulama içi tarayıcı; WebView'de açılsa yazılan form kaybolurdu).
  */
+const LEGAL_LINK =
+  "inline-flex min-h-8 items-center underline-offset-2 hover:text-zinc-800 hover:underline";
 
 export function AuthShell({
   title,
@@ -43,6 +53,7 @@ export function AuthShell({
   footer: ReactNode;
   hideLanguageSwitcher?: boolean;
 }) {
+  const t = useTranslations("web.marketing.footer");
   return (
     // Güvenli alan (mobil kabuk): içerik durum çubuğunun ve ana ekran
     // çizgisinin altında kalmaz; pay 0 iken eskisiyle aynı (`py-6`).
@@ -116,6 +127,17 @@ export function AuthShell({
         </div>
 
         <div className="mt-6 text-center text-sm text-zinc-500">{footer}</div>
+        <p className="mt-3 flex flex-wrap justify-center gap-x-3 text-xs text-zinc-500">
+          <Link href="/sozlesmeler/gizlilik" target="_blank" rel="noopener noreferrer" data-shell-browser="" className={LEGAL_LINK}>
+            {t("privacy")}
+          </Link>
+          <span aria-hidden="true" className="self-center">
+            ·
+          </span>
+          <Link href="/sozlesmeler/kvkk" target="_blank" rel="noopener noreferrer" data-shell-browser="" className={LEGAL_LINK}>
+            {t("kvkk")}
+          </Link>
+        </p>
       </div>
     </div>
   );

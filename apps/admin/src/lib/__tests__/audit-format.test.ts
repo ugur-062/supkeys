@@ -7,6 +7,7 @@ import {
   entityTypeLabel,
   formatAuditMetadata,
   LOGIN_FAIL_REASON_LABEL,
+  RETENTION_CATEGORY_LABEL,
 } from "../audit-format";
 import { COMPANY_PERMISSION_LABEL } from "../terms";
 
@@ -437,6 +438,68 @@ describe("audit-format", () => {
         expect(COMPANY_PERMISSION_LABEL).toHaveProperty([m[1]]);
       }
       expect(Object.keys(COMPANY_PERMISSION_LABEL)).toHaveLength(pairs.length + 3);
+    });
+  });
+
+  /**
+   * Periyodik imha kaydı (Saklama ve İmha Politikası, 2026-10-16): API her
+   * otomatik silme koşusunda `system.retention_purge` yazar, metadata
+   * `{ job, <kategori>: sayı, capped?, failed?, through? }`. Her kategori
+   * Türkçe adıyla görünmeli; liste API kaynağından okunur (yeni kategori
+   * etiketsiz kalmasın).
+   */
+  describe("periyodik imha kaydı", () => {
+    const API_SRC = path.resolve(__dirname, "../../../../api/src");
+
+    function apiCategoryKeys(): string[] {
+      const service = readFileSync(path.join(API_SRC, "modules/data-retention/data-retention.service.ts"), "utf8");
+      const block = service.slice(
+        service.indexOf("export const RETENTION_CATEGORIES = ["),
+        service.indexOf("] as const;", service.indexOf("export const RETENTION_CATEGORIES = [")),
+      );
+      const keys = [...block.matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]!);
+      // Eski temizlik işlerinin sayaçları: `records?.record("<iş>", { <anahtar>: … })`.
+      const files = [
+        "modules/company-views/company-views.scheduler.ts",
+        "modules/ai/ai.scheduler.ts",
+        "common/auth/session-revocation.scheduler.ts",
+        "modules/company-auth/schedulers/unverified-signup.scheduler.ts",
+      ];
+      for (const f of files) {
+        const text = readFileSync(path.join(API_SRC, f), "utf8");
+        for (const m of text.matchAll(/records\?\.record\(\s*"[A-Za-z.]+",\s*\{\s*([A-Za-z]+):/g)) keys.push(m[1]!);
+      }
+      return keys;
+    }
+
+    it("API'nin yazdığı her kategori anahtarının Türkçe adı var", () => {
+      const keys = apiCategoryKeys();
+      expect(keys).toEqual(
+        expect.arrayContaining(["passwordResetLinks", "auditNetworkData", "aiUsageEmails", "viewRecords", "aiChats"]),
+      );
+      expect(keys.length).toBeGreaterThanOrEqual(19);
+      expect(keys.filter((k) => !(k in RETENTION_CATEGORY_LABEL))).toEqual([]);
+    });
+
+    it("kayıt ham anahtar ya da ham kod göstermez", () => {
+      const s = formatAuditMetadata("system.retention_purge", {
+        job: "retention.purge",
+        passwordResetLinks: 3,
+        notifications: 0,
+        emailEvents: 12,
+        capped: ["notifications"],
+        failed: ["auditNetworkData"],
+        through: { aiUsageEmails: "2025-10-16T02:30:00.000Z" },
+      });
+      expect(s).toContain("iş: Saklama ve İmha Politikası");
+      expect(s).toContain("şifre sıfırlama bağlantısı: 3");
+      expect(s).toContain("e-posta teslim olayı: 12");
+      expect(s).toContain("sınıra takılan (kalanı sonraki koşuda): bildirim");
+      expect(s).toContain("başarısız: IP/tarayıcı bilgisi silinen denetim kaydı");
+      expect(s).toContain(`tamamlanan kesim tarihi: (e-postası silinen AI kullanım kaydı: ${safeFormat("2025-10-16T02:30:00.000Z", "d MMM yyyy HH:mm", "")})`);
+      for (const raw of ["passwordResetLinks", "retention.purge", "aiUsageEmails", "auditNetworkData", "through"]) {
+        expect(s).not.toContain(raw);
+      }
     });
   });
 });

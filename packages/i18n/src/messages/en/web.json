@@ -32,6 +32,8 @@
       "mediation": "Intermediation Agreement",
       "privacy": "Privacy",
       "kvkk": "Data Protection Notice (KVKK)",
+      "retention": "Retention and Destruction Policy",
+      "accountDeletion": "Account Deletion",
       "distanceSales": "Distance Sales Agreement",
       "refund": "Cancellation and Refunds",
       "tagline": "The B2B trading platform that brings buyers and suppliers together in one account.",
@@ -182,6 +184,50 @@
       "web": "Web",
       "footer": "For questions about how Rothern works see the <faq>frequently asked questions</faq> page; for the agreements see the <terms>User Agreement</terms> and the <kvkk>data protection notice</kvkk>."
     },
+    "accountDeletion": {
+      "metaTitle": "Delete your account",
+      "metaDesc": "How to delete your Rothern account in the app or on the website: the steps, what is deleted at once and what is kept by law, and what to do if you can't sign in.",
+      "title": "Deleting your Rothern account",
+      "intro": "This page explains how to delete your account on the <b>Rothern</b> platform (www.rothern.com and the Rothern iOS and Android apps), operated by {legalName}, and what happens to your information when you do.",
+      "stepsTitle": "Delete in the app or on the website",
+      "stepsIntro": "You can delete your account yourself; you don't need to send an email or contact support. The steps are the same in the app and on www.rothern.com.",
+      "step1": "Sign in to your account in the Rothern app or on www.rothern.com.",
+      "step2": "Open <b>Settings › Account details</b>.",
+      "step3": "In the <b>Delete account</b> section, press <b>Delete my account</b>.",
+      "step4": "Enter your password and confirm with <b>Delete my account permanently</b>.",
+      "stepsSetupNote": "If you haven't completed your company details yet, or a window asking you to accept the agreements opens first, Settings can't be opened: press <b>Delete my account</b> on that screen and confirm with your password.",
+      "stepsResult": "The deletion happens at once and can't be undone: the message “Your account has been deleted” appears, you are signed out, and your sessions on other devices stop working too.",
+      "openSettings": "Open Account details",
+      "openSettingsHint": "If you aren't signed in, the sign-in page opens first.",
+      "forgotPassword": "If you don't remember your password, <link>reset it</link> first.",
+      "noLoginTitle": "If you can't sign in",
+      "noLoginBody": "You don't need to reinstall the app: you can follow the same steps on www.rothern.com. If you can't sign in at all (for example, your company account has been suspended, or your company's administrator has deactivated your account or removed you from the team), send your deletion request from the email address registered to your account to <mail>{email}</mail>. Include your first name, last name and company name. To verify the request, we write to the email address registered to your account (or, if you were removed from the team, the address you last used) and ask you to confirm from there; we may also ask for more information. If you were removed from the team, your sign-in details, email address, phone number and two-step verification data were deleted at the moment of removal; you can use this route to have your name, which stays in the company's records, deleted as well. Requests are completed free of charge within 30 days at the latest.",
+      "deletedTitle": "Deleted at once",
+      "deleted1": "Your sign-in details are deleted; your email address can be used again for a new sign-up.",
+      "deleted2": "Your first name, last name, phone number and email address are removed from the account record; from then on the record is shown under the name “Silinmiş Kullanıcı” (Deleted user), in your company's Activity log too, where a short code next to the name tells deleted accounts apart.",
+      "deleted3": "Your notifications, device notification registrations (push tokens), two-step verification settings and recovery codes, and any pending password reset and verification codes are deleted.",
+      "deleted4": "Your conversations with the AI assistant are deleted; your email address is also removed from the AI usage records and from team invitations sent to you.",
+      "deleted5": "Your optional consent to commercial electronic messages is withdrawn.",
+      "keptTitle": "What is kept, and why",
+      "keptIntro": "The records below are not deleted with your account, because they belong to your company and the other parties or must be kept by law.",
+      "kept1": "Your company's buying requests, quotes, orders, approvals, messages and uploaded documents stay with the company. In these records your account appears as “Silinmiş Kullanıcı” (Deleted user); to keep conversations intact, the sender name on messages you sent stays as it was when they were sent.",
+      "kept2": "Commercial records and commercial correspondence (requests, quotes, orders, messages and the delivery records of emails about these transactions) are kept for 10 years from the end of the calendar year in which the record was created, in view of statutory retention obligations and the 10-year limitation period. Other email delivery records are deleted sooner: those of security and verification emails after 1 year, those of suggestion, digest and announcement emails after 2 years.",
+      "kept3": "Audit records (activity logs, with the email address you had at the time) are kept for 10 years for platform security and as evidence in case of a dispute; the IP address and browser details in them are deleted before 2 years have passed. Server access (traffic) logs are kept for at least 1 and at most 2 years under Turkish Law No. 5651. The dates you accepted the agreements stay, as evidence, for as long as the related commercial records are kept.",
+      "kept4": "Copies in system backups are deleted as the backups are replaced in their normal cycle.",
+      "kept5": "Your name may appear in notifications and emails sent earlier to other users; these stay in the recipients' accounts and in the delivery records. If you unsubscribed from emails, that record (only your address and what you unsubscribed from) is kept indefinitely so that emails are not sent to you again.",
+      "kept6": "Information on the company record belongs to the company and stays with it while the company operates: the authorised person's ID number and the uploaded images of their identity document (these may be your own details), the national ID number used as the tax number of a sole proprietorship, the business address, and the company's billing email address and phone. This information is deleted when the company closes, under the rule in the “Special cases” section.",
+      "keptOutro": "All retention periods and the reasons for them are set out in the <policy>Personal Data Retention and Destruction Policy</policy>, and how your personal data is processed in the <kvkk>KVKK Privacy Notice</kvkk> (both in Turkish).",
+      "specialTitle": "Special cases",
+      "special1": "<b>If your company has other users</b>, only your account is deleted; the company and the other users are not affected. Draft and ongoing requests you opened are handed over to the company's Founder. After your account is deleted, at least one active person who can manage users (the Founder or a user with user management permission) must remain in the company.",
+      "special2": "<b>If you are the company's Founder</b> and the company has other users (including inactive ones), first transfer the Founder role to another user under Settings › User management, or remove the other users from the company.",
+      "special3": "<b>If you are the company's only user</b>, the company account closes together with your account; the company profile, its products and its public requests are taken down. This isn't possible while there are orders in progress (not completed, cancelled or rejected, including orders that were delivered but not yet completed) or open requests (awaiting publishing approval, collecting quotes, or in evaluation or award); complete them first. Completed orders and quotes you sent to other companies' requests don't prevent deletion.",
+      "special4": "For a closed company, information such as its legal name, tax details, addresses, bank accounts and verification documents is deleted by Rothern within 30 days at the latest, except for records that must be kept by law (such as completed orders); if the company has past commercial records, the company record stays under the name “Silinmiş Firma” (Deleted company).",
+      "specialUnverified": "Accounts opened from the sign-up form whose email address was never verified are deleted automatically, together with the company record, once 7 days have passed; you don't need to do anything.",
+      "specialHelp": "If you can't complete these steps (for example, there is nobody to hand the Founder role over to, or an order can't be concluded), write to <mail>{email}</mail> and we will complete the deletion with you.",
+      "partialTitle": "Deleting some information without deleting the account",
+      "partialBody": "You can remove your phone number at any time under Settings › Account details. To have specific personal data deleted without deleting your account, write to <mail>{email}</mail> under the KVKK (the Turkish data protection law).",
+      "footer": "How your personal data is processed is explained in the <privacy>Privacy Policy</privacy> and the <kvkk>KVKK Privacy Notice</kvkk>; for questions, see the <contact>Contact</contact> page."
+    },
     "faq": {
       "metaTitle": "Frequently asked questions",
       "metaDesc": "How Rothern works: frequently asked questions about sealed-bid quotes, buyer anonymity, the free showcase, company verification, the category tree and user permissions.",
@@ -241,6 +287,10 @@
       "kvkk": {
         "metaTitle": "KVKK Privacy Notice",
         "metaDesc": "Data controller, processing purposes, transfers, retention periods and data subject rights under Turkish Data Protection Law No. 6698 (Turkish text)."
+      },
+      "saklamaImha": {
+        "metaTitle": "Personal Data Retention and Destruction Policy",
+        "metaDesc": "How long Rothern keeps personal data, why, how it is destroyed and how often destruction runs (Turkish text)."
       },
       "aracilik": {
         "metaTitle": "Intermediation and Use Agreement",
@@ -2023,9 +2073,7 @@
       "terms": "I have read and accept the <a>user agreement</a>",
       "mediation": "I accept the <a>platform intermediation and use agreement</a>",
       "kvkk": "I have read the <a>KVKK privacy notice</a>",
-      "kvkkProviders": "(processors outside Türkiye: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
-      "profile": "Profile and service improvement (optional)",
-      "marketing": "Marketing and analytics / commercial messages (optional)",
+      "marketing": "I would like to receive commercial electronic messages about Rothern's campaigns and promotions (optional)",
       "readTerms": "Read the user agreement",
       "readMediation": "Read the intermediation agreement",
       "readKvkk": "Read the privacy notice"
@@ -2178,6 +2226,22 @@
       "authorizedHeading": "Authorized person",
       "summaryHeading": "Summary",
       "summaryHint": "Check the details that will be saved; go back to the earlier steps to correct them."
+    },
+    "deleteAccount": {
+      "open": "Delete my account",
+      "title": "Delete account",
+      "body": "Your account is deleted permanently and this can't be undone: your sign-in details are deleted, and your name, phone number and email address are removed from the account. If you are the company's only user, the company account is closed as well.",
+      "bodyRules": "If you are the company's Founder and there are other users (including inactive ones), you first need to transfer the Founder role to another user; this is done under Settings › User management once the company setup and the acceptance of the agreements are complete. If you are the company's only user, the account can't be deleted while orders are in progress or requests are open.",
+      "bodyHelp": "If you can't meet these conditions, write to <mail>{email}</mail> and we will complete the deletion with you.",
+      "details": "What is deleted and what is kept: <deletion>Account deletion</deletion> · <privacy>Privacy Policy</privacy>",
+      "passwordLabel": "Your password, to confirm",
+      "passwordRequired": "Enter your password",
+      "confirm": "Delete my account permanently",
+      "cancel": "Cancel",
+      "failed": "The account couldn't be deleted",
+      "ownerMustTransferSetup": "Your account couldn't be deleted because the company has other users: the Founder role must first be transferred to another user. User management can't be opened from this screen; write to {email} for help.",
+      "done": "Your account has been deleted",
+      "doneBody": "You have been signed out, and your sessions on other devices have ended as well."
     }
   },
   "panel": {
@@ -6279,6 +6343,7 @@
         "karmasikIslerIcinSisteminOtomatik": "For complex jobs, the advanced model that the system selects automatically draws on a separate part of the pool. When it runs out, requests continue with the standard model.",
         "kullaniciKirilimi": "Breakdown by user",
         "kullanici": "User",
+        "silinmisKullanici": "Deleted user",
         "istek": "Requests",
         "havuzPayi": "Pool share",
         "buAyAiKullanimiYok": "No AI usage this month",
@@ -6482,6 +6547,7 @@
         "bankName": "Bank name",
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
         "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image).",
+        "idMaskHint": "If the ID document shows religion, blood group or similar details, black them out before uploading; they are not needed for verification.",
         "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved",
         "dogrulamaBilgileriYuklenemedi": "Verification details could not be loaded.",
         "yenidenDene": "Try again",
@@ -6522,7 +6588,7 @@
       "settingsPages": {
         "hesap": {
           "title": "Account details",
-          "description": "Your first name, last name, phone and contact details"
+          "description": "Name, phone, language preference and account deletion"
         },
         "sifre": {
           "title": "Password settings",
@@ -6634,15 +6700,12 @@
       },
       "deleteAccountSection": {
         "title": "Delete account",
-        "body": "Your account is deleted permanently: your login and personal details are removed, and this can't be undone. Your company's request, quote and order records are kept without your personal details for the legal retention period.",
-        "bodyLastMember": "If you are the company's only user, the company account is closed as well and its public profile is taken down.",
-        "open": "Delete my account",
-        "passwordLabel": "Your password, to confirm",
-        "passwordRequired": "Enter your password",
-        "confirm": "Delete my account permanently",
-        "cancel": "Cancel",
-        "failed": "The account couldn't be deleted",
-        "done": "Your account has been deleted"
+        "body": "Your account is deleted permanently and this can't be undone: your sign-in details are deleted, and your name, phone number and email address are removed from the account. Your company's request, quote, order and message records stay with the company and are kept for 10 years from the end of the year in which they were created; in them your account appears as “Silinmiş Kullanıcı” (Deleted user).",
+        "bodyFounder": "If you are the company's Founder and there are other users (including inactive ones), first transfer the Founder role under <users>User management</users>.",
+        "bodyLastMember": "If you are the company's only user, the company account is closed as well and its public profile is taken down; this isn't possible while orders are in progress or requests are open.",
+        "bodyHelp": "If you can't meet these conditions, write to <mail>{email}</mail> and we will complete the deletion with you.",
+        "details": "What is deleted and what is kept: <deletion>Account deletion</deletion> · <privacy>Privacy Policy</privacy>",
+        "open": "Delete my account"
       }
     },
     "company": {

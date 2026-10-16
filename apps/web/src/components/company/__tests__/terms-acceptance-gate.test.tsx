@@ -75,7 +75,6 @@ describe("TermsAcceptanceGate (derin denetim MU-04)", () => {
       mediationAccepted: true,
       kvkkAccepted: true,
       marketingConsent: false,
-      profileImprovementConsent: false,
     });
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
@@ -89,5 +88,58 @@ describe("TermsAcceptanceGate (derin denetim MU-04)", () => {
     renderGate();
     await uev.click(await screen.findByRole("button", { name: "Çıkış yap" }));
     expect(h.logout).toHaveBeenCalled();
+  });
+
+  /* Mağaza incelemesi (2026-10-16): pencere paneli örttüğü için Ayarlar'a
+     ulaşılamaz — sözleşmeleri kabul etmek istemeyen kişi hesabını buradan siler
+     (Apple 5.1.1(v)). Pencerenin içeriği ortak şifre formuna döner. */
+  it("Hesabımı sil: pencere şifre formuna döner; Vazgeç onaya geri getirir, onayda silme isteği gider", async () => {
+    setUser(true);
+    h.post.mockResolvedValue({ data: { ok: true, companyClosed: false } });
+    const uev = userEvent.setup();
+    renderGate();
+    await uev.click(await screen.findByRole("button", { name: "Hesabımı sil" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Hesabı sil");
+    expect(screen.getByRole("link", { name: "Hesap silme" })).toHaveAttribute("href", "/hesap-silme");
+    // Ön koşullar ve destek yolu panele girilemeyen pencerede de yazılı.
+    expect(screen.getByRole("dialog")).toHaveTextContent("pasif olanlar dahil");
+    expect(screen.getByRole("link", { name: "kvkk@rothern.com" })).toHaveAttribute("href", "mailto:kvkk@rothern.com");
+    await uev.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Sözleşmeleri onaylayın");
+    expect(h.post).not.toHaveBeenCalled();
+
+    await uev.click(screen.getByRole("button", { name: "Hesabımı sil" }));
+    await uev.type(screen.getByLabelText("Onaylamak için şifreniz"), "Dogru!Sifre12");
+    await uev.click(screen.getByRole("button", { name: "Hesabımı kalıcı olarak sil" }));
+    await waitFor(() =>
+      expect(h.post).toHaveBeenCalledWith(
+        "/company-auth/delete-account",
+        { password: "Dogru!Sifre12" },
+        { skipErrorToast: true },
+      ),
+    );
+  });
+
+  /* İnceleme 2026-10-16: başka kullanıcısı olan Kurucu buradan Kullanıcı
+     Yönetimi'ne ulaşamaz — red "Kullanıcı Yönetimi'nde devredin" yerine destek
+     adresini söyler (Google Play: ek adım varsa destek yolu). */
+  it("Kurucu devri reddi bu pencerede destek adresine yönlendirir", async () => {
+    setUser(true);
+    const { AxiosError } = await import("axios");
+    h.post.mockRejectedValue(
+      new AxiosError("400", "ERR_BAD_REQUEST", undefined, undefined, {
+        status: 400,
+        data: {
+          code: "ACCOUNT_OWNER_MUST_TRANSFER",
+          message: "Firmada başka kullanıcılar var. Hesabınızı silmeden önce kuruculuğu başka bir kullanıcıya devredin.",
+        },
+      } as never),
+    );
+    const uev = userEvent.setup();
+    renderGate();
+    await uev.click(await screen.findByRole("button", { name: "Hesabımı sil" }));
+    await uev.type(screen.getByLabelText("Onaylamak için şifreniz"), "Dogru!Sifre12");
+    await uev.click(screen.getByRole("button", { name: "Hesabımı kalıcı olarak sil" }));
+    expect(await screen.findByText(/Kullanıcı Yönetimi bu ekrandan açılmaz; yardım için kvkk@rothern\.com/)).toBeInTheDocument();
   });
 });

@@ -54,6 +54,10 @@ export function MarketplaceFooter() {
         { label: t("mediation"), href: "/sozlesmeler/aracilik" },
         { label: t("privacy"), href: "/sozlesmeler/gizlilik" },
         { label: t("kvkk"), href: "/sozlesmeler/kvkk" },
+        // Kişisel Veri Saklama ve İmha Politikası (2026-10-16): süreler tablosu.
+        { label: t("retention"), href: "/sozlesmeler/saklama-imha" },
+        // Mağazaların istediği girişsiz hesap silme yolu (2026-10-16).
+        { label: t("accountDeletion"), href: "/hesap-silme" },
         // Ön bilgilendirme yükümlülüğü (2026-09-22, kullanıcı kararı): iki sayfa
         // öksüzdü, yalnız sitemap'ten ulaşılıyordu.
         { label: t("distanceSales"), href: "/sozlesmeler/mesafeli-satis" },

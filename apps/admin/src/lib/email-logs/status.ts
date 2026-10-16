@@ -145,21 +145,39 @@ const REDACTED_CONTEXT_TYPES = new Set([
   "public_inquiry_verify",
 ]);
 
-export type EmailResendBlock = "internal" | "redacted" | null;
+export type EmailResendBlock = "internal" | "redacted" | "noContent" | null;
+
+/**
+ * API `REDUCED_EMAIL_LOG_SUBJECT` (apps/api `data-retention/retention-policy.ts`)
+ * ile BİREBİR: saklama süresi dolan spam şikâyeti ret kaydına indirgenir
+ * (adres + durum + tarih); konu bu sabit işarettir.
+ */
+export const RETENTION_REDUCED_SUBJECT = "[[RETENTION_REDUCED]] refusal record only";
+
+/** Konunun yöneticiye gösterilecek hâli: ret kaydının makine işareti yerine açıklaması. */
+export function displaySubject(subject: string): string {
+  return subject === RETENTION_REDUCED_SUBJECT ? "Ret kaydı — saklama süresi doldu" : subject;
+}
 
 /**
  * Kayıt yeniden gönderilebilir mi? İç kayıt (engel kaldırma işareti,
  * provider="internal") gerçek e-posta değildir; gizli içerikli kayıtta
- * payload maskelidir (arayüz testi O-078). API aynı kuralla reddeder.
+ * payload maskelidir (arayüz testi O-078); ret kaydına indirgenen ya da hiç
+ * içerik verisi saklanmamış kayıtta şablon verisi yoktur (Saklama ve İmha
+ * Politikası). API aynı kuralla reddeder.
  */
 export function emailResendBlock(log: {
   provider: string;
   template: string;
   contextType: string | null;
   payload: unknown;
+  subject?: string | null;
 }): EmailResendBlock {
   if (log.provider === "internal" || log.template === "suppression_clear") {
     return "internal";
+  }
+  if (log.subject === RETENTION_REDUCED_SUBJECT || log.payload == null) {
+    return "noContent";
   }
   const redactedPayload =
     !!log.payload &&

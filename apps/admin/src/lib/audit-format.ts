@@ -13,6 +13,7 @@
  */
 
 import { countryName } from "./country";
+import { CRON_JOB_META } from "./cron-jobs";
 import { safeFormat } from "./date";
 import { EMAIL_TEMPLATE_LABELS } from "./email-logs/status";
 import { BID_STATUS, LISTING_STATUS, ORDER_STATUS, PAYMENT_STATUS } from "./status-labels";
@@ -72,6 +73,37 @@ export const PORTAL_LABEL: Record<string, string> = {
 };
 
 // ── Detay (metadata) ──
+/**
+ * Periyodik imha kaydının kategori anahtarları (API `RETENTION_CATEGORIES` +
+ * eski temizlik işlerinin sayaçları). Hem anahtar etiketi (sayı) hem de
+ * `capped`/`failed` listelerindeki değerlerin adı.
+ */
+export const RETENTION_CATEGORY_LABEL: Record<string, string> = {
+  passwordResetLinks: "şifre sıfırlama bağlantısı",
+  emailVerificationCodes: "e-posta doğrulama kodu",
+  unverifiedInquiries: "doğrulanmamış ziyaretçi bilgi talebi",
+  externalInvites: "kayıtsız adrese talep daveti",
+  referralInvites: "kayıtsız adrese bağlantı daveti",
+  discoveryCandidates: "AI tedarikçi araması adayı",
+  teamInvitations: "kabul edilmemiş ekip daveti",
+  notifications: "bildirim",
+  digestItems: "gönderilmiş özet kalemi",
+  searchMisses: "sonuçsuz kategori araması",
+  emailLogs: "e-posta gönderim kaydı",
+  emailEvents: "e-posta teslim olayı",
+  auditRecords: "denetim kaydı",
+  aiUsageRecords: "AI kullanım kaydı",
+  emailLogsReduced: "ret kaydına indirgenen şikâyet e-postası",
+  inquiryIps: "IP adresi silinen ziyaretçi bilgi talebi",
+  auditNetworkData: "IP/tarayıcı bilgisi silinen denetim kaydı",
+  aiUsageEmails: "e-postası silinen AI kullanım kaydı",
+  viewRecords: "görüntülenme kaydı",
+  aiChats: "asistan sohbeti",
+  aiTempFiles: "geçici AI belgesi",
+  revokedSessions: "iptal edilmiş oturum kaydı",
+  unverifiedSignups: "doğrulanmamış kayıt",
+};
+
 const KEY_LABEL: Record<string, string> = {
   companyClosed: "firma kapandı",
   listingsTransferred: "devredilen talep",
@@ -252,6 +284,12 @@ const KEY_LABEL: Record<string, string> = {
   hourlyLaborCost: "saatlik maliyet (₺)",
   targetCountries: "hedef ülkeler",
   bankCountry: "banka ülkesi",
+  // Periyodik imha kaydı (`system.retention_purge`, Saklama ve İmha Politikası):
+  // kategori anahtarı → imha edilen kayıt türü (değer = sayı).
+  ...RETENTION_CATEGORY_LABEL,
+  job: "iş",
+  capped: "sınıra takılan (kalanı sonraki koşuda)",
+  through: "tamamlanan kesim tarihi",
 };
 
 /**
@@ -320,6 +358,10 @@ const VALUE_BY_KEY: Record<string, Record<string, string>> = {
   newFormat: { RFQ: "Teklif toplama (kapalı zarf)", ENGLISH_AUCTION: "Açık eksiltme" },
   kind: { ...DOC_KIND_LABEL, ...LISTING_DOC_KIND_LABEL },
   tier: { all: "Tümü" },
+  // Periyodik imha kaydı: hangi iş yazdı, hangi kategoriler sınıra takıldı / başarısız oldu.
+  job: Object.fromEntries(Object.entries(CRON_JOB_META).map(([key, meta]) => [key, meta.label])),
+  capped: RETENTION_CATEGORY_LABEL,
+  failed: RETENTION_CATEGORY_LABEL,
   reason: {
     seat_selection: "Koltuk seçimi",
     missing_permission: "Yetki eksik",

@@ -11,6 +11,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService, REDACTED_CONTEXT_TYPES } from "./email.service";
 import { isInternalEmailLog } from "./suppression-marker";
+import { isReducedEmailLog } from "../data-retention/retention-policy";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
 @Injectable()
@@ -47,6 +48,17 @@ export class AdminEmailLogsService {
     if (isInternalEmailLog(log)) {
       throw new BadRequestException(
         i18nMessage("api.email.icKayitYenidenGonderilemez"),
+      );
+    }
+
+    // Saklama ve İmha Politikası: süresi dolan spam şikâyeti ret kaydına
+    // indirgenir (konu sabit işaret, içerik verisi ve bağlam silinir) — o
+    // satırla yeniden gönderim boş şablon, işaret konusu ve bağlamsız
+    // (REDACTED korumasız) bir e-posta olurdu. İçerik verisi olmayan eski
+    // satır da aynı nedenle gönderilmez.
+    if (isReducedEmailLog(log) || log.payload == null) {
+      throw new BadRequestException(
+        i18nMessage("api.email.icerikVerisiYokYenidenGonderilemez"),
       );
     }
 

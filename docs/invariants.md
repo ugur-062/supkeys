@@ -131,6 +131,12 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
     - **DENIAL AUDIT (yeni sınıf)** — engellenmiş yetki eylemi iz bırakır (state değişmez, sinyal): `company.listing.manage_denied` (`assertListingManageRole`), `company.user.role_change_denied` (`assertCanModifyAdminTarget`), `company.user.last_admin_denied` (`assertNotLastAdmin` → `LastActiveAdminError` sentinel'i tx-abort SONRASI yakalanır). **Denial izleri `critical:false`** — Sentry'e kritik-kayıp marker'ı GÖNDERMEZ (bir insider sistemi zorlayınca denial seli alarm gürültüsü yaratmasın; yalnız state-değiştiren geçişler `critical:true`).
     - *Sözleşme:* `test/integration/company-audit-trail.spec.ts` (30 test: 11 dalga-1 + 19 dalga-2, rollback→iz-yok dahil).
   - *GAP (3. dalga — henüz izsiz):* `placeBid`; bağlantı accept/reject/disconnect; sipariş revizyon müzakeresi (propose/approve/reject/cancel-revision).
+  - *TEK BELGELİ İSTİSNA (2026-10-16, Kişisel Veri Saklama ve İmha Politikası):* append-only kuralının yasal
+    imha istisnası. YALNIZ gece işi `retention.purge` (`modules/data-retention/`, bypass istemcisi) denetim
+    satırına dokunur: `ip`/`userAgent` 5651 m.5/3'ün 2 yıllık tavanından 7 gün ÖNCE `null`'a çekilir, satır
+    10 yıl dolunca (TBK m.146; politika satır 4/19) silinir. Başka hiçbir kod audit satırını güncellemez ya da
+    silmez; append-only için ileride DB koruması (REVOKE UPDATE/DELETE, tetikleyici) eklenirse bu iş ve bypass
+    rolü hariç tutulmalı — yoksa yasal tavan sessizce aşılır. Sözleşme: `test/integration/data-retention.spec.ts`.
 
 - **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
   - *Kanıt:* Presigned-GET üreten **5 yol** var, hepsi sahiplik/üyelik/rol kapılı (sipariş belgeleri 2026-08-22'de KALDIRILDI — tablo+modül yok):

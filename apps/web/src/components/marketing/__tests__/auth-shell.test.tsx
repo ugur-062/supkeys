@@ -28,6 +28,26 @@ describe("AuthShell", () => {
     expect(lang).toHaveAttribute("aria-haspopup", "menu");
   });
 
+  /* Mağaza incelemesi (2026-10-16, Apple 5.1.1(i)): gizlilik politikası
+     uygulamada girişten önce de erişilir. Yarım formun altında durur → yeni
+     sekme + kabukta uygulama içi tarayıcı (form kaybolmaz). */
+  it("kartın altında Gizlilik ve KVKK bağlantıları, uygulama içi tarayıcıda açılır", () => {
+    render(
+      <AuthShell title="Giriş" subtitle="Hesabınıza girin" footer={null}>
+        <span />
+      </AuthShell>,
+    );
+    for (const [name, href] of [
+      ["Gizlilik", "/sozlesmeler/gizlilik"],
+      ["KVKK Aydınlatma", "/sozlesmeler/kvkk"],
+    ] as const) {
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("data-shell-browser");
+    }
+  });
+
   /* 2. tur safe-area: kabuk `body`nin yatay güvenli alan payının içinde akar;
      seçici sağ payı ikinci kez eklerse yatay iPhone'da kenardan 110 px içeride
      duruyordu (beklenen 16 + 47). Üst pay ise kabuğun kendisinde. */

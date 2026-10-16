@@ -32,6 +32,7 @@ import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.module";
 import { AdminSystemModule } from "./modules/admin-system/admin-system.module";
 import { CronRegistryModule } from "./common/cron/cron-registry.module";
+import { DataRetentionModule } from "./modules/data-retention/data-retention.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { SeoIndexModule } from "./modules/seo-index/seo-index.module";
@@ -258,6 +259,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     EmailProgramsModule,
     // Büyüme ölçümü — yönetici davet hunisi (2026-09-27, Faz 4).
     AdminGrowthModule,
+    // Kişisel Veri Saklama ve İmha Politikası: gece imha işi + imha kayıtları (2026-10-16).
+    DataRetentionModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

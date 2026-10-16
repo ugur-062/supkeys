@@ -6,6 +6,7 @@ import { EmailModule } from "../email/email.module";
 import { PasswordResetModule } from "../password-reset/password-reset.module";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { CompanyAuthController } from "./controllers/company-auth.controller";
+import { ClosedCompanyErasureScheduler } from "./schedulers/closed-company-erasure.scheduler";
 import { MembershipScheduler } from "./schedulers/membership.scheduler";
 import { UnverifiedSignupScheduler } from "./schedulers/unverified-signup.scheduler";
 import { AccountDeletionService } from "./services/account-deletion.service";
@@ -33,6 +34,7 @@ import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
   controllers: [CompanyAuthController],
   providers: [
     AccountDeletionService,
+    ClosedCompanyErasureScheduler,
     CompanyAuthService,
     CompanyJwtStrategy,
     MembershipScheduler,
@@ -41,7 +43,8 @@ import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
   ],
   // The cleanup service is exported for the team invitation path
   // (`CompanyUsersService`): an address held by an expired unverified sign-up
-  // is released there too.
-  exports: [CompanyAuthService, UnverifiedSignupCleanupService],
+  // is released there too. Account deletion is exported for the admin KVKK
+  // erasure of one user (`AdminCompanyUsersController`).
+  exports: [AccountDeletionService, CompanyAuthService, UnverifiedSignupCleanupService],
 })
 export class CompanyAuthModule {}

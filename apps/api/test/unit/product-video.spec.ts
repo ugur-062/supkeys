@@ -11,8 +11,8 @@ describe("productVideoEmbedUrl", () => {
   });
 
   it("Vimeo oynatıcı adresine", () => {
-    expect(productVideoEmbedUrl("https://vimeo.com/76979871")).toBe("https://player.vimeo.com/video/76979871");
-    expect(productVideoEmbedUrl("https://player.vimeo.com/video/76979871")).toBe("https://player.vimeo.com/video/76979871");
+    expect(productVideoEmbedUrl("https://vimeo.com/76979871")).toBe("https://player.vimeo.com/video/76979871?dnt=1");
+    expect(productVideoEmbedUrl("https://player.vimeo.com/video/76979871")).toBe("https://player.vimeo.com/video/76979871?dnt=1");
   });
 
   it("izinsiz konak, http, bozuk kimlik ve şema null", () => {

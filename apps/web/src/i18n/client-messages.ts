@@ -3,8 +3,8 @@ import { HIDDEN_SEGMENTS } from "@rothern/shared";
 
 /**
  * İSTEMCİYE GİTMEYEN ad alanları (i18n Faz 1): yalnız sunucu bileşenleri ve
- * metadata üreticileri okur — SSS cevapları, Hakkımızda/İletişim gövdeleri,
- * sözleşme kabuğu. (`web.seo` LİSTEDE DEĞİL: ürün/talep detayı ve panel
+ * metadata üreticileri okur — SSS cevapları, Hakkımızda/İletişim/Hesap silme
+ * gövdeleri, sözleşme kabuğu. (`web.seo` LİSTEDE DEĞİL: ürün/talep detayı ve panel
  * formlarının parçacık önizlemesi istemcide `useSeoT` ile okur.) `NextIntlClientProvider` bunları HTML/RSC
  * yüküne yazmasın diye kök düzende `clientMessages()` ile ayıklanır.
  *
@@ -18,6 +18,8 @@ export const SERVER_ONLY_NAMESPACES = [
   "web.marketing.faq",
   "web.marketing.legal",
   "web.marketing.inquiryVerify",
+  // Hesap silme sayfası (2026-10-16) — yalnız sunucu sayfası okur.
+  "web.marketing.accountDeletion",
   // llms.txt / llms-full.txt metinleri (2026-09-27) — yalnız rota işleyicisi okur.
   "web.marketing.llms",
 ] as const;

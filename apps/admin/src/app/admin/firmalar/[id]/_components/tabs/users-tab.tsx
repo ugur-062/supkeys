@@ -37,7 +37,10 @@ import {
   useUserRecoveryAction,
   type AdminCompanyUser,
 } from "@/hooks/use-admin-company-users";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { safeFormat } from "@/lib/date";
+import { EraseUserDialog } from "./erase-user-dialog";
 import {
   EllipsisVertical,
   KeyRound,
@@ -49,6 +52,11 @@ import { useEffect, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
+
+/** Silmeyle yazılan yer tutucu ad (API `api.companyAuth.silinmisKullanici*`, Türkçe sabit). */
+function isErased(u: Pick<AdminCompanyUser, "deletedAt" | "firstName" | "lastName">): boolean {
+  return !!u.deletedAt && u.firstName === "Silinmiş" && u.lastName === "Kullanıcı";
+}
 
 const ROLE_LABELS: Record<string, string> = {
   SAHIP: "Kurucu",
@@ -237,12 +245,16 @@ export function UsersTab({
   const setActive = useSetUserActive(companyId);
   const changeEmail = useChangeUserEmail(companyId);
   const addUser = useAddCompanyUser(companyId);
+  const { admin } = useAdminAuth();
+  // KVKK silmesi geri alınamaz — yalnız SUPER_ADMIN (API kapısıyla aynı).
+  const canErase = canAdminDo(admin?.role, "eraseCompanyUser");
   const [dialog, setDialog] = useState<
     | { kind: "add" }
     | { kind: "email"; user: AdminCompanyUser }
     // Tek tıkla uygulanıyordu — kısa onay (arayüz testi D-209).
     | { kind: "deactivate"; user: AdminCompanyUser }
     | { kind: "dropSessions"; user: AdminCompanyUser }
+    | { kind: "erase"; user: AdminCompanyUser }
     | null
   >(null);
 
@@ -334,8 +346,22 @@ export function UsersTab({
                       : "Henüz giriş yapmadı"}
                   </TableCell>
                   <TableCell>
-                    {/* En sık kurtarma (Şifre) hızlı buton; kalanı ⋯ menüde. */}
-                    {u.deletedAt ? null : (
+                    {/* En sık kurtarma (Şifre) hızlı buton; kalanı ⋯ menüde.
+                        Ekipten çıkarılmış hesapta yalnız KVKK silmesi (adı ve
+                        telefonu kalır); silinmiş hesapta işlem yok. */}
+                    {u.deletedAt ? (
+                      canErase && !isErased(u) ? (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDialog({ kind: "erase", user: u })}
+                          >
+                            KVKK: Kişisel Verileri Sil
+                          </Button>
+                        </div>
+                      ) : null
+                    ) : (
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           variant="ghost"
@@ -427,6 +453,20 @@ export function UsersTab({
                                 )}
                               </>
                             )}
+                            {canErase ? (
+                              <>
+                                <DropdownDivider />
+                                <DropdownItem
+                                  onClick={() =>
+                                    setDialog({ kind: "erase", user: u })
+                                  }
+                                >
+                                  <DropdownLabel>
+                                    KVKK: Hesabı Sil
+                                  </DropdownLabel>
+                                </DropdownItem>
+                              </>
+                            ) : null}
                           </DropdownMenu>
                         </Dropdown>
                       </div>
@@ -505,6 +545,13 @@ export function UsersTab({
           &quot;Aktifleştir&quot; ile geri açabilirsiniz.
         </p>
       </ConfirmDialog>
+      {/* KVKK silme talebi: ön bilgi (son kullanılan adres, askı, ret nedeni)
+          API'den — `erase-user-dialog.tsx`. */}
+      <EraseUserDialog
+        companyId={companyId}
+        user={dialog?.kind === "erase" ? dialog.user : null}
+        onClose={() => setDialog(null)}
+      />
       <ConfirmDialog
         open={dialog?.kind === "dropSessions"}
         title="Oturumları düşür"
