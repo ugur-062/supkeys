@@ -1,3 +1,4 @@
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { cn } from "@/lib/utils";
 import { visibleCategoryRefs } from "@/lib/visible-categories";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
@@ -6,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { INTL_LOCALE, upperForText } from "@/i18n/format";
 import type { ReactNode } from "react";
-import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
+import { ArrowDownIcon, MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
 import type { ReviewSummary } from "@rothern/shared";
 import { CountryFlag } from "@/components/ui/country-flag";
 
@@ -213,6 +214,22 @@ export function CompanyProfileView({
   // künye alanı yoksa "Şirket bilgileri" kartı bu yüzden boş açılmaz.
   const categories = visibleCategoryRefs(p.categories);
   const location = [cityDisplayName(p.city, locale), p.country ? countryDisplayName(p.country, locale) : null].filter(Boolean).join(", ");
+  /* ŞİRKET BİLGİLERİNE ATLA (mobil denetim g02-11): telefonda ürünler tek
+     sütun ve 24'ü birden basılıyor; künye, puan ve kayıt kutusu ~11.700 px
+     aşağıda kalıyor, başlıkta oraya giden bir şey yoktu. Ürünler önde kalır
+     (kullanıcı kararı: "ürünler ilk bakışta görünsün"); başlık kartında
+     `#hakkinda`ya bağlantı — yalnız ürünlerin araya girdiği görünümde ve
+     `lg` altında (geniş ekranda ızgara 3 sütun, bölüm yakın). */
+  const jumpToInfo =
+    main && !edit ? (
+      <a
+        href="#hakkinda"
+        className="relative inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 underline underline-offset-4 after:absolute after:-inset-x-1 after:-inset-y-2.5 hover:text-zinc-600 lg:hidden"
+      >
+        {t("companyInfo")}
+        <ArrowDownIcon aria-hidden className="size-4 shrink-0" />
+      </a>
+    ) : null;
 
   return (
     <div className="space-y-6">
@@ -355,13 +372,18 @@ export function CompanyProfileView({
           {p.aboutText ? (
             <div className="mt-4 max-w-4xl">
               <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600" lang={p.contentLang}>{p.aboutText}</p>
-              <a
-                href="#hakkinda"
-                className="mt-1 inline-block text-sm font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
-              >
-                {t("readMore")}
-              </a>
+              <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1">
+                <a
+                  href="#hakkinda"
+                  className="inline-block text-sm font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
+                >
+                  {t("readMore")}
+                </a>
+                {jumpToInfo}
+              </div>
             </div>
+          ) : jumpToInfo ? (
+            <div className="mt-4 lg:hidden">{jumpToInfo}</div>
           ) : null}
         </div>
       </section>
@@ -512,7 +534,7 @@ export function CompanyProfileView({
               <h2 className="text-base font-semibold text-zinc-900">{t("companyInfo")}</h2>
               <dl className="mt-4 space-y-3">
                 {p.rothernId ? (
-                  <InfoRow label={t("rothernId")} value={<span className="tabular-nums slashed-zero">{p.rothernId}</span>} />
+                  <InfoRow label={t("rothernId")} value={<span className={ID_TOKEN_CLASS}>{p.rothernId}</span>} />
                 ) : null}
                 {p.foundedYear ? <InfoRow label={t("founded")} value={String(p.foundedYear)} /> : null}
                 {p.employeeCount ? <InfoRow label={t("employees")} value={p.employeeCount} /> : null}
@@ -676,7 +698,10 @@ function ReviewSummarySection({ s }: { s: ReviewSummary }) {
               ) : null}
               {rest.length > 0 ? (
                 <details className="mt-1">
-                  <summary className="cursor-pointer text-xs font-medium text-zinc-500 hover:text-zinc-800">
+                  {/* 280×16 px'ti (mobil denetim g05): görünüm aynı, dokunma
+                      alanı görünmez katmanla 36 px (üstteki yorum metnine ve
+                      açılan listeye taşar; ikisi de tıklanmaz). */}
+                  <summary className="relative cursor-pointer text-xs font-medium text-zinc-500 after:absolute after:inset-x-0 after:-inset-y-2.5 hover:text-zinc-800">
                     {t("digerYorum", { n: rest.length })}
                   </summary>
                   <ul className="mt-2 space-y-2">

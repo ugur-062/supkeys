@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber, intlLocale } from "@/i18n/format";
@@ -33,6 +34,12 @@ import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
 import { MONEY_FRACTION } from "@/lib/line-amount";
+import {
+  REPORT_FIRST_COL_WITH_TOGGLE,
+  REPORT_STICKY_CELL,
+  REPORT_STICKY_HEADER,
+  summaryTileSpan,
+} from "./report-table";
 import { isDayValue, isInvertedRange, readReportQuery, writeReportQuery } from "./report-url-state";
 
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
@@ -262,8 +269,8 @@ export function SavingsReportView({
                     t("yuzde", { n: pct1(data.summary.avgDeltaPct) }),
                   ],
                 ] as Array<[string, string, boolean?]>
-              ).map(([k, v, accent]) => (
-                <div key={k} className="bg-white p-3.5">
+              ).map(([k, v, accent], i, all) => (
+                <div key={k} className={`bg-white p-3.5 ${summaryTileSpan(i, all.length)}`}>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                     {k}
                   </dt>
@@ -297,34 +304,68 @@ export function SavingsReportView({
               ) : null}
             </div>
 
-            {/* Satırlar — kalem detayına açılır */}
-            <div className="overflow-x-auto card px-2 [--gutter:--spacing(4)]">
-              <Table dense>
+            {/* Satırlar — kalem detayına açılır. Tek yatay kaydırıcı tablonun
+                kendisi (kart kaydırmaz, kenar payı --gutter'a eşit — g10-06);
+                ilk sütun yapışkan ve telefonda dar/saran (g10-04). */}
+            <div className="card overflow-hidden px-2 [--gutter:--spacing(2)]">
+              {/* `@container`: açılan kalem detayı telefonda tablonun GÖRÜNEN
+                  genişliğine (100cqw) oturur ve yapışkandır — tablo sağa
+                  kaydırılmış olsa da ekranda kalır, kendi içinde kaymaz. */}
+              <Table dense className="@container">
                 <TableHead>
                   <TableRow>
-                    <TableHeader>{t("satinAlmaTalebi")}</TableHeader>
+                    <TableHeader className={`${REPORT_STICKY_CELL} ${REPORT_STICKY_HEADER}`}>
+                      {t("satinAlmaTalebi")}
+                    </TableHeader>
                     <TableHeader className="text-right">{t("teklif")}</TableHeader>
                     <TableHeader className="text-right">{t("enYuksek")}</TableHeader>
                     <TableHeader className="text-right">{t("kazanan")}</TableHeader>
                     <TableHeader className="text-right">{t("tasarruf")}</TableHeader>
                     <TableHeader className="text-right">%</TableHeader>
-                    <TableHeader />
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {data.rows.map((r) => (
                     <Fragment key={r.id}>
                       <TableRow>
-                        <TableCell>
-                          <Link
-                            href={`/company/ilan/${r.id}`}
-                            className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
-                          >
-                            {r.title}
-                          </Link>
-                          <div className="tabular-nums text-xs text-zinc-400">
-                            {r.number ?? "—"} ·{" "}
-                            {r.winners.map((w) => w.name).join(", ") || "—"}
+                        <TableCell className={REPORT_STICKY_CELL}>
+                          <div className="flex items-start gap-2">
+                            {/* Açıcı İLK hücrede (g10-04: 971 px'lik tablonun
+                                en sağında 16 px'lik simgeydi, ~600 px kaydırmadan
+                                bulunmuyordu). Kutu 44 px; negatif boşlukla satır
+                                yüksekliği değişmez. Sol pay hücre dolgusuna eşit
+                                (telefonda 8, sm+ 4 px): kutu yapışkan hücrenin
+                                kenarında başlar, kaydırıcı onu kırpmaz; sağ pay
+                                kutuyu başlığın tam önünde bitirir. Açıcı durumunu
+                                ve hangi talebin kalemlerini açtığını duyurur (D-295). */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenRow(openRow === r.id ? null : r.id)
+                              }
+                              aria-expanded={openRow === r.id}
+                              aria-controls={`savings-items-${r.id}`}
+                              aria-label={t("kalemDetayiTalep", { title: r.title })}
+                              className="relative -my-2.5 -ml-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 sm:-ml-1"
+                            >
+                              <ChevronDown
+                                className={`h-4 w-4 transition-transform ${
+                                  openRow === r.id ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                            <div className={REPORT_FIRST_COL_WITH_TOGGLE}>
+                              <Link
+                                href={`/company/ilan/${r.id}`}
+                                className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                              >
+                                {r.title}
+                              </Link>
+                              <div className="tabular-nums text-xs text-zinc-400">
+                                <span className={ID_TOKEN_CLASS}>{r.number ?? "—"} ·</span>{" "}
+                                {r.winners.map((w) => w.name).join(", ") || "—"}
+                              </div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
@@ -344,89 +385,124 @@ export function SavingsReportView({
                             ? t("yuzde", { n: pct0(r.deltaPct) })
                             : "—"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {/* Açıcı durumunu ve hangi talebin kalemlerini
-                              açtığını duyurur (D-295). */}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenRow(openRow === r.id ? null : r.id)
-                            }
-                            aria-expanded={openRow === r.id}
-                            aria-controls={`savings-items-${r.id}`}
-                            aria-label={t("kalemDetayiTalep", { title: r.title })}
-                            className="text-zinc-500 hover:text-zinc-700"
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 transition-transform ${
-                                openRow === r.id ? "rotate-180" : ""
-                              }`}
-                            />
-                          </button>
-                        </TableCell>
                       </TableRow>
                       {openRow === r.id ? (
                         <TableRow key={`${r.id}-detail`} id={`savings-items-${r.id}`}>
-                          <TableCell colSpan={7} className="bg-zinc-50/60">
-                            <div className="space-y-2 py-2">
+                          <TableCell colSpan={6} className="bg-zinc-50/60">
+                            <div className="sticky left-2 w-[calc(100cqw-1rem)] space-y-2 py-2 whitespace-normal sm:static sm:w-auto sm:whitespace-nowrap">
                               <Subheading className="text-sm">
                                 {t("kalemDetayi2")}
                               </Subheading>
-                              <Table dense>
-                                <TableHead>
-                                  <TableRow>
-                                    <TableHeader>{t("kalem")}</TableHeader>
-                                    <TableHeader className="text-right">
-                                      {t("adet")}
-                                    </TableHeader>
-                                    <TableHeader className="text-right">
-                                      {t("hedefBirim")}
-                                    </TableHeader>
-                                    <TableHeader className="text-right">
-                                      {t("kazananBirim")}
-                                    </TableHeader>
-                                    <TableHeader>
-                                      {t("kazananTedarikci")}
-                                    </TableHeader>
-                                    <TableHeader className="text-right">
-                                      {t("tasarruf")}
-                                    </TableHeader>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {r.items.map((it, i) => (
-                                    <TableRow key={i}>
-                                      <TableCell className="text-zinc-900">
-                                        {it.name}{" "}
-                                        <span className="text-xs text-zinc-400">
-                                          ({unitLabel(it.unit)})
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums">
-                                        {formatNumber(it.awardedQuantity ?? it.quantity, locale)}
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums text-zinc-600">
-                                        {it.referenceUnitPrice != null
-                                          ? money2(it.referenceUnitPrice, locale, data.baseCurrency ?? "TRY")
-                                          : "—"}
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums text-zinc-900">
-                                        {it.winningUnitPrice != null
-                                          ? money2(it.winningUnitPrice, locale, data.baseCurrency ?? "TRY")
-                                          : "—"}
-                                      </TableCell>
-                                      <TableCell className="text-zinc-700">
-                                        {it.winnerName ?? "—"}
-                                      </TableCell>
-                                      <TableCell className={`text-right font-semibold tabular-nums ${deltaTone(it.delta)}`}>
-                                        {it.delta != null
-                                          ? money2(it.delta, locale, data.baseCurrency ?? "TRY")
-                                          : "—"}
-                                      </TableCell>
+                              {/* Telefon: iç içe tablo yerine alt alta kalem
+                                  kartları (g10-04: ikinci tablo, zaten kaydırılmış
+                                  tablonun içinde kesik görünüyordu). */}
+                              <ul data-testid="savings-items-list" className="space-y-2 sm:hidden">
+                                {r.items.map((it, i) => (
+                                  <li key={i} className="rounded-lg bg-white p-3 ring-1 ring-zinc-950/5">
+                                    <p className="text-sm font-medium text-zinc-900 wrap-break-word">
+                                      {it.name}{" "}
+                                      <span className="text-xs font-normal text-zinc-500">
+                                        ({unitLabel(it.unit)})
+                                      </span>
+                                    </p>
+                                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                                      <div>
+                                        <dt className="text-zinc-500">{t("adet")}</dt>
+                                        <dd className="mt-0.5 tabular-nums text-zinc-900">
+                                          {formatNumber(it.awardedQuantity ?? it.quantity, locale)}
+                                        </dd>
+                                      </div>
+                                      <div>
+                                        <dt className="text-zinc-500">{t("tasarruf")}</dt>
+                                        <dd className={`mt-0.5 font-semibold tabular-nums ${deltaTone(it.delta)}`}>
+                                          {it.delta != null
+                                            ? money2(it.delta, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </dd>
+                                      </div>
+                                      <div>
+                                        <dt className="text-zinc-500">{t("hedefBirim")}</dt>
+                                        <dd className="mt-0.5 tabular-nums text-zinc-600">
+                                          {it.referenceUnitPrice != null
+                                            ? money2(it.referenceUnitPrice, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </dd>
+                                      </div>
+                                      <div>
+                                        <dt className="text-zinc-500">{t("kazananBirim")}</dt>
+                                        <dd className="mt-0.5 tabular-nums text-zinc-900">
+                                          {it.winningUnitPrice != null
+                                            ? money2(it.winningUnitPrice, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </dd>
+                                      </div>
+                                      <div className="col-span-2">
+                                        <dt className="text-zinc-500">{t("kazananTedarikci")}</dt>
+                                        <dd className="mt-0.5 text-zinc-700 wrap-break-word">
+                                          {it.winnerName ?? "—"}
+                                        </dd>
+                                      </div>
+                                    </dl>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div data-testid="savings-items-table" className="hidden sm:block">
+                                <Table dense>
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableHeader>{t("kalem")}</TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("adet")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("hedefBirim")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("kazananBirim")}
+                                      </TableHeader>
+                                      <TableHeader>
+                                        {t("kazananTedarikci")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("tasarruf")}
+                                      </TableHeader>
                                     </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                                  </TableHead>
+                                  <TableBody>
+                                    {r.items.map((it, i) => (
+                                      <TableRow key={i}>
+                                        <TableCell className="text-zinc-900">
+                                          {it.name}{" "}
+                                          <span className="text-xs text-zinc-400">
+                                            ({unitLabel(it.unit)})
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums">
+                                          {formatNumber(it.awardedQuantity ?? it.quantity, locale)}
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums text-zinc-600">
+                                          {it.referenceUnitPrice != null
+                                            ? money2(it.referenceUnitPrice, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-right tabular-nums text-zinc-900">
+                                          {it.winningUnitPrice != null
+                                            ? money2(it.winningUnitPrice, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </TableCell>
+                                        <TableCell className="text-zinc-700">
+                                          {it.winnerName ?? "—"}
+                                        </TableCell>
+                                        <TableCell className={`text-right font-semibold tabular-nums ${deltaTone(it.delta)}`}>
+                                          {it.delta != null
+                                            ? money2(it.delta, locale, data.baseCurrency ?? "TRY")
+                                            : "—"}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -447,12 +523,13 @@ export function SavingsReportView({
                   {data.summary.byParty.map((b) => (
                     <li
                       key={b.name}
-                      className="flex items-center justify-between py-2 text-sm"
+                      className="flex items-center justify-between gap-3 py-2 text-sm"
                     >
-                      <span className="font-medium text-zinc-900">
+                      {/* Uzun firma adı sarar, tutar bölünmez ("320" / "₺" değil). */}
+                      <span className="min-w-0 font-medium text-zinc-900 wrap-break-word">
                         {b.name}
                       </span>
-                      <span className=" font-semibold tabular-nums">
+                      <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">
                         {tl(b.awarded, locale, data.baseCurrency ?? "TRY")}
                       </span>
                     </li>

@@ -130,6 +130,96 @@ describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
   });
 });
 
+// Mobil denetim g09: ray lg altında sayfanın en altında (~3100 px); taslak
+// eksiklerini ancak "Onaya gönder"in hata toast'ından (kayıt açıldıktan sonra)
+// öğreniyordu. Çubukta "Eksikler (N)" çipi ilk eksik bölüme götürür.
+describe("ProductShowcaseForm — taslakta eksikler kısayolu (mobil denetim g09)", () => {
+  it("yeni üründe 'Eksikler (N)' çipi var, ilk eksik bölüme kaydırır", async () => {
+    const scrolled: string[] = [];
+    const orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.id);
+    };
+    try {
+      const user = userEvent.setup();
+      renderForm();
+      const chip = screen.getByRole("button", { name: /^Eksikler \(\d+\)$/ });
+      await user.click(chip);
+      expect(scrolled).toEqual(["urun-temel"]);
+      // Kayıt açılmadı: kısayol yalnız kaydırır.
+      expect(h.post).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = orig;
+    }
+  });
+
+  it("anahtar kelime çipindeki × en az 28 px (dokunmatikte ~40 px isabet alanı)", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const input = document.getElementById("urun-anahtar-kelime") as HTMLInputElement;
+    await user.type(input, "boru{Enter}");
+    const remove = screen.getByRole("button", { name: /boru etiketini kaldır/i });
+    expect(remove.className).toMatch(/size-7/);
+    expect(remove.className).toMatch(/pointer-coarse:after:-inset-x-1\.5/);
+    // Dikey taşma satır aralığının yarısı: alt alta iki çipin × alanı üst üste binmez.
+    expect(remove.className).toMatch(/pointer-coarse:after:-inset-y-1(\s|$)/);
+  });
+});
+
+// Mobil denetim g09 doğrulama turu (masaüstü): ray sabit 7.5rem ofsetle
+// yapışıyordu; çubuk not satırıyla 88 px olunca rayın üstü çubuğun altında
+// kalıyordu. Ofset artık çubuğun ölçülen yüksekliğinden (`--product-bar-h`).
+describe("ProductShowcaseForm — yapışkan ray çubuğun altında", () => {
+  it("rayın ofseti üst çubuk + eylem çubuğunun gerçek yüksekliği + 1rem; ölçüm köke yazılır", () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(() => ({ height: 88, width: 960, top: 0, left: 0, right: 960, bottom: 88, x: 0, y: 0, toJSON() {} }) as DOMRect);
+    try {
+      renderForm();
+      const aside = document.querySelector("aside")!;
+      // Kutunun üstü çubuğun 0.75rem altında; `p-1/-m-1` içeriği 1rem'e indirir
+      // (kaydırma kabı kartların halkasını kırpmasın diye pay).
+      expect(aside.className.split(/\s+/)).toEqual(
+        expect.arrayContaining([
+          "[--rail-top:calc(var(--topbar-h)+var(--product-bar-h,4rem)+0.75rem)]",
+          "lg:sticky",
+          "lg:top-(--rail-top)",
+          "lg:-m-1",
+          "lg:p-1",
+        ]),
+      );
+      expect(aside.className).not.toContain("7.5rem");
+      const root = screen.getByTestId("product-action-bar-title").parentElement!.parentElement!.parentElement!;
+      expect(root.contains(aside)).toBe(true);
+      expect(root.style.getPropertyValue("--product-bar-h")).toBe("88px");
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  // Mobil denetim r6 (masaüstü 1280×800): ray 1154–1512 px'ti, Öneriler'in alt
+  // yarısı ve varyasyon notu formun sonuna dek görünmüyordu; AI düğmesi
+  // görünen kartın sağ kenarına biniyordu. Ray artık görünür alana sığar
+  // (alttan 6rem = tam boy AI düğmesinin yeri) ve kendi içinde kayar.
+  it("ray görünür alanla sınırlı, içinde kayar ve AI düğmesinin payını bırakır", () => {
+    renderForm();
+    const aside = document.querySelector("aside")!;
+    const classes = aside.className.split(/\s+/);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "lg:max-h-[max(12rem,calc(100dvh-max(var(--rail-top),var(--rail-fit-top,0px))-6rem-var(--safe-bottom)))]",
+        "lg:overflow-y-auto",
+      ]),
+    );
+    // Ray sonuna gelince tekerlek sayfaya geçer (imleç rayın üstündeyken sayfa takılmasın).
+    expect(classes.some((c) => c.includes("overscroll-"))).toBe(false);
+    // Sınır ve kaydırma yalnız lg'de: telefonda/tablette ray formun altında akışta durur.
+    expect(classes.filter((c) => /^(max-h-|overflow-|overscroll-)/.test(c))).toEqual([]);
+    // Varyasyon notu da kaydırılan rayın içinde (eskiden yalnız formun sonunda görünüyordu).
+    expect(aside.textContent).toContain("Varyasyonları ayrı ürün olarak açmayın");
+  });
+});
+
 // Arayüz testi Y-11 (gözden geçirme): video/belge paketin altında gizli —
 // gönderilmez de; görünmeyen eski bir değer kaydı etkilemesin.
 describe("ProductShowcaseForm — paketli medya alanları", () => {
@@ -285,7 +375,9 @@ describe("ProductShowcaseForm — eksik notu yapışkan çubukta kompakt (arayü
       const notes = screen.getByTestId("product-action-bar-notes");
       // Başlığın (h1) sütununda değil — mobilde Kaydet'in yanındaki dar sütunda kırılmasın.
       expect(notes.contains(screen.getByRole("heading", { level: 1 }))).toBe(false);
-      expect(notes.closest(".min-w-0.flex-1")).toBeNull();
+      expect(screen.getByTestId("product-action-bar-title").contains(notes)).toBe(false);
+      // Telefonda not yapışkan eylem şeridinin DIŞINDA, akışta (mobil denetim g09).
+      expect(screen.getByTestId("product-action-bar-actions").contains(notes)).toBe(false);
       expect(notes).toHaveTextContent("Eksik içerik nedeniyle kaydedilemez.");
       await user.click(screen.getByRole("button", { name: "Eksikleri göster (1)" }));
       expect(scrolled).toEqual(["urun-ozellik"]);

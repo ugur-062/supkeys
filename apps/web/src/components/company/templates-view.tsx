@@ -76,7 +76,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="card p-5 md:p-6">
+    <section className="card p-4 sm:p-5 md:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
@@ -117,6 +117,22 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+/**
+ * Şablon satırı (gruplar, soru setleri, talep şablonları) — mobil denetim
+ * 2026-10 g06: satır `flex-wrap`, metin bloğu en az 12rem ister; sığmayınca
+ * eylemler (Talepte kullan / düzenle / sil) alt satıra iner. Eskiden ad
+ * `truncate` ile 360 px'te 43 px'e ('RV-…') düşüyor, RU'da tamamen
+ * kayboluyordu → kullanıcı hangi şablonu sildiğini göremiyordu. Ad artık
+ * sarar (en fazla 120 karakter); ikon karosu telefonda gizli (yer açar).
+ */
+const TEMPLATE_ROW_CLASS =
+  "flex flex-wrap items-start gap-x-3 gap-y-2 rounded-xl border border-zinc-950/10 bg-white p-3 transition-colors hover:border-zinc-300 sm:p-4";
+const TEMPLATE_ROW_TEXT_CLASS = "flex min-w-0 flex-[1_1_12rem] items-center gap-3";
+const TEMPLATE_ROW_ICON_CLASS =
+  "hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 sm:flex";
+const TEMPLATE_ROW_NAME_CLASS = "break-words font-medium text-zinc-900";
+const TEMPLATE_ROW_ACTIONS_CLASS = "ml-auto flex shrink-0 items-center gap-1";
 
 /* ───────────────────────── Grup (tedarikçi/alıcı) şablonları ───────────── */
 
@@ -557,14 +573,14 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
             {(groups.data ?? []).map((g) => (
               <li
                 key={g.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
+                className={TEMPLATE_ROW_CLASS}
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                <div className={TEMPLATE_ROW_TEXT_CLASS}>
+                  <span className={TEMPLATE_ROW_ICON_CLASS}>
                     <Users className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-zinc-900">
+                    <p className={TEMPLATE_ROW_NAME_CLASS}>
                       {g.name}
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-400">
@@ -573,7 +589,7 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
                   </div>
                 </div>
                 {canManageTpl ? (
-                <div className="flex shrink-0 items-center gap-1">
+                <div className={TEMPLATE_ROW_ACTIONS_CLASS}>
                   <Button
                     plain
                     aria-label={t("grubunuDuzenle", { name: g.name })}
@@ -649,15 +665,15 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
             {(questionTpls.data ?? []).map((t) => (
               <li
                 key={t.id}
-                className="flex flex-col rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
+                className="flex flex-col rounded-xl border border-zinc-950/10 bg-white p-3 transition-colors hover:border-zinc-300 sm:p-4"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                  <div className={TEMPLATE_ROW_TEXT_CLASS}>
+                    <span className={TEMPLATE_ROW_ICON_CLASS}>
                       <ListChecks className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-zinc-900">
+                      <p className={TEMPLATE_ROW_NAME_CLASS}>
                         {t.name}
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-400">
@@ -669,7 +685,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                     </div>
                   </div>
                   {canManageTpl ? (
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className={TEMPLATE_ROW_ACTIONS_CLASS}>
                       <Button
                         plain
                         aria-label={tr("setiniDuzenle", { name: t.name })}
@@ -774,19 +790,17 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
               return (
                 <li
                   key={t.id}
-                  className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition-colors hover:border-zinc-300"
+                  className={TEMPLATE_ROW_CLASS}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500">
+                  <div className={TEMPLATE_ROW_TEXT_CLASS}>
+                    <span className={TEMPLATE_ROW_ICON_CLASS}>
                       <FileText className="h-4 w-4" />
                     </span>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate font-medium text-zinc-900">
-                          {t.name}
-                        </p>
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">
+                      <p className={TEMPLATE_ROW_NAME_CLASS}>
+                        {t.name}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 break-words text-xs text-zinc-500">
                         {p.items?.length ? tr("kalem", { n: p.items.length }) : "—"}
                         {p.title ? ` · ${p.title}` : ""}
                       </p>
@@ -794,11 +808,11 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                   </div>
                   {/* C36: satırın birincil aksiyonu — şablon hızlı talepte açılır
                       (2026-09-19: sihirbaz kaldırıldı). */}
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className={TEMPLATE_ROW_ACTIONS_CLASS}>
                     {canCreateListing ? (
                       <Link
                         href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                        className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 sm:min-h-0"
                       >
                         {tr("talepteKullan")}
                       </Link>

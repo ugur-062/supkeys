@@ -173,10 +173,9 @@ function Inner({
         }
       />
 
-      {facets.data ? <CompanyActiveChips facets={facets.data} /> : null}
-
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
+        chips={facets.data ? <CompanyActiveChips facets={facets.data} /> : null}
         toolbarStart={<ResultCount kind="company" loading={result.isPending} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
@@ -277,7 +276,11 @@ export function PanelCompanyCard({
                     className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
                   >
                     {p.name}
-                    <span className="sr-only"> {t("yeniSekmedeAcilir")}</span>
+                    {/* Mobil kabukta aynı ekranda açılır → ipucu gizli (globals.css `data-new-tab-hint`). */}
+                    <span className="sr-only" data-new-tab-hint="">
+                      {" "}
+                      {t("yeniSekmedeAcilir")}
+                    </span>
                   </Link>
                 </li>
               ))}

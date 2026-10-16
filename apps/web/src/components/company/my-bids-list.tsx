@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useTranslations } from "next-intl";
 import { useBidDeliveryTimeLabel, useFormatDate, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
@@ -147,7 +148,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         />
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
+            <span className={cn(ID_TOKEN_CLASS, "rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] leading-tight text-zinc-600")}>
               {b.listing.number ?? "—"}
             </span>
             <span aria-hidden className="h-3.5 w-px bg-zinc-200" />

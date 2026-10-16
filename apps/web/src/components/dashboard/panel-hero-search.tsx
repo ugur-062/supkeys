@@ -239,6 +239,10 @@ const HERO_NOTE_PILL_CLASS = "inline-flex items-center gap-1.5 rounded-full px-4
  * uzunlukta olsun"): sabit taban yükseklik iki portalı eşitler, kısa içerik
  * ortalanır. Köşe kartları varken bant 2xl'de biraz daha yüksek (kartlar arama
  * kutusunun satırına inmez) ve zemin portal tonunda çok hafif gradyan.
+ * `100cqw` en yakın KAPSAYICININ genişliğidir: panelde `main` (`@container/
+ * panel`), herkese açık sayfada `PublicLayout`un `main`i (`@container`) — ikisi
+ * de gövdenin yatay güvenli alan payının İÇİNDE, bant çentik tarafına taşmaz
+ * (2. tur safe-area: kapsayıcısız anasayfada bant görünüm alanının tamamıydı).
  */
 export function heroBandClass(accent: "blue" | "emerald", hasWidgets: boolean): string {
   return cn(

@@ -27,3 +27,23 @@ describe("StagedDocuments", () => {
     expect(screen.getByText("3 KB")).toBeInTheDocument();
   });
 });
+
+/**
+ * Mobil denetim 2026-10 (g06-request-create#new1): RU 360'ta bölüm seçicisi
+ * (283 px) kart içindeki karta sığmıyordu. Telefonda bölüm çerçevesiz, seçici
+ * satırın tamamını alır ve kırpılır; sm'den itibaren eski dizilim.
+ */
+describe("StagedDocuments — telefon yerleşimi", () => {
+  const cls = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
+
+  it("bölüm seçicisi telefonda tam genişlik + küçülebilir; kart çerçevesi yalnız sm'den itibaren", () => {
+    const { container } = render(<Harness />);
+    const button = container.querySelector("#staged-doc-kind") as HTMLElement;
+    const wrapper = button.parentElement as HTMLElement;
+    expect(cls(wrapper)).toEqual(expect.arrayContaining(["w-full", "min-w-0", "sm:w-auto", "sm:min-w-44"]));
+    expect(cls(wrapper)).not.toContain("min-w-44");
+    expect(cls(wrapper.parentElement)).toEqual(expect.arrayContaining(["w-full", "sm:w-auto"]));
+    const section = container.querySelector("section") as HTMLElement;
+    expect(cls(section)).toEqual(expect.arrayContaining(["card", "p-5", "max-sm:p-0", "max-sm:ring-0", "max-sm:shadow-none"]));
+  });
+});

@@ -46,4 +46,14 @@ describe("LanguageSwitcher (inline)", () => {
     expect(screen.getByRole("link", { name: "English" }).getAttribute("href")).toBe("/hakkimizda?sirala=yeni");
     window.history.replaceState(null, "", "/");
   });
+  /* Mobil denetim 2026-10 g01: mobil menüde dil değiştirmenin tek yolu bu satır;
+     bağlantılar 20 px yüksekti. Telefonda 44 px, sm ve üstünde eski yükseklik. */
+  it("satır içi bağlantılar telefonda 44 px dokunma alanı taşır", () => {
+    render(<LanguageSwitcher variant="inline" />);
+    for (const a of screen.getByRole("navigation").querySelectorAll("a")) {
+      expect(a.className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-flex", "min-h-11", "items-center", "sm:min-h-0"]));
+    }
+    // Yatay boşluk aynı kalır: komşu hedefler üst üste binmez.
+    expect(screen.getByRole("navigation").className).toMatch(/\bgap-x-4\b/);
+  });
 });

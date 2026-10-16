@@ -23,11 +23,35 @@ import {
 import { ArrowLeftIcon, MagnifyingGlassIcon, PaperAirplaneIcon } from "@heroicons/react/20/solid";
 import { Inbox, Send } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { accentFillClass } from "@/components/ui/button-accent";
 import { FAB_CLEARANCE_CLASS } from "@/components/company-shell/assistant/fab-clearance";
+import { modEnterSendsReply, useCoarsePointer } from "@/components/messaging/use-coarse-pointer";
+
+/** Açık konuşma adreste (`?talep=<id>`) — yenileme, paylaşım ve Geri. */
+export const INQUIRY_THREAD_PARAM = "talep";
+/**
+ * Tek panelde açılışın eklediği geçmiş kaydının işareti (`history.state`).
+ * Geri oku kaydı yalnız işaret varsa `history.back()` ile geri alır; işaret
+ * kayıtla birlikte durur, Geri/İleri sonrası da doğru okunur (mobil denetim
+ * g05: ref Geri'de sıfırlanıyor, İleri ile dönülen konuşmadan geri ok yeni
+ * bir liste kaydı yazıyordu — sistem Geri'si iki kez basılmak zorundaydı).
+ */
+export const INQUIRY_THREAD_STATE_KEY = "rothernInquiryThread";
+
+function onPushedThreadEntry(): boolean {
+  const state = window.history.state as Record<string, unknown> | null;
+  return !!state && state[INQUIRY_THREAD_STATE_KEY] === true;
+}
+/** Liste ile konuşma yan yana (lg); altında tek panel (liste ↔ konuşma). */
+const SIDE_BY_SIDE_QUERY = "(min-width: 64rem)";
+
+function stackedLayout(): boolean {
+  return typeof window.matchMedia !== "function" || !window.matchMedia(SIDE_BY_SIDE_QUERY).matches;
+}
 
 /**
  * BİLGİ TALEPLERİ — gelen kutusu düzeni (2026-09-09 yeniden tasarım).
@@ -54,10 +78,107 @@ export function InquiriesView({
   const accent = isSeller ? "zinc" : "blue";
   const received = useReceivedInquiries(isSeller);
   const sent = useSentInquiries(!isSeller);
-  const [filter, setFilter] = useState<"all" | "open" | "answered">("all");
-  const [q, setQ] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [filter, setFilterState] = useState<"all" | "open" | "answered">("all");
+  const [q, setQState] = useState("");
+  /*
+   * AÇIK KONUŞMA ADRESTE (mobil denetim g05): telefonda konuşma listenin
+   * yerine yalnız yerel durumla açılıyordu — adres değişmiyor, Android'in
+   * Geri hareketi listeye değil önceki sayfaya gidiyordu. Artık açılış
+   * `?talep=<id>` yazar: tek panelli düzende (lg altı) `pushState` (Geri
+   * listeye döner), yan yana düzende `replaceState` (geçmiş şişmez, adres yine
+   * paylaşılabilir). Ekrandaki geri oku bizim eklediğimiz kaydı geri alır;
+   * adres değişince (Geri/İleri, derin bağlantı) görünüm izler.
+   */
+  const searchParams = useSearchParams();
+  const urlThreadId = searchParams?.get(INQUIRY_THREAD_PARAM) ?? null;
+  const [selectedId, setSelectedId] = useState<string | null>(urlThreadId);
+  const [mobileOpen, setMobileOpen] = useState(urlThreadId !== null);
+  /*
+   * AÇILAN / YANITLANAN KONUŞMA YERİNDE KALIR (mobil denetim g08): "Yanıt
+   * bekleyen" süzgecinde yanıt gönderilince konuşma süzgeçten düşüyor, telefonu
+   * dolduran panel HABERSİZ başka alıcının konuşmasına geçiyordu (gönderilen
+   * yanıt görünmüyor, sonraki yanıt yanlış alıcıya yazılabiliyordu). Kullanıcının
+   * açtığı ya da yanıtladığı konuşma, başka konuşma seçene, süzgeci ya da aramayı
+   * değiştirene dek listede tutulur (arka plan yenilemesi de onu düşürmez).
+   */
+  const [keepId, setKeepId] = useState<string | null>(urlThreadId);
+  /*
+   * LİSTE KONUMU (mobil denetim g05): sistem Geri'sinde tarayıcı kaydırmayı
+   * `popstate` ANINDA geri yükler — o an liste hâlâ gizli, sayfa kısa olduğu
+   * için konum ~185 px'e kırpılıyor, dokunulan satır ekranın altında
+   * kalıyordu. Tek panelde listenin son konumu tutulur (açılışta ve liste
+   * GÖRÜNÜRKEN kaydırıldıkça — konuşma açıkken ya da `popstate`in kırptığı
+   * ara konum sayılmaz) ve liste yeniden çizilince boyamadan önce geri
+   * yüklenir. Adres değişimi de boyamadan önce işlenir.
+   */
+  const listColumnRef = useRef<HTMLDivElement>(null);
+  const listScrollY = useRef<number | null>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      const col = listColumnRef.current;
+      if (!col || col.offsetParent === null || !stackedLayout()) return;
+      if (new URL(window.location.href).searchParams.has(INQUIRY_THREAD_PARAM)) return;
+      listScrollY.current = window.scrollY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const lastUrlThreadId = useRef(urlThreadId);
+  useLayoutEffect(() => {
+    if (lastUrlThreadId.current === urlThreadId) return;
+    lastUrlThreadId.current = urlThreadId;
+    if (urlThreadId) {
+      setSelectedId(urlThreadId);
+      setKeepId(urlThreadId);
+      setMobileOpen(true);
+    } else {
+      setMobileOpen(false);
+    }
+  }, [urlThreadId]);
+  useLayoutEffect(() => {
+    if (mobileOpen || listScrollY.current === null || !stackedLayout()) return;
+    window.scrollTo(0, listScrollY.current);
+  }, [mobileOpen]);
+  // Süzgeç/arama listenin içeriğini değiştirir: eski konuma geri dönülmez.
+  const setFilter = (next: "all" | "open" | "answered") => {
+    setKeepId(null);
+    listScrollY.current = null;
+    setFilterState(next);
+  };
+  const setQ = (next: string) => {
+    setKeepId(null);
+    listScrollY.current = null;
+    setQState(next);
+  };
+
+  const writeThreadParam = (id: string | null, push: boolean) => {
+    const u = new URL(window.location.href);
+    if (id) u.searchParams.set(INQUIRY_THREAD_PARAM, id);
+    else u.searchParams.delete(INQUIRY_THREAD_PARAM);
+    if (u.toString() === window.location.href) return;
+    if (push) {
+      window.history.pushState({ [INQUIRY_THREAD_STATE_KEY]: true }, "", u.toString());
+    } else {
+      // İşaretli kayıtta konuşma değişirse (yan yana düzene geçilmiş) işaret kalır.
+      window.history.replaceState(onPushedThreadEntry() ? { [INQUIRY_THREAD_STATE_KEY]: true } : null, "", u.toString());
+    }
+  };
+  const openThread = (id: string) => {
+    const stacked = stackedLayout();
+    // Liste yalnız tek panelde gizlenir → konum yalnız orada saklanır.
+    if (stacked && !mobileOpen) listScrollY.current = window.scrollY;
+    setKeepId(id);
+    setSelectedId(id);
+    setMobileOpen(true);
+    // Tek panelde açılış Geri'ye bir kayıt bırakır; konuşma zaten açıksa yerinde.
+    writeThreadParam(id, stacked && !new URL(window.location.href).searchParams.has(INQUIRY_THREAD_PARAM));
+  };
+  /** Konuşmayı kapatıp listeye dön (ekrandaki geri oku). */
+  const closeThread = () => {
+    setMobileOpen(false);
+    if (onPushedThreadEntry()) window.history.back();
+    else writeThreadParam(null, false);
+  };
 
   /* Tek liste modeli: iki yön aynı satır biçimine indirgenir; süzgeç ve arama
      ortak çalışır. `answered` = en az bir yanıt. */
@@ -103,6 +224,7 @@ export function InquiriesView({
   // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
   const term = foldSearchText(q);
   const visible = threads.filter((t) => {
+    if (t.id === keepId) return true;
     if (filter === "open" && t.replies.length > 0) return false;
     if (filter === "answered" && t.replies.length === 0) return false;
     if (!term) return true;
@@ -111,21 +233,27 @@ export function InquiriesView({
       .some((s) => foldSearchText(s as string).includes(term));
   });
 
-  // Masaüstünde ilk konuşma seçili gelir; seçili olan süzgeçle kaybolursa ilkine düş.
-  useEffect(() => {
-    if (visible.length === 0) {
-      if (selectedId) setSelectedId(null);
-      return;
-    }
-    if (!selectedId || !visible.some((t) => t.id === selectedId)) setSelectedId(visible[0].id);
-  }, [visible, selectedId]);
-  const selected = visible.find((t) => t.id === selectedId) ?? null;
-
   // Yanıt yok ve hata da yok = sorgu hâlâ bekliyor (`isPending` karşılığı; kanca
   // onu dışa vermiyor). `isLoading`e bakılmaz: çevrimdışı duraklayan sorguda
   // false kalır ve "Henüz bilgi talebi yok" çizilirdi (LİSTE DURUMLARI). `paged`
   // her zaman açık olan yönün sorgusudur (karşı yön `enabled: false`).
   const loading = paged.data === undefined && !paged.isError;
+
+  // Masaüstünde ilk konuşma seçili gelir; seçili olan süzgeçle kaybolursa ilkine
+  // düş. Liste okunmadan (yükleniyor / okunamadı) dokunulmaz — adresteki
+  // `?talep=` silinmesin. AÇIK konuşma kaybolursa BAŞKA konuşmaya geçilmez,
+  // listeye dönülür (mobil denetim g08) — telefonda geçiş fark edilmiyordu.
+  const listRead = paged.data !== undefined;
+  useEffect(() => {
+    if (!listRead) return;
+    if (selectedId && visible.some((t) => t.id === selectedId)) return;
+    if (selectedId && mobileOpen) closeThread();
+    const next = visible[0]?.id ?? null;
+    if (next !== selectedId) setSelectedId(next);
+    // closeThread yalnız durum/adres yazar; her çizimde yeni kimlik alır.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, selectedId, listRead, mobileOpen]);
+  const selected = visible.find((t) => t.id === selectedId) ?? null;
   const locked = isSeller && !!received.data?.locked;
 
   return (
@@ -225,7 +353,7 @@ export function InquiriesView({
 
           {/* GELEN KUTUSU: sol liste + sağ konuşma. Mobilde tek panel. */}
           <div className="mt-4 grid min-h-[32rem] grid-cols-1 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-            <div className={cn("border-zinc-950/5 lg:border-r", mobileOpen ? "hidden lg:block" : "block")}>
+            <div ref={listColumnRef} className={cn("border-zinc-950/5 lg:border-r", mobileOpen ? "hidden lg:block" : "block")}>
               {visible.length === 0 ? (
                 <p className="p-6 text-sm text-zinc-500">{tr("buSuzgecteTalepYok")}</p>
               ) : (
@@ -237,10 +365,7 @@ export function InquiriesView({
                       active={t.id === selectedId}
                       accent={accent}
                       isSeller={isSeller}
-                      onSelect={() => {
-                        setSelectedId(t.id);
-                        setMobileOpen(true);
-                      }}
+                      onSelect={() => openThread(t.id)}
                     />
                   ))}
                 </ul>
@@ -274,7 +399,8 @@ export function InquiriesView({
                   thread={selected}
                   isSeller={isSeller}
                   accent={accent}
-                  onBack={() => setMobileOpen(false)}
+                  onBack={closeThread}
+                  onReplied={() => setKeepId(selected.id)}
                 />
               ) : (
                 <div className="flex h-full items-center justify-center p-10 text-sm text-zinc-500">{tr("birTalepSecin")}</div>
@@ -374,11 +500,14 @@ function ThreadPane({
   isSeller,
   accent,
   onBack,
+  onReplied,
 }: {
   thread: Thread;
   isSeller: boolean;
   accent: "zinc" | "blue";
   onBack: () => void;
+  /** Yanıt gönderildi — konuşma süzgeçten düşse de seçili kalsın. */
+  onReplied: () => void;
 }) {
   const tr = useTranslations("web.panel.trade.inquiriesView");
   const activityLabel = useActivityLabel();
@@ -403,7 +532,14 @@ function ThreadPane({
     <div className="flex h-full min-h-[32rem] flex-col">
       {/* Konuşma başlığı */}
       <div className="flex items-start gap-3 border-b border-zinc-950/5 px-5 py-4">
-        <button type="button" onClick={onBack} className="mt-0.5 text-zinc-500 hover:text-zinc-900 lg:hidden" aria-label={tr("listeyeDon")}>
+        {/* Telefonda listeye dönmenin ekrandaki tek yolu → 44 px dokunma alanı
+            (mobil denetim g05/g08: 20x20 idi); ok aynı yerde durur. */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="-m-3 -mt-2.5 rounded-lg p-3 text-zinc-500 hover:text-zinc-900 lg:hidden"
+          aria-label={tr("listeyeDon")}
+        >
           <ArrowLeftIcon aria-hidden className="size-5" />
         </button>
         <div className="min-w-0 flex-1">
@@ -451,7 +587,7 @@ function ThreadPane({
         ) : null}
       </div>
 
-      {r ? <Composer inquiry={r} accent={accent} /> : null}
+      {r ? <Composer inquiry={r} accent={accent} onReplied={onReplied} /> : null}
     </div>
   );
 }
@@ -493,9 +629,20 @@ function Bubble({
   );
 }
 
-function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc" | "blue" }) {
+function Composer({
+  inquiry,
+  accent,
+  onReplied,
+}: {
+  inquiry: ReceivedInquiry;
+  accent: "zinc" | "blue";
+  onReplied: () => void;
+}) {
   const t = useTranslations("web.panel.trade.inquiriesView");
   const [body, setBody] = useState("");
+  // Dokunmatik cihazda kısayol yok (mesaj kutusuyla aynı kural, mobil denetim
+  // g08): Enter yeni satır, gönderim düğmeyle; "Ctrl+Enter" ipucu da yazılmaz.
+  const coarsePointer = useCoarsePointer();
   // Yanıt = "Bilgi taleplerini yanıtlama" işlem izni (API aynası); izinsiz okur.
   const canReply = useHasCompanyPermission("sell:inquiry:reply");
   const reply = useReplyInquiry();
@@ -526,6 +673,7 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
     try {
       await reply.mutateAsync({ id: inquiry.id, body });
       setBody("");
+      onReplied();
       toast.success(t("yanitinizGonderildi"));
     } catch (err) {
       // Sunucu hatasının toast'ını küresel yakalayıcı basar (403 dahil);
@@ -543,8 +691,11 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void send();
+          if (!modEnterSendsReply(e)) return;
+          e.preventDefault();
+          void send();
         }}
+        enterKeyHint="enter"
         rows={3}
         maxLength={5000}
         placeholder={t("yanitiniziYazin")}
@@ -558,7 +709,9 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
         {/* Ziyaretçi henüz kaydolmadıysa yanıtı okumak için hesap açması gerekiyor. */}
         <p className="text-xs text-zinc-500">
           {inquiry.hasAccount
-            ? t("yanitinizAlicininPanelindeGorunurCtrl")
+            ? coarsePointer
+              ? t("yanitinizAlicininPanelindeGorunur")
+              : t("yanitinizAlicininPanelindeGorunurCtrl")
             : t("ziyaretciyeYanitGeldiBildirimiGider")}
         </p>
         <button

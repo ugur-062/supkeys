@@ -21,7 +21,9 @@ import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
 import { Step2Items } from "@/components/tenders/wizard/step-2-items";
 import { CloseDaysInput, useCloseDaysGuard } from "@/components/tenders/close-days-input";
-import { hasInvalidNumber } from "@/components/ui/money-input";
+import { hasInvalidNumber, isInvalidNumber } from "@/components/ui/money-input";
+import { revealFirstInvalid, useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
+import { useTouchTyping } from "@/components/bids/use-touch-typing";
 import { AiImportDialog } from "@/components/tenders/ai-import/ai-import-dialog";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -78,7 +80,7 @@ import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGro
 import { Sparkles } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Controller, FormProvider, useForm } from "react-hook-form";
+import { Controller, FormProvider, useForm, type FieldPath } from "react-hook-form";
 import { toast } from "sonner";
 
 /** Üye daveti sonucu + ad (yayın paneli satır satır gösterir). */
@@ -457,26 +459,99 @@ export function QuickRequest({
   // Geçersiz "Özel gün" kutusu kaydı/yayını durdurur, kutuya odaklanır
   // (arayüz testi kalanlar NUM:NEW-7 — kutu kırmızıyken taslak öneki kaydediyordu).
   const closeDaysOk = useCloseDaysGuard();
+  // Doğrulama düşünce GEÇERSİZ ALANA git (mobil denetim 2026-10 g06): eskiden
+  // yayın bölümün başına kayıyordu (kategori 1.300 px aşağıda kalıyordu), taslak
+  // kaydı yalnız toast basıyordu (kırmızı miktar 4.000 px yukarıda). Alan
+  // hatayı bir sonraki çizimde alır → odak çizimden sonra, DOM sırasıyla.
+  const invalidFocus = useFocusFirstInvalid<HTMLDivElement>();
+  // Mobil: alt "Yayınla" çubuğu klavye açıkken gizlenir (mobil denetim
+  // smoke-buyer#new0) — teklif formuyla aynı kanca. Ekranın ortasındaki alana
+  // dokununca alan küçülen görünüm alanında kaldığı için tarayıcı kaydırmıyor,
+  // klavyenin üstüne binen sabit çubuk yazılan alanın ÜSTÜNE düşüyordu.
+  const touchTyping = useTouchTyping(invalidFocus.ref);
+  /**
+   * "Eksik: …" doğrulama toast'ı (mobil denetim smoke-buyer#new3): telefonda
+   * ekranın üstünde durur; kullanıcının bir sonraki dokunuşu çoğu zaman eksik
+   * alanı açmaktır (kategori penceresi) ve toast pencerenin başlığını ve
+   * kapat düğmesini 3–5 sn örtüyordu. Aynı ileti alanın altında satır içi
+   * duruyor → kullanıcı formda herhangi bir şeye dokunduğu an toast kapanır
+   * (form kökünde yakalama aşaması; portal pencereler de React ağacıyla gelir).
+   * Yeni doğrulama toast'ı eskisinin yerine geçer (yığılmaz).
+   *
+   * Yayınla'ya yeniden basmak HER ZAMAN tek güncel toast bırakır (mobil
+   * denetim v4new0): eskiden önce açık toast kapatılıp aynı metin yeniden
+   * isteniyordu; genel hata tekilleştirmesi (`lib/toast-dedupe.ts`, aynı düz
+   * metin 2,5 sn içinde) yeni isteği yutup KAPANAN toast'ın kimliğini
+   * döndürüyor, ekranda hiç toast kalmıyordu (masaüstünde form kökünün
+   * yakalayıcısı da Yayınla tıklamasında aynı şeyi yapıyordu). Şimdi:
+   * - Açık toast aynı iletiyi taşıyorsa YERİNDE yenilenir (aynı kimlik,
+   *   süre baştan; kapanıp yeniden açılmaz).
+   * - İleti farklıysa ya da toast kapandıysa (süre doldu, kullanıcı kapattı,
+   *   forma dokunuldu) eskisi kapatılır, YENİ kimlikle yenisi açılır — kimlik
+   *   her seferinde yenidir: kapanmakta olan toast'ın kimliğiyle yeniden
+   *   açılan toast sonner'da (1.7) kapanma işaretini devralıp görünmeden
+   *   silinebilir.
+   * - İleti sonner'a fonksiyon olarak verilir (aynı çizim): tekilleştirme
+   *   yalnız düz metni tanır; doğrulama toast'ı tekrarını kendisi yönetir.
+   * - Yayınla düğmeleri (`data-keeps-validation-toast`) form kökünün
+   *   "dokununca kapat" yakalayıcısını tetiklemez.
+   */
+  const validationToast = useRef<{ id: string | number; text: string } | null>(null);
+  const forgetValidationToast = (t: { id: string | number }) => {
+    if (validationToast.current?.id === t.id) validationToast.current = null;
+  };
+  const dismissValidationToast = () => {
+    const open = validationToast.current;
+    if (!open) return;
+    validationToast.current = null;
+    toast.dismiss(open.id);
+  };
+  const onFormClickCapture = (e: React.MouseEvent) => {
+    if (e.target instanceof Element && e.target.closest("[data-keeps-validation-toast]")) return;
+    dismissValidationToast();
+  };
+  const showValidationToast = (text: string) => {
+    const opts = { onAutoClose: forgetValidationToast, onDismiss: forgetValidationToast };
+    const open = validationToast.current;
+    if (open && open.text === text) {
+      toast.error(() => text, { ...opts, id: open.id });
+      return;
+    }
+    dismissValidationToast();
+    validationToast.current = { id: toast.error(() => text, opts), text };
+  };
   const publish = async () => {
     if (submitLock.current) return;
-    if (!closeDaysOk()) return;
+    // Yayınla tıklaması doğrulama toast'ını kendisi kapatmaz (yukarıda): yeni
+    // sonuç başka bir iletiyse ya da form artık geçerliyse eskisi burada kalkar.
+    if (!closeDaysOk()) {
+      dismissValidationToast();
+      return;
+    }
     submitLock.current = true;
     setSubmitting(true);
     try {
       ensureTitle();
       const ok = await form.trigger();
+      if (ok) dismissValidationToast();
       if (!ok) {
-        const errs = form.formState.errors;
+        // Hatalar CANLI durumdan: `form.formState` son çizimin kopyasıdır ve
+        // `trigger()` hataları yeni bir nesneye yazar — çizim araya girmezse
+        // ileti bir önceki basışın sonucunu söylüyordu (toast metni bir basış
+        // geriden gelir, aynı ileti "farklı" sayılıp kapanıp yeniden açılırdı).
+        const errs = form.control._formState.errors;
         const first = Object.keys(errs)[0];
         if (["deliveryTerm", "paymentCategory", "paymentDays", "advancePercent", "lcType", "paymentNote"].includes(first)) {
-          toast.error(tr("sagdakiTicariSartlarPanelindeTeslim"));
-          document.getElementById("sartlar-baslik")?.scrollIntoView({ behavior: "smooth", block: "center" });
+          showValidationToast(tr("sagdakiTicariSartlarPanelindeTeslim"));
+          document.getElementById("sartlar-baslik")?.scrollIntoView?.({ behavior: "smooth", block: "center" });
           return;
         }
         const section = ["items", "title", "categoryIds", "description"].includes(first) ? "talep-ne" : ["deliveryAddressId", "bidsCloseAt", "billingAddressId"].includes(first) ? "talep-nereye" : "talep-kime";
-        document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
         const msg = (errs[first as keyof typeof errs] as { message?: string } | undefined)?.message;
-        toast.error(msg ? tr("eksik", { msg }) : tr("eksikAlanlarVarIlgiliBolume"));
+        showValidationToast(msg ? tr("eksik", { msg }) : tr("eksikAlanlarVarIlgiliBolume"));
+        // İlk işaretli alan (kalem, başlık, kategori, kapanış…); işaretli alanı
+        // olmayan hata (kalem listesi kökü, davet tavanı) bölümün başına düşer.
+        invalidFocus.focusFirstInvalid(() => document.getElementById(section)?.scrollIntoView?.({ block: "start" }));
         return;
       }
       const values = getValues();
@@ -591,6 +666,11 @@ export function QuickRequest({
     // JSON'da null olur ve alan SESSİZCE boşalırdı (arayüz testi kapanış NUM).
     if (hasInvalidNumber(values) || hasInvalidNumber(terms)) {
       toast.error(tr("gecersizSayiAlani"));
+      // Geçersiz kutu kırmızı işaretli olmayabilir (dokunulmadan kaldı): yalnız
+      // o alanlar doğrulanır, sonra ilk işaretliye gidilir (mobil denetim g06).
+      const paths = invalidNumberPaths(values);
+      if (paths.length > 0) await form.trigger(paths as FieldPath<TenderFormData>[]);
+      invalidFocus.focusFirstInvalid();
       return;
     }
     submitLock.current = true;
@@ -709,6 +789,8 @@ export function QuickRequest({
     if (!closeDaysOk()) return false;
     if (hasInvalidNumber(next)) {
       toast.error(tr("gecersizSayiAlani"));
+      // Şart kutuları geçersiz metni kendileri işaretler — ilk şart kutusuna git.
+      revealFirstInvalid(invalidFocus.ref.current ?? document, "[data-request-defaults]");
       return false;
     }
     try {
@@ -849,8 +931,12 @@ export function QuickRequest({
 
   return (
     <FormProvider {...form}>
-      <div className="grid grid-cols-1 gap-6 pb-24 lg:grid-cols-[minmax(0,1fr)_21rem] lg:pb-0">
-        <div className="min-w-0 space-y-8">
+      <div ref={invalidFocus.ref} onClickCapture={onFormClickCapture} className="grid grid-cols-1 gap-6 pb-24 lg:grid-cols-[minmax(0,1fr)_21rem] lg:pb-0">
+        {/* `@container`: form sütunu VİEWPORT'a değil kendi genişliğine göre
+            dizilir (mobil denetim smoke-buyer#new1) — masaüstü 1024–1200 px'te
+            kenar menü + sağ ray sütunu 344–520 px'e indiriyor; viewport
+            kırılımları (`sm:` / `md:`) içeriği telefondan dar kutulara eziyordu. */}
+        <div className="@container min-w-0 space-y-8">
           {showSetup ? (
             <SetupCard
               value={terms}
@@ -948,11 +1034,13 @@ export function QuickRequest({
                       </label>
                       <input
                         id="talep-baslik"
+                        aria-invalid={form.formState.errors.title ? true : undefined}
+                        aria-describedby={form.formState.errors.title ? "talep-baslik-hata" : undefined}
                         {...form.register("title")}
                         placeholder={tr("orn34IncDikissiz")}
                         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                       />
-                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">{tr("bosBirakirsanizKalemlerdenTuretilir")}</p>}
+                      {form.formState.errors.title ? <p id="talep-baslik-hata" className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">{tr("bosBirakirsanizKalemlerdenTuretilir")}</p>}
                       <div className="mt-2">
                         <button
                           type="button"
@@ -972,7 +1060,9 @@ export function QuickRequest({
                         </button>
                       </div>
                     </div>
-                    <div>
+                    {/* Kategori seçicinin kendi `aria-invalid`'i yok: kap işaretlenir,
+                        "yayınla" hatasında odak seçici düğmesine gider. */}
+                    <div id="talep-kategori" className="scroll-mt-28" data-reveal-invalid={form.formState.errors.categoryIds ? "true" : undefined}>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
                         {tr("kategori")}
                         {/* Kategorisiz açılan yayındaki talepte zorunlu değil (R-WEB-01). */}
@@ -984,7 +1074,15 @@ export function QuickRequest({
                         render={({ field }) => (
                           <CategorySelectorButton
                             value={field.value}
-                            onChange={(ids) => field.onChange(ids.slice(0, 3))}
+                            onChange={(ids) => {
+                              field.onChange(ids.slice(0, 3));
+                              // Form `onTouched` kipinde; seçici `onBlur` çağırmaz →
+                              // "En az 1 kategori" hatası seçimden sonra da kalıyordu
+                              // (mobil denetim smoke-buyer#new2). Görünen hata seçim
+                              // anında yeniden doğrulanır; hatasız alana yeni hata
+                              // basılmaz (dokunulmamış alan kırmızıya dönmez).
+                              if (form.getFieldState("categoryIds").error) void form.trigger("categoryIds");
+                            }}
                             mode="multi"
                             maxSelection={3}
                             catalog="discovery"
@@ -1261,7 +1359,10 @@ export function QuickRequest({
                 </ul>
               </div>
             ) : null}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {/* Üç kart yan yana yalnız form sütunu ≥ 42rem iken (sütunun
+                `@container`'ı): masaüstü 1024 px'te kartlar 93 px'e iniyor, RU
+                "зарегистрированный" 1280'de kartın kenarından taşıyordu. */}
+            <div className="grid grid-cols-1 gap-2 @2xl:grid-cols-3">
               {(
                 [
                   { v: "PUBLIC", Icon: GlobeAltIcon },
@@ -1316,16 +1417,20 @@ export function QuickRequest({
             accent="blue"
             title={tr("belgeler")}
             lead={tr("sartnameTeknikResimSozlesmeTaslagi")}
-            status={docCount ? <Done>{tr("dosyaSayisi", { n: docCount })}</Done> : <span>{tr("istegeBagli")}</span>}
+            // "İsteğe bağlı" bir kez: açıklama zaten "İsteğe bağlı." ile
+            // bitiyor; ayrı küçük etiket telefonda başlığın altına iniyor ve
+            // başıboş bir alt yazı gibi okunuyordu (mobil denetim fix3
+            // r5-requests#new3). Durum yalnız dosya varken (sayı) çizilir.
+            status={docCount ? <Done>{tr("dosyaSayisi", { n: docCount })}</Done> : null}
           >
             {/* Düzenlemede mevcut belgeler listelenir, kaldırılır; yeni dosya hemen
                 yüklenir (O-087). Yeni talepte dosyalar kayıtta yüklenir. */}
-            {isEdit && listingId ? <FilesTab listingId={listingId} isOwner canEdit /> : <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />}
+            {isEdit && listingId ? <FilesTab listingId={listingId} isOwner canEdit embedded /> : <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />}
           </NumberedSection>
         </div>
 
         {/* SAĞ RAY */}
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-[calc(6rem+var(--safe-top))] lg:self-start">
           <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={seedKind === "edit" ? "listing" : seedKind === "seed" ? "seed" : (defaultsQ.data?.source ?? "none")} />
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
@@ -1376,7 +1481,7 @@ export function QuickRequest({
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
-                <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
+                <button type="button" id="talep-yayinla" data-keeps-validation-toast="" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
                   {busy ? tr("kaydediliyor") : isLiveEdit ? tr("degisiklikleriKaydet") : tr("talebiYayinla")}
                 </button>
                 {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">{tr("yayinIcinBaslikVeKategori")}</p> : null}
@@ -1398,12 +1503,24 @@ export function QuickRequest({
         </aside>
       </div>
 
-      {/* MOBİL YAPIŞKAN ÇUBUK */}
+      {/* MOBİL YAPIŞKAN ÇUBUK
+          - Dokunmatik cihazda bir metin alanı odaktayken (ekran klavyesi açık)
+            GİZLİ (`useTouchTyping`; teklif formuyla aynı).
+          - `data-sticky-cta`: görünürken kökün `scroll-padding-bottom`u
+            (globals.css) Sekme odağını çubuğun arkasından çıkarır; AI düğmesi
+            alt çubuğu bu işaretle de tanır. */}
       {canManage ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
+        <div
+          data-sticky-cta=""
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
+            touchTyping && "hidden",
+          )}
+        >
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
-            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" data-keeps-validation-toast="" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {isLiveEdit ? tr("kaydet") : tr("yayinla")}
             </button>
           </div>
@@ -1453,5 +1570,19 @@ function Skeleton() {
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
       </div>
     </div>
+  );
+}
+
+/**
+ * Form değerlerinde geçersiz sayı girişi (NaN / `INVALID_NUMBER_RAW`) taşıyan
+ * alan yolları — RHF adıyla ("items.0.quantity"). Taslak kaydı şemadan geçmez;
+ * dokunulmamış geçersiz kutu bu yollarla doğrulanıp kırmızıya boyanır.
+ */
+export function invalidNumberPaths(v: unknown, prefix = "", depth = 0): string[] {
+  if (isInvalidNumber(v)) return prefix ? [prefix] : [];
+  if (depth > 6 || v == null || typeof v !== "object") return [];
+  if (v instanceof Date || (typeof File !== "undefined" && v instanceof File)) return [];
+  return Object.entries(v as Record<string, unknown>).flatMap(([k, x]) =>
+    invalidNumberPaths(x, prefix ? `${prefix}.${k}` : k, depth + 1),
   );
 }

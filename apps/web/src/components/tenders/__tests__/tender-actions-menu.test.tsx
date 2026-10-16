@@ -248,3 +248,29 @@ describe("TenderActionsMenu — davet diyaloğu liste durumları (canlı doğrul
     expect(within(dialog).getByText("Bağlı firma yok.")).toBeInTheDocument();
   });
 });
+
+describe("TenderActionsMenu — davet diyaloğu telefonda (mobil denetim g07)", () => {
+  it("telefonda rozet ve kod adın altında (ad satırın tamamını alır); sm'den itibaren tek satır; kod ve rozet bölünmez", async () => {
+    const cls = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
+    render(<TenderActionsMenu {...base} status="OPEN" invitedCodes={["RTH-1"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tedarikçi Davet Et" }));
+    const dialog = await screen.findByRole("dialog");
+    const row = within(dialog).getByText("Alfa Metal").closest("label")!;
+    // Satır telefonda üste yaslı (onay kutusu adın ilk satırında), sm'den ortalı.
+    expect(cls(row)).toEqual(expect.arrayContaining(["items-start", "sm:items-center"]));
+    const name = within(row).getByText("Alfa Metal");
+    expect(cls(name)).toEqual(expect.arrayContaining(["min-w-0", "break-words", "sm:flex-1"]));
+    // Ad ve meta grubu: telefonda alt alta (sütun), sm'den yan yana.
+    const text = name.parentElement!;
+    expect(text.getAttribute("data-slot")).toBe("invite-row-text");
+    expect(cls(text)).toEqual(expect.arrayContaining(["flex", "min-w-0", "flex-1", "flex-col", "sm:flex-row"]));
+    const code = within(row).getByText("RTH-1");
+    const badge = within(row).getByText("Davetli");
+    expect(cls(code)).toContain("whitespace-nowrap");
+    expect(cls(badge)).toContain("whitespace-nowrap");
+    // Rozet ve kod aynı (ikinci) satırda, adın kardeşi olan grupta.
+    expect(code.parentElement).toBe(badge.parentElement);
+    expect(code.parentElement!.parentElement).toBe(text);
+    expect(cls(code.parentElement)).toContain("shrink-0");
+  });
+});

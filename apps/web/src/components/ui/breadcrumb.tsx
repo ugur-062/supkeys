@@ -51,7 +51,10 @@ export function Breadcrumb({
         {home ? (
           <>
             <li className="shrink-0">
-              <Link href={home.href} className="block text-zinc-400 transition hover:text-zinc-700">
+              {/* İkon 16 px kalır; dokunma alanı görünmez katmanla 44 px (mobil
+                  denetim 2026-10 g05: 16×16 px idi). Sağa 14 px uzanır — ayraç
+                  okunun üstünde biter, sonraki halkaya (24 px ötede) değmez. */}
+              <Link href={home.href} className="relative block text-zinc-400 transition after:absolute after:-inset-3.5 hover:text-zinc-700">
                 <HomeIcon aria-hidden className="size-4" />
                 <span className="sr-only">{home.label ?? t("home")}</span>
               </Link>

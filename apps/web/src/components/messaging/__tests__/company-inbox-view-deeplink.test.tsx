@@ -5,8 +5,8 @@
 // "Bir kişi seç"e düşüyor, mobilde geri butonu da kayboluyordu. Ayrıca
 // portalsız e-posta linki iki izinli kullanıcıda ters yöndeki boş konuşmayı
 // açıyordu.
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Portal = "satinalma" | "satis";
 interface ThreadRes {
@@ -52,13 +52,32 @@ vi.mock("@/components/messaging/company-message-thread", () => ({
     otherPartyId: string;
     otherPartyName: string;
   }) => (
-    <div data-testid="thread">
-      {p.portal}|{p.otherPartyId}|{p.otherPartyName}
+    <div>
+      <div data-testid="thread">
+        {p.portal}|{p.otherPartyId}|{p.otherPartyName}
+      </div>
+      <textarea aria-label="Mesaj kutusu" />
     </div>
   ),
 }));
 
-import { CompanyInboxView } from "../company-inbox-view";
+import { CompanyInboxView, INBOX_THREAD_STATE_KEY } from "../company-inbox-view";
+
+const originalMatchMedia = window.matchMedia;
+/** Ekran: `wide` = sm+ (liste ve sohbet yan yana); `coarse` = dokunmatik. */
+function setScreen({ wide = false, coarse = false }: { wide?: boolean; coarse?: boolean }) {
+  window.matchMedia = ((query: string) => ({
+    matches:
+      query === "(min-width: 40rem)" ? wide : query === "(pointer: coarse)" ? coarse : false,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as unknown as typeof window.matchMedia;
+}
+afterEach(() => {
+  window.matchMedia = originalMatchMedia;
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   h.search = "";
@@ -313,7 +332,9 @@ describe("CompanyInboxView — seçim adreste, erişilebilirlik, kesinti (arayü
     unread: false,
   };
 
-  it("listeden seçilen konuşma ?with=&portal= olarak adrese yazılır; geri dönüş temizler", () => {
+  it("listeden seçilen konuşma ?with=&portal= olarak adrese yazılır; geri dönüş temizler (yan yana düzen)", () => {
+    setScreen({ wide: true });
+    const push = vi.spyOn(window.history, "pushState");
     h.permissions = ["buy:view", "sell:view", "sell:bid:submit"];
     h.threads = { isLoading: false, data: [row] };
     render(<CompanyInboxView />);
@@ -321,7 +342,11 @@ describe("CompanyInboxView — seçim adreste, erişilebilirlik, kesinti (arayü
     const q = new URLSearchParams(window.location.search);
     expect(q.get("with")).toBe("buyerA");
     expect(q.get("portal")).toBe("satis");
-    fireEvent.click(screen.getByRole("button", { name: "← Kişiler" }));
+    // Yan yana düzende geçmiş şişmez (adres yerinde yazılır).
+    expect(push).not.toHaveBeenCalled();
+    // Sohbet çizilince mobil geri oku bağlam şeridinde (ayrı satır yok).
+    expect(screen.queryByRole("button", { name: "← Kişiler" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Kişilere dön" }));
     expect(window.location.search).toBe("");
   });
 
@@ -456,5 +481,223 @@ describe("CompanyInboxView — alıcı yönü Gold (arayüz testi O-123)", () =>
     fireEvent.click(screen.getByRole("button", { name: /Bağlı Firma/ }));
     expect(screen.getByRole("button", { name: "Alıcı olarak" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Satıcı olarak" })).toBeInTheDocument();
+  });
+});
+
+describe("CompanyInboxView — telefon düzeni (mobil denetim g04)", () => {
+  const row = {
+    portal: "satinalma",
+    threadId: "t1",
+    otherPartyId: "supA",
+    otherPartyName: "QA Tedarikçi Ltd. Şti.",
+    lastMessagePreview: "Merhaba",
+    lastMessageAt: "2026-09-29T08:00:00.000Z",
+    unread: true,
+  };
+
+  it("liste satırında rol rozeti telefonda önizleme satırına iner; ad kırpılmaz, sarar", () => {
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.threads = { isLoading: false, data: [row] };
+    render(<CompanyInboxView />);
+    const button = screen.getByRole("button", { name: /QA Tedarikçi Ltd\. Şti\./ });
+    const chips = Array.from(button.querySelectorAll("span")).filter((el) => el.textContent === "Alıcısınız");
+    // Ad satırında yalnız sm+ (telefonda gizli), önizleme satırında yalnız telefonda.
+    expect(chips.map((el) => el.className)).toEqual([
+      expect.stringMatching(/(^|\s)max-sm:hidden(\s|$)/),
+      expect.stringMatching(/(^|\s)sm:hidden(\s|$)/),
+    ]);
+    const name = screen.getByText("QA Tedarikçi Ltd. Şti.");
+    expect(name.className).toMatch(/(^|\s)max-sm:line-clamp-2(\s|$)/);
+    expect(name.className).toMatch(/(^|\s)sm:truncate(\s|$)/);
+  });
+
+  it("sohbet açıkken: sayfa başlığı telefonda çekilir, kutu dvh ile ekranı doldurur, geri oku ve yön seçicisi 40+ px", () => {
+    h.permissions = ["buy:view", "buy:listing:manage", "sell:view", "sell:bid:submit"];
+    h.threads = { isLoading: false, data: [row] };
+    const view = render(<CompanyInboxView />);
+    // PageHeader: kap > metin sütunu > başlık.
+    const header = () => screen.getByRole("heading", { name: "Mesajlar" }).parentElement!.parentElement!;
+    const grid = view.container.querySelector("div.grid") as HTMLElement;
+    // Liste görünümünde başlık durur; yükseklik vh değil dvh.
+    expect(header().className).not.toMatch(/sr-only/);
+    // Güvenli alanın üst/alt payı da düşülür (pay 0 iken 100dvh − 17rem).
+    expect(grid.className).toMatch(/h-\[calc\(100dvh-17rem-var\(--safe-top\)-var\(--safe-bottom\)\)\]/);
+    expect(grid.className).not.toMatch(/100vh/);
+
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi Ltd\. Şti\./ }));
+    // Başlık ekran okuyucu için durur, telefonda görsel olarak çekilir.
+    expect(header().className).toMatch(/(^|\s)max-sm:sr-only(\s|$)/);
+    // Kutu sayfanın üst payına çıkar (şerit üst çubuğun hemen altında) ve üst
+    // çubuk (3.5rem) + asistan düğmesinin alt payı (6rem) arasını doldurur.
+    expect(grid.className).toMatch(/max-sm:h-\[calc\(100dvh-9\.5rem-var\(--safe-top\)-var\(--safe-bottom\)\)\]/);
+    expect(grid.className).toMatch(/(^|\s)max-sm:-mt-6(\s|$)/);
+    expect(grid.className).toMatch(/(^|\s)max-sm:border-t-0(\s|$)/);
+    expect(grid.className).not.toMatch(/-mb-24/);
+
+    const back = screen.getByRole("button", { name: "Kişilere dön" });
+    expect(back.className).toMatch(/(^|\s)size-11(\s|$)/);
+    expect(back.className).toMatch(/(^|\s)sm:hidden(\s|$)/);
+    for (const name of ["Alıcı olarak", "Satıcı olarak"]) {
+      expect(screen.getByRole("button", { name }).className).toMatch(/(^|\s)max-sm:min-h-10(\s|$)/);
+    }
+    // Etkin yön programatik de okunur (telefonda cümle görsel olarak çekildi).
+    expect(screen.getByRole("button", { name: "Alıcı olarak" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Satıcı olarak" })).toHaveAttribute("aria-pressed", "false");
+    // Yön seçicisi varken cümle telefonda görsel olarak çekilir (bilgi seçicide).
+    expect(screen.getByText(/size satış yapıyor/).className).toMatch(/(^|\s)max-sm:sr-only(\s|$)/);
+  });
+
+  it("tek işlem rolünde seçici yok: cümle telefonda da görünür", () => {
+    h.permissions = ["buy:view", "buy:listing:manage"];
+    h.threads = { isLoading: false, data: [row] };
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi Ltd\. Şti\./ }));
+    expect(screen.getByText(/size satış yapıyor/).className).not.toMatch(/sr-only/);
+  });
+});
+
+/**
+ * Mobil denetim g04 (yeniden doğrulama): seçim adrese `replaceState` ile
+ * yazıldığı için Android Geri'si konuşmadan Mesajlar'dan ÖNCEKİ sayfaya
+ * gidiyordu; klavye açıkken mesaj listesine ~110 px kalıyordu.
+ */
+describe("CompanyInboxView — telefonda Geri listeye döner, yazarken kutu ekranı doldurur", () => {
+  const row = {
+    portal: "satinalma",
+    threadId: "t1",
+    otherPartyId: "supA",
+    otherPartyName: "QA Tedarikçi Ltd. Şti.",
+    lastMessagePreview: "Merhaba",
+    lastMessageAt: "2026-09-29T08:00:00.000Z",
+    unread: false,
+  };
+  beforeEach(() => {
+    h.permissions = ["buy:view", "buy:listing:manage"];
+    h.threads = { isLoading: false, data: [row] };
+  });
+
+  it("tek panelde listeden açılış geçmişe İŞARETLİ kayıt ekler; geri oku o kaydı geri alır", () => {
+    setScreen({ wide: false });
+    const push = vi.spyOn(window.history, "pushState");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const replace = vi.spyOn(window.history, "replaceState");
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push.mock.calls[0]![0]).toEqual({ [INBOX_THREAD_STATE_KEY]: true });
+    expect(new URLSearchParams(window.location.search).get("with")).toBe("supA");
+
+    replace.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Kişilere dön" }));
+    expect(back).toHaveBeenCalledTimes(1);
+    // Kayıt Geri ile düşer — üstüne liste adresi YAZILMAZ (İleri bozulmasın).
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("thread")).not.toBeInTheDocument();
+  });
+
+  it("Geri/İleri sonrası da işaret kayıtta: geri oku history.back() kullanır (yinelenen liste kaydı yok)", () => {
+    setScreen({ wide: false });
+    // İleri ile dönülen konuşma kaydı: işaret history.state'te durur.
+    window.history.replaceState({ [INBOX_THREAD_STATE_KEY]: true }, "", "/company/mesajlar?with=supA&portal=satinalma");
+    h.search = "with=supA&portal=satinalma";
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Kişilere dön" }));
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("derin bağlantı (işaretsiz kayıt): geri oku adresi yerinde temizler", () => {
+    setScreen({ wide: false });
+    window.history.replaceState(null, "", "/company/mesajlar?with=supA&portal=satinalma");
+    h.search = "with=supA&portal=satinalma";
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: "Kişilere dön" }));
+    expect(back).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("");
+  });
+
+  it("adres dışarıdan değişince (sistem Geri / İleri) görünüm izler", () => {
+    setScreen({ wide: false });
+    const view = render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    // Next `pushState`i `useSearchParams`e yansıtır — aynı seçim, dokunulmaz.
+    h.search = "with=supA&portal=satinalma";
+    view.rerender(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toHaveTextContent("satinalma|supA|");
+
+    // Sistem Geri'si: adres listeye döndü → sohbet kapanır.
+    h.search = "";
+    view.rerender(<CompanyInboxView />);
+    expect(screen.queryByTestId("thread")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /QA Tedarikçi/ })).toBeInTheDocument();
+
+    // İleri: konuşma yeniden açılır.
+    h.search = "with=supA&portal=satinalma";
+    view.rerender(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toHaveTextContent("satinalma|supA|");
+  });
+
+  it("listeye dönünce liste kaydırma konumu geri gelir", () => {
+    setScreen({ wide: false });
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const view = render(<CompanyInboxView />);
+    const scroller = () =>
+      screen.getByRole("button", { name: /QA Tedarikçi/ }).parentElement as HTMLElement;
+    scroller().scrollTop = 240;
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    // Gizlenen kap konumunu yitirir (tarayıcı).
+    scroller().scrollTop = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Kişilere dön" }));
+    expect(scroller().scrollTop).toBe(240);
+    view.unmount();
+  });
+
+  it("yazarken (telefon/dokunmatik + metin alanı odakta) kutu asistan payını da kaplar", () => {
+    setScreen({ wide: false, coarse: true });
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const view = render(<CompanyInboxView />);
+    const grid = view.container.querySelector("div.grid") as HTMLElement;
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    const box = screen.getByRole("textbox", { name: "Mesaj kutusu" });
+
+    act(() => box.focus());
+    expect(grid.className).toMatch(/(^|\s)max-sm:-mb-24(\s|$)/);
+    expect(grid.className).toMatch(/max-sm:h-\[calc\(100dvh-3\.5rem-var\(--safe-top\)-var\(--safe-bottom\)\)\]/);
+    // Üst kenar yerinde (geri oku ve yön seçicisi kaymaz).
+    expect(grid.className).toMatch(/(^|\s)max-sm:-mt-6(\s|$)/);
+
+    act(() => box.blur());
+    expect(grid.className).not.toMatch(/-mb-24/);
+    expect(grid.className).toMatch(/max-sm:h-\[calc\(100dvh-9\.5rem/);
+
+    // Masaüstü (ince işaretçi, geniş ekran): yazmak düzeni değiştirmez.
+    setScreen({ wide: true, coarse: false });
+    act(() => box.focus());
+    expect(grid.className).not.toMatch(/-mb-24/);
+  });
+
+  it("odaktaki kutu blur'suz kalkınca (sistem Geri) sonraki açılış asistan payını kaplamaz", () => {
+    setScreen({ wide: false, coarse: true });
+    const view = render(<CompanyInboxView />);
+    const grid = view.container.querySelector("div.grid") as HTMLElement;
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    h.search = "with=supA&portal=satinalma";
+    view.rerender(<CompanyInboxView />);
+    act(() => screen.getByRole("textbox", { name: "Mesaj kutusu" }).focus());
+    expect(grid.className).toMatch(/(^|\s)max-sm:-mb-24(\s|$)/);
+
+    // Sistem Geri'si: kutu odaktayken sohbet kalkar (blur her tarayıcıda gelmez).
+    h.search = "";
+    view.rerender(<CompanyInboxView />);
+    expect(screen.queryByTestId("thread")).not.toBeInTheDocument();
+
+    // Yeniden açılış: kutu odakta değil → asistan düğmesi görünür, pay boş kalmalı.
+    fireEvent.click(screen.getByRole("button", { name: /QA Tedarikçi/ }));
+    expect(screen.getByTestId("thread")).toBeInTheDocument();
+    expect(grid.className).not.toMatch(/-mb-24/);
+    expect(grid.className).toMatch(/max-sm:h-\[calc\(100dvh-9\.5rem/);
   });
 });

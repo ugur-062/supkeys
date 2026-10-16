@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useNumberField } from "@/components/ui/number-input";
+import { revealInvalidControl } from "@/lib/company-auth/use-focus-first-invalid";
 import { cn } from "@/lib/utils";
 
 /** Kutuyu kayıt kapısının bulabilmesi için işaret (`useCloseDaysGuard`). */
@@ -116,8 +117,10 @@ export function useCloseDaysGuard() {
       const el = root.querySelector<HTMLInputElement>(`input[${CLOSE_DAYS_ATTR}][aria-invalid="true"]`);
       if (!el) return true;
       toast.error(t("ozelGunAraligi", { max: Number(el.dataset.max) }));
-      el.scrollIntoView?.({ behavior: "smooth", block: "center" });
-      el.focus();
+      // Önce kaydırmasız odak, sonra anında kaydırma (mobil denetim 2026-10 g06):
+      // eski yumuşak kaydırma + düz `focus()` kaydırmayı kesiyor, kutu sabit üst
+      // çubuğun altında (y = 0) kalıyordu.
+      revealInvalidControl(el);
       return false;
     },
     [t],

@@ -6,8 +6,8 @@
  * yoksa kurulum kartı çıkar.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   defaults: { data: undefined as unknown, isLoading: false } as {
@@ -535,6 +535,20 @@ describe("QuickRequest", () => {
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {
     wrap(<QuickRequest />);
     expect(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" })).toBeInTheDocument();
+  });
+
+  // Mobil denetim fix3 r5-requests#new3: açıklama "İsteğe bağlı." ile
+  // bitiyordu ve hemen altında ayrı küçük "isteğe bağlı" etiketi vardı
+  // (telefonda başıboş bir alt yazı gibi). Tek ipucu kalır; dosya eklenince
+  // durum yine sayıyı gösterir.
+  it("4. bölüm (Belgeler) 'isteğe bağlı'yı bir kez söyler; dosya eklenince sayı görünür", async () => {
+    wrap(<QuickRequest />);
+    const section = (await screen.findByRole("heading", { name: "Belgeler" })).closest("section")!;
+    const head = within(section).getByRole("heading", { name: "Belgeler" }).closest("div")!.parentElement!.parentElement!;
+    expect(head.textContent?.match(/[iİ]steğe bağlı/g) ?? []).toHaveLength(1);
+    expect(within(section).queryByText("isteğe bağlı")).toBeNull();
+    fireEvent.click(within(section).getByRole("button", { name: "Test belgesi ekle" }));
+    expect(within(section).getByText(/1 dosya/)).toBeInTheDocument();
   });
 
   it("D-246: profil yoksa ve hiç bağlantı yoksa varsayılan görünürlük 'Herkese açık'; kayıtlı şart ezilmez", async () => {
@@ -1190,4 +1204,322 @@ describe("QuickRequest", () => {
       expect(body.closesAt).toBeTruthy();
     }, 30_000);
   });
+});
+
+/**
+ * MOBİL DENETİM 2026-10 g06: doğrulama düşünce sayfa GEÇERSİZ ALANA gider.
+ * Eskiden yayın 1. bölümün başına kayıyordu (kategori 1.300 px aşağıda kalıyordu),
+ * taslak kaydı yalnız toast basıyordu (kırmızı miktar 4.000 px yukarıda).
+ */
+describe("QuickRequest — geçersiz alana git (mobil denetim g06)", () => {
+  const scroll = vi.fn();
+  const original = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    scroll.mockReset();
+    Element.prototype.scrollIntoView = scroll;
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+
+  it("yayın: kategori eksikse odak kategori seçicisine gider ve alan ortalanır (bölüm başı değil)", async () => {
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    const pick = screen.getByRole("button", { name: "Kategori seç" });
+    await waitFor(() => expect(document.activeElement).toBe(pick));
+    const kategori = document.getElementById("talep-kategori");
+    expect(kategori).toHaveAttribute("data-reveal-invalid", "true");
+    expect(scroll.mock.contexts).toContain(kategori);
+    expect(scroll).toHaveBeenCalledWith({ block: "center" });
+    // Bölümün başına kaydırma (eski davranış) yapılmaz.
+    expect(scroll.mock.contexts).not.toContain(document.getElementById("talep-ne"));
+    expect(h.create).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it("taslak: dokunulmamış geçersiz miktar kırmızıya boyanır, odak ve kaydırma ona gider", async () => {
+    const toastError = vi.spyOn(toast, "error");
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      const qty = screen.getByLabelText(/^Miktar/);
+      fireEvent.change(qty, { target: { value: "" } });
+      expect(qty).not.toHaveAttribute("aria-invalid");
+      fireEvent.click(screen.getByRole("button", { name: "Taslak kaydet" }));
+      expect(toastError).toHaveBeenCalledWith("Bazı sayı alanları geçersiz (kırmızı işaretli). Düzeltip yeniden deneyin.");
+      await waitFor(() => expect(document.activeElement).toBe(qty));
+      expect(qty).toHaveAttribute("aria-invalid", "true");
+      expect(scroll).toHaveBeenCalled();
+      expect(h.create).not.toHaveBeenCalled();
+    } finally {
+      toastError.mockRestore();
+    }
+  }, 30_000);
+});
+
+/**
+ * MOBİL DENETİM fix4 (s2-requests): klavye açıkken alt çubuk, kategori hatası,
+ * doğrulama toast'ı.
+ */
+describe("QuickRequest — mobil denetim fix4", () => {
+  const scroll = vi.fn();
+  const original = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    scroll.mockReset();
+    Element.prototype.scrollIntoView = scroll;
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+
+  /** Dokunmatik cihaz (birincil işaretçi kaba) sahtesi; testten sonra geri alınır. */
+  function withCoarsePointer(): () => void {
+    const prev = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === "(pointer: coarse)",
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = prev;
+    };
+  }
+  const stickyBar = () => document.querySelector<HTMLElement>("[data-sticky-cta]")!;
+  const barClasses = () => stickyBar().className.split(/\s+/);
+
+  // smoke-buyer#new0: klavye açıkken ekranın ortasındaki alan küçülen görünüm
+  // alanında kaldığı için tarayıcı kaydırmıyor, sabit "Yayınla" çubuğu yazılan
+  // alanın ÜSTÜNE düşüyordu (360 px'te "Kalem Adı" 368–412, çubuk 368–429).
+  it("alt çubuk data-sticky-cta taşır; dokunmatik cihazda metin alanı odaktayken gizlenir, odak çıkınca geri gelir", async () => {
+    const restore = withCoarsePointer();
+    try {
+      wrap(<QuickRequest />);
+      const name = await screen.findByLabelText(/^Kalem Adı/);
+      expect(within(stickyBar()).getByRole("button", { name: "Talebi yayınla (mobil)" })).toBeInTheDocument();
+      expect(barClasses()).toEqual(expect.arrayContaining(["fixed", "inset-x-0", "bottom-0", "lg:hidden"]));
+      expect(barClasses()).not.toContain("hidden");
+      act(() => name.focus());
+      await waitFor(() => expect(barClasses()).toContain("hidden"));
+      // Açıklama kutusu da klavye açar → çubuk gizli kalır.
+      act(() => screen.getByLabelText(/^Açıklama/).focus());
+      await waitFor(() => expect(barClasses()).toContain("hidden"));
+      // Klavye açmayan denetim (görünürlük kartı düğmesi) → çubuk geri gelir.
+      act(() => screen.getByRole("button", { name: /^Herkese açık/ }).focus());
+      await waitFor(() => expect(barClasses()).not.toContain("hidden"));
+    } finally {
+      restore();
+    }
+  }, 30_000);
+
+  it("fareli cihazda (kaba işaretçi yok) yazarken çubuk yerinde kalır", async () => {
+    wrap(<QuickRequest />);
+    const name = await screen.findByLabelText(/^Kalem Adı/);
+    act(() => name.focus());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(barClasses()).not.toContain("hidden");
+  }, 30_000);
+
+  // smoke-buyer#new2: form `onTouched` kipinde ve seçici `onBlur` çağırmıyor —
+  // "En az 1 kategori seçmelisiniz" kategori seçildikten sonra da kalıyordu.
+  it("yayında çıkan kategori hatası kategori seçilir seçilmez kalkar; hatasız alanda boşaltma yeni hata basmaz", async () => {
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    const kategori = document.getElementById("talep-kategori")!;
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    expect(await within(kategori).findByText("En az 1 kategori seçmelisiniz")).toBeInTheDocument();
+    expect(kategori).toHaveAttribute("data-reveal-invalid", "true");
+    fireEvent.click(within(kategori).getByRole("button", { name: "Kategori seç" }));
+    await waitFor(() => expect(within(kategori).queryByText("En az 1 kategori seçmelisiniz")).toBeNull());
+    expect(kategori).not.toHaveAttribute("data-reveal-invalid");
+    expect(h.create).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it("dokunulmamış kategori alanında seçip boşaltmak kırmızı hata basmaz (yalnız görünen hata yeniden doğrulanır)", async () => {
+    wrap(<QuickRequest />);
+    await screen.findByLabelText(/^Kalem Adı/);
+    const kategori = document.getElementById("talep-kategori")!;
+    fireEvent.click(within(kategori).getByRole("button", { name: "Kategori seç" }));
+    fireEvent.click(await within(kategori).findByRole("button", { name: "Kategorileri boşalt" }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(within(kategori).queryByText("En az 1 kategori seçmelisiniz")).toBeNull();
+    expect(kategori).not.toHaveAttribute("data-reveal-invalid");
+  }, 30_000);
+
+  // smoke-buyer#new3: "Eksik: …" toast'ı telefonda ekranın üstünde 3–5 sn
+  // kalıp bir sonraki dokunuşla açılan kategori penceresinin başlığını ve
+  // kapat düğmesini örtüyordu. İleti alanın altında satır içi duruyor.
+  // v4new0: Yayınla'ya yeniden basmak açık toast'ı kapatmaz — aynı ileti
+  // YERİNDE yenilenir (aynı kimlik), kapanmış toast'ın yerine YENİ kimlik.
+  it("doğrulama toast'ı formda ilk dokunuşta kapanır; Yayınla'ya yeniden basmak açık toast'ı yerinde yeniler", async () => {
+    const toastError = vi.spyOn(toast, "error");
+    const toastDismiss = vi.spyOn(toast, "dismiss");
+    const textOf = (call: unknown[]) => (typeof call[0] === "function" ? (call[0] as () => unknown)() : call[0]);
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      toastDismiss.mockClear();
+      // Toast yokken forma dokunmak hiçbir toast'ı kapatmaz.
+      const title = document.getElementById("talep-baslik")!;
+      fireEvent.click(title);
+      expect(toastDismiss).not.toHaveBeenCalled();
+      fireEvent.click(within(stickyBar()).getByRole("button", { name: "Talebi yayınla (mobil)" }));
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+      expect(textOf(toastError.mock.calls[0])).toBe("Eksik: En az 1 kategori seçmelisiniz");
+      const first = toastError.mock.results.at(-1)!.value as string | number;
+      // Alt çubuktan ikinci deneme, aynı ileti: kapatılmaz, aynı kimlikle yenilenir.
+      fireEvent.click(within(stickyBar()).getByRole("button", { name: "Talebi yayınla (mobil)" }));
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(2));
+      expect(toastDismiss).not.toHaveBeenCalled();
+      expect(toastError.mock.calls[1][1]).toMatchObject({ id: first });
+      expect(textOf(toastError.mock.calls[1])).toBe("Eksik: En az 1 kategori seçmelisiniz");
+      // Sağ raydaki Yayınla (form kökünün İÇİ): kökün "dokununca kapat"ı çalışmaz.
+      fireEvent.click(document.getElementById("talep-yayinla")!);
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(3));
+      expect(toastDismiss).not.toHaveBeenCalled();
+      expect(toastError.mock.calls[2][1]).toMatchObject({ id: first });
+      // Kullanıcı eksik alana dokunur (kategori penceresini açar) → toast kapanır.
+      fireEvent.click(within(document.getElementById("talep-kategori")!).getByRole("button", { name: "Kategori seç" }));
+      expect(toastDismiss).toHaveBeenCalledTimes(1);
+      expect(toastDismiss).toHaveBeenCalledWith(first);
+      // Kapanmış toast ikinci kez kapatılmaz.
+      fireEvent.click(title);
+      expect(toastDismiss).toHaveBeenCalledTimes(1);
+    } finally {
+      toastError.mockRestore();
+      toastDismiss.mockRestore();
+    }
+  }, 30_000);
+
+  it("farklı ileti açık toast'ın yerine geçer; kapanmış toast'ın yerine yeni kimlik; form geçerliyse eski toast kalkar", async () => {
+    const toastError = vi.spyOn(toast, "error");
+    const toastDismiss = vi.spyOn(toast, "dismiss");
+    const textOf = (call: unknown[]) => (typeof call[0] === "function" ? (call[0] as () => unknown)() : call[0]);
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      // Kategori seçilir (toast yokken), sonra yalnız klavyeyle (tıklamasız)
+      // başlık kısaltılır ve miktar sıfırlanır.
+      fireEvent.click(within(document.getElementById("talep-kategori")!).getByRole("button", { name: "Kategori seç" }));
+      const title = document.getElementById("talep-baslik")!;
+      fireEvent.change(title, { target: { value: "ab" } });
+      fireEvent.change(screen.getByLabelText(/^Miktar/), { target: { value: "0" } });
+      toastDismiss.mockClear();
+      const publishBar = () => within(stickyBar()).getByRole("button", { name: "Talebi yayınla (mobil)" });
+      fireEvent.click(publishBar());
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+      expect(textOf(toastError.mock.calls[0])).toBe("Eksik: Satın Alma Talebi adı en az 3 karakter olmalı");
+      const first = toastError.mock.results.at(-1)!.value as string | number;
+      // Başlık düzelir → bu kez kalem hatası: başka ileti, eskisi kapanır, yeni kimlik.
+      fireEvent.change(title, { target: { value: "Çelik boru alımı" } });
+      fireEvent.click(publishBar());
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(2));
+      expect(textOf(toastError.mock.calls[1])).not.toBe(textOf(toastError.mock.calls[0]));
+      expect(toastDismiss).toHaveBeenCalledWith(first);
+      const second = toastError.mock.results.at(-1)!.value as string | number;
+      expect(second).not.toBe(first);
+      expect(toastError.mock.calls[1][1]).not.toHaveProperty("id");
+      // Forma dokunulur (toast kapanır), sonra aynı ileti yeniden: yeni kimlik.
+      fireEvent.click(title);
+      expect(toastDismiss).toHaveBeenLastCalledWith(second);
+      fireEvent.click(publishBar());
+      await waitFor(() => expect(toastError).toHaveBeenCalledTimes(3));
+      const third = toastError.mock.results.at(-1)!.value as string | number;
+      expect(third).not.toBe(second);
+      expect(toastError.mock.calls[2][1]).not.toHaveProperty("id");
+      expect(textOf(toastError.mock.calls[2])).toBe(textOf(toastError.mock.calls[1]));
+      // Miktar düzelir → form geçerli: eski doğrulama toast'ı kalkar.
+      fireEvent.change(screen.getByLabelText(/^Miktar/), { target: { value: "5" } });
+      fireEvent.click(publishBar());
+      await waitFor(() => expect(toastDismiss).toHaveBeenLastCalledWith(third));
+    } finally {
+      toastError.mockRestore();
+      toastDismiss.mockRestore();
+    }
+  }, 30_000);
+
+  it("form sütunu ve kalem listesi kap sorgusu kabı; görünürlük kartları viewport'a değil sütuna göre yan yana", async () => {
+    wrap(<QuickRequest />);
+    const name = await screen.findByLabelText(/^Kalem Adı/);
+    const column = document.getElementById("talep-ne")!.parentElement!;
+    expect(column.className.split(/\s+/)).toEqual(expect.arrayContaining(["@container", "min-w-0"]));
+    expect(name.closest(".\\@container")).not.toBe(column);
+    const cards = screen.getByRole("button", { name: /^Herkese açık/ }).parentElement!;
+    expect(cards.className.split(/\s+/)).toEqual(expect.arrayContaining(["grid-cols-1", "@2xl:grid-cols-3"]));
+    expect(cards.className).not.toMatch(/(^|\s)sm:grid-cols/);
+  }, 30_000);
+});
+
+describe("invalidNumberPaths", () => {
+  it("geçersiz sayı taşıyan alanların RHF yollarını verir", async () => {
+    const { invalidNumberPaths } = await import("../quick-request");
+    expect(
+      invalidNumberPaths({ title: "x", items: [{ quantity: 2 }, { quantity: Number.NaN, warrantyMonths: "NaN" }], advancePercent: 10 }),
+    ).toEqual(["items.1.quantity", "items.1.warrantyMonths"]);
+    expect(invalidNumberPaths({ a: 1, b: [1, 2] })).toEqual([]);
+  });
+});
+
+/**
+ * MOBİL DENETİM v4new0 — gerçek sonner `Toaster` + uygulamanın genel hata
+ * tekilleştirmesi (`installToastDedupe`, aynı düz metin 2,5 sn içinde yutulur)
+ * açıkken: Yayınla'ya art arda basmak HER ZAMAN tek güncel doğrulama toast'ı
+ * bırakır. Eskiden ikinci basış açık toast'ı kapatıp aynı metni yeniden
+ * istiyordu; tekilleştirme isteği yutup kapanan toast'ın kimliğini
+ * döndürüyor, ekranda hiç toast kalmıyordu (2,5 sn'den kısa her aralıkta).
+ *
+ * Bu blok dosyanın SONUNDA: tekilleştirme `toast.error`ı modül ömrünce sarar.
+ */
+describe("QuickRequest — doğrulama toast'ı (gerçek Toaster + tekilleştirme)", () => {
+  const stickyBar = () => document.querySelector<HTMLElement>("[data-sticky-cta]")!;
+  /** Kapanma animasyonundaki (`data-removed`) toast'lar sayılmaz. */
+  const liveToasts = () => [...document.querySelectorAll<HTMLElement>('[data-sonner-toast]:not([data-removed="true"])')];
+  const MSG = "Eksik: En az 1 kategori seçmelisiniz";
+
+  async function expectSingleToast() {
+    // Sonner yeni/yenilenen toast'ı bir sonraki görevde çizer; kapanan
+    // toast 200 ms sonra DOM'dan çıkar → biraz bekleyip durumu ölç.
+    await act(() => new Promise((r) => setTimeout(r, 300)));
+    const live = liveToasts();
+    expect(live).toHaveLength(1);
+    expect(live[0]).toHaveTextContent(MSG);
+  }
+
+  it("alt çubuk ve sağ ray Yayınla'sına art arda basmak tek toast bırakır; forma dokunup yeniden basınca toast yeniden çıkar", async () => {
+    const { Toaster } = await import("sonner");
+    const { installToastDedupe } = await import("@/lib/toast-dedupe");
+    installToastDedupe();
+    wrap(
+      <>
+        <Toaster />
+        <QuickRequest />
+      </>,
+    );
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    const publishBar = () => within(stickyBar()).getByRole("button", { name: "Talebi yayınla (mobil)" });
+    const publishRail = () => document.getElementById("talep-yayinla")!;
+
+    fireEvent.click(publishBar());
+    await waitFor(() => expect(liveToasts()).toHaveLength(1));
+    await expectSingleToast();
+    // Telefon: alt çubuk (form kökünün dışı), 2,5 sn'den kısa aralıkla.
+    fireEvent.click(publishBar());
+    await expectSingleToast();
+    // Masaüstü: sağ raydaki düğme (form kökünün içi — kökün yakalayıcısı).
+    fireEvent.click(publishRail());
+    await expectSingleToast();
+    fireEvent.click(publishRail());
+    await expectSingleToast();
+    // Forma dokunmak toast'ı kapatır…
+    fireEvent.click(document.getElementById("talep-baslik")!);
+    await waitFor(() => expect(liveToasts()).toHaveLength(0));
+    // …hemen ardından (tekilleştirme penceresi içinde) Yayınla yeniden: toast çıkar.
+    fireEvent.click(publishBar());
+    await waitFor(() => expect(liveToasts()).toHaveLength(1));
+    await expectSingleToast();
+  }, 30_000);
 });

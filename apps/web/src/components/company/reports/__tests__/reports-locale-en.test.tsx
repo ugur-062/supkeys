@@ -5,7 +5,7 @@
  * raporu kalem detayında Türkçe saklanan birim ("adet") katalogdan çevrilir.
  * Bu dosya next-intl sahtesini EN katalogla kurar.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -150,8 +150,12 @@ describe("SavingsReportView — EN", () => {
     };
     render(<SavingsReportView type="ALIM" basePath="/company/raporlar" />);
     await user.click(screen.getByRole("button", { name: /^Line item detail: / }));
-    expect(screen.getByText("(piece)")).toBeInTheDocument();
+    // sm+ iç tablo ve telefon kart listesi (mobil denetim g10-04) aynı biçimi kullanır.
+    for (const id of ["savings-items-table", "savings-items-list"]) {
+      const scope = within(screen.getByTestId(id));
+      expect(scope.getByText("(piece)")).toBeInTheDocument();
+      expect(scope.getByText("1,500")).toBeInTheDocument();
+    }
     expect(screen.queryByText("(adet)")).not.toBeInTheDocument();
-    expect(screen.getByText("1,500")).toBeInTheDocument();
   });
 });

@@ -82,13 +82,14 @@ export function EditorRail({
               <ExclamationTriangleIcon aria-hidden className="size-4" />
               {t("onayaGondermekIcinGerekli")}
             </p>
-            <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            <ul className="mt-1.5 flex flex-wrap gap-2 sm:gap-1.5">
               {blockers.map((b) => (
                 <li key={typeof b === "string" ? b : b.code}>
                   <button
                     type="button"
                     onClick={() => onJump?.(sectionFor(b))}
-                    className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset hover:bg-amber-100"
+                    // Telefonda 32 px yüksek (parmakla vurulur); sm'den itibaren eski boyut.
+                    className="inline-flex min-h-8 items-center rounded-full bg-amber-50 px-2.5 py-1 text-left text-xs font-medium text-amber-900 ring-1 ring-amber-600/20 ring-inset hover:bg-amber-100 sm:min-h-0"
                   >
                     {blockerLabel(b)}
                   </button>

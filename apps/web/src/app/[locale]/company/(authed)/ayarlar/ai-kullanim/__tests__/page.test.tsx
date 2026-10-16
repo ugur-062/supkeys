@@ -119,3 +119,32 @@ describe("AiKullanimPage", () => {
     expect(screen.queryByText("Bütçe doldu — AI kapalı")).toBeNull();
   });
 });
+
+// Mobil denetim 2026-10 g11: tam e-posta ilk sütunu ~305 px'e çıkarıyor, İstek ve
+// Havuz payı telefonda ekranın dışına itiliyordu.
+describe("AiKullanimPage — kırılım tabloları telefonda", () => {
+  it("e-posta ve özellik adı telefonda sarar (sayı sütunları kaydırmadan görünür); sm ve üstü tek satır", () => {
+    h.data = company({
+      byUser: [{ userId: "u1", userEmail: "uguray156+qa-alici-satinalmaci@gmail.com", requests: 61, percentOfPool: 12.5 }],
+      byFeature: [{ feature: "tender_extract", requests: 7, percentOfPool: 3 }],
+    });
+    render(<AiKullanimPage />);
+    const email = screen.getByText("uguray156+qa-alici-satinalmaci@gmail.com");
+    expect(email.tagName).toBe("TD");
+    expect(email.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["max-sm:whitespace-normal", "max-sm:[overflow-wrap:anywhere]"]),
+    );
+    expect(email.className.split(/\s+/)).not.toContain("whitespace-normal");
+    const featureCell = screen.getAllByRole("row").at(-1)!.querySelector("td")!;
+    expect(featureCell.className.split(/\s+/)).toContain("max-sm:whitespace-normal");
+    // Sayı sütunlarının aralığı telefonda 8 px: RU başlıkları (sarmaz) 16 px
+    // aralıkla 360 px'te 2 px yatay kaydırma bırakıyordu.
+    for (const name of ["İstek", "Havuz payı"]) {
+      for (const th of screen.getAllByRole("columnheader", { name })) {
+        expect(th.className.split(/\s+/)).toContain("max-sm:px-2");
+      }
+    }
+    expect(screen.getByText("61").className.split(/\s+/)).toContain("max-sm:px-2");
+    expect(email.className.split(/\s+/)).toContain("max-sm:pr-2");
+  });
+});

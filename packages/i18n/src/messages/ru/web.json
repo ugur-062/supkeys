@@ -13,6 +13,7 @@
       "howItWorks": "Как это работает",
       "login": "Войти",
       "signup": "Бесплатная регистрация",
+      "signupCompact": "Регистрация",
       "openMenu": "Открыть меню",
       "menu": "Меню",
       "siteMenu": "Меню сайта",
@@ -804,11 +805,13 @@
     },
     "search": {
       "placeholder": "Что Вы ищете? (товар, услуга, материал)",
+      "placeholderShort": "Что Вы ищете?",
       "ariaLabel": "Поиск по площадке",
       "submit": "Найти"
     },
     "typeahead": {
       "productsPlaceholder": "Поиск товаров, брендов или артикулов",
+      "productsPlaceholderShort": "Товар или бренд",
       "companiesPlaceholder": "Название компании, отрасль или услуга",
       "listingsLabel": "Запросы",
       "listingsPlaceholder": "Название запроса или категория",
@@ -969,6 +972,7 @@
       "joinFree": "Присоединиться бесплатно",
       "login": "Войти",
       "listingPlaceholder": "Поиск по названию запроса, позиции или категории",
+      "listingPlaceholderShort": "Запрос или позиция",
       "listingResults": "Результаты: запросы",
       "results": "Результаты",
       "productsEmptyTitle": "По этим критериям товары не найдены.",
@@ -1452,8 +1456,8 @@
     },
     "kdvHaricNote": "Все цены указаны без НДС. Платформа не выставляет счета; НДС стороны применяют в собственных счетах-фактурах.",
     "lcType": {
-      "SIGHT": "По предъявлении (sight) — оплата при предъявлении документов",
-      "USANCE": "С отсрочкой платежа (usance)"
+      "SIGHT": "По предъявлении (sight)",
+      "USANCE": "С отсрочкой (usance)"
     },
     "transportMode": {
       "ROAD": "Автотранспорт",
@@ -1593,10 +1597,11 @@
       "IDARI_SARTNAME": "Административная спецификация",
       "TEKNIK_SARTNAME": "Техническая спецификация",
       "SOZLESME": "Проект договора",
-      "EK": "Приложение / Чертёж",
-      "NUMUNE": "Образец / Изображение",
+      "EK": "Приложение / чертёж",
+      "NUMUNE": "Образец / изображение",
       "DIGER": "Прочее"
     },
+    "listingDocKindField": "Раздел для файла",
     "orderStatus": {
       "PENDING": "Ожидает подтверждения",
       "ACCEPTED": "Подтверждён",
@@ -2020,7 +2025,10 @@
       "kvkk": "Я ознакомился(ась) с <a>уведомлением KVKK</a>",
       "kvkkProviders": "(обработчики данных за пределами Турции: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Улучшение профиля и сервиса (необязательно)",
-      "marketing": "Маркетинг и аналитика / коммерческие рассылки (необязательно)"
+      "marketing": "Маркетинг и аналитика / коммерческие рассылки (необязательно)",
+      "readTerms": "Пользовательское соглашение",
+      "readMediation": "Соглашение о посредничестве",
+      "readKvkk": "Уведомление KVKK"
     },
     "pwRules": {
       "len": "Не менее 10 символов",
@@ -2499,7 +2507,10 @@
         "onumuzdeki30GununOdemeYukuCur": "Платёжная нагрузка на ближайшие 30 дней (по неделям, в {currency})",
         "hedefFiyataGoreCur": "относительно целевой цены · в {currency}",
         "analitikAlinamadi": "Не удалось загрузить данные графиков",
-        "saatAlti": "<1 часа"
+        "saatAlti": "<1 часа",
+        "sirala": "Сортировка:",
+        "siraArtan": "по возрастанию",
+        "siraAzalan": "по убыванию"
       },
       "satisChartTabs": {
         "gelirTrendi": "Динамика выручки",
@@ -2518,6 +2529,9 @@
         "satisHunisi": "Воронка продаж",
         "davetAdetSonrakiAsamalarCur": "Приглашения — по количеству; последующие этапы — в {currency} (сумма приглашения без предложения неизвестна)",
         "saatKisa": "{n} ч",
+        "dakikaKisa": "{n} мин",
+        "birimSaat": "часы",
+        "birimDakika": "минуты",
         "ortalama": "Среднее",
         "satisHunisi2": "Воронка продаж",
         "satisHunisiBos": "Воронка продаж пуста",
@@ -2534,7 +2548,7 @@
         "teklif": "({decided, plural, one {# предложение} few {# предложения} many {# предложений} other {# предложения}})",
         "tekliflerinSonuclandikcaKategoriBazliGucun": "По мере принятия решений по Вашим предложениям здесь будет видно, в каких категориях Вы сильнее всего.",
         "teklifYanitSuresi": "Время ответа на приглашения",
-        "davettenTeklifeGecenOrtalamaSure": "Среднее время от приглашения до предложения (часы, по месяцам)",
+        "davettenTeklifeGecenOrtalamaSureAylik": "Среднее время от приглашения до предложения (по месяцам)",
         "teklifYanitSuresiTrendi": "Динамика времени ответа на приглашения",
         "henuzYanitVerisiYok": "Данных об ответах пока нет",
         "davetlereTeklifVerdikceOrtalamaYanit": "По мере отправки предложений по приглашениям здесь появится Ваше среднее время ответа.",
@@ -2753,7 +2767,7 @@
       },
       "satinalma": {
         "taleplerim": "Мои запросы",
-        "bilgiTaleplerim": "Мои запросы информации",
+        "bilgiTaleplerim": "Запросы информации",
         "siparisler": "Мои заказы",
         "urunler": "Товары",
         "sablonlar": "Шаблоны"
@@ -3005,8 +3019,6 @@
         "dosyaSilinsinMi": "Удалить файл?",
         "sil": "Удалить",
         "dosyaSilindi": "Файл удалён",
-        "dosyalari": "Файлы: {entityShort}",
-        "dosyaBolumu": "Раздел для файла",
         "yukleniyor": "Загрузка…",
         "dosyaEkle": "Добавить файл",
         "bolumuneDosyaEkle": "Добавить файл в раздел «{item}»",
@@ -3016,15 +3028,7 @@
         "henuzDosyaEklenmemisBolumSecip": "Файлы пока не добавлены. Выберите раздел и добавьте спецификацию, чертежи и т. п.",
         "buDosyaEklenmemis": "Файлы не добавлены ({dat}).",
         "dosyasiniSil": "Удалить файл {fileName}",
-        "silinemedi": "Не удалось удалить",
-        "docKind": {
-          "IDARI_SARTNAME": "Административная спецификация",
-          "TEKNIK_SARTNAME": "Техническая спецификация",
-          "SOZLESME": "Проект договора",
-          "EK": "Приложение / чертёж",
-          "NUMUNE": "Образец / изображение",
-          "DIGER": "Другое"
-        }
+        "silinemedi": "Не удалось удалить"
       },
       "generalInfoTab": {
         "surec": "Процесс",
@@ -3218,7 +3222,9 @@
         "tumKalemiDetaydaGor": "{total, plural, one {Посмотреть # позицию подробно →} few {Посмотреть все # позиции подробно →} many {Посмотреть все # позиций подробно →} other {Посмотреть все # позиции подробно →}}",
         "kalemler": "Позиции",
         "kalemlerN": "Позиции ({n})",
-        "nKalemDahaGoster": "Показать ещё {n, plural, one {# позицию} few {# позиции} many {# позиций} other {# позиции}}"
+        "nKalemDahaGoster": "Показать ещё {n, plural, one {# позицию} few {# позиции} many {# позиций} other {# позиции}}",
+        "miktarSatiri": "Количество: {qty}",
+        "hedefFiyatSatiri": "Целевая цена: {price}"
       },
       "browsetenderrow": {
         "firma": "Компания",
@@ -3519,6 +3525,8 @@
         "birimFiyat": "Цена за единицу",
         "buKalemeTeklifVermiyorum": "Не подаю предложение по этой позиции",
         "kalemeTeklifVermiyorumAria": "Не подаю предложение по позиции «{name}»",
+        "kaydedilmemisTeklifGeriYuklendi": "Несохранённые данные Вашего предложения восстановлены.",
+        "degisiklikleriAt": "Отменить изменения",
         "buKalemeTeklifVerilmeyecek": "По этой позиции предложение не подаётся.",
         "teklifTutari": "Сумма предложения",
         "tutar": "Сумма",
@@ -4048,7 +4056,6 @@
       "stagedDocuments": {
         "n50mbSiniriniAsiyor": "«{name}» превышает лимит 50 МБ",
         "zatenEkli": "«{name}» уже добавлен",
-        "dosyaBolumu": "Раздел файла",
         "dosyaEkle": "Добавить файл",
         "bolumuneDosyaEkle": "Добавить файл в раздел «{item}»",
         "bolumSecipSartnameTeknikResim": "Выберите раздел и добавьте спецификацию, чертежи и т. д. — файлы загружаются, когда {shortLower} сохраняется (как черновик или при публикации).",
@@ -5063,6 +5070,8 @@
         "onayaGonderildiIncelemeBiteneKadar": "Отправлено на модерацию — до завершения проверки товар нельзя изменять, доступен только предпросмотр",
         "onayaGonder": "Отправить на модерацию",
         "duzeltVeYenidenGonder": "Исправить и отправить повторно",
+        "onayaGonderKisa": "Отправить",
+        "duzeltVeYenidenGonderKisa": "Отправить",
         "urunVitrindenCekildi": "Товар снят с витрины",
         "duzeltmeGerekcesi": "Причина возврата на исправление:",
         "temelBilgiler": "Основная информация",
@@ -5165,7 +5174,7 @@
         "eklenme": "Добавлено",
         "islemler": "Действия",
         "kategoriSecilmedi": "Категория не выбрана",
-        "duzeltme": "· Доработка: {rejectReason}",
+        "duzeltmeSatiri": "Доработка: {rejectReason}",
         "min": "Мин. {qty}",
         "priceMode": {
           "FIXED": "Фиксированная цена",
@@ -5227,7 +5236,8 @@
         "arsivle": "Архивировать",
         "yayindakiUrunEksik": "Опубликованный товар нельзя сохранить с неполным содержанием — заполните поля, необходимые для проверки.",
         "yayindakiUrunEksikKisa": "Нельзя сохранить: не хватает данных.",
-        "eksikleriGoster": "Показать недостающее ({count})"
+        "eksikleriGoster": "Показать недостающее ({count})",
+        "eksikler": "Не заполнено ({count})"
       },
       "productPreview": {
         "urunVitrindeSaltOkunur": "Товар размещён на витрине. Для редактирования товаров нужно право «Управление товарами и витриной» — обратитесь к администратору компании.",
@@ -5264,7 +5274,8 @@
         "gorseller": "Изображения",
         "gorselOnerilir": "Рекомендуется 3–8 изображений",
         "ilkGorselKapakGorselOnerilir": "Первое изображение — обложка; рекомендуется 3–8 изображений",
-        "jpgPngVeyaWebpEnAz": "JPG, PNG или WebP · не менее {minW}×{minH} px · не более 5 МБ (крупные уменьшаются автоматически). Для отправки на проверку нужно хотя бы 1 изображение; перетаскивайте, чтобы изменить порядок, — первое станет обложкой."
+        "jpgPngVeyaWebpEnAz": "JPG, PNG или WebP · не менее {minW}×{minH} px · не более 5 МБ (крупные уменьшаются автоматически). Для отправки на проверку нужно хотя бы 1 изображение; перетаскивайте, чтобы изменить порядок, — первое станет обложкой.",
+        "jpgPngVeyaWebpEnAzDokunmatik": "JPG, PNG или WebP · не менее {minW}×{minH} px · не более 5 МБ (крупные уменьшаются автоматически). Для отправки на проверку нужно хотя бы 1 изображение; меняйте порядок кнопками со стрелками на изображениях — первое станет обложкой."
       },
       "priceModeField": {
         "fiyat": "Цена",
@@ -5364,6 +5375,7 @@
         "yanitGonderilemedi": "Не удалось отправить ответ",
         "yanitiniziYazin": "Напишите Ваш ответ…",
         "yanitinizAlicininPanelindeGorunurCtrl": "Ваш ответ появится в панели покупателя. Отправить: Ctrl+Enter.",
+        "yanitinizAlicininPanelindeGorunur": "Ваш ответ появится в панели покупателя.",
         "ziyaretciyeYanitGeldiBildirimiGider": "Посетитель получит уведомление «поступил ответ»; чтобы прочитать его, ему потребуется создать аккаунт.",
         "yanitla": "Ответить",
         "kimMesaj": "{who}: {text}"
@@ -6076,6 +6088,7 @@
         "roller": "Роли",
         "durum": "Статус",
         "sonGiris": "Последний вход",
+        "sonGirisSatir": "Последний вход: {when}",
         "siz": "(Вы)",
         "goruntuleyici": "Наблюдатель",
         "yetkiYok": "Прав нет",
@@ -6749,6 +6762,7 @@
         "baglantiListesi": "Список контактов",
         "baglantilarimdaAra": "Поиск по моим контактам",
         "firmaAdiRothernIdSektor": "Название компании, Rothern ID, отрасль или город",
+        "firmaIdSektorSehirKisa": "Компания, ID, отрасль, город",
         "gorunum": "Вид",
         "henuzBaglantinizYok": "У Вас пока нет контактов",
         "anasayfadanFirmaBulupBaglantiIstegi": "Найдите компанию на главной странице и отправьте запрос на контакт либо пригласите её по электронной почте.",
@@ -7429,6 +7443,7 @@
         "mesajlasmakIcinOnceBirFirmayla": "Чтобы начать переписку, сначала установите контакт с компанией.",
         "yeniSohbet": "Новая переписка",
         "kisiler": "← Собеседники",
+        "kisilereDon": "Вернуться к собеседникам",
         "aliciOlarak": "Как покупатель",
         "saticiOlarak": "Как продавец",
         "birKisiSec": "Выберите собеседника",
@@ -7509,6 +7524,7 @@
       "icinSonucBulunamadi": "По запросу «{query}» ничего не найдено",
       "dahaGenelBirTerimDeneyin": "Попробуйте более общий термин (например, название товара вместо бренда) или очистите поиск и просмотрите список.",
       "cokFazlaSonucVarTumu": "Слишком много результатов — показать все невозможно. Уточните запрос.",
+      "cokFazlaSonucKisa": "Слишком много результатов — уточните запрос.",
       "yenidenDene": "Повторить",
       "kategorilerYuklenemediYenidenDeneyin": "Не удалось загрузить категории. Пожалуйста, повторите попытку.",
       "buBolumYuklenemedi": "Не удалось загрузить этот раздел.",
@@ -7659,7 +7675,8 @@
       "close": "Закрыть",
       "remove": "Удалить",
       "selectPlaceholder": "— выберите —",
-      "missing": "Не заполнено"
+      "missing": "Не заполнено",
+      "notifications": "Уведомления"
     },
     "phoneInput": {
       "label": "Телефон",

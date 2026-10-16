@@ -1633,10 +1633,13 @@ export function SupplierDiscoveryModal({
         transition
         className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm transition data-closed:opacity-0"
       />
-      <div className="fixed inset-0 flex w-screen items-start justify-center p-2 pt-4 sm:p-4 sm:pt-6">
+      {/* Güvenli alan (mobil kabuk): pencere durum çubuğunun ve ana ekran
+          çizgisinin arasında kalır — kabın payı ve panelin `dvh` tavanı aynı
+          güvenli payı içerir (pay 0 iken eskisiyle aynı). */}
+      <div className="fixed inset-0 flex w-screen items-start justify-center px-2 pt-[calc(1rem+var(--safe-top))] pb-[calc(0.5rem+var(--safe-bottom))] sm:px-4 sm:pt-[calc(1.5rem+var(--safe-top))] sm:pb-[calc(1rem+var(--safe-bottom))]">
         {/* Yükseklik `dvh` (telefonda adres çubuğu); başlık, sekmeler ve gönder
             şeridi küçülmez, aradaki gövde kayar (D10). */}
-        <DialogPanel className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem)] sm:supports-[height:100dvh]:max-h-[calc(100dvh-2.5rem)]">
+        <DialogPanel className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem-var(--safe-top)-var(--safe-bottom))] sm:supports-[height:100dvh]:max-h-[calc(100dvh-2.5rem-var(--safe-top)-var(--safe-bottom))]">
           {/* Header — tek satır; açıklama kaydırılan gövdenin başında (liste
               pencerenin çoğunu kullansın). */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-950/5 px-4 py-3 sm:px-6">

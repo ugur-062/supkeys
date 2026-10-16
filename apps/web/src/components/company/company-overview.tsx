@@ -370,6 +370,15 @@ function OverviewShortcuts({ user }: { user: PermissionSubject | null | undefine
   );
 }
 
+/**
+ * KPI satırı — telefonda da İKİ sütun (mobil denetim g10-14, 2026-10-15): tek
+ * sütunda çoğu tek sayı taşıyan 10 kart ~1.400 px yer kaplıyor, Grafikler
+ * ekranın çok altına düşüyordu. Tek sayıda kalan son kart (5. kart: tutar
+ * kartı, hata ya da iskelet) telefonda iki sütuna yayılır; sm ve üstü aynen.
+ */
+const KPI_ROW_GRID =
+  "grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 max-sm:[&>:last-child:nth-child(odd)]:col-span-2";
+
 function KpiRow({ label, tone, children }: { label: string; tone: "blue" | "emerald"; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
@@ -377,7 +386,7 @@ function KpiRow({ label, tone, children }: { label: string; tone: "blue" | "emer
         <span aria-hidden className={cn("size-2 rounded-full", tone === "blue" ? "bg-blue-500" : "bg-emerald-500")} />
         {label}
       </p>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">{children}</div>
+      <div className={KPI_ROW_GRID}>{children}</div>
     </div>
   );
 }

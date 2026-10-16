@@ -271,13 +271,17 @@ export function ListingSuggestions({
           {secondRound ? <p className="text-xs text-zinc-600">{t("secondRound")}</p> : null}
         </div>
         {rows.length > 0 || variant === "band" ? (
+          // Dokunma alanı (mobil denetim g07): iki metin düğmesi 20 px
+          // yüksekliğindeydi ve "Gizle" talepte KALICI kapatma yazar — görünüş
+          // değişmeden dolgu + eksi kenar boşluğuyla 44 px'e çıkar; yatay pay
+          // (6+6 px) aradaki 12 px boşluğu aşmaz, iki alan çakışmaz.
           <div className="ml-auto flex shrink-0 items-center gap-3 whitespace-nowrap">
             {rows.length > 0 ? (
               <button
                 type="button"
                 aria-expanded={open}
                 onClick={() => setOpen((o) => !o)}
-                className="text-sm font-medium text-blue-700 hover:underline"
+                className="-mx-1.5 -my-3 px-1.5 py-3 text-sm font-medium text-blue-700 hover:underline"
               >
                 {open ? t("hideList") : t("showList")}
               </button>
@@ -292,7 +296,7 @@ export function ListingSuggestions({
                   onDismiss?.();
                 }}
                 disabled={dismiss.isPending}
-                className="text-sm text-zinc-600 hover:text-zinc-900"
+                className="-mx-1.5 -my-3 px-1.5 py-3 text-sm text-zinc-600 hover:text-zinc-900"
               >
                 {t("dismiss")}
               </button>

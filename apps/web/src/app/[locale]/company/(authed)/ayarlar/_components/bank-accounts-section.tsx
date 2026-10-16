@@ -35,7 +35,9 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
 import { toast } from "sonner";
+import { SHEET_ACTIONS, SHEET_BODY, SHEET_FORM, SHEET_PANEL } from "./dialog-sheet";
 
 /**
  * Banka ülkesi seçilebilir kodlar: kayda KAPALI ülkeler (ABD + toprakları,
@@ -101,9 +103,14 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
           {t("henuzKayitliBankaHesabiYok")}
         </Text>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        // grid-cols-1 = minmax(0,1fr) + kartta min-w-0: örtük sütun en geniş
+        // kartın min-content'ine (kırpılmayan başlık + iki düğme) büyüyüp
+        // 360 px'te kartları bölümün sağ dolgusuna taşırıyordu; başlığın
+        // `truncate`u hiç devreye girmiyordu (mobil denetim g11; adres
+        // kartlarıyla aynı kural).
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {accounts.map((a) => (
-            <div key={a.id} className="rounded-lg border border-zinc-200 p-4">
+            <div key={a.id} className="min-w-0 rounded-lg border border-zinc-200 p-4">
               {/* C35/C36: başlık kendi satırında + ikon aksiyonlar (adres
                   kartlarıyla aynı düzen). */}
               <div className="flex items-start justify-between gap-2">
@@ -192,6 +199,9 @@ function BankAccountModal({
   // Kaydet denemesinden sonra zorunlu alan hataları görünür (arayüz testi
   // D-308): eskiden Kaydet nedensiz pasifti.
   const [touched, setTouched] = useState(false);
+  // Kaydet'e basınca ilk hatalı alana odak + kaydırma (telefonda hata ekranın
+  // dışında kalabiliyordu — mobil denetim 2026-10 g11, adres penceresiyle aynı kural).
+  const invalidFocus = useFocusFirstInvalid<HTMLFormElement>();
 
   // Kural TEK KAYNAK `bankDetailsErrors` — backend `assertBankDetails` ile aynı
   // (2026-09-27): bankanın ülkesi IBAN'ı zorunlu tutuyorsa IBAN (TR katı,
@@ -247,7 +257,10 @@ function BankAccountModal({
 
   const submit = async () => {
     setTouched(true);
-    if (!valid) return;
+    if (!valid) {
+      invalidFocus.focusFirstInvalid();
+      return;
+    }
     try {
       await save.mutateAsync({
         id: account?.id,
@@ -267,19 +280,22 @@ function BankAccountModal({
   };
 
   return (
-    <Dialog open onClose={onClose} size="lg">
+    <Dialog open onClose={onClose} size="lg" className={SHEET_PANEL}>
       <DialogTitle>
         {account ? t("hesabiDuzenle") : t("yeniBankaHesabi")}
       </DialogTitle>
-      {/* Form + Enter ile gönderim (arayüz testi D-307). */}
+      {/* Form + Enter ile gönderim (arayüz testi D-307). Telefonda yalnız
+          gövde kayar, Kaydet / Vazgeç altta sabit (`dialog-sheet.ts`). */}
       <form
+        ref={invalidFocus.ref}
         noValidate
+        className={SHEET_FORM}
         onSubmit={(e) => {
           e.preventDefault();
           void lock.run(submit);
         }}
       >
-      <DialogBody className="space-y-4">
+      <DialogBody className={`space-y-4 ${SHEET_BODY}`}>
         <Field>
           <Label>{t("hesapBasligi")}</Label>
           <Input
@@ -378,7 +394,7 @@ function BankAccountModal({
           <Label>{t("varsayilanHesapSiparisOnayindaOn")}</Label>
         </CheckboxField>
       </DialogBody>
-      <DialogActions>
+      <DialogActions className={SHEET_ACTIONS}>
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>

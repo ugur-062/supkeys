@@ -41,4 +41,18 @@ describe("RequestDefaultsForm — seçili ülkeler (S084)", () => {
     fireEvent.click(removeButtons()[0]!);
     expect(last?.targetCountries).toEqual(["DE"]);
   });
+
+  it("tek ülke kaldığında pasifliğin nedeni GÖRÜNÜR metinde (mobil denetim g06 — dokunmatikte title okunmaz)", () => {
+    render(<Harness countries={["TR"]} />);
+    const btn = screen.getByRole("button", { name: /çıkar/i });
+    expect(btn).toBeDisabled();
+    expect(btn).not.toHaveAttribute("title");
+    const hint = screen.getByText(/Son ülke çıkarılamaz/);
+    expect(btn).toHaveAttribute("aria-describedby", hint.id);
+  });
+
+  it("iki ülkede not çizilmez", () => {
+    render(<Harness countries={["TR", "DE"]} />);
+    expect(screen.queryByText(/Son ülke çıkarılamaz/)).toBeNull();
+  });
 });

@@ -2,14 +2,24 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PUSH_UNREGISTER_PENDING_KEY, resetPushDeviceRequests } from "@/lib/native-push";
+import { registerLeaveCheck } from "@/lib/leave-guard";
 import { NativeShellBridge } from "../native-shell-bridge";
+
+const router = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: router.push, replace: vi.fn(), prefetch: vi.fn() }),
+}));
 
 const HERE = "https://www.rothern.com/tr/company";
 
 type Listener = (data: unknown) => void;
 
 /** Gerçek kabuktaki gibi `addListener` tutamacı DOĞRUDAN (söz değil) döner. */
-function installShell({ withPush = true, launchUrl }: { withPush?: boolean; launchUrl?: string } = {}) {
+function installShell({
+  withPush = true,
+  launchUrl,
+  browser,
+}: { withPush?: boolean; launchUrl?: string; browser?: { open: (o: { url: string }) => unknown } } = {}) {
   const listeners = new Map<string, Set<Listener>>();
   const addListener = (event: string, cb: Listener) => {
     const set = listeners.get(event) ?? new Set<Listener>();
@@ -22,7 +32,7 @@ function installShell({ withPush = true, launchUrl }: { withPush?: boolean; laun
   (window as unknown as { Capacitor?: unknown }).Capacitor = {
     isNativePlatform: () => true,
     getPlatform: () => "android",
-    Plugins: withPush ? { App, PushNotifications } : { App },
+    Plugins: { App, ...(withPush ? { PushNotifications } : {}), ...(browser ? { Browser: browser } : {}) },
   };
   return {
     App,
@@ -38,6 +48,7 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   assign.mockReset();
+  router.push.mockReset();
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
@@ -173,5 +184,152 @@ describe("NativeShellBridge", () => {
     render(<NativeShellBridge />);
     await settle();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/** Gövdeye yeni sekme bağlantısı ekler (React dışı — kart içi bağlantının DOM'u). */
+function addLink(href: string, attrs: Record<string, string> = { target: "_blank", rel: "noopener noreferrer" }) {
+  const a = document.createElement("a");
+  a.setAttribute("href", href);
+  for (const [k, v] of Object.entries(attrs)) a.setAttribute(k, v);
+  a.textContent = "Bağlantı";
+  document.body.appendChild(a);
+  return a;
+}
+
+/** Tıklar; varsayılan davranışın engellenip engellenmediğini döner. */
+function clickLink(el: Element, init: MouseEventInit = {}) {
+  const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0, ...init });
+  el.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+describe("NativeShellBridge — kabukta yeni sekme bağlantısı aynı pencerede (mobil denetim g05)", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("aynı kökendeki _blank bağlantı istemci yönlendiricisiyle, ham yolla açılır", async () => {
+    installShell();
+    render(<NativeShellBridge />);
+    await settle();
+    expect(document.documentElement.hasAttribute("data-native-shell")).toBe(true);
+    const link = addLink("/tr/company/urun/acme/boru?x=1#bilgi-iste");
+    expect(clickLink(link)).toBe(true);
+    await settle();
+    expect(router.push).toHaveBeenCalledWith("/tr/company/urun/acme/boru?x=1#bilgi-iste");
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("bağlantının kendi stopPropagation'ı (kart içi 'Bilgi iste') yakalamayı kesmez", async () => {
+    installShell();
+    render(<NativeShellBridge />);
+    await settle();
+    const link = addLink("/urunler");
+    link.addEventListener("click", (e) => e.stopPropagation());
+    expect(clickLink(link)).toBe(true);
+    await settle();
+    expect(router.push).toHaveBeenCalledWith("/urunler");
+  });
+
+  it("dış köken, değiştirici tuş ve dosya adresi dokunulmadan geçer", async () => {
+    installShell();
+    render(<NativeShellBridge />);
+    await settle();
+    expect(clickLink(addLink("https://example.com/x"))).toBe(false);
+    expect(clickLink(addLink("/urunler"), { metaKey: true })).toBe(false);
+    expect(clickLink(addLink("/sitemap.xml"))).toBe(false);
+    await settle();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("tarayıcıda hiçbir bağlantıya dokunmaz", async () => {
+    render(<NativeShellBridge />);
+    await settle();
+    expect(document.documentElement.hasAttribute("data-native-shell")).toBe(false);
+    expect(clickLink(addLink("/urunler"))).toBe(false);
+    await settle();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("kullanıcı aracısındaki RothernApp/ eki yeterli (köprü henüz yokken)", async () => {
+    const ua = vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) RothernApp/1.0");
+    try {
+      render(<NativeShellBridge />);
+      await settle();
+      expect(clickLink(addLink("/firmalar"))).toBe(true);
+      await settle();
+      expect(router.push).toHaveBeenCalledWith("/firmalar");
+    } finally {
+      ua.mockRestore();
+    }
+  });
+
+  it("kaydedilmemiş değişiklik: 'kal' denirse gezinilmez, 'ayrıl' denirse gezinilir", async () => {
+    installShell();
+    render(<NativeShellBridge />);
+    await settle();
+    const answer = vi.fn<() => boolean>().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const unregister = registerLeaveCheck(answer);
+    try {
+      expect(clickLink(addLink("/urunler"))).toBe(true);
+      await settle();
+      expect(router.push).not.toHaveBeenCalled();
+      expect(clickLink(addLink("/firmalar"))).toBe(true);
+      await settle();
+      expect(router.push).toHaveBeenCalledWith("/firmalar");
+      expect(answer).toHaveBeenCalledTimes(2);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("data-shell-browser (sözleşme belgesi) uygulama içi tarayıcıda açılır; eklenti yoksa dokunulmaz", async () => {
+    const open = vi.fn(async () => undefined);
+    installShell({ browser: { open } });
+    const first = render(<NativeShellBridge />);
+    await settle();
+    const doc = addLink("/sozlesmeler/kvkk", { target: "_blank", "data-shell-browser": "" });
+    expect(clickLink(doc)).toBe(true);
+    await settle();
+    expect(open).toHaveBeenCalledWith({ url: "https://www.rothern.com/sozlesmeler/kvkk" });
+    expect(router.push).not.toHaveBeenCalled();
+    first.unmount();
+
+    installShell();
+    render(<NativeShellBridge />);
+    await settle();
+    expect(clickLink(doc)).toBe(false);
+    await settle();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("sökülünce dinleyici ve işaret kalkar", async () => {
+    installShell();
+    const { unmount } = render(<NativeShellBridge />);
+    await settle();
+    unmount();
+    expect(document.documentElement.hasAttribute("data-native-shell")).toBe(false);
+    expect(clickLink(addLink("/urunler"))).toBe(false);
+    await settle();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+});
+
+// Dosyanın SON bloğu: bekçi sökülmez (modül ömrü), yazılan pay sonraki testlere taşınırdı.
+describe("NativeShellBridge — güvenli alan payı 404 kabuğunda korunur (smoke-public#new0)", () => {
+  it("modül yüklenince kurulan bekçi, React'in <html> özniteliklerini silmesinden sonra payı geri yazar", async () => {
+    const html = document.documentElement;
+    // Kabuk (Capacitor SystemBars) payı yazar — bileşen henüz çizilmeden.
+    html.style.setProperty("--safe-area-inset-top", "47px");
+    await settle();
+    // 404 kabuğu: React `<html>` tekilini devralırken bütün öznitelikleri siler.
+    html.removeAttribute("style");
+    await settle();
+    expect(html.style.getPropertyValue("--safe-area-inset-top")).toBe("47px");
+    // Bağlanma da (tekrar çağrı) ikinci kez yazmaz / bozmaz.
+    render(<NativeShellBridge />);
+    await settle();
+    expect(html.style.getPropertyValue("--safe-area-inset-top")).toBe("47px");
   });
 });

@@ -17,6 +17,7 @@ vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.co
 // `Link` üretimde korumanın karşılaştığı şeydir: `<a href>` çizer, kendi
 // tıklama işleyicisi vardır ve yakalama aşamasındaki dinleyici ondan önce çalışır.
 import { Link } from "@/i18n/navigation";
+import { confirmAppLeave } from "@/lib/leave-guard";
 import { useUnsavedChangesGuard } from "../use-unsaved-changes-guard";
 
 function Form({ dirty, onDiscard, onResult }: { dirty: boolean; onDiscard?: () => void; onResult?: (leave: boolean) => void }) {
@@ -86,5 +87,31 @@ describe("useUnsavedChangesGuard — onDiscard", () => {
     render(<Plain />);
     fireEvent.click(screen.getByRole("link", { name: "Genel Bakış" }));
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/genel-bakis"));
+  });
+});
+
+// Mobil kabuk (mobil denetim g05): yeni sekme bağlantısı orada aynı WebView'de
+// açılır (`NativeShellBridge`) ve gezinmeden önce `confirmAppLeave()` sorar.
+describe("useUnsavedChangesGuard — kabuk gezinmesi (confirmAppLeave)", () => {
+  it("kirli formda aynı diyalog sorulur; 'Ayrıl' onDiscard'ı çağırır ve izin verir", async () => {
+    h.confirm.mockResolvedValue(true);
+    const onDiscard = vi.fn();
+    render(<Form dirty onDiscard={onDiscard} />);
+    await expect(confirmAppLeave()).resolves.toBe(true);
+    expect(h.confirm).toHaveBeenCalledTimes(1);
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+  });
+
+  it("'Formda kal' gezinmeyi durdurur; temiz formda ve söküldükten sonra sorulmaz", async () => {
+    h.confirm.mockResolvedValue(false);
+    const view = render(<Form dirty />);
+    await expect(confirmAppLeave()).resolves.toBe(false);
+    h.confirm.mockClear();
+    view.rerender(<Form dirty={false} />);
+    await expect(confirmAppLeave()).resolves.toBe(true);
+    view.rerender(<Form dirty />);
+    view.unmount();
+    await expect(confirmAppLeave()).resolves.toBe(true);
+    expect(h.confirm).not.toHaveBeenCalled();
   });
 });

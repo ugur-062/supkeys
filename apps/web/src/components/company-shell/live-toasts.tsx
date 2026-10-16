@@ -104,7 +104,10 @@ function PopupCard({
   onClose: () => void;
 }) {
   return (
-    <div className="pointer-events-auto flex w-[22rem] items-start gap-3 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-lg ring-1 ring-zinc-950/5">
+    // Mobil denetim g04: sabit `w-[22rem]` (352 px) 360 px ekranda sonner'ın
+    // 328 px'lik satırını aşıp sağ kenarı kesiyordu → satırı doldurur, en
+    // fazla 22rem (masaüstünde aynı genişlik).
+    <div className="pointer-events-auto flex w-full max-w-[22rem] items-start gap-3 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-lg ring-1 ring-zinc-950/5">
       <span
         className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full ${
           accent === "emerald"
@@ -134,13 +137,16 @@ function PopupCard({
           {body}
         </span>
       </button>
+      {/* Kapat 32 px (eskiden 22 px) — görünüm köşede kalsın diye negatif
+          pay; görünmez katman dokunma alanını 44 px'e çıkarır (soldaki
+          açma düğmesiyle 12 px'lik aralığın 6 px'i kalır, alanlar çakışmaz). */}
       <button
         type="button"
         onClick={onClose}
         aria-label={closeLabel}
-        className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+        className="relative -mt-1.5 -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-md text-zinc-400 after:absolute after:-inset-1.5 hover:bg-zinc-100 hover:text-zinc-600"
       >
-        <X className="size-3.5" aria-hidden="true" />
+        <X className="size-4" aria-hidden="true" />
       </button>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { ErrorState } from "@/components/ui/error-state";
+import { FAB_CLEARANCE_SM_RIGHT_CLASS } from "@/components/company-shell/assistant/fab-clearance";
 import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { PANEL_MARKET, panelProductPath } from "@/lib/company/panel-market";
 import { recentSearches } from "@/lib/company/recent-searches";
@@ -191,6 +192,12 @@ function CardRail({ children }: { children: ReactNode }) {
  * Dikey hizası kartın ORTASI değil GÖRSEL alanı: kart 309 px yüksek,
  * ortaya konunca düğme ilk kartın BAŞLIĞINI örtüyordu. Görsel 4:3 ve kart
  * 176 px geniş → ~132 px yükseklik; 5,5 rem o alanın içinde kalır.
+ *
+ * SAĞ OK AI ASİSTAN KÖŞESİNDEN İÇERİDE (mobil denetim 2026-10): 1280×800'de
+ * /company/satinalma ilk açılışta "İleri kaydır" (1188-1228 × 712-752) tam boy
+ * düğmenin %79'u altında kalıyordu — düğme ilk yüklemede çekiliyor, karşılama
+ * balonu gecikiyordu. sm'den itibaren ok, içerik kenarından düğmenin 8 px
+ * soluna çekilir (`FAB_CLEARANCE_SM_RIGHT_CLASS`); sol ok kenarda kalır.
  */
 function RailButton({
   side,
@@ -210,7 +217,7 @@ function RailButton({
       disabled={disabled}
       aria-label={side === "left" ? t("geriKaydir") : t("ileriKaydir")}
       className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none sm:flex ${
-        side === "left" ? "left-3" : "right-3"
+        side === "left" ? "left-3" : `right-3 ${FAB_CLEARANCE_SM_RIGHT_CLASS}`
       }`}
     >
       <Icon aria-hidden className="size-5" strokeWidth={2} />

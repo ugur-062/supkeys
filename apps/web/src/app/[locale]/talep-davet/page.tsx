@@ -1,5 +1,6 @@
 "use client";
 
+import { TokenPageHomeLink, TokenPageLogo } from "@/components/marketing/token-page-shell";
 import { api } from "@/lib/api";
 import { saveInvitePrefill, type InvitePrefill } from "@/lib/company-auth/invite-prefill";
 import { Link } from "@/i18n/navigation";
@@ -34,9 +35,14 @@ interface Preview {
   supplierTypes: string[];
 }
 
+/* Kartın üstünde ana sayfaya bağlı logo (mobil denetim 2026-10 g01): uygulama
+   kabuğunda açılan davet bağlantısından çıkış yolu — bkz. `token-page-shell.tsx`. */
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-zinc-100 px-4 py-10">
+    <main className="min-h-dvh bg-zinc-100 px-4 pt-[calc(2.5rem+var(--safe-top))] pb-[calc(2.5rem+var(--safe-bottom))]">
+      <div className="mx-auto mb-6 flex w-full max-w-2xl">
+        <TokenPageLogo />
+      </div>
       <div className="mx-auto w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">{children}</div>
     </main>
   );
@@ -92,6 +98,7 @@ function PreviewInner() {
         <XCircle className="h-10 w-10 text-rose-500" aria-hidden />
         <h1 className="mt-3 text-lg font-semibold text-zinc-900">{t("invalidTitle")}</h1>
         <p className="mt-1 text-sm text-zinc-600">{t("invalidBody")}</p>
+        <TokenPageHomeLink className="mt-6 sm:w-auto" />
       </Shell>
     );
   }
@@ -194,14 +201,29 @@ function PreviewInner() {
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+      {/* Telefonda (mobil denetim 2026-10 g01): uzun RU etiketi ("Бесплатно
+          зарегистрироваться и отправить предложение") üç satıra kırılıp sola
+          yaslı oval bir metin yığınına dönüyordu → ortalı ve köşesi yumuşak
+          kutu; sm ve üstünde tek satır, eskisi gibi hap. Davet kapatma
+          bağlantısı 20 px'ti → 44 px dokunma alanı.
+          sm ve üstünde satır SARAR, öğeler daralmaz (2. tur g01): RU etiketi
+          (484 px) ile "Не хочу получать приглашения" (220 px) 608 px'lik
+          kartta yan yana sığmıyor, ikisi de daralıp iki satırlık oval hap
+          oluyordu. Artık hap hep tek satır kalır; sığmayınca davet kapatma
+          bağlantısı alt satıra iner (justify-between tek öğeyi sola dayar).
+          Tablette (dokunmatik, sm+) bağlantı en az 24 px yükseklik taşır;
+          satır yüksekliği hapın 40 px'i kalır. */}
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4">
         <Link
           href={d.accepted ? loginHref : signupHref}
-          className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700 sm:min-h-0 sm:max-w-full sm:flex-none sm:rounded-full"
         >
           {ctaLabel}
         </Link>
-        <Link href={`/davet-kapat?token=${encodeURIComponent(ref)}`} className="text-sm text-zinc-600 hover:text-zinc-900 sm:ml-auto">
+        <Link
+          href={`/davet-kapat?token=${encodeURIComponent(ref)}`}
+          className="inline-flex min-h-11 items-center justify-center text-center text-sm text-zinc-600 hover:text-zinc-900 sm:min-h-6 sm:max-w-full sm:flex-none"
+        >
           {t("optOut")}
         </Link>
       </div>

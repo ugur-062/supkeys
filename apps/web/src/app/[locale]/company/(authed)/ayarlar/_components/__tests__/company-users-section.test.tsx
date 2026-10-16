@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   users: [] as unknown[],
@@ -457,5 +457,112 @@ describe("CompanyUsersSection", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByText(/Satınalma koltuğu/)).not.toBeInTheDocument();
     expect(within(dialog).getAllByText(/Satış koltuğu/)).toHaveLength(2);
+  });
+
+  // Mobil denetim 2026-10 g11 — kullanıcı listesi ve düzenleme penceresi telefonda.
+  describe("mobil", () => {
+    const scrollSpy = vi.fn();
+    beforeEach(() => {
+      scrollSpy.mockReset();
+      Element.prototype.scrollIntoView = scrollSpy;
+    });
+    afterEach(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+
+    it("Kurucu rozeti, '(Siz)' ve e-posta telefonda kesilmez, sarar; son giriş hücrede okunur", () => {
+      render(<CompanyUsersSection canManage meId="owner" />);
+      const name = screen.getByText("Umut Yılmaz");
+      const nameCls = name.className.split(/\s+/);
+      // Kesme yalnız sm ve üstünde; telefonda rozet ve "(Siz)" üç noktaya gitmez.
+      expect(nameCls).not.toContain("truncate");
+      expect(nameCls).toEqual(expect.arrayContaining(["sm:truncate", "max-sm:[overflow-wrap:anywhere]"]));
+      expect(name).toHaveTextContent("Kurucu");
+      expect(name).toHaveTextContent("(Siz)");
+      // Telefonda ad satırı esnek kutu: alt satıra inen rozet / "(Siz)" sol
+      // boşlukla girintili başlamaz (aralık gap'ten; sol boşluk yalnız sm+).
+      expect(nameCls).toEqual(expect.arrayContaining(["max-sm:flex", "max-sm:flex-wrap", "max-sm:gap-x-1.5"]));
+      const you = screen.getByText("(Siz)");
+      expect(you.className.split(/\s+/)).toEqual(expect.arrayContaining(["sm:ml-1.5", "max-sm:shrink-0"]));
+      expect(you.className.split(/\s+/)).not.toContain("ml-1.5");
+      const email = screen.getByText("sahip@firma.com");
+      expect(email.className.split(/\s+/)).not.toContain("truncate");
+      expect(email.className.split(/\s+/)).toEqual(
+        expect.arrayContaining(["sm:truncate", "max-sm:[overflow-wrap:anywhere]"]),
+      );
+      // Eski 100vw tavanı (⋮ ile ad arasında 68 px boşluk bırakıyordu) yok.
+      expect(name.closest('[class*="100vw"]')).toBeNull();
+      // Son giriş sütunu md altında gizli → bilgi satırın içinde.
+      expect(screen.getAllByText("Son giriş: —")).toHaveLength(2);
+    });
+
+    it("bekleyen davet adresi telefonda sarar", () => {
+      h.invitations = [
+        {
+          id: "inv1",
+          email: "uguray156+qa-alici-satinalmaci@gmail.com",
+          roles: ["SATISCI"],
+          status: "PENDING",
+          invitedByName: "Umut",
+          expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        },
+      ];
+      render(<CompanyUsersSection canManage meId="owner" />);
+      const email = screen.getByText("uguray156+qa-alici-satinalmaci@gmail.com");
+      expect(email.className.split(/\s+/)).toEqual(
+        expect.arrayContaining(["min-w-0", "max-sm:[overflow-wrap:anywhere]", "sm:truncate"]),
+      );
+    });
+
+    it("düzenle: Ad boşken Kaydet → hata, ilk hatalı alana (Ad) odak + kaydırma, istek yok", async () => {
+      const u = userEvent.setup();
+      h.seats = seats("GOLD");
+      render(<CompanyUsersSection canManage meId="owner" />);
+      await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+      await u.click(await screen.findByText("Düzenle"));
+      const ad = screen.getByLabelText("Ad");
+      await u.clear(ad);
+      await u.click(screen.getByRole("button", { name: "Kaydet" }));
+      expect(await screen.findByText("Ad boş olamaz")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByLabelText("Ad")).toHaveFocus());
+      expect(scrollSpy).toHaveBeenCalled();
+      expect(h.update).not.toHaveBeenCalled();
+      expect(h.setPermissions).not.toHaveBeenCalled();
+    });
+
+    it("düzenle: tüm yetkiler kaldırılınca Kaydet → yetki hatası görünür alana kaydırılır", async () => {
+      const u = userEvent.setup();
+      h.seats = seats("GOLD");
+      h.users = [
+        user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP"] }),
+        user({ permissions: ["approval:act"], roles: [] }),
+      ];
+      render(<CompanyUsersSection canManage meId="owner" />);
+      await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+      await u.click(await screen.findByText("Düzenle"));
+      await u.click(screen.getByText("Onaylama"));
+      await u.click(screen.getByRole("button", { name: "Kaydet" }));
+      const err = await screen.findByText("En az bir yetki seçin");
+      expect(err).toHaveAttribute("data-reveal-invalid", "true");
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+      expect(scrollSpy.mock.contexts).toContain(err);
+      expect(h.setPermissions).not.toHaveBeenCalled();
+    });
+
+    it("düzenle: telefonda pencere ekrana sığar, gövde kayar, Kaydet / Vazgeç altta sabit", async () => {
+      const u = userEvent.setup();
+      render(<CompanyUsersSection canManage meId="owner" />);
+      await u.click(screen.getAllByRole("button", { name: "Aksiyonlar" })[1]);
+      await u.click(await screen.findByText("Düzenle"));
+      const dialog = await screen.findByRole("dialog");
+      const panel = dialog.querySelector<HTMLElement>('[class*="100dvh"]');
+      expect(panel!.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-sm:flex", "max-sm:flex-col"]));
+      const body = screen.getByLabelText("Ad").closest<HTMLElement>('[class*="max-sm:overflow-y-auto"]')!;
+      expect(body.className.split(/\s+/)).toEqual(expect.arrayContaining(["sm:max-h-[70vh]", "max-sm:min-h-0"]));
+      expect(body.className.split(/\s+/)).not.toContain("max-h-[70vh]");
+      const actions = within(dialog).getByRole("button", { name: "Kaydet" }).parentElement!;
+      expect(actions.className.split(/\s+/)).toContain("max-sm:shrink-0");
+      expect(body.contains(actions)).toBe(false);
+    });
   });
 });

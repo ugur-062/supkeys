@@ -223,6 +223,38 @@ describe("ProductDetailBody", () => {
   });
 });
 
+// Mobil denetim 2026-10 (1024 + sabit kenar çubuğu): galeri sütunu sabit 34 rem
+// idi; panelin ~704 px'lik içerik alanında bilgi sütunu 120 px'e iniyor, başlık
+// sözcük sözcük kırılıyor, sayfa yana kayıyordu (scrollWidth 1048).
+describe("ProductDetailBody — üst ızgara (1024 + kenar çubuğu)", () => {
+  it("galeri sütunu daralabilir (en çok 34 rem), bilgi sütunu en az 20 rem; başlık yalnız sığmayan sözcükte bölünür", () => {
+    render(Body());
+    const h1 = screen.getByRole("heading", { level: 1, name: product.name });
+    const grid = h1.closest("aside")!.parentElement as HTMLElement;
+    const cls = grid.className.split(/\s+/);
+    expect(cls).toEqual(
+      expect.arrayContaining(["grid", "grid-cols-1", "lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)]"]),
+    );
+    // Eski sabit sütun geri gelmesin.
+    expect(cls).not.toContain("lg:grid-cols-[34rem_minmax(0,1fr)]");
+    // İki sütunun da taban genişliği 0: içerik ızgarayı taşırmaz.
+    expect(grid.children[0]!.className.split(/\s+/)).toContain("min-w-0");
+    expect(grid.children[1]!.className.split(/\s+/)).toContain("min-w-0");
+    expect(h1.className.split(/\s+/)).toContain("break-words");
+    expect(h1.className).not.toMatch(/(^|\s)(break-all|wrap-anywhere)(\s|$)/);
+    // Dar sütunda (< 24 rem: panel 1024'te 320, 1280'de 360 px) başlık telefon
+    // boyutuna iner: 36 px'te 17-18 harfli Rusça sözcük (363-364 px) 360 px'lik
+    // sütuna sığmayıp tek harfi alt satıra bırakıyordu. Ölçü sütunun kendisi.
+    expect(grid.children[1]!.className.split(/\s+/)).toContain("@container/info");
+    expect(h1.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["text-3xl", "sm:text-4xl", "@max-[24rem]/info:text-3xl"]),
+    );
+    expect(h1.className).not.toMatch(/@max-\[22rem\]\/info/);
+    // Heceleme yok: `text-balance` ile sığan sözcüğü de bölüyordu.
+    expect(h1.className).not.toMatch(/hyphens-auto/);
+  });
+});
+
 // Arayüz testi D-04: satıcı kutusunda ad tek satır + `truncate` idi — 360 px'te
 // "ООО «Уралсварпромкабе…" (215 px ad, 204 px yer). Firma kartıyla aynı kural:
 // iki satıra kadar sarar, uzun tek sözcük bölünür; bayrak ve rozet ilk satırda.

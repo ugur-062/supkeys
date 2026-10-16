@@ -166,9 +166,12 @@ export function AcceptInviteClient({ token }: { token: string }) {
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {extractErrorMessage(previewError, t("notFound"))}
           </div>
+          {/* Kartın tek eylemi: dokunma hedefi 44 px, satır boyu (mobil
+              denetim 2026-10, g03-auth-standalone-links-20px; eskiden 20 px).
+              `-my-3`: metin eski yerinde, kart uzamaz. */}
           <Link
             href="/company/login"
-            className="block text-center text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
+            className="-my-3 flex min-h-11 items-center justify-center text-center text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
           >
             {t("backToLogin")}
           </Link>

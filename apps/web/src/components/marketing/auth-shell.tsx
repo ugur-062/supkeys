@@ -44,7 +44,9 @@ export function AuthShell({
   hideLanguageSwitcher?: boolean;
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-6">
+    // Güvenli alan (mobil kabuk): içerik durum çubuğunun ve ana ekran
+    // çizgisinin altında kalmaz; pay 0 iken eskisiyle aynı (`py-6`).
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))]">
       {/* grid deseni */}
       <svg
         aria-hidden="true"
@@ -77,8 +79,13 @@ export function AuthShell({
         className="rt-float-slow absolute bottom-0 left-1/3 -z-10 size-[28rem] rounded-full bg-violet-400/10 blur-[100px]"
       />
 
+      {/* Yatay pay EKLENMEZ (2. tur safe-area): kabuk akışta, `body`nin
+          `padding-right: var(--safe-right)` payının İÇİNDE; `right-4` zaten
+          çentik payından 16 px içeride. Eskiden pay iki kez sayılıyordu
+          (yatay telefonda kenardan 110 px). Üst pay kalır (kabuğun üstü
+          ekranın tepesinde). */}
       {hideLanguageSwitcher ? null : (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-[calc(1rem+var(--safe-top))] right-4 z-10">
           <LanguageSwitcher />
         </div>
       )}

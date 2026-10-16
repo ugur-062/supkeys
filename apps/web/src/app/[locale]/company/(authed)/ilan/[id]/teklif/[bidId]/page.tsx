@@ -174,6 +174,55 @@ export default function BidDetailPage() {
   // detayındaki satırla AYNI hesap; düğme pasif + ipucu.
   const bidExpired = isBidExpired(bid);
 
+  // Kalem satırının içeriği — telefon kartı ve sm+ tablosu AYNI kaynaktan
+  // çizer (iki kopya ayrışmasın).
+  const itemRow = (it: (typeof items)[number]) => {
+    const bi = bid.items?.find((x) => x.itemId === it.id);
+    const up = bi?.unitPrice;
+    const line = up ? Number(up) * Number(it.quantity) : null;
+    // Madde 9: kalem kendi para birimini taşıyabilir.
+    const itemCurrency = bi?.currency ?? bid.currency ?? "TRY";
+    // Kalem sorularının cevapları (satıcı girdiyse).
+    const itemAnswers = (it.questions ?? [])
+      .map((q) => ({
+        q,
+        value: bid.answers?.find((a) => a.questionId === q.id)?.value,
+      }))
+      .filter((x) => x.value);
+    return {
+      unitPriceText: up ? formatMoney(up, itemCurrency) : "—",
+      lineText: line != null ? formatMoney(line, itemCurrency) : "—",
+      notes: (
+        <>
+          {/* Muadil beyanı — alıcı kazandırmadan ÖNCE görmeli
+              (derin denetim Y-16). */}
+          <AlternativeOfferNote bidItem={bi} item={it} />
+          {bi?.deliveryTime || bi?.deliveryDate ? (
+            <span className="block text-xs font-normal text-zinc-500">
+              {t("kalemTeslimi", {
+                value:
+                  bidDeliveryTimeLabel(bi.deliveryTime) ??
+                  (bi.deliveryDate
+                    ? formatDate(bi.deliveryDate, "short", locale)
+                    : "—"),
+              })}
+            </span>
+          ) : null}
+          {itemAnswers.map(({ q, value }) => (
+            <span key={q.id} className="block text-xs font-normal text-zinc-500">
+              {q.text}:{" "}
+              <strong>
+                {q.answerType === "YES_NO" && value
+                  ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
+                  : value}
+              </strong>
+            </span>
+          ))}
+        </>
+      ),
+    };
+  };
+
   // Kazandırma geri alınamaz → onay penceresi tutarı da söyler (kullanıcı
   // kararı 2026-10-07); başlıktaki tutarla aynı biçimleyici, çevrim yok.
   const amountLabel = (b: typeof bid) =>
@@ -314,7 +363,10 @@ export default function BidDetailPage() {
               {formatDateTime(bid.createdAt, locale)}
             </Text>
           </div>
-          <div className="text-right">
+          {/* Mobil denetim (g07): telefonda tutar bloğu alt satıra iner ve
+              SOLA yaslanır — sağa yaslı "Mesaj Gönder" sola yaslı tutarın
+              altında kayık duruyordu; sm ve üstü sağda. */}
+          <div className="text-left sm:text-right">
             <div className="text-2xl font-bold tabular-nums text-zinc-950">
               {formatMoney(bid.amount, bid.currency ?? "TRY")}
             </div>
@@ -326,9 +378,11 @@ export default function BidDetailPage() {
               </div>
             ) : null}
             {bid.bidderCompanyId ? (
+              // Dokunma alanı 84×15 idi (g07): görünüş değişmeden dolgu + eksi
+              // kenar boşluğuyla 44 px yüksekliğe çıkar.
               <Link
                 href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=satinalma`}
-                className="text-xs font-semibold text-blue-600 hover:underline"
+                className="-mx-1.5 -my-3.5 inline-block px-1.5 py-3.5 text-xs font-semibold text-blue-600 hover:underline"
               >
                 {t("mesajGonder")}
               </Link>
@@ -416,7 +470,36 @@ export default function BidDetailPage() {
       {items.length > 0 && bid.items && bid.items.length > 0 ? (
         <section className="space-y-2">
           <Subheading>{t("kalemTeklifleri")}</Subheading>
-          <div className="card px-2 [--gutter:--spacing(4)]">
+          {/* Mobil denetim (g07, kullanıcı kararı): telefonda kalemler KART
+              listesi — dört sütunlu tablo 502 px'e çıkıyor, Birim Fiyat
+              kesiliyor, Tutar ekran dışında kalıyor, kaydırınca kalem adı
+              kayboluyordu. Tablo sm'den itibaren. */}
+          <ul className="card divide-y divide-zinc-950/5 sm:hidden">
+            {items.map((it) => {
+              const row = itemRow(it);
+              return (
+                <li key={it.id} className="px-4 py-3">
+                  <p className="text-sm font-medium text-zinc-900 [overflow-wrap:anywhere]">
+                    {it.name}
+                    {row.notes}
+                  </p>
+                  <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 text-xs">
+                    <dt className="text-zinc-500">{t("miktar")}</dt>
+                    <dd className="text-right tabular-nums text-zinc-700">
+                      {quantity(it.quantity, it.unit, it.unitCode)}
+                    </dd>
+                    <dt className="text-zinc-500">{t("birimFiyat")}</dt>
+                    <dd className="text-right tabular-nums text-zinc-700">{row.unitPriceText}</dd>
+                    <dt className="text-zinc-500">{t("tutar")}</dt>
+                    <dd className="text-right text-sm font-semibold tabular-nums text-zinc-900">
+                      {row.lineText}
+                    </dd>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="card hidden px-2 [--gutter:--spacing(4)] sm:block">
             <Table dense>
               <TableHead>
                 <TableRow>
@@ -428,62 +511,21 @@ export default function BidDetailPage() {
               </TableHead>
               <TableBody>
                 {items.map((it) => {
-                  const bi = bid.items?.find((x) => x.itemId === it.id);
-                  const up = bi?.unitPrice;
-                  const line = up ? Number(up) * Number(it.quantity) : null;
-                  // Kalem sorularının cevapları (satıcı girdiyse).
-                  const itemAnswers = (it.questions ?? [])
-                    .map((q) => ({
-                      q,
-                      value: bid.answers?.find((a) => a.questionId === q.id)
-                        ?.value,
-                    }))
-                    .filter((x) => x.value);
+                  const row = itemRow(it);
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="text-zinc-900">
                         {it.name}
-                        {/* Muadil beyanı — alıcı kazandırmadan ÖNCE görmeli
-                            (derin denetim Y-16). */}
-                        <AlternativeOfferNote bidItem={bi} item={it} />
-                        {bi?.deliveryTime || bi?.deliveryDate ? (
-                          <span className="block text-xs text-zinc-500">
-                            {t("kalemTeslimi", {
-                              value:
-                                bidDeliveryTimeLabel(bi.deliveryTime) ??
-                                (bi.deliveryDate
-                                  ? formatDate(bi.deliveryDate, "short", locale)
-                                  : "—"),
-                            })}
-                          </span>
-                        ) : null}
-                        {itemAnswers.map(({ q, value }) => (
-                          <span
-                            key={q.id}
-                            className="block text-xs text-zinc-500"
-                          >
-                            {q.text}:{" "}
-                            <strong>
-                              {q.answerType === "YES_NO" && value
-                                ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
-                                : value}
-                            </strong>
-                          </span>
-                        ))}
+                        {row.notes}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">
                         {quantity(it.quantity, it.unit, it.unitCode)}
                       </TableCell>
-                      {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
                       <TableCell className="text-right tabular-nums text-zinc-700">
-                        {up
-                          ? formatMoney(up, bi?.currency ?? bid.currency ?? "TRY")
-                          : "—"}
+                        {row.unitPriceText}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-900">
-                        {line != null
-                          ? formatMoney(line, bi?.currency ?? bid.currency ?? "TRY")
-                          : "—"}
+                        {row.lineText}
                       </TableCell>
                     </TableRow>
                   );

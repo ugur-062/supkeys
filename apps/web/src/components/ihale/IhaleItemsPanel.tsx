@@ -17,6 +17,14 @@ const PREVIEW_COUNT = 5;
 const INLINE_MAX = 20;
 
 /**
+ * Listenin altındaki "N kalem daha göster" / "Tüm N kalemi detayda gör":
+ * telefonda 44 px'lik dokunma satırı (yazı yerinde, yatayda 4 px pay), sm'den
+ * itibaren eski satır içi bağlantı (18 px).
+ */
+const CONTROL_ROW =
+  "-mx-1 inline-flex min-h-11 items-center rounded px-1 text-[12px] font-medium text-blue-600 hover:underline sm:mx-0 sm:mt-1 sm:inline-block sm:min-h-0 sm:px-0";
+
+/**
  * İhale satırı accordion'unda tembel kalem listesi. Detay sayfasıyla AYNI
  * endpoint + AYNI queryKey (`/company/listings/:id`) — yetki/maskeleme sunucuda
  * (sahip-değil kapalı zarf korunur; hedef fiyat non-owner'a yalnız sahip
@@ -94,12 +102,14 @@ export function IhaleItemsPanel({
         {heading}
         <p className="mt-2 text-[12px]">
           <span className="text-rose-600">{t("kalemlerYuklenemedi")}</span>{" "}
+          {/* Dokunma alanı 30 px: görünmeyen dolgu satır kutusunu büyütmez
+              (eksi kenar boşluğu), başlıkla aradaki 8 px'e taşar. */}
           <button
             type="button"
             onClick={() => void refetch()}
             disabled={isRefetching}
             className={cn(
-              "rounded font-medium text-blue-600 hover:underline disabled:opacity-50",
+              "-mx-1 -my-1.5 inline-block rounded px-1 py-1.5 font-medium text-blue-600 hover:underline disabled:opacity-50",
               IHALE_VIEW_FOCUS,
             )}
           >
@@ -143,7 +153,13 @@ export function IhaleItemsPanel({
           showAll && "max-h-[320px] overflow-y-auto",
         )}
       >
-        <table className="w-full min-w-[420px] text-left">
+        {/* TELEFONDA YATAY KAYDIRMA YOK (mobil denetim 2026-10 g06): 420 px alt
+            sınır 293 px'lik kutuda Miktar sütununu ekranın dışına itiyordu, kayan
+            kutunun hiçbir işareti yoktu. sm altında Miktar / Hedef fiyat sütunu
+            gizlenir ve satırın kendisinde ("Miktar: 12 adet") okunur — satır
+            kart gibi; sm'den itibaren eski tablo. Telefonda SABİT düzen: uzun
+            tek parça ad (kod, bağlantı) tabloyu kutudan taşırmaz, hücrede kırılır. */}
+        <table className="w-full table-fixed text-left sm:min-w-[420px] sm:table-auto">
           <thead className={cn(showAll && "sticky top-0 z-[1] bg-white")}>
             <tr>
               <th scope="col" className="w-8 py-1 pr-2 text-[11px] font-normal text-slate-400">
@@ -152,11 +168,11 @@ export function IhaleItemsPanel({
               <th scope="col" className="py-1 pr-2 text-[11px] font-normal text-slate-400">
                 {t("kalem")}
               </th>
-              <th scope="col" className="py-1 pr-2 text-right text-[11px] font-normal text-slate-400">
+              <th scope="col" className="hidden py-1 pr-2 text-right text-[11px] font-normal text-slate-400 sm:table-cell">
                 {t("miktar")}
               </th>
               {showTarget ? (
-                <th scope="col" className="py-1 text-right text-[11px] font-normal text-slate-400">
+                <th scope="col" className="hidden py-1 text-right text-[11px] font-normal text-slate-400 sm:table-cell">
                   {t("hedefFiyat")}
                 </th>
               ) : null}
@@ -171,12 +187,12 @@ export function IhaleItemsPanel({
                 <td className="py-1.5 pr-2 align-top">
                   <div
                     title={it.name}
-                    className="line-clamp-2 text-[13px] font-medium leading-tight text-slate-800"
+                    className="break-words text-[13px] font-medium leading-tight text-slate-800 sm:line-clamp-2"
                   >
                     {it.name}
                   </div>
                   {it.materialCode ? (
-                    <div className="tabular-nums text-[11px] text-slate-500">
+                    <div className="normal-nums text-[11px] text-slate-500">
                       {it.materialCode}
                     </div>
                   ) : null}
@@ -188,12 +204,18 @@ export function IhaleItemsPanel({
                       {it.description}
                     </div>
                   ) : null}
+                  <div className="mt-0.5 text-[12px] tabular-nums leading-tight text-slate-700 sm:hidden">
+                    {t("miktarSatiri", { qty: quantity(it.quantity, it.unit) })}
+                    {it.targetPrice != null ? (
+                      <span className="block">{t("hedefFiyatSatiri", { price: formatMoney(it.targetPrice, currency) })}</span>
+                    ) : null}
+                  </div>
                 </td>
-                <td className="whitespace-nowrap py-1.5 pr-2 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">
+                <td className="hidden whitespace-nowrap py-1.5 pr-2 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700 sm:table-cell">
                   {quantity(it.quantity, it.unit)}
                 </td>
                 {showTarget ? (
-                  <td className="whitespace-nowrap py-1.5 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">
+                  <td className="hidden whitespace-nowrap py-1.5 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700 sm:table-cell">
                     {it.targetPrice != null
                       ? formatMoney(it.targetPrice, currency)
                       : "—"}
@@ -208,8 +230,10 @@ export function IhaleItemsPanel({
         <button
           type="button"
           onClick={() => setShowAll((s) => !s)}
+          // Telefonda 44 px dokunma satırı (mobil denetim 2026-10; 18 px'ti),
+          // sm'den itibaren eski satır içi bağlantı boyu.
           className={cn(
-            "mt-1 inline-block rounded text-[12px] font-medium text-blue-600 hover:underline",
+            CONTROL_ROW,
             IHALE_VIEW_FOCUS,
           )}
         >
@@ -220,7 +244,7 @@ export function IhaleItemsPanel({
         <Link
           href={allItemsHref}
           className={cn(
-            "mt-1 inline-block rounded text-[12px] font-medium text-blue-600 hover:underline",
+            CONTROL_ROW,
             IHALE_VIEW_FOCUS,
           )}
         >

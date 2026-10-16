@@ -62,3 +62,15 @@ describe("NotificationPrefsSection — keşif alt tercihleri", () => {
     expect(sent.growthNudges).toBe(true);
   });
 });
+
+// Mobil denetim 2026-10 g11: iki satıra sarılan maddede nokta iki satırın ortasındaydı.
+describe("NotificationPrefsSection — 'Her zaman gönderilir' listesi", () => {
+  it("madde noktası ilk satırla hizalı (items-start + üst pay), daralmaz", () => {
+    render(<NotificationPrefsSection />);
+    const item = screen.getByText("Teklifim kazandığında / sipariş oluştuğunda");
+    expect(item.className.split(/\s+/)).toContain("items-start");
+    expect(item.className.split(/\s+/)).not.toContain("items-center");
+    const dot = item.querySelector("span")!;
+    expect(dot.className.split(/\s+/)).toEqual(expect.arrayContaining(["shrink-0", "mt-[7px]"]));
+  });
+});

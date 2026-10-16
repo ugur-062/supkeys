@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { RequestDefaultsForm, requestDefaultsFieldErrors } from "@/components/tenders/request-defaults-form";
 import { useCloseDaysGuard } from "@/components/tenders/close-days-input";
+import { revealFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/list/page-container";
@@ -12,7 +13,7 @@ import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
 import { requestDefaultsFallbackFor, type RequestDefaults } from "@rothern/shared";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -33,6 +34,7 @@ export default function TalepSartlariPage() {
   }, [q.data, draft, companyCountry]);
 
   const closeDaysOk = useCloseDaysGuard();
+  const formRef = useRef<HTMLDivElement>(null);
   const onSave = async () => {
     if (!draft) return;
     // "Özel gün" kutusu geçersizken son onaylı gün sessizce kaydedilmez:
@@ -41,6 +43,9 @@ export default function TalepSartlariPage() {
     // Alan hatası formda işaretli (D-007); API'ye gitmeden durdurulur.
     if (Object.keys(requestDefaultsFieldErrors(draft)).length > 0) {
       toast.error(t("isaretliAlanlariDuzeltin"));
+      // Kaydet düğmesi telefonda formun altında: işaretli alan ekranın dışında
+      // kalıyordu — ilk işaretli alana odak + kaydırma (mobil denetim 2026-10).
+      if (formRef.current) revealFirstInvalid(formRef.current);
       return;
     }
     try {
@@ -74,7 +79,7 @@ export default function TalepSartlariPage() {
         <p className="mt-8 text-sm text-zinc-500">{t("yukleniyor")}</p>
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+          <div ref={formRef} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
             {q.data?.source === "last_listing" ? (
               <p className="mb-6 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 ring-1 ring-blue-600/20">
                 {t.rich("henuzKaydedilmisSartYok", { strong: (c) => <strong>{c}</strong> })}
@@ -86,7 +91,7 @@ export default function TalepSartlariPage() {
             ) : null}
             <RequestDefaultsForm value={draft} onChange={setDraft} readOnly={!canEdit} />
           </div>
-          <aside className="lg:sticky lg:top-24 lg:self-start">
+          <aside className="lg:sticky lg:top-[calc(6rem+var(--safe-top))] lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <p className="text-sm font-semibold text-zinc-950">{t("neredeKullanilir")}</p>
               <p className="mt-2 text-xs/5 text-zinc-600">

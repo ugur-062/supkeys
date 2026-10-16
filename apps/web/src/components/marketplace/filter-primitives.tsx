@@ -21,6 +21,15 @@ import { useEffect, useId, useState, type ReactNode } from "react";
  */
 export const SHOW = 6;
 
+/**
+ * "Tümünü göster (n)" / "Daha az göster" — 130×20 px'ti (mobil denetim g02-08,
+ * g05). Görünüm aynı; dokunma alanı aşağı 12 px büyür: grupta ondan sonra ya
+ * kartın alt dolgusu (12 px) ya da "Yakınımda" bölümünün üst boşluğu (12 px)
+ * gelir, üstteki seçenek satırına taşmaz.
+ */
+const SHOW_MORE_CLS =
+  "relative px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 after:absolute after:-inset-x-1 after:top-0 after:-bottom-3 hover:text-zinc-950";
+
 export function useOpenState(storageKey: string, initial = true) {
   const [open, setOpen] = useState(initial);
   useEffect(() => {
@@ -91,13 +100,20 @@ export function Group({
        ("Temizle" alt satıra, sağa yaslı geçer), fieldset `min-w-0` ile raydan
        geniş olamaz, başlık yine sığmazsa kelimeden bölünür. */
     <fieldset aria-labelledby={titleId} className="min-w-0 rounded-lg border border-zinc-200 bg-white px-3 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+      {/* DOKUNMA ALANLARI (mobil denetim g02-08 / g05 / g08): başlık düğmesi
+          16 px, "Temizle" 48×16 px'ti ve 8 px yan yanaydı — yanlış dokunuş
+          grubu temizliyordu. Görünüm aynı; alanlar görünmez sözde öğeyle
+          büyür ve ÇAKIŞMAZ: başlık yukarı kartın dolgusuna (12 px), aşağı
+          içeriğin üst boşluğuna (10 px) kadar 8 px; "Temizle" 6 px yana,
+          8 px dikey. Aralarında 16 px; satır sarınca (RU) alt satır 16 px
+          aşağıda, iki alan yine değmez. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-4">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={id}
           onClick={() => setOpen(!open)}
-          className="flex min-w-0 flex-auto items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
+          className="relative flex min-w-0 flex-auto items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase after:absolute after:inset-x-0 after:-top-3 after:-bottom-2 hover:text-zinc-950"
         >
           {icon ? (
             <span aria-hidden className="mr-1 inline-flex shrink-0 text-zinc-400">
@@ -114,7 +130,7 @@ export function Group({
           <button
             type="button"
             onClick={onClear}
-            className="ml-auto shrink-0 text-xs whitespace-nowrap text-zinc-500 underline underline-offset-2 hover:text-zinc-950"
+            className="relative ml-auto shrink-0 text-xs whitespace-nowrap text-zinc-500 underline underline-offset-2 after:absolute after:-inset-x-1.5 after:-inset-y-2 hover:text-zinc-950"
           >
             {t("clear")}
           </button>
@@ -271,7 +287,7 @@ export function ShowMore({
         />
       ))}
       {items.length > SHOW ? (
-        <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
+        <button type="button" onClick={() => setAll(!all)} className={SHOW_MORE_CLS}>
           {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
@@ -324,7 +340,7 @@ export function ShowMoreRadio({
         />
       ))}
       {items.length > SHOW ? (
-        <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
+        <button type="button" onClick={() => setAll(!all)} className={SHOW_MORE_CLS}>
           {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
@@ -338,7 +354,22 @@ export interface FilterChip {
   onRemove: () => void;
 }
 
-/** Aktif süzgeç çipleri — yapışkan şerit (listenin üstünde). Çip yoksa hiç çizilmez. */
+/**
+ * Aktif süzgeç çipleri — listenin üstünde şerit. Çip yoksa hiç çizilmez.
+ *
+ * YAPIŞKAN YALNIZ `lg`DE (mobil denetim g02-02): telefonda `top-20` 56 px'lik
+ * üst çubuğun 24 px altında duruyor, aradan ve yarı saydam zeminden kartlar
+ * görünüyordu; 4 çiple 144 px'e çıkıp üst çubukla birlikte ekranın %29'unu
+ * kalıcı kapatıyor, altından geçen "Bilgi iste" düğmelerine dokunulamıyordu.
+ * Telefonda şerit akışta kalır (kaydırınca gider), zemin düz beyaz.
+ *
+ * MASAÜSTÜ (2. tur g02): şerit üst çubuğun TAM altına yapışır
+ * (`top-(--topbar-h)` = kompakt üst çubuk 3.5rem + güvenli alan; eski 5rem
+ * altında 24 px'lik aralıktan kartlar görünüyordu) ve zemini her genişlikte
+ * düz beyaz (yarı saydam zeminden alttaki ürün metni okunuyordu). Herkese açık
+ * listede şerit SONUÇ sütununun içinde durur (`PublicListPage`), süzgeç rayının
+ * üstüne binmez. `data-chip-bar`: iskelet şerit varken boşluğunu ayarlar.
+ */
 export function FilterChipBar({
   chips,
   activeCount,
@@ -354,7 +385,8 @@ export function FilterChipBar({
   if (chips.length === 0) return null;
   return (
     <div
-      className={`${sticky ? "sticky top-20 z-20" : ""} -mx-2 mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white/90 px-2 py-2 text-sm ring-1 ring-zinc-950/5 backdrop-blur`}
+      data-chip-bar
+      className={`${sticky ? "lg:sticky lg:top-(--topbar-h) lg:z-20" : ""} -mx-2 mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white px-2 py-2 text-sm ring-1 ring-zinc-950/5`}
     >
       <span className="text-zinc-500">{t("chipsLabel")}</span>
       {chips.map((c) => (
@@ -362,7 +394,14 @@ export function FilterChipBar({
           {c.label}
         </Chip>
       ))}
-      <button type="button" onClick={onClearAll} className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
+      {/* 112×20 px'ti (g02-08): alan dikeyde 6 px büyür (çipler 28 px, satır
+          arası 8 px — alt/üst satırın çipine değmez) ve yalnız SAĞA taşar; solda
+          çipin × alanı çipin kenarını 6 px aşıyor, 8 px boşluk ona kalır. */}
+      <button
+        type="button"
+        onClick={onClearAll}
+        className="relative text-sm font-medium text-zinc-900 underline underline-offset-2 after:absolute after:-inset-y-1.5 after:left-0 after:-right-2 hover:text-zinc-600"
+      >
         {t("clearAll")}
       </button>
       <span className="sr-only">{t("activeCount", { n: activeCount })}</span>
@@ -433,18 +472,26 @@ export function PriceHistogram({
   const active = from != null || to != null;
   return (
     <div className="mb-2">
-      <div className="flex h-12 items-end gap-px" role="group" aria-label={t("histLabel")}>
+      {/* Her kova TAM YÜKSEKLİKTE bir düğme, renkli çubuk içinde (mobil
+          denetim g02-08 / g05): düğmenin kendisi çubuktu ve az ürünlü kova
+          24×3 px'lik bir hedefti. Görünüm aynı; her kova 48 px boyunca dokunulur. */}
+      <div className="flex h-12 items-stretch gap-px" role="group" aria-label={t("histLabel")}>
         {data.buckets.map((b) => (
           <button
             key={b.from}
             type="button"
             onClick={() => onPick(b.from, b.to)}
             title={t("histTitle", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}
-            className={`flex-1 rounded-t-sm transition hover:bg-zinc-900 ${
-              !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
-            }`}
-            style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
+            className="group flex min-w-0 flex-1 items-end"
           >
+            <span
+              aria-hidden
+              data-hist-bar
+              className={`block w-full rounded-t-sm transition group-hover:bg-zinc-900 ${
+                !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
+              }`}
+              style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
+            />
             <span className="sr-only">{t("histSr", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}</span>
           </button>
         ))}

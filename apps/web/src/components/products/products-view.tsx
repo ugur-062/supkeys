@@ -13,7 +13,8 @@ import { useSearchParams } from "next/navigation";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { VERIFY_HREF } from "@/components/company/verification-gate";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
-import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from "@/components/catalyst/dropdown";
+import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from "@/components/catalyst/dropdown";
+import { FAB_CLEARANCE_SM_CLASS } from "@/components/company-shell/assistant/fab-clearance";
 import { useProductArchive } from "./use-product-archive";
 import { ProductShowcaseForm } from "./product-showcase-form";
 import { ProductPreview } from "./product-preview";
@@ -579,16 +580,41 @@ export function ProductsView() {
 }
 
 /**
+ * GENİŞ SÜTUNLAR TABLO KARTININ GENİŞLİĞİNE GÖRE (mobil denetim 2026-10, beşinci
+ * tur). Eskiden ekran kırılımıyla açılıyorlardı (Min. sipariş + Görüntülenme xl,
+ * Kategori + Eklenme 2xl); sabitlenmiş kenar çubuğuyla 1280'de kart 944 px,
+ * 1536'da 1200 px ve RU sütunların en dar hâli bile sığmıyordu (gerçek veriyle
+ * 1280'de 6, 1536'da 29 px taşma; "Опубликован · на проверке" rozetli tek satır
+ * Действия sütununu kartın dışına itiyor, ⋮ AI düğmesinin sütununa düşüyor,
+ * sayfa yana kayıyordu). Eşikler RU'nun ölçülen en dar sütun toplamı + pay:
+ * Min. sipariş 58rem (≈850 px gerekli), Görüntülenme 64rem (≈950), Eklenme
+ * 72rem (≈1070), Kategori 77rem (≈1230; kartın tavanı 1240). Kart kenar
+ * çubuğu sabitken de ray hâlindeyken de kendi genişliğini ölçer; ray üzerine
+ * gelinip genişleyince (içeriği İTER) bir geniş sütun o süre için kapanabilir —
+ * bilerek: eskiden aynı anda tablo kartın dışına taşıyordu. Ölçüm (RU + TR,
+ * "Опубликован · на проверке" / "Требуются исправления" rozetli satırla):
+ * 1024–1920, sabit ve ray, ⋮ her genişlikte AI düğmesinin ≥ 8 px solunda.
+ */
+const WIDE_COLUMN = {
+  minSiparis: "hidden @[58rem]:table-cell",
+  goruntulenme: "hidden @[64rem]:table-cell",
+  eklenme: "hidden @[72rem]:table-cell",
+  kategori: "hidden @[77rem]:table-cell",
+} as const;
+
+/**
  * TABLO (2026-09-18, kullanıcı mockup'ı): Ürün (görsel + ad + kategori) ·
  * Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme · Eklenme ·
  * İşlemler. Satır tıklanır (düzenleyici/önizleme). Düzeltme gerekçesi ad
  * altında.
  *
  * YATAY KAYDIRMA YOK (2026-09-18, kullanıcı: "scroll bar olmasın, tabloyu
- * oturt"): tablo kapsayıcıya sığar; ekran daraldıkça sütunlar SIRAYLA
- * gizlenir — Eklenme ve Kategori yalnız 2xl, Min. sipariş ve Görüntülenme
- * xl, Fiyat sm. Kategori zaten ad altındaki ikinci satırda okunur, bilgi
- * kaybolmaz. Ad ve kategori tek satırda kısaltılır.
+ * oturt"): tablo kapsayıcıya sığar; alan daraldıkça sütunlar SIRAYLA
+ * gizlenir — Fiyat md (640-767 px'te sığmıyordu), Durum sm; geniş sütunlar
+ * TABLO KARTININ KENDİ genişliğine göre (`@container`, `WIDE_COLUMN`).
+ * Kategori zaten ad altındaki ikinci satırda okunur, bilgi kaybolmaz. Ad ve
+ * kategori sm'den itibaren tek satırda kısaltılır; telefonda iki satıra kadar
+ * sarar (`wrap-anywhere`: uzun kod tablo hücresini genişletmesin).
  */
 function ProductRows({
   items,
@@ -623,27 +649,43 @@ function ProductRows({
   /** Fiyat modu → kısa etiket (form seçenekleriyle aynı sözcükler); bilinmeyen kod olduğu gibi. */
   const priceModeLabel = (m: CatalogItem["priceMode"]) =>
     t.has(`priceMode.${m}` as never) ? t(`priceMode.${m}` as never) : m;
+  /**
+   * Fiyat hücresi SARABİLİR ama yalnız parçalar arasında (mobil denetim 2026-10,
+   * beşinci tur): tutar ("1 250 000,00 ₽") ve birim kendi içinde bölünmez, eğik
+   * çizgi birime bağlı kalır ("/ шт."), kademeli eki ayrı satıra inebilir. Eskiden
+   * hücre `whitespace-nowrap`tı; uzun kademeli fiyat (RU 272 px) 768'de tabloyu 98,
+   * 1240 px'lik kartta 120 px taşırıp ⋮'yi AI düğmesinin altına itiyordu. Yer
+   * varken tablo hücreyi yine tek satırda bırakır.
+   */
+  const unbreakable = (s: string) => s.replace(/ /g, "\u00a0");
   const price = (it: CatalogItem) =>
     it.priceMode === "ON_REQUEST" || it.priceAmount == null
       ? priceModeLabel(it.priceMode)
       : t(it.priceMode === "TIERED" ? "fiyatBirimKademeli" : "fiyatBirim", {
-          amount: affixCurrency(formatNumber(Number(it.priceAmount), locale), it.priceCurrency ?? "TRY", locale),
-          unit: unitLabel(it.unit),
-        });
+          amount: unbreakable(affixCurrency(formatNumber(Number(it.priceAmount), locale), it.priceCurrency ?? "TRY", locale)),
+          unit: unbreakable(unitLabel(it.unit)),
+        }).replace(" / ", " /\u00a0");
   const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
+  /** Satırda ⋮ menüsü var mı (arşivde yalnız yönetebilen "Geri al" görür). */
+  const hasMenu = !(archived && !canManage);
   return (
-    <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+    <div className="@container mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
       <table className="w-full text-sm">
         <thead className="border-b border-zinc-950/5">
           <tr>
             <th scope="col" className={th}>{t("urun")}</th>
             <th scope="col" className={cn(th, "hidden sm:table-cell")}>{t("durum")}</th>
-            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>{t("kategori")}</th>
-            <th scope="col" className={cn(th, "hidden sm:table-cell")}>{t("fiyat")}</th>
-            <th scope="col" className={cn(th, "hidden xl:table-cell")}>{t("minSiparis")}</th>
-            <th scope="col" className={cn(th, "hidden xl:table-cell")}>{t("goruntulenme")}</th>
-            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>{t("eklenme")}</th>
-            <th scope="col" className={cn(th, "text-right")}>
+            <th scope="col" className={cn(th, WIDE_COLUMN.kategori)}>{t("kategori")}</th>
+            {/* Fiyat md'den (mobil denetim 2026-10): 640-767 px'te Ürün + Durum + Fiyat
+                + ⋮ (AI düğmesi payıyla 120 px) içeriğe sığmıyordu — tablo 592 px'lik
+                alanda TR 626, RU 687 px oluyor, ⋮ kesiliyor ve AI düğmesinin
+                sütununa düşüyordu. Telefon satırı da fiyatı göstermez. */}
+            <th scope="col" className={cn(th, "hidden md:table-cell")}>{t("fiyat")}</th>
+            <th scope="col" className={cn(th, WIDE_COLUMN.minSiparis)}>{t("minSiparis")}</th>
+            <th scope="col" className={cn(th, WIDE_COLUMN.goruntulenme)}>{t("goruntulenme")}</th>
+            <th scope="col" className={cn(th, WIDE_COLUMN.eklenme)}>{t("eklenme")}</th>
+            {/* Telefonda ⋮ sütunu sıfır genişlikte (⋮ durum satırında; aşağıda). */}
+            <th scope="col" className={cn(th, "text-right max-sm:w-0 max-sm:px-0")}>
               <span className="sr-only">{t("islemler")}</span>
             </th>
           </tr>
@@ -662,78 +704,130 @@ function ProductRows({
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-3">
                     <Thumb src={item.thumbnailUrl} size="md" className="shrink-0" />
+                    {/* TELEFON (mobil denetim g09): yalnız bu sütun görünür; ad ve alt satır
+                        tek satıra (176 px) kırpılınca benzer ürünler ("… M12x50 DIN 933")
+                        ayırt edilemiyordu → sm altında iki satıra kadar sarar; sm'den
+                        itibaren eski tek satır + genişlik tavanları.
+                        AI düğmesi sütunu (mobil denetim 2026-10, dördüncü tur): telefonda
+                        satırın sağ ucu (390'da 334-378) AI Asistan düğmesinin sütunu.
+                        Tıklanan ad düğmesi `max-sm:mr-9` ile o sütunun 8 px solunda biter;
+                        alt satır (düz metin) tam genişliği kullanır. */}
                     <div className="min-w-0">
                       {archived ? (
-                        <span className="block max-w-[11rem] truncate font-semibold text-zinc-950 sm:max-w-[14rem] xl:max-w-[18rem]">
+                        <span
+                          title={item.name}
+                          className="block font-semibold text-zinc-950 max-sm:line-clamp-2 max-sm:wrap-anywhere sm:max-w-[14rem] sm:truncate xl:max-w-[18rem]"
+                        >
                           {item.name}
                         </span>
                       ) : (
                         <button
                           type="button"
+                          title={item.name}
                           onClick={(e) => {
                             e.stopPropagation();
                             onOpen(item);
                           }}
-                          className="block max-w-[11rem] truncate text-left font-semibold text-zinc-950 hover:underline sm:max-w-[14rem] xl:max-w-[18rem]"
+                          className="block max-w-full text-left font-semibold text-zinc-950 hover:underline max-sm:mr-9 sm:max-w-[14rem] sm:truncate xl:max-w-[18rem]"
                         >
-                          {item.name}
+                          <span className="max-sm:line-clamp-2 max-sm:wrap-anywhere">{item.name}</span>
                         </button>
                       )}
-                      <div className="max-w-[11rem] truncate text-xs text-zinc-500 sm:max-w-[14rem] xl:max-w-[18rem]">
+                      <div className="text-xs text-zinc-500 max-sm:line-clamp-2 max-sm:wrap-anywhere sm:max-w-[14rem] sm:truncate xl:max-w-[18rem]">
                         {catName(item.categoryId) ?? t("kategoriSecilmedi")} · {priceModeLabel(item.priceMode)} · {unitLabel(item.unit)}
-                        {item.reviewStatus === "REJECTED" && item.rejectReason ? t("duzeltme", { rejectReason: item.rejectReason }) : ""}
                       </div>
-                      {/* Dar ekranda Durum sütunu gizli → rozet adın altında. */}
-                      <div className="mt-1 sm:hidden">
+                      {/* Düzeltme gerekçesi KENDİ satırında: kırpılan alt satırın sonuna
+                          eklendiği için hiçbir genişlikte okunmuyordu (mobil denetim g09). */}
+                      {item.reviewStatus === "REJECTED" && item.rejectReason ? (
+                        <p className="mt-1 line-clamp-2 text-xs wrap-anywhere text-red-700 sm:max-w-[14rem] xl:max-w-[18rem]">
+                          {t("duzeltmeSatiri", { rejectReason: item.rejectReason })}
+                        </p>
+                      ) : null}
+                      {/* Dar ekranda Durum sütunu gizli → rozet adın altında; ⋮ bu
+                          satırın sağında durur (`pr-22` onun yeri: 44 px ⋮ + 36 px
+                          AI düğmesi payı + 8 px). */}
+                      <div className={cn("mt-1 sm:hidden", hasMenu && "max-sm:pr-22")}>
                         <Badge color={st.color}>{st.label}</Badge>
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="hidden px-3 py-3 whitespace-nowrap sm:table-cell">
+                {/* Durum rozeti HER genişlikte sözcük arasında sarabilir (sözcük
+                    içinde bölünmez): yer varken tablo onu tek satırda bırakır, yer
+                    yoksa uzun durum ("Опубликован · на проверке") tabloyu kartın
+                    dışına itmek yerine ikinci satıra iner. Eskiden xl'de
+                    `whitespace-nowrap`tı; 1280'de tek satırlık bu rozet Действия
+                    sütununu kesiyordu (mobil denetim 2026-10, beşinci tur). */}
+                <td className="hidden px-3 py-3 sm:table-cell">
                   <Badge color={st.color}>{st.label}</Badge>
                 </td>
-                <td className="hidden max-w-[10rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
-                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 sm:table-cell">{price(item)}</td>
-                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
+                <td className={cn("max-w-[10rem] truncate px-3 py-3 text-zinc-700", WIDE_COLUMN.kategori)}>{catName(item.categoryId) ?? "—"}</td>
+                <td className="hidden px-3 py-3 tabular-nums text-zinc-700 md:table-cell">{price(item)}</td>
+                <td className={cn("px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700", WIDE_COLUMN.minSiparis)}>
                   {item.moq != null ? t("min", { qty: quantity(item.moq, item.unit) }) : "—"}
                 </td>
-                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
+                <td className={cn("px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700", WIDE_COLUMN.goruntulenme)}>
                   {item.viewCount != null ? (
                     <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{formatNumber(item.viewCount, locale)}</span>
                   ) : "—"}
                 </td>
-                <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
+                <td className={cn("px-3 py-3 whitespace-nowrap text-zinc-700", WIDE_COLUMN.eklenme)}>
                   {formatDate(item.createdAt ?? item.updatedAt, "short", locale)}
                 </td>
                 {/* ⋮ GERÇEK MENÜ (arayüz testi O-039): eskiden doğrudan ürünü
                     açıyordu, arşivleme hiçbir yerde yoktu. Satır tıklaması
-                    menüye (portal dahil — React olayı ağaçta kabarır) sızmasın. */}
-                <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  {archived && !canManage ? null : (
-                    <Dropdown>
-                      <DropdownButton plain aria-label={t("islemMenusu", { name: item.name })}>
-                        <EllipsisVerticalIcon className="size-5" />
-                      </DropdownButton>
-                      <DropdownMenu anchor="bottom end">
-                        {archived ? (
-                          <DropdownItem onClick={() => onRestore(item)} disabled={busy}>
-                            {t("geriAl")}
-                          </DropdownItem>
-                        ) : (
-                          <>
-                            <DropdownItem onClick={() => onOpen(item)}>{t("acMenu")}</DropdownItem>
-                            {/* İncelemedeki ürün kilitli — arşivle de verilmez. */}
-                            {canManage && item.reviewStatus !== "PENDING" ? (
-                              <DropdownItem onClick={() => onArchive(item)} disabled={busy}>
-                                {t("arsivle")}
-                              </DropdownItem>
-                            ) : null}
-                          </>
-                        )}
-                      </DropdownMenu>
-                    </Dropdown>
+                    menüye (portal dahil — React olayı ağaçta kabarır) sızmasın.
+                    sm'den itibaren sağ pay (mobil denetim 2026-10): 1280'de ⋮
+                    AI Asistan düğmesinin altında kalıyor, düğme neredeyse her
+                    durağan konumda çekiliyordu → ⋮ düğmenin solunda, ikisi de
+                    kullanılır.
+                    TELEFON (mobil denetim 2026-10, dördüncü tur): ⋮ kendi sütununda
+                    satırın sağ ucunda (390'da 318-362) AI düğmesinin sütununa
+                    (334-378) düşüyordu; her satırda biri düğmenin altında kaldığı
+                    için düğme 20 durağan konumun yalnız 4'ünde (RU 360: 7)
+                    görünüyordu. Satırın ÜSTÜNE taşımak işe yaramaz (örtüşme payı
+                    satır yüksekliğine oranla aynı kalır); sütun payı (`pr-12`) adı
+                    36 px daraltıyordu. Bunun yerine sütun telefonda sıfır genişlikte
+                    (`relative`), ⋮ durum rozetiyle aynı satırda ve sağdan 48 px
+                    içeride (`right-12`): düğmenin sütununun 8 px solunda biter, ad
+                    sütunu bugünkünden geniş kalır. Ölçüldü (eski derlemeye aynı
+                    yerleşim uygulanarak): TR 390, TR 360, RU 360, RU 390'da 20/20.
+                    Tek düğüm; sm'den eski sütun. */}
+                <td
+                  className={cn(
+                    "px-3 py-3 text-right max-sm:relative max-sm:w-0 max-sm:px-0 max-sm:py-0",
+                    FAB_CLEARANCE_SM_CLASS,
                   )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {hasMenu ? (
+                    <span className="max-sm:absolute max-sm:right-12 max-sm:bottom-0.5">
+                      <Dropdown>
+                        <DropdownButton plain aria-label={t("islemMenusu", { name: item.name })}>
+                          <EllipsisVerticalIcon className="size-5" />
+                        </DropdownButton>
+                        <DropdownMenu anchor="bottom end">
+                          {archived ? (
+                            <DropdownItem onClick={() => onRestore(item)} disabled={busy}>
+                              <DropdownLabel>{t("geriAl")}</DropdownLabel>
+                            </DropdownItem>
+                          ) : (
+                            <>
+                              <DropdownItem onClick={() => onOpen(item)}>
+                                <DropdownLabel>{t("acMenu")}</DropdownLabel>
+                              </DropdownItem>
+                              {/* İncelemedeki ürün kilitli — arşivle de verilmez. */}
+                              {canManage && item.reviewStatus !== "PENDING" ? (
+                                <DropdownItem onClick={() => onArchive(item)} disabled={busy}>
+                                  <DropdownLabel>{t("arsivle")}</DropdownLabel>
+                                </DropdownItem>
+                              ) : null}
+                            </>
+                          )}
+                        </DropdownMenu>
+                      </Dropdown>
+                    </span>
+                  ) : null}
                 </td>
               </tr>
             );

@@ -97,11 +97,13 @@ export function CategoryTile({
         href={href}
         className={`group flex h-full flex-col items-center rounded-xl px-3 pt-5 pb-4 text-center ring-1 transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none ${t.tile}`}
       >
-        <span className={`flex size-16 items-center justify-center rounded-full ${t.badge}`}>
+        {/* Telefonda rozet küçük (mobil denetim 2026-10 g01): ad orada kırpılmadan
+            3–6 satır tutabilir, kart gereksiz uzamasın. sm ve üstünde 64 px. */}
+        <span className={`flex size-12 items-center justify-center rounded-full sm:size-16 ${t.badge}`}>
           <Icon
             aria-hidden
             strokeWidth={1.5}
-            className={`size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
+            className={`size-6 sm:size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
           />
         </span>
         {/* ÜST SINIR: sütun düzeninde ortalanan etiket içeriği kadar genişler; tek
@@ -117,8 +119,15 @@ export function CategoryTile({
             durur. Fotoğraflı kare kartta (o gün panel vitrini; 2026-10-10'dan
             beri hiçbir sayfa çizmiyor) UYGULANMADI: aynı deneme 320 px'te metni
             1 px kaydırdı. */}
+        {/* TELEFONDA KIRPILMAZ (mobil denetim 2026-10 g01/g05): iki satırda
+            kesilen ad dokunmatikte hiçbir yoldan okunamıyordu (`title` yok,
+            üzerine gelme yok) — 360 px'te RU adların 20/24'ü, TR'nin 9/24'ü
+            kesikti; RU en uzun ad 6 satır tutuyor. Telefonda ad tam, aynı
+            satırdaki kartlar boyca eşitlenir; sm ve üstünde eskisi gibi iki
+            satır + `title`. */}
         <span
-          className={`-mx-2 mt-4 line-clamp-2 max-w-[calc(100%+1rem)] px-2 text-[13px]/5 font-semibold text-zinc-900 ${TILE_LABEL_WRAP}`}
+          title={c.name}
+          className={`-mx-2 mt-3 line-clamp-none max-w-[calc(100%+1rem)] px-2 text-[13px]/5 font-semibold text-zinc-900 sm:mt-4 sm:line-clamp-2 ${TILE_LABEL_WRAP}`}
         >
           {c.name}
         </span>
@@ -152,7 +161,8 @@ export function CategoryTile({
         )}
         <span className="flex flex-1 flex-col justify-start px-1 pt-3 pb-2 text-center">
           <span
-            className={`line-clamp-2 text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600 ${TILE_LABEL_WRAP}`}
+            title={c.name}
+            className={`line-clamp-none text-[13px]/5 font-semibold text-zinc-900 group-hover:text-zinc-600 sm:line-clamp-2 ${TILE_LABEL_WRAP}`}
           >
             {c.name}
           </span>

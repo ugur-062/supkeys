@@ -20,12 +20,16 @@ import {
   PORTAL_ORDER,
 } from "@/lib/company/portals";
 import { ErrorState } from "@/components/ui/error-state";
+import {
+  isEditableElement,
+  isPhoneLike,
+} from "@/components/company-shell/assistant/fab-suppression";
 import { useReadFailed } from "@/hooks/use-read-failed";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
-import { Lock, MessageSquare, Search } from "lucide-react";
+import { ArrowLeft, Lock, MessageSquare, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
  * BİRLEŞİK gelen kutusu (kullanıcı isteği 2026-08-02): Satınalma + Satış
@@ -35,6 +39,34 @@ import { useEffect, useMemo, useState } from "react";
  * aynen: kullanıcı yalnız İŞLEM ROLÜ olan tarafların konuşmalarını görür,
  * composer o tarafın rolünü ister.
  */
+
+/**
+ * TELEFONDA KONUŞMA = AYRI EKRAN, GERİ LİSTEYE DÖNER (mobil denetim g04):
+ * seçim adrese `replaceState` ile yazıldığı için Android'in Geri hareketi
+ * (kabukta WebView `goBack`) konuşmadan listeye değil Mesajlar'dan önceki
+ * sayfaya gidiyordu. Tek panelli düzende (sm altı) listeden açılan konuşma
+ * geçmişe YENİ kayıt ekler ve kayıt `history.state`te işaretlenir; ekrandaki
+ * geri oku işaretli kaydı `history.back()` ile geri alır (Geri/İleri sonrası
+ * da işaret kayıtta durur — ref'e güvenilmez). Yan yana düzende, derin
+ * bağlantıda ve aynı konuşmada yön değişiminde adres yerinde yazılır.
+ */
+export const INBOX_THREAD_STATE_KEY = "rothernInboxThread";
+/** sm — liste ve sohbet yan yana; altında tek panel (liste ↔ sohbet). */
+const SIDE_BY_SIDE_QUERY = "(min-width: 40rem)";
+
+function stackedLayout(): boolean {
+  return typeof window.matchMedia !== "function" || !window.matchMedia(SIDE_BY_SIDE_QUERY).matches;
+}
+
+/** Geçerli geçmiş kaydı telefonda listeden açılan konuşmanın kaydı mı? */
+function onPushedThreadEntry(): boolean {
+  const state = window.history.state as Record<string, unknown> | null;
+  return !!state && state[INBOX_THREAD_STATE_KEY] === true;
+}
+
+function parsePortal(raw: string | null): MessagePortal | null {
+  return raw === "satis" || raw === "satinalma" ? raw : null;
+}
 
 interface ThreadRow {
   key: string;
@@ -52,6 +84,21 @@ const ROLE_CHIP: Record<MessagePortal, { label: "rozetAlicisiniz" | "rozetSatici
   satinalma: { label: "rozetAlicisiniz", cls: "bg-blue-50 text-blue-700" },
   satis: { label: "rozetSaticisiniz", cls: "bg-emerald-50 text-emerald-700" },
 };
+
+function RoleChip({ portal, className }: { portal: MessagePortal; className?: string }) {
+  const t = useTranslations("web.panel.inbox.companyInboxView");
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold",
+        ROLE_CHIP[portal].cls,
+        className,
+      )}
+    >
+      {t(ROLE_CHIP[portal].label)}
+    </span>
+  );
+}
 
 /**
  * Portalsız derin link (`?with=` — yeni mesaj e-postası eski biçimi) için yön:
@@ -98,29 +145,35 @@ export function CompanyInboxView() {
   // veri gelene dek durur (`useReadFailed`, son canlı kontrol OUTF-1).
   const threadsRead = useReadFailed(threads);
   const searchParams = useSearchParams();
-  const paramPortal = searchParams.get("portal");
+  const urlWith = searchParams.get("with");
+  const urlPortal = parsePortal(searchParams.get("portal"));
   const [selected, setSelected] = useState<{
     id: string;
     /** null = derin linkte yön yok; konuşmalar yüklenince çözülür. */
     portal: MessagePortal | null;
-  } | null>(() => {
-    const withId = searchParams.get("with");
-    if (!withId) return null;
-    const portal: MessagePortal | null =
-      paramPortal === "satis" || paramPortal === "satinalma"
-        ? paramPortal
-        : null;
-    return { id: withId, portal };
-  });
+  } | null>(() => (urlWith ? { id: urlWith, portal: urlPortal } : null));
   const [search, setSearch] = useState("");
+  /** Sıradaki adres yazımı geçmişe yeni kayıt mı ekler (telefonda listeden açılış). */
+  const pushNextRef = useRef(false);
+  /**
+   * Listenin son kaydırma konumu — telefonda konuşma açılınca liste gizlenir
+   * ve kap konumunu yitirir; listeye dönünce (geri oku, Geri, İleri→Geri)
+   * geri yüklenir.
+   */
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const savedListScroll = useRef<number | null>(null);
 
   // Seçim adres çubuğunda (arayüz testi D-355): listeden seçilen konuşma
   // `?with=&portal=` olarak yazılır — yenileme/paylaşım aynı konuşmayı açar
   // (derin link okuyucusu yukarıdaki başlangıç durumu). Yönü henüz çözülmemiş
   // (portalsız) seçimde `portal` yazılmaz; sabitlenince eklenir. Next
   // `history.replaceState`i yönlendiriciyle eşitler (gezinme/yeniden yükleme yok).
+  // Telefonda listeden açılış `pushState` (yukarıda); işaretli kayıt kapanırken
+  // adres yazılmaz — kaydı geri oku `history.back()` ile geri alır.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const push = pushNextRef.current;
+    pushNextRef.current = false;
     const u = new URL(window.location.href);
     if (selected) {
       u.searchParams.set("with", selected.id);
@@ -130,10 +183,66 @@ export function CompanyInboxView() {
       u.searchParams.delete("with");
       u.searchParams.delete("portal");
     }
-    if (u.toString() !== window.location.href) {
-      window.history.replaceState(null, "", u.toString());
+    if (u.toString() === window.location.href) return;
+    const pushed = onPushedThreadEntry();
+    if (!selected && pushed) return;
+    if (push) {
+      window.history.pushState({ [INBOX_THREAD_STATE_KEY]: true }, "", u.toString());
+    } else {
+      // İşaret aynı kayıtta korunur (yön değişimi, yönün çözülmesi).
+      window.history.replaceState(pushed ? { [INBOX_THREAD_STATE_KEY]: true } : null, "", u.toString());
     }
   }, [selected]);
+
+  // Adres DIŞARIDAN değişince (Geri/İleri) görünüm izler — boyamadan önce,
+  // eski görünüm bir kare bile kalmaz. Kendi yazımlarımız aynı seçimi verir →
+  // dokunulmaz; portalsız adres eldeki yönü ezmez.
+  const lastUrlKey = useRef(`${urlWith ?? ""}|${urlPortal ?? ""}`);
+  useLayoutEffect(() => {
+    const key = `${urlWith ?? ""}|${urlPortal ?? ""}`;
+    if (lastUrlKey.current === key) return;
+    lastUrlKey.current = key;
+    setSelected((prev) => {
+      if (!urlWith) return null;
+      if (prev && prev.id === urlWith && (urlPortal === null || prev.portal === urlPortal)) return prev;
+      return { id: urlWith, portal: urlPortal };
+    });
+  }, [urlWith, urlPortal]);
+
+  // Listeye dönünce kaydırma konumu geri gelir (gizlenen kap konumunu yitirir).
+  useLayoutEffect(() => {
+    if (selected || savedListScroll.current === null || !listScrollRef.current) return;
+    listScrollRef.current.scrollTop = savedListScroll.current;
+  }, [selected]);
+
+  /** Listeden konuşma aç — telefonda geçmişe kayıt bırakır (Geri listeye döner). */
+  const openFromList = (next: { id: string; portal: MessagePortal }) => {
+    if (typeof window !== "undefined" && stackedLayout()) {
+      savedListScroll.current = listScrollRef.current?.scrollTop ?? null;
+      pushNextRef.current = !new URL(window.location.href).searchParams.has("with");
+    }
+    setSelected(next);
+  };
+  /** Telefonda listeye dön: işaretli kayıt geri alınır, değilse adres temizlenir. */
+  const closeThread = () => {
+    setSelected(null);
+    if (typeof window !== "undefined" && onPushedThreadEntry()) window.history.back();
+  };
+
+  /*
+   * YAZARKEN KUTU EKRANI DOLDURUR (mobil denetim g04): telefonda sohbet
+   * açıkken kutu, alttaki 96 px'lik AI Asistan payını (`pb-24`) boş bırakıyordu;
+   * klavye açıkken (görünür alan ~480 px) mesaj listesine ~110 px kalıyordu.
+   * Yazma alanı odaktayken düğme zaten gizli (`fab-suppression`, aynı kural:
+   * telefon ya da dokunmatik + metin alanı odakta) → pay kutuya katılır.
+   */
+  const [typingInThread, setTypingInThread] = useState(false);
+  // Sohbet kapanınca bayrak düşer: odaktaki kutu DOM'dan kalkarken `blur`
+  // her tarayıcıda gelmez (Android Geri'si klavyeyi kapatır ama odak kutuda
+  // kalır). Kalırsa sonraki açılışta kutu, düğme görünürken payı kaplar ve
+  // asistan düğmesi Gönder'in üstüne biner.
+  if (selected === null && typingInThread) setTypingInThread(false);
+  const typing = typingInThread && selected !== null;
 
   const rows = useMemo<ThreadRow[]>(() => {
     const threadRows: ThreadRow[] = (threads.data ?? []).map((th) => ({
@@ -256,17 +365,40 @@ export function CompanyInboxView() {
 
   return (
     <div className="space-y-5">
+      {/* Telefonda sohbet açıkken sayfa başlığı ve 3 satırlık açıklama yer
+          kaplamasın (mobil denetim g04: mesajlara ~250 px kalıyordu) —
+          başlık ekran okuyucu için durur (`sr-only`), görsel olarak çekilir. */}
       <PageHeader
         title={t("mesajlar")}
         description={t("satinalmaVeSatisKonusmalarinizTek")}
+        className={selected ? "max-sm:sr-only" : undefined}
       />
 
       {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA.
           Arayüz testi Y-07: kutu ekranın altına kadar uzanınca sağ-alttaki
           sabit AI Asistan düğmesi (bottom-8, 56px) Gönder düğmesini
           örtüyordu; sayfa kaymadığı için kabuğun pb-24 payı da işlemiyordu.
-          Alt kenar düğmenin üstünde kalacak kadar kısaltıldı (17rem). */}
-      <div className="grid h-[calc(100vh-17rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]">
+          Alt kenar düğmenin üstünde kalacak kadar kısaltıldı (17rem).
+          Yükseklik `dvh` ile (mobil denetim g04): `vh` iOS tarayıcı araç
+          çubuğunu saymıyor, yazma kutusu çubuğun altında kalıyordu. Telefonda
+          sohbet açıkken başlık çekildiği için kutu sayfanın üst payına da
+          çıkar (`-mt-6`, şerit doğrudan üst çubuğun altında; kesinti notu
+          varsa onun `mb-6` payıyla notun altına oturur) ve üst çubuk (56) ile
+          alt pay (pb-24 = 96, asistan düğmesinin sütunu) arasını tam doldurur:
+          9.5rem — sayfa kaymaz, Gönder düğmenin üstünde. YAZARKEN (yukarıda)
+          düğme gizli → alt pay da kutuya katılır (`-mb-24`, yalnız üst çubuk
+          düşülür). Güvenli alan (mobil kabuk): üst çubuk üst pay kadar uzar,
+          kabuk alttan ana ekran çizgisi kadar pay alır → ikisi de düşülür. */}
+      <div
+        className={cn(
+          "grid h-[calc(100dvh-17rem-var(--safe-top)-var(--safe-bottom))] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[340px_minmax(0,1fr)] lg:grid-cols-[380px_minmax(0,1fr)]",
+          selected && "max-sm:-mt-6 max-sm:min-h-72 max-sm:border-t-0",
+          selected &&
+            (typing
+              ? "max-sm:-mb-24 max-sm:h-[calc(100dvh-3.5rem-var(--safe-top)-var(--safe-bottom))]"
+              : "max-sm:h-[calc(100dvh-9.5rem-var(--safe-top)-var(--safe-bottom))]"),
+        )}
+      >
         {/* Sol: kontak listesi */}
         <div
           className={`flex flex-col border-zinc-950/10 bg-white sm:order-1 sm:border-r ${
@@ -287,7 +419,13 @@ export function CompanyInboxView() {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div
+            ref={listScrollRef}
+            onScroll={(e) => {
+              savedListScroll.current = e.currentTarget.scrollTop;
+            }}
+            className="flex-1 overflow-y-auto"
+          >
             {threadsRead.failed ? (
               // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "önce bağlantı
               // kur" boş durumu yanıltıyordu.
@@ -332,7 +470,7 @@ export function CompanyInboxView() {
                     key={r.key}
                     type="button"
                     onClick={() =>
-                      setSelected({
+                      openFromList({
                         id: r.id,
                         // Yeni sohbette varsayılan yön: paketin ve rolün
                         // açtığı ilk taraf (Gold altında satıcı yönü, O-123).
@@ -346,18 +484,18 @@ export function CompanyInboxView() {
                     }`}
                   >
                     <AvatarInitials name={r.name} size="sm" className="mt-0.5" />
+                    {/* Telefonda rol rozeti önizleme satırına iner, ad satırında
+                        yalnız tarih kalır (mobil denetim g04: RU'da rozet + tarih
+                        adı "QA Ted…"ye indiriyor, iki firma ayırt edilemiyordu);
+                        ad kırpılmaz, gerekirse iki satıra sarar. */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 max-sm:items-baseline">
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-semibold text-zinc-900">
+                          <span className="text-sm font-semibold text-zinc-900 max-sm:line-clamp-2 max-sm:break-words sm:truncate">
                             {r.name}
                           </span>
                           {r.portal ? (
-                            <span
-                              className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[r.portal].cls}`}
-                            >
-                              {t(ROLE_CHIP[r.portal].label)}
-                            </span>
+                            <RoleChip portal={r.portal} className="max-sm:hidden" />
                           ) : null}
                         </span>
                         {r.lastMessageAt ? (
@@ -369,6 +507,9 @@ export function CompanyInboxView() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
+                        {r.portal ? (
+                          <RoleChip portal={r.portal} className="sm:hidden" />
+                        ) : null}
                         <span
                           className="truncate text-xs text-zinc-500"
                           title={r.lastMessagePreview ?? undefined}
@@ -390,23 +531,50 @@ export function CompanyInboxView() {
         {/* Sol: aktif sohbet */}
         <div
           className={`min-h-0 sm:order-2 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
+          onFocus={(e) => setTypingInThread(isPhoneLike() && isEditableElement(e.target))}
+          onBlur={(e) => {
+            const next = e.relatedTarget;
+            setTypingInThread(
+              isPhoneLike() && next instanceof Element && e.currentTarget.contains(next) && isEditableElement(next),
+            );
+          }}
         >
           {selected ? (
             <>
-              {/* Mobil geri — ad çözülmese de her zaman (çıkmaz ekran olmasın). */}
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="border-b border-zinc-950/5 px-4 py-2 text-left text-xs text-zinc-500 sm:hidden"
-              >
-                {t("kisiler")}
-              </button>
+              {activePortal && selectedName ? null : (
+                /* Mobil geri — ad çözülmese de her zaman (çıkmaz ekran olmasın).
+                   Sohbet çizilince geri oku bağlam şeridine taşınır. */
+                <button
+                  type="button"
+                  onClick={closeThread}
+                  className="border-b border-zinc-950/5 px-4 py-3 text-left text-xs text-zinc-500 sm:hidden"
+                >
+                  {t("kisiler")}
+                </button>
+              )}
               {activePortal && selectedName ? (
                 <>
                   {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
-                      kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
-                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
-                    <span className="text-xs text-zinc-600">
+                      kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü).
+                      Telefonda TEK satır (mobil denetim g04): solda geri oku
+                      (eski ayrı "← Kişiler" satırı), yön seçicisi varsa cümle
+                      çekilir — seçicinin etkin düğmesi aynı bilgiyi verir;
+                      cümle ekran okuyucu için durur. */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2 max-sm:flex-nowrap max-sm:px-2 max-sm:py-1.5">
+                    <button
+                      type="button"
+                      onClick={closeThread}
+                      aria-label={t("kisilereDon")}
+                      className="flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-950/5 hover:text-zinc-900 sm:hidden"
+                    >
+                      <ArrowLeft aria-hidden className="size-5" />
+                    </button>
+                    <span
+                      className={cn(
+                        "text-xs text-zinc-600 max-sm:min-w-0 max-sm:flex-1",
+                        myPortals.length === 2 && "max-sm:sr-only",
+                      )}
+                    >
                       {t.rich(activePortal === "satinalma" ? "buKonusmadaAlicisiniz" : "buKonusmadaSaticisiniz", {
                         name: selectedName,
                         strong: (chunks) => <strong>{chunks}</strong>,
@@ -419,16 +587,22 @@ export function CompanyInboxView() {
                         kullanıcı (tek satıra sabit) her pakete açık satıcı
                         yönüne geçemezdi. */}
                     {myPortals.length === 2 ? (
-                      <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
+                      /* Telefonda şeridi dolduran iki eşit düğme, 40 px yükseklik
+                         (mobil denetim g04: 20 px'lik düğmelere parmakla
+                         basılamıyordu). */
+                      <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5 max-sm:min-w-0 max-sm:flex-1">
                         {PORTAL_ORDER.map((p) => (
                           <button
                             key={p}
                             type="button"
+                            // Telefonda bağlam cümlesi görsel olarak çekildiği için
+                            // etkin yön yalnız bu düğmede görünür → durum programatik de.
+                            aria-pressed={activePortal === p}
                             onClick={() =>
                               setSelected({ id: selected.id, portal: p })
                             }
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold transition",
+                              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold transition max-sm:min-h-10 max-sm:flex-1 max-sm:justify-center max-sm:px-3",
                               activePortal === p
                                 ? "bg-white shadow-sm " +
                                     (p === "satinalma"

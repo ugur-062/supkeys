@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { useConfirm } from "@/components/providers/confirm-dialog";
+import { registerLeaveCheck } from "@/lib/leave-guard";
 
 /**
  * KAYDEDİLMEMİŞ DEĞİŞİKLİK KORUMASI (arayüz testi O-098).
@@ -76,9 +77,17 @@ export function useUnsavedChangesGuard(dirty: boolean, options: { onDiscard?: ()
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClick, true);
+    // Mobil kabuk: yeni sekme bağlantısı orada aynı WebView'de açılır
+    // (`NativeShellBridge`) — gezinmeden önce aynı diyalog sorulur.
+    const unregister = registerLeaveCheck(async () => {
+      const leave = await ask();
+      if (leave) dirtyRef.current = false;
+      return leave;
+    });
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("click", onClick, true);
+      unregister();
     };
   }, [dirty, ask, router]);
 

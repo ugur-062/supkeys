@@ -543,4 +543,16 @@ describe("CompanyProfileSection", () => {
     render(<CompanyProfileSection />);
     expect(screen.getByText(/MERSİS/)).toBeInTheDocument();
   });
+
+  // Mobil denetim 2026-10 g11: "Kaydet" tek başına alt satıra düşüyordu.
+  it("Vazgeç ve Kaydet tek grupta (birlikte sarar); kaydedilmemiş notu telefonda kendi satırında", async () => {
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    await user.type(screen.getByLabelText("İlçe"), "X");
+    const cancel = screen.getByRole("button", { name: "Vazgeç" });
+    expect(cancel.parentElement).toBe(saveButton().parentElement);
+    expect(cancel.parentElement!.className.split(/\s+/)).toEqual(expect.arrayContaining(["ml-auto", "flex"]));
+    const note = screen.getByText("Kaydedilmemiş değişiklikler var");
+    expect(note.className.split(/\s+/)).toEqual(expect.arrayContaining(["w-full", "sm:w-auto", "sm:mr-auto"]));
+  });
 });

@@ -174,6 +174,26 @@ describe("OnaylarPage", () => {
     expect(screen.getByRole("tablist")).toBeInTheDocument();
   });
 
+  it("mobil denetim g04: detay düğmesi, 'Adımlar' özeti ve 'Onaylara dön' 44 px dokunma alanı taşır (görünüm aynı); talep adı telefonda sarar", () => {
+    const tap = (el: HTMLElement) => {
+      expect(el.className).toMatch(/(^|\s)relative(\s|$)/);
+      expect(el.className).toMatch(/(^|\s)after:absolute(\s|$)/);
+      expect(el.className).toMatch(/(^|\s)after:-inset-y-3(\s|$)/);
+    };
+    const { unmount } = render(<OnaylarPage />);
+    tap(screen.getByRole("button", { name: /Detay/ }));
+    const title = screen.getByRole("link", { name: "Çelik boru alımı" });
+    expect(title.className).toMatch(/(^|\s)max-sm:line-clamp-2(\s|$)/);
+    expect(title.className).toMatch(/(^|\s)sm:truncate(\s|$)/);
+    fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
+    tap(screen.getByText("Adımlar (1/3)").closest("summary") as HTMLElement);
+    unmount();
+
+    h.tab = "flows";
+    render(<OnaylarPage />);
+    tap(screen.getByRole("button", { name: /Onaylara dön/ }));
+  });
+
   it("yalnız approvals:manage: 'Sıra sizde' sekmesi yok, sorgu kapalı, varsayılan Tüm istekler (derin denetim LU-21)", () => {
     h.perms = ["approvals:manage", "buy:view"];
     render(<OnaylarPage />);

@@ -234,6 +234,13 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(h.update.mock.calls[0]![0]).not.toHaveProperty("photos");
   });
 
+  // Mobil denetim g10-08: kaldır düğmesi 14 px çıplak simgeydi.
+  it("çip kaldır düğmesi 28 px kutu + görünmez katman; çip yüksekliği değişmez (negatif dikey boşluk)", () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const cls = screen.getByLabelText("Kablo kaldır").className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["size-7", "-my-1", "relative", "after:absolute", "after:-inset-1"]));
+  });
+
   it("değişen web sitesi normalize edilerek gider", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     fireEvent.change(screen.getByLabelText("Web sitesi"), { target: { value: "yeni.com" } });

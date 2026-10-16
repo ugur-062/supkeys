@@ -7,6 +7,9 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Link } from "@/i18n/navigation";
 import { SessionSwap } from "./member-cta";
 
+/** Alt satır bağlantısı: telefonda 44 px yüksek, sm ve üstünde satır içi (eski görünüm). */
+const BOTTOM_LINK = "inline-flex min-h-11 items-center hover:text-zinc-950 sm:inline sm:min-h-0";
+
 /**
  * Public sayfaların ortak alt bilgisi — SUNUCU bileşeni.
  *
@@ -59,7 +62,8 @@ export function MarketplaceFooter() {
     },
   ];
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50">
+    // Alt pay: son satır ana ekran çizgisinin altında kalmaz (mobil kabuk).
+    <footer className="border-t border-zinc-200 bg-zinc-50 pb-(--safe-bottom)">
       <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div className="col-span-2 sm:col-span-1">
@@ -71,7 +75,10 @@ export function MarketplaceFooter() {
               <h2 className="text-sm font-semibold text-zinc-950">
                 {col.heading}
               </h2>
-              <ul className="mt-4 space-y-2">
+              {/* Telefonda her bağlantı 44 px dokunma alanı (mobil denetim
+                  2026-10 g01): satır içi bağlantılar 17 px'ti. Boşluğu
+                  bağlantının kendi dolgusu verir; sm ve üstünde eski ritim. */}
+              <ul className="mt-1.5 sm:mt-4 sm:space-y-2">
                 {col.links.map((l) => (
                   <li key={l.href}>
                     {/* Uzun sözcük sütundan taşmaz (son canlı kontrol 2026-10-10,
@@ -85,7 +92,7 @@ export function MarketplaceFooter() {
                         kategori kartıyla aynı (`category-tile.tsx`). */}
                     <Link
                       href={l.href}
-                      className="text-sm/6 break-words text-zinc-600 hover:text-zinc-950 [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto"
+                      className="block py-2.5 text-sm/6 break-words text-zinc-600 hover:text-zinc-950 sm:inline sm:py-0 [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto"
                     >
                       {l.label}
                     </Link>
@@ -113,18 +120,19 @@ export function MarketplaceFooter() {
           </div>
           <LanguageSwitcher variant="inline" />
           <div className="flex gap-4">
-            {/* Oturumlu üyeye misafir bağlantıları yerine panel (üst çubukla aynı). */}
+            {/* Oturumlu üyeye misafir bağlantıları yerine panel (üst çubukla aynı).
+                Telefonda 44 px dokunma alanı (mobil denetim 2026-10 g01). */}
             <SessionSwap
               member={
-                <Link href="/company" className="hover:text-zinc-950">
+                <Link href="/company" className={BOTTOM_LINK}>
                   {tn("goToPanel")}
                 </Link>
               }
             >
-              <Link href="/company/login" className="hover:text-zinc-950">
+              <Link href="/company/login" className={BOTTOM_LINK}>
                 {t("login")}
               </Link>
-              <Link href="/company/kayit" className="hover:text-zinc-950">
+              <Link href="/company/kayit" className={BOTTOM_LINK}>
                 {t("signup")}
               </Link>
             </SessionSwap>

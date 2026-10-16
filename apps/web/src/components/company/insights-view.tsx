@@ -61,16 +61,18 @@ export function InsightsView() {
       {/* LİSTE DURUMLARI: iskelet `isPending`e bağlı; hata kartı yalnız hiç veri
           yokken — arka plan yenilemesi düşerse eldeki rakamlar kalır. */}
       {q.isPending ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2" aria-hidden>
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
       ) : !d ? (
         <ErrorState message={t("isAnaliziVerisiAlinamadiTekrar")} onRetry={() => void q.refetch()} />
       ) : (
         <>
+          {/* Telefonda KPI kartları iki sütun (mobil denetim g10-14; KpiCard dar
+              sütuna göre ayarlı); tek kalan son kart iki sütunu kaplar. */}
           <section aria-labelledby="gorunurluk" className="space-y-3">
             <SectionHead id="gorunurluk" title={t("gorunurluk")} lead={t("profilVeUrunSayfalarinizKac")} href="/company/sirketim/ziyaretciler" cta={t("ziyaretEdenler")} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 max-sm:[&>:last-child:nth-child(odd)]:col-span-2">
               <KpiCard label={t("profilGoruntulenmesi")} value={d.views.profile.current} deltaPct={pctChange(d.views.profile.current, d.views.profile.previous)} deltaPeriodLabel={periodLabel} accent="blue" href="/company/sirketim/ziyaretciler" spark={spark("profile")} />
               <KpiCard label={t("urunGoruntulenmesi")} value={d.views.product.current} deltaPct={pctChange(d.views.product.current, d.views.product.previous)} deltaPeriodLabel={periodLabel} accent="emerald" href="/company/sirketim/ziyaretciler" spark={spark("product")} />
               <KpiCard label={t("kimligiBilinenZiyaretci")} value={d.views.identifiedVisitors.current} deltaPct={pctChange(d.views.identifiedVisitors.current, d.views.identifiedVisitors.previous)} deltaPeriodLabel={periodLabel} accent="blue" href="/company/sirketim/ziyaretciler" hint={t("ziyaretEdenlerDeAdlariyla")} />
@@ -117,7 +119,7 @@ export function InsightsView() {
 
           <section aria-labelledby="alici-baglantilari" className="space-y-3">
             <SectionHead id="alici-baglantilari" title={t("aliciBaglantilari")} lead={t("alicilarSizeNasilUlasiyorNe")} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <KpiCard label={t("gelenBilgiTalebi")} value={d.inquiries.received} accent="emerald" href={sellHref("/company/satis/bilgi-talepleri")} hint={d.inquiries.received > 0 ? t("yanitlandi", { replied: d.inquiries.replied }) : t("urunSayfalarindanGelenSorular")} />
               <KpiCard label={t("ilkYanitSuresi")} value={formatReplyHours(d.inquiries.medianFirstReplyHours)} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href={sellHref("/company/satis/bilgi-talepleri")} />
               <KpiCard label={t("gelenBaglantiDaveti")} value={d.connections.invitesReceived} accent="emerald" href={sellHref("/company/satis/musterilerim")} hint={d.connections.invitesReceived > 0 ? t("kabulEdildi", { n: d.connections.accepted }) : t("baglantiAginiziBuyutun")} />
@@ -127,7 +129,7 @@ export function InsightsView() {
 
           <section aria-labelledby="teklifler" className="space-y-3">
             <SectionHead id="teklifler" title={t("teklifler")} lead={t("donemdeVerdiginizTekliflerVeKazanma")} href={sellHref("/company/satis/tekliflerim")} cta={t("tekliflerim")} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <KpiCard label={t("verilenTeklif")} value={d.bids.submitted} accent="slate" href={sellHref("/company/satis/tekliflerim")} />
               <KpiCard label={t("kazanilan")} value={d.bids.won} accent="slate" href={sellHref(MY_BIDS_WON_KPI_HREF)} hint={d.bids.submitted > 0 ? t("kazanmaOrani", { round: Math.round((d.bids.won / d.bids.submitted) * 100) }) : undefined} />
             </div>

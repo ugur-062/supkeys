@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import {
   countryDisplayName,
@@ -138,6 +139,76 @@ function itemMatchesSearch(
   );
 }
 
+/**
+ * Katalog metnindeki `{value}` yerine konan görünmez işaret — çevrilmiş
+ * etiket (ör. "Marka / Parça no: {value}") onunla bölünür, değer araya
+ * kendi öğeleriyle girer. Yer tutucunun cümledeki yeri dile göre değişse de
+ * doğru çalışır.
+ */
+const VALUE_MARK = "\u2063";
+
+/**
+ * Kalemin "Marka / Parça no" satırı. Parça numarası bir koddur ("KV-50",
+ * "6205-2RS"): kalem adı hücresi her genişlikte sardığı için tireden
+ * bölünmesin diye nowrap taşır (mobil denetim fix3 r5-requests#new1).
+ */
+function BrandMpnLine({
+  template,
+  brand,
+  mpn,
+}: {
+  template: string;
+  brand?: string | null;
+  mpn?: string | null;
+}) {
+  const [before, after = ""] = template.split(VALUE_MARK);
+  return (
+    <div className="text-xs text-zinc-600">
+      {before}
+      {brand}
+      {brand && mpn ? " · " : null}
+      {mpn ? <span className="whitespace-nowrap">{mpn}</span> : null}
+      {after}
+    </div>
+  );
+}
+
+/**
+ * Yapışkan eylem şeridi (P2, denetim §5) — AKIŞ DIŞINDA (mobil denetim fix3
+ * handoffs#new3). Şerit eskiden akıştaydı ve başlık görünümden çıkınca
+ * `h-0`dan 42 px'e büyüyordu: kaydırma sabitlemesi olmayan motorda (iOS
+ * kabuğunun WebKit'i) alttaki içerik eşik geçilirken 42 px zıplıyordu.
+ * Artık akışta yalnız 0 yükseklikli yapışkan çapa durur (gizliyken de
+ * görünürken de aynı yer); şerit onun içinde `absolute` çizilir ve görünüp
+ * kaybolurken yalnız `invisible` değişir — içerik hiç kaymaz. Ofset üst
+ * çubukla hizalı (`--topbar-h`, güvenli alan payı dahil; B2: opak zemin).
+ * `flow-root`: çapa kendi biçimlendirme bağlamını kurar, `space-y` payı
+ * içinden geçip komşununkiyle birleşmez — eski gizli şeridin (overflow-hidden)
+ * verdiği boşluk aynen kalır (teklif veren sayfasında içerik başlığı 20 px
+ * yukarı kaymaz, sahip sayfasıyla aynı aralık). `overflow-hidden` olamaz:
+ * çapa `absolute` şeridin kapsayıcısı, şeridi kırpardı.
+ */
+function StickyActionBar({
+  visible,
+  children,
+}: {
+  visible: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div data-sticky-action-bar className="sticky top-(--topbar-h) z-20 flow-root h-0">
+      <div
+        className={cn(
+          "absolute inset-x-0 top-0 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4",
+          !visible && "invisible",
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function TabBadge({ count }: { count: number }) {
   return (
     <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 group-data-selected:bg-zinc-900 group-data-selected:text-white">
@@ -166,27 +237,67 @@ function MetaItem({
    *  dar masaüstünde tarih uyarısız kırpılıyordu ("28 Ağu 202"). */
   multiline?: boolean;
 }) {
+  // Kutucuk KENDİ genişliğine göre dizilir (`@container`; mobil denetim
+  // 2026-10 g07/g08). Eski düzen her genişlikte simge kutusu (48 px) + dolgu
+  // ile metne ~96 px bırakıyordu: 360 px'te "7 tedari…" kırpılıyor, kırpma
+  // kalkınca RU "поставщико/в", 1280'de "ПРЕДЛОЖЕНИ/Е" sözcük ortasından
+  // bölünüyordu; 1024'te (beş sütun) metne 48 px kalıyordu ("Kapanı/ş").
+  //  - Telefon (ya da 10.75rem'den dar kutu): simge etiketin yanında, kutusuz;
+  //    değer kutucuğun tam genişliğinde (360 px'te 139 px). Değer KIRPILMAZ.
+  //  - sm+ ve kutu ≥ 10.75rem: yan yana, küçük simge kutusu (metne ≥ 102 px).
+  //  - sm+ ve kutu ≥ 12.5rem: eski ölçü (48 px simge kutusu, p-4; metne ≥ 108 px).
+  // `break-words` yalnız tek satıra sığmayan dizgide (ör. boşluksuz firma adı)
+  // devreye giren güvenlik ağıdır; eşikler RU'nun en uzun sözcüklerine
+  // ("ПРЕДЛОЖЕНИЕ", "поставщиков" ~100 px) göre seçildi.
+  //
+  // TANIM LİSTESİ YAPISI (axe `definition-list`): `<dl>`in çocuğu olan kutucuk
+  // YALNIZ `dt` + `dd` taşır — eskiden iç içe `div` + `p` idi. Kutucuk hem
+  // kapsayıcı (`@container`) hem ızgaradır; kendi genişliğini sorgulayamadığı
+  // için düzen değişimini ÇOCUKLAR yapar ve kutucuğun dolgu/boşluk farkları
+  // çocukların kenar paylarıyla verilir (görünüm birebir aynı):
+  //  - ızgara `[auto | 1fr]`, dolgu p-3, boşluk YOK; `content-start` (komşu
+  //    kutucuk uzunsa içerik eskisi gibi üstte kalır);
+  //  - dar: simge (1, 1) · etiket (1, 2) `ml-2` · değer 2. satır, iki sütun, `mt-1`
+  //    (eski `gap-x-2 gap-y-1`);
+  //  - yan yana: simge İKİ satıra yayılır ve ortalanır, etiket 1. satırın
+  //    dibine (`self-end`), değer 2. satırın başına — iki satırın fazlası
+  //    eşit dağıldığından metin bloğu simgeye göre ortalanır (eski
+  //    `items-center`); `ml-2.5` / `ml-3` eski boşluk;
+  //  - ≥ 12.5rem: p-4'ün fazlası (4 px) simgenin sol/dikey, etiketin üst/sağ,
+  //    değerin alt/sağ payı.
+  // EŞİKLER İÇERİK KUTUSUNDAN: kapsayıcı sorgusu kapsayıcının İÇERİK genişliğini
+  // ölçer; dolgu (p-3 = 1,5rem) artık kapsayıcının kendisinde → kutucuk eşikleri
+  // 10.75rem / 12.5rem = içerik 9.25rem / 11rem (sınıflardaki değerler).
+  // Eski yapıyla piksel karşılaştırması (360/390/1280, 13 genişlik × 8 değer):
+  // konumlar birebir aynı.
+  // Simge ayrı ve `aria-hidden` bir `dt`: ekran okuyucu yalnız etiket → değer
+  // çiftini okur (bir `div` içinde birden çok `dt` geçerli HTML).
   return (
     <div
-      className={cn("flex min-w-0 items-center gap-3 bg-white p-4", className)}
+      data-slot="meta-item"
+      className={cn(
+        "@container grid min-w-0 grid-cols-[auto_minmax(0,1fr)] content-start items-start bg-white p-3",
+        className,
+      )}
     >
-      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
-        <Icon className="size-5 text-zinc-700" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {label}
-        </p>
-        <p
-          className={cn(
-            "text-sm font-semibold text-zinc-900",
-            multiline ? "min-w-0" : "truncate",
-          )}
-          title={title}
-        >
-          {value}
-        </p>
-      </div>
+      <dt
+        aria-hidden
+        className="flex size-4 shrink-0 items-center justify-center text-zinc-500 sm:@[9.25rem]:row-span-2 sm:@[9.25rem]:size-9 sm:@[9.25rem]:self-center sm:@[9.25rem]:rounded-lg sm:@[9.25rem]:bg-zinc-100 sm:@[9.25rem]:text-zinc-700 sm:@[11rem]:my-1 sm:@[11rem]:ml-1 sm:@[11rem]:size-12 sm:@[11rem]:rounded-xl"
+      >
+        <Icon className="size-4 sm:@[11rem]:size-5" />
+      </dt>
+      <dt className="ml-2 min-w-0 break-words text-xs font-semibold uppercase tracking-wide text-slate-500 sm:@[9.25rem]:ml-2.5 sm:@[9.25rem]:self-end sm:@[11rem]:mt-1 sm:@[11rem]:mr-1 sm:@[11rem]:ml-3">
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "col-span-2 mt-1 min-w-0 break-words text-sm font-semibold text-zinc-900 sm:@[9.25rem]:col-start-2 sm:@[9.25rem]:col-end-3 sm:@[9.25rem]:row-start-2 sm:@[9.25rem]:mt-0 sm:@[9.25rem]:ml-2.5 sm:@[11rem]:mr-1 sm:@[11rem]:mb-1 sm:@[11rem]:ml-3",
+          !multiline && "sm:@[9.25rem]:truncate",
+        )}
+        title={title}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -1022,20 +1133,34 @@ export default function ListingDetailPage() {
             ) : null}
           </div>
         </div>
-        <div className="card px-2 [--gutter:--spacing(4)]">
+        {/* Mobil denetim (g08/g07): tablo (`bleed`siz Catalyst Table) kartın
+            içerik kutusunda kalır, kenara taşmaz — `--gutter` artık yalnız
+            `bleed` tablolarda okunur, buradaki değer etkisiz. overflow-hidden:
+            yuvarlak köşedeki başlık zemini. */}
+        <div className="card overflow-hidden px-2 [--gutter:--spacing(2)] sm:[--gutter:--spacing(4)]">
           <Table dense>
             <TableHead>
               <TableRow>
                 <TableHeader>#</TableHeader>
                 <TableHeader>{t("kalem")}</TableHeader>
-                <TableHeader className="hidden text-right sm:table-cell">
+                {/* Sayı sütunlarının başlıkları her genişlikte sarar (mobil
+                    denetim fix3 r5-requests#new1): sm–lg arasında nowrap
+                    başlıklar ve nowrap kalem adı tabloyu 792 px'e (RU 864)
+                    zorluyor, 768/1024'te "Benim Birim Fiyatım" sütunu
+                    tümüyle kartın dışında kalıyordu. Yer varken (xl) başlık
+                    yine tek satırdır; hücre değerleri nowrap kalır. */}
+                <TableHeader className="hidden text-right whitespace-normal sm:table-cell">
                   {t("miktar")}
                 </TableHeader>
-                <TableHeader className="hidden text-right sm:table-cell">
+                <TableHeader className="hidden text-right whitespace-normal sm:table-cell">
                   {t("hedefFiyat")}
                 </TableHeader>
                 {showMyPriceCol ? (
-                  <TableHeader className="text-right">
+                  // Başlık sarar (mobil denetim 2026-10 g08#new1, fix3 #new1):
+                  // RU "МОЯ ЦЕНА ЗА ЕДИНИЦУ" tek satırda 181 px'ti; telefonda
+                  // tablo yana kayıyor, tablette sütun kartın dışına
+                  // düşüyordu. Sütunu artık fiyat hücresi belirler.
+                  <TableHeader className="text-right whitespace-normal">
                     {t("benimBirimFiyatim")}
                   </TableHeader>
                 ) : null}
@@ -1055,18 +1180,29 @@ export default function ListingDetailPage() {
               {visibleItems.map((it) => (
                 <TableRow key={it.id}>
                   <TableCell className="text-zinc-400">{it.lineNo}</TableCell>
-                  <TableCell className="whitespace-normal sm:whitespace-nowrap">
+                  {/* Kalem adı her genişlikte sarar (fix3 r5-requests#new1):
+                      sm'den itibaren nowrap 407 px'lik ad, fiyat sütununu
+                      768/1024'te kartın dışına itiyordu. sm'den itibaren
+                      12rem taban, adı birkaç harflik sütuna sıkıştırmaz;
+                      yer olan genişlikte ad yine tek satırdır. */}
+                  <TableCell className="whitespace-normal sm:min-w-[12rem]">
                     <div className="font-medium text-zinc-900">{it.name}</div>
                     {/* Mobilde miktar ve hedef fiyat sütunları gizli; ad altında
                         gösterilir, kaydırılan tabloda kırpılmaz (D-122). */}
                     <div className="mt-0.5 text-xs tabular-nums text-zinc-600 sm:hidden">
-                      {t("miktar")}: {quantity(it.quantity, it.unit, it.unitCode)}
+                      {/* Miktar + birim bölünmez ("1 800 / м" kırılıyordu). */}
+                      {t("miktar")}:{" "}
+                      <span className="whitespace-nowrap">{quantity(it.quantity, it.unit, it.unitCode)}</span>
                       {it.targetPrice
                         ? ` · ${t("hedefFiyat")}: ${fmtMoney(it.targetPrice, l.primaryCurrency ?? "TRY")}`
                         : null}
                     </div>
+                    {/* Kodlar tirede bölünmez (fix3 #new1: ad hücresi artık
+                        her genişlikte sarar; "HAVB-X8EM" "HAVB-" / "X8EM"
+                        diye ikiye ayrılabilirdi). Tireli kod tabular rakamla
+                        çizilmez ("HAVB - X8EM"; `lib/id-token.ts`). */}
                     {it.materialCode ? (
-                      <div className="tabular-nums text-xs text-zinc-500">
+                      <div className={cn(ID_TOKEN_CLASS, "text-xs text-zinc-500")}>
                         {it.materialCode}
                       </div>
                     ) : null}
@@ -1077,11 +1213,11 @@ export default function ListingDetailPage() {
                         parça no, muadil izni ve istenen teslim tarihi detayda
                         da görünür — teklif formuyla aynı anahtarlar. */}
                     {it.brand || it.mpn ? (
-                      <div className="text-xs text-zinc-600">
-                        {t("markaParcaNo", {
-                          value: [it.brand, it.mpn].filter(Boolean).join(" · "),
-                        })}
-                      </div>
+                      <BrandMpnLine
+                        template={t("markaParcaNo", { value: VALUE_MARK })}
+                        brand={it.brand}
+                        mpn={it.mpn}
+                      />
                     ) : null}
                     {it.requiredByDate ? (
                       <div className="text-xs text-zinc-600">
@@ -1167,7 +1303,7 @@ export default function ListingDetailPage() {
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
             >
               {iv.companyName}{" "}
-              <span className="tabular-nums text-xs text-zinc-500">
+              <span className={cn(ID_TOKEN_CLASS, "text-xs text-zinc-500")}>
                 {iv.rothernId}
               </span>
             </span>
@@ -1447,7 +1583,14 @@ export default function ListingDetailPage() {
               yalnız fiyat hücreleri nowrap kalır. Teklifçi sayısı gerçekten
               sığmayacak kadar artarsa Catalyst Table'ın kendi overflow-x-auto
               sarmalayıcısı güvenlik ağı olarak devreye girer. */}
-          <div className="card px-2 [--gutter:--spacing(4)]">
+          {/* Tablo kartın içerik kutusunda kalır (mobil denetim g08/g07;
+              Kalemler tablosuyla aynı — `--gutter` yalnız `bleed`de okunur).
+              `isolate`: yapışkan hücrelerin z-10 / z-20'si YALNIZ kartın içinde
+              sıralanır (mobil denetim v-requests-products#new0). Kart kendi
+              yığın bağlamı olmadan "Kalem" başlığı ve "Teklif Toplamı" hücresi
+              (z-20) aynı z'deki yapışkan eylem şeridinin (DOM'da önce gelir)
+              ÜSTÜNE boyanıyor, şeridin durum rozetini ve tarihini örtüyordu. */}
+          <div className="card isolate overflow-hidden px-2 [--gutter:--spacing(2)] sm:[--gutter:--spacing(4)]">
             {/* max-h + iç dikey scroll: sticky başlık/toplam satırı sayfa değil
                 bu kap içinde yapışır (overflow sarmalayıcı viewport sticky'yi
                 kırar). Hairline'lar border yerine shadow — border-collapse
@@ -1455,7 +1598,13 @@ export default function ListingDetailPage() {
             <Table dense className="max-h-[65vh] overflow-y-auto">
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky top-0 left-0 z-20 bg-white shadow-table-top">
+                  {/* Yapışkan kalem sütununun başlık / toplam hücreleri de
+                      gövde hücreleriyle aynı sınırı taşır (mobil denetim fix3
+                      r5-requests#new0): tablo sarmalayıcısının nowrap'ini
+                      miras alan "Итого по предложению" sütunu RU 360'ta
+                      201 px'e zorluyor, yapışkan sütun fiyatların başını
+                      kaydırınca bile örtüyordu ("1 250,00 ₺" → "250,00 ₺"). */}
+                  <TableHeader className="sticky top-0 left-0 z-20 max-w-[10rem] bg-white whitespace-normal break-words shadow-table-top sm:max-w-none">
                     {t("kalem")}
                   </TableHeader>
                   {l.bids.map((b) => {
@@ -1628,7 +1777,7 @@ export default function ListingDetailPage() {
                 {/* Toplam satırı — filtreden bağımsız, teklifin GENEL toplamı.
                     Sticky bottom: uzun listede kaydırırken hep görünür. */}
                 <TableRow>
-                  <TableCell className="sticky bottom-0 left-0 z-20 bg-zinc-50 font-semibold text-zinc-900 shadow-table-bottom">
+                  <TableCell className="sticky bottom-0 left-0 z-20 max-w-[10rem] bg-zinc-50 font-semibold whitespace-normal break-words text-zinc-900 shadow-table-bottom sm:max-w-none">
                     {t("teklifToplami")}
                   </TableCell>
                   {l.bids.map((b) => {
@@ -1734,7 +1883,10 @@ export default function ListingDetailPage() {
                       </span>
                     </span>
                     <div className="flex min-w-0 flex-col gap-1 sm:items-end">
-                    <div className="flex min-w-0 items-center gap-2">
+                    {/* Mobil denetim (g07): telefonda seçici kendi tam genişlik
+                        satırında — miktar kutusunun yanında 150 px'e iniyor,
+                        "S46 AI Tedari…" gösterip fiyatı kesiyordu. */}
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                       {/* Dilin ondalık biçimi (TR "1.500" = bin); `type="number"`
                           Türkçe tarayıcıda noktayı ondalık okuyordu (arayüz testi
                           son tur S-BUY). */}
@@ -1757,12 +1909,15 @@ export default function ListingDetailPage() {
                         onChange={(v) =>
                           setItemWinners((w) => ({ ...w, [it.id]: v }))
                         }
-                        className="min-w-0 flex-1 sm:w-auto sm:min-w-48 sm:flex-none"
+                        // Telefonda düğme miktar kutusuyla aynı boy (44 px).
+                        className="w-full min-w-0 sm:w-auto sm:min-w-48 sm:flex-none [&>button]:min-h-11 sm:[&>button]:min-h-0"
+                        // FİYAT ÖNDE: kazananı seçtiren bilgi fiyat — uzun
+                        // firma adı seçici düğmesinde fiyatı kırpmasın (g07).
                         options={[
                           { value: "", label: t("sec") },
                           ...opts.map((o) => ({
                             value: o.bidId,
-                            label: `${o.bidderName} · ${fmtMoney(o.price, o.currency ?? "TRY")}`,
+                            label: `${fmtMoney(o.price, o.currency ?? "TRY")} · ${o.bidderName}`,
                           })),
                         ]}
                       />
@@ -1779,11 +1934,14 @@ export default function ListingDetailPage() {
                 );
               })}
             </div>
-            <div className="flex justify-end gap-2">
-              <Button plain onClick={() => setItemAwardMode(false)}>
+            {/* Düğme metni bölünmez; sığmazsa düğmeler alt alta iner (g07:
+                "Onayla & Kazandır" 360 px'te iki satıra kırılıyordu). */}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button plain className="whitespace-nowrap" onClick={() => setItemAwardMode(false)}>
                 {t("vazgec")}
               </Button>
               <Button
+                className="whitespace-nowrap"
                 onClick={handleAwardByItem}
                 disabled={awardByItem.isPending || !companyVerified}
               >
@@ -1810,8 +1968,10 @@ export default function ListingDetailPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {/* İhale bazlı sıralama — Tümü / Tamamına / Eksik */}
-          <div className="flex items-center gap-1 text-xs">
+          {/* İhale bazlı sıralama — Tümü / Tamamına / Eksik. Hap metni
+              bölünmez; sığmayan hap alt satıra iner (mobil denetim g07: 360
+              px'te her etiket hapın içinde iki satıra kırılıyordu). */}
+          <div className="flex flex-wrap items-center gap-1 gap-y-2 text-xs">
             {(
               [
                 ["all", t("tumu", { bidderCount: bidderCount })],
@@ -1824,7 +1984,7 @@ export default function ListingDetailPage() {
                 type="button"
                 aria-pressed={bidView === key}
                 onClick={() => setBidView(key)}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium ${
                   bidView === key
                     ? "bg-blue-600 text-white"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
@@ -1860,9 +2020,12 @@ export default function ListingDetailPage() {
                   <Badge color="green">{t("kismenKazandi")}</Badge>
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">{lostLabel(b)}</Badge> : null}
+                {/* Dokunma alanı (mobil denetim g07): 23 px'lik ad bağlantısı
+                    görünüşü değişmeden yukarı kart dolgusuna doğru büyür; aşağı
+                    yalnız 4 px (alttaki Mesaj satırıyla çakışmasın). */}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}${bidViewQuery(bidView)}`}
-                  className="text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
+                  className="-mt-2.5 -mb-1 pt-2.5 pb-1 text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
                 >
                   {b.bidderName}
                 </Link>
@@ -1924,9 +2087,11 @@ export default function ListingDetailPage() {
                 </span>
                 <span aria-hidden className="hidden h-6 w-px bg-zinc-200 sm:block" />
                 {b.bidderCompanyId ? (
+                  // Telefonda 44 px dokunma alanı (mobil denetim g07: 43×20 idi);
+                  // yatay pay komşu düğmelere (gap-3) değmez.
                   <Link
                     href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=satinalma`}
-                    className="text-sm font-semibold text-blue-600 hover:underline"
+                    className="-mx-1.5 inline-flex min-h-11 items-center px-1.5 text-sm font-semibold text-blue-600 hover:underline sm:min-h-0"
                   >
                     {t("mesaj")}
                   </Link>
@@ -2208,7 +2373,7 @@ export default function ListingDetailPage() {
               <p className={live ? "text-sm text-emerald-900" : "text-sm text-zinc-700"}>
                 {t.rich("siparisNumarasi", {
                   number: o.number ?? "—",
-                  no: (c) => <span className="font-semibold tabular-nums">{c}</span>,
+                  no: (c) => <span className={cn(ID_TOKEN_CLASS, "font-semibold")}>{c}</span>,
                 })}
                 <span className={live ? "mx-1.5 text-emerald-400" : "mx-1.5 text-zinc-400"}>·</span>
                 {orderStatusLabel(orderStatusMeta(o.status as CompanyOrderStatus).labelKey)}
@@ -2237,7 +2402,7 @@ export default function ListingDetailPage() {
           pili, büyük başlık, tonlu tip çipleri (ikonlu), anahtar kelimeler,
           alıcı firma ikon karosuyla, açıklama. */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
-        {l.number ? <span className="tabular-nums font-medium">{l.number}</span> : null}
+        {l.number ? <span className={cn(ID_TOKEN_CLASS, "font-medium")}>{l.number}</span> : null}
         {l.number ? <span aria-hidden className="text-zinc-300">|</span> : null}
         <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
       </div>
@@ -2392,14 +2557,9 @@ export default function ListingDetailPage() {
             makinesine göre birincil aksiyon; sayfa kaydırılınca da görünür.
             F7: yayınla/onay-iptal yönetim aksiyonudur — canManage kapısı
             (backend publishListing→assertListingManageRole birebir). */}
-        {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
+        {/* B2: ofset = topbar (`--topbar-h`) ile hizalı — top-16'daki 8px açık şerit
             + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
-        <div
-          className={cn(
-            "sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4",
-            !pastHeader && "invisible h-0 overflow-hidden border-0 py-0 shadow-none",
-          )}
-        >
+        <StickyActionBar visible={pastHeader}>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
@@ -2411,7 +2571,7 @@ export default function ListingDetailPage() {
             </div>
             {ownerPrimaryActions}
           </div>
-        </div>
+        </StickyActionBar>
 
         {orderStrip}
 
@@ -2504,8 +2664,11 @@ export default function ListingDetailPage() {
         ) : null}
 
         {/* Meta bar — bölünmüş istatistik şeridi */}
-        <section>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-5">
+        <section className="@container">
+          {/* Beş sütun yalnız kutucuklar ≥ 10.75rem olacak kadar yer varsa
+              (şerit ≥ 54.5rem); daha darda (ör. 1024 px + kenar çubuğu) 3 + 2
+              (mobil denetim 2026-10 g07). */}
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-3 lg:@[54.5rem]:grid-cols-5">
             <MetaItem
               icon={Layers}
               label={t("kalem")}
@@ -2547,12 +2710,14 @@ export default function ListingDetailPage() {
               icon={Users}
               label={t("davetli")}
               value={t("tedarikciSayisi", { count: l.invitations?.length ?? 0 })}
+              // "7 tedari…" (mobil denetim g07): sayı + sözcük kırpılmaz, sarar.
+              multiline
             />
             <MetaItem
               icon={Gavel}
               label={t("teklif")}
               value={`${l.bids?.length ?? 0}`}
-              className="col-span-2 lg:col-span-1"
+              className="col-span-2 lg:@[54.5rem]:col-span-1"
             />
           </dl>
         </section>
@@ -2675,14 +2840,9 @@ export default function ListingDetailPage() {
         {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden
             bağımsız, kaydırınca da ilk ekranda ("aynı birincil aksiyon bir
             kez" kuralı gereği yalnız burada). */}
-        {/* B2: top-14 = topbar (h-14) ile hizalı — top-16'daki 8px açık şerit
+        {/* B2: ofset = topbar (`--topbar-h`) ile hizalı — top-16'daki 8px açık şerit
             + yarı saydam zemin, altta kayan chip'leri gösteriyordu (opak bg). */}
-        <div
-          className={cn(
-            "sticky top-14 z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:px-4",
-            !pastHeader && "invisible h-0 overflow-hidden border-0 py-0 shadow-none",
-          )}
-        >
+        <StickyActionBar visible={pastHeader}>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
@@ -2705,7 +2865,7 @@ export default function ListingDetailPage() {
               )
             ) : null}
           </div>
-        </div>
+        </StickyActionBar>
 
         {orderStrip}
 
@@ -2767,13 +2927,16 @@ export default function ListingDetailPage() {
           <AuctionLiveCard l={l} />
         ) : null}
 
-        {/* Meta şeridi */}
-        <section>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-4">
+        {/* Meta şeridi — dört sütun yalnız kutucuklar ≥ 10.75rem olacak kadar
+            yer varsa (şerit ≥ 43.5rem); yoksa 2 × 2. */}
+        <section className="@container">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:@[43.5rem]:grid-cols-4">
             <MetaItem
               icon={Building2}
               label={t("aliciFirma")}
               value={l.owner?.name ?? t("gizliFirma")}
+              // "QA Alıcı S…" (mobil denetim g08): firma adı kırpılmaz, sarar.
+              multiline
             />
             <MetaItem
               icon={Layers}
@@ -2797,6 +2960,8 @@ export default function ListingDetailPage() {
               icon={CalendarClock}
               label={t("kapanis2")}
               value={l.closesAt ? formatDateTime(l.closesAt, locale) : "—"}
+              // "16 Eki 20…" / RU "(GMT+3)" ekli tarih (mobil denetim g08): sarar.
+              multiline
             />
           </dl>
         </section>
@@ -2807,7 +2972,11 @@ export default function ListingDetailPage() {
             <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
               <Lock className="size-5" />
             </span>
-            <div className="min-w-0 flex-1">
+            {/* Satır kalıbı (mobil denetim g08): metin en az 12rem alır —
+                `flex-1` (taban 0) satırı hiç sarmıyor, metin bağlantının
+                yanındaki dar sütuna sıkışıyordu (TR 7, RU 11 satır). Telefonda
+                bağlantı kendi satırına iner, sağa yaslanır. */}
+            <div className="min-w-0 flex-[1_1_12rem]">
               <p className="text-sm font-semibold text-zinc-950">{t("kapaliZarfDigerTekliflerinTutarini")}</p>
               <p className="text-xs text-zinc-500">{t("teklifiniziYalnizAliciGorur")}</p>
             </div>
@@ -2817,7 +2986,7 @@ export default function ListingDetailPage() {
               href="/nasil-calisir#nasil"
               target="_blank"
               rel="noopener"
-              className="inline-flex shrink-0 items-center text-sm font-medium text-blue-700 hover:text-blue-800"
+              className="-my-3 ml-auto inline-flex shrink-0 items-center py-3 whitespace-nowrap text-sm font-medium text-blue-700 hover:text-blue-800"
             >
               {t("nasilCalisir")}
             </Link>

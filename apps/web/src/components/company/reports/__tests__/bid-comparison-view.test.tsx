@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ reportData: undefined as unknown, reportMutate: vi.fn() }));
@@ -139,5 +139,70 @@ describe("BidComparisonView — kriterler adreste", () => {
       showBidCurrencies: false,
       includeRoundHistory: false,
     });
+  });
+});
+
+/** Mobil denetim g10-03 / g10-06 / g10-13 (2026-10-15). */
+describe("BidComparisonView — telefon yerleşimi", () => {
+  const longName = "MX-DOWN-SILVER TEST AMBALAJ LTD. ŞTİ.";
+  function seed() {
+    h.reportData = {
+      type: "ALIM",
+      generatedAt: new Date().toISOString(),
+      baseCurrency: "TRY",
+      includePrice: true,
+      includeAnswers: false,
+      includeNonBidders: false,
+      showBidCurrencies: false,
+      listing: { id: "l1", number: "ROT-745", title: "Rulman", currency: "TRY", round: 1, referenceTotal: 400 },
+      items: [
+        { id: "i1", name: "Rulman 6204 L2", unit: "adet", quantity: 10, referenceUnitPrice: 40, bestUnitPrice: 36, bestCompanyId: "a" },
+      ],
+      parties: [
+        party({
+          companyId: "a",
+          companyName: longName,
+          rank: 1,
+          deltaVsReference: 320,
+          totalAmount: 360,
+          totalCurrency: "TRY",
+          totalTry: 360,
+          itemPrices: [{ itemId: "i1", unitPrice: 36, currency: "TRY", totalPrice: 360, isBest: true, deltaVsReferencePct: -10 }],
+        }),
+      ],
+      recommendedAwards: [{ itemId: "i1", itemName: "Rulman 6204 L2", companyId: "a", companyName: longName, unitPrice: 36 }],
+      roundHistory: [],
+    };
+  }
+
+  it("'Hedefe Göre Tasarruf' etiketi de yapışkan; etiket sütunu telefonda dar ve sarar", () => {
+    seed();
+    render(<BidComparisonView type="ALIM" basePath="/company/raporlar" />);
+    const label = screen.getByText("Hedefe Göre Tasarruf");
+    const cell = label.closest("td")!;
+    expect(cell.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "left-0", "z-10", "bg-white"]));
+    expect(label.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["min-w-[36vw]", "max-w-[45vw]", "whitespace-normal", "sm:min-w-0"]),
+    );
+    // Miktar parantezi bölünmez ("(20" / "adet)" — doğrulama turu g10).
+    const qty = screen.getByText("(10 adet)");
+    expect(qty.className.split(/\s+/)).toContain("whitespace-nowrap");
+    // Kart ikinci kaydırıcı değil; kenar payı gutter'a eşit.
+    const card = cell.closest(".card")!;
+    expect(card.className).not.toMatch(/overflow-x-auto/);
+    expect(card.className).toContain("[--gutter:--spacing(2)]");
+  });
+
+  it("tedarikçi başlığı kırpılmaz (sarar, title taşır); önerilen kazanan fiyatı bölünmez", () => {
+    seed();
+    render(<BidComparisonView type="ALIM" basePath="/company/raporlar" />);
+    const header = screen.getByText(longName, { selector: "th span" });
+    expect(header.className).not.toMatch(/\btruncate\b/);
+    expect(header.className.split(/\s+/)).toEqual(expect.arrayContaining(["whitespace-normal", "max-w-[10rem]"]));
+    expect(header).toHaveAttribute("title", longName);
+    const li = screen.getByText(longName, { selector: "li span" }).closest("li")!;
+    expect(li.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex-col", "sm:flex-row"]));
+    const price = within(li).getByText("36,00 ₺");
+    expect(price.className.split(/\s+/)).toEqual(expect.arrayContaining(["whitespace-nowrap", "shrink-0"]));
   });
 });

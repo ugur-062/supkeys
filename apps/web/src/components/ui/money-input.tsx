@@ -58,6 +58,62 @@ function isGrouped(cleaned: string, sep: "." | ","): boolean {
   return new RegExp(`^\\d{1,3}(?:${s}\\d{2,3})*${s}\\d{3}$`).test(cleaned);
 }
 
+/** Görüntüden yalnız rakam ve ayraç (boşluk/kesme işareti binliktir, atılır). */
+function cleanMoneyText(display: string): string {
+  return normalizeInput(display).replace(/[^0-9.,]/g, "");
+}
+
+/**
+ * Ondalık ayracının konumu (`parseMoneyDisplay` kuralları 2-4; -1 = tam
+ * sayı). Ondalık her zaman SON ayraçtır; kalanlar tam kısımdadır.
+ */
+function decimalIndex(cleaned: string, decimal: string, maxDecimals: number): number {
+  const lastDot = cleaned.lastIndexOf(".");
+  const lastComma = cleaned.lastIndexOf(",");
+  if (lastDot !== -1 && lastComma !== -1) return Math.max(lastDot, lastComma); // (2)
+  if (lastDot === -1 && lastComma === -1) return -1;
+  const sep: "." | "," = lastDot !== -1 ? "." : ",";
+  const at = Math.max(lastDot, lastComma);
+  const count = cleaned.split(sep).length - 1;
+  const digitsAfter = cleaned.length - at - 1;
+  if (sep === decimal) {
+    return count === 1 || !isGrouped(cleaned, sep) ? at : -1; // (3)
+  }
+  if (digitsAfter <= MONEY_DECIMALS) return at; // (4)
+  if (maxDecimals > MONEY_DECIMALS && (!isGrouped(cleaned, sep) || /^0[.,]/.test(cleaned))) {
+    // (4b) Miktar gibi 3+ ondalıklı alanlar: düzgün binlik kalıbı değilse
+    // ("1.2505") ya da tam kısım 0 ise ("0.125") ondalıktır; "1.500" binlik.
+    return at;
+  }
+  return -1;
+}
+
+/**
+ * DÜZENSİZ AYRAÇ (mobil denetim 2026-10 g06): `parseMoneyDisplay` son
+ * ayracı ondalık sayıp tam kısımdaki öteki ayraçları SESSİZCE atıyordu —
+ * telefonun ondalık klavyesinde çift dokunuşla yazılan "1,2,3" / "1.2.3"
+ * 12,3, "1,,5" 1,5 oluyor ve hata gösterilmiyordu. Tam kısımdaki ayraçlar
+ * düzgün bir binlik kalıbı değilse ("1.234" / "1,234,567" geçerli; "1.2",
+ * "1,", "0.125", "1.234,5,6" değil) giriş düzensizdir. Ondalık hane fazlası
+ * (EN "12.505" → 12,50) burada sayılmaz — o `parseMoneyDisplay`ın kırpma
+ * kuralı. Geçerli bir sayının YAZIM SIRASINDAKİ ara hâlleri ("1.234.",
+ * "1.234,") düzensiz sayılmaz.
+ */
+export function hasIrregularSeparators(
+  display: string,
+  locale: Locale | string = DEFAULT_LOCALE,
+  maxDecimals: number = MONEY_DECIMALS,
+): boolean {
+  const cleaned = cleanMoneyText(display);
+  if (!cleaned) return false;
+  const at = decimalIndex(cleaned, numberSeparators(locale).decimal, maxDecimals);
+  const intPart = at === -1 ? cleaned : cleaned.slice(0, at);
+  if (!/[.,]/.test(intPart)) return false;
+  if (intPart.includes(".") && intPart.includes(",")) return true;
+  const sep: "." | "," = intPart.includes(".") ? "." : ",";
+  return !isGrouped(intPart, sep) || /^0[.,]/.test(intPart);
+}
+
 /**
  * Görüntüden ham değere — ARAYÜZ DİLİNİN ayraçlarıyla (2026-09-27).
  *
@@ -85,32 +141,9 @@ export function parseMoneyDisplay(
   maxDecimals: number = MONEY_DECIMALS,
 ): string {
   const { decimal } = numberSeparators(locale);
-  const cleaned = normalizeInput(display).replace(/[^0-9.,]/g, "");
+  const cleaned = cleanMoneyText(display);
   if (!cleaned) return "";
-  const lastDot = cleaned.lastIndexOf(".");
-  const lastComma = cleaned.lastIndexOf(",");
-
-  let decimalAt = -1;
-  if (lastDot !== -1 && lastComma !== -1) {
-    decimalAt = Math.max(lastDot, lastComma); // (2)
-  } else if (lastDot !== -1 || lastComma !== -1) {
-    const sep: "." | "," = lastDot !== -1 ? "." : ",";
-    const at = Math.max(lastDot, lastComma);
-    const count = cleaned.split(sep).length - 1;
-    const digitsAfter = cleaned.length - at - 1;
-    if (sep === decimal) {
-      if (count === 1 || !isGrouped(cleaned, sep)) decimalAt = at; // (3)
-    } else if (digitsAfter <= MONEY_DECIMALS) {
-      decimalAt = at; // (4)
-    } else if (
-      maxDecimals > MONEY_DECIMALS &&
-      (!isGrouped(cleaned, sep) || /^0[.,]/.test(cleaned))
-    ) {
-      // (4b) Miktar gibi 3+ ondalıklı alanlar: düzgün binlik kalıbı değilse
-      // ("1.2505") ya da tam kısım 0 ise ("0.125") ondalıktır; "1.500" binlik.
-      decimalAt = at;
-    }
-  }
+  const decimalAt = decimalIndex(cleaned, decimal, maxDecimals);
 
   const digitsOnly = (v: string) => v.replace(/[^0-9]/g, "");
   if (decimalAt === -1) return digitsOnly(cleaned);
@@ -253,6 +286,14 @@ type Props = Omit<
    * sıfırlıyordu (arayüz testi son tur S-BUY).
    */
   maxDecimals?: number;
+  /**
+   * Düzensiz ayraçlı giriş ("1,2,3", "1.2.3", "1,,5") yeniden YORUMLANMAZ:
+   * ham değer `INVALID_NUMBER_RAW` olur, alan kırmızı çizilir ve yazılan
+   * metin düzeltilene dek görünür kalır (mobil denetim 2026-10 g06).
+   * `MoneyInputNumber` her zaman açar (çağıranları NaN'ı geçersiz sayar);
+   * ham dize alan çağıran, "NaN"ı geçersiz saydığından eminse açar.
+   */
+  strict?: boolean;
 };
 
 /**
@@ -263,13 +304,18 @@ type Props = Omit<
  * ondalık/yabancı ayraç yazıldıysa kullanıcının metni aynen durur ve odaktan
  * çıkınca dilin biçimine oturur.
  */
-export function MoneyInput({ value, onChange, onBlur, maxDecimals, ...props }: Props) {
+export function MoneyInput({ value, onChange, onBlur, maxDecimals, strict = false, hasError, ...props }: Props) {
   const locale = useLocale();
+  const parse = (shown: string) =>
+    strict && hasIrregularSeparators(shown, locale, maxDecimals)
+      ? INVALID_NUMBER_RAW
+      : parseMoneyDisplay(shown, locale, maxDecimals);
+  const invalid = value === INVALID_NUMBER_RAW;
   // Düzenlenirken kullanıcının yazdığı metin; null → ham değerin biçimli hâli.
   const [text, setText] = useState<string | null>(null);
   useEffect(() => {
     // Dışarıdan gelen değer (sıfırlama, "tamamını öde") yazılan metni geçersiz kılar.
-    if (text !== null && parseMoneyDisplay(text, locale, maxDecimals) !== value) setText(null);
+    if (text !== null && parse(text) !== value) setText(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, locale]);
   return (
@@ -280,23 +326,32 @@ export function MoneyInput({ value, onChange, onBlur, maxDecimals, ...props }: P
       // miktar (3) / tam sayı (0) alanları olduğu gibi.
       value={
         text ??
-        formatMoneyDisplay(
-          (maxDecimals ?? MONEY_DECIMALS) === MONEY_DECIMALS ? padMoneyFraction(value) : value,
-          locale,
-        )
+        (invalid
+          ? ""
+          : formatMoneyDisplay(
+              (maxDecimals ?? MONEY_DECIMALS) === MONEY_DECIMALS ? padMoneyFraction(value) : value,
+              locale,
+            ))
       }
       onChange={(e) => {
         const typed = sanitizeTyped(e.target.value);
-        const raw = parseMoneyDisplay(typed, locale, maxDecimals);
-        setText(!raw.includes(".") && onlyDigitsAndGroup(typed, locale) ? formatMoneyDisplay(raw, locale) : typed);
+        const raw = parse(typed);
+        setText(
+          raw !== INVALID_NUMBER_RAW && !raw.includes(".") && onlyDigitsAndGroup(typed, locale)
+            ? formatMoneyDisplay(raw, locale)
+            : typed,
+        );
         onChange(raw);
       }}
       onBlur={(e) => {
-        setText(null);
+        // Geçersiz metin kullanıcı düzeltene dek görünür kalır.
+        if (!invalid) setText(null);
         // "12." gibi yarım ondalık odaktan çıkınca düşer.
         if (value.endsWith(".")) onChange(value.slice(0, -1));
         onBlur?.(e);
       }}
+      // Geçersizken kırmızı; değilse çağıranın/Field'ın hata durumu.
+      hasError={invalid ? true : hasError}
       {...props}
     />
   );
@@ -305,6 +360,7 @@ export function MoneyInput({ value, onChange, onBlur, maxDecimals, ...props }: P
 type NumberProps = Omit<Props, "value" | "onChange"> & {
   /** Sayısal değer (react-hook-form Controller alanları için). */
   value: number | null | undefined;
+  /** Boş/ara durum → `undefined`, düzensiz ayraçlı geçersiz giriş → `NaN`. */
   onChange: (v: number | undefined) => void;
 };
 
@@ -321,8 +377,17 @@ type NumberProps = Omit<Props, "value" | "onChange"> & {
  */
 function draftToNumber(raw: string): number | undefined {
   if (raw === "") return undefined;
+  // Düzensiz ayraçlı giriş (mobil denetim 2026-10 g06) bilerek NaN: forma
+  // GEÇERSİZ olarak yazılır (zod `invalid_type`, `hasInvalidNumber` taslağı
+  // durdurur); eşitleme aşağıda NaN'ı boşla aynı sayar, taslak silinmez.
+  if (raw === INVALID_NUMBER_RAW) return Number.NaN;
   const n = Number(raw);
   return Number.isNaN(n) ? undefined : n;
+}
+
+/** Eşitleme için: boş, ara durum ve geçersiz giriş aynı "geçerli sayı yok". */
+function comparable(n: number | null | undefined): number | undefined {
+  return n == null || Number.isNaN(n) ? undefined : n;
 }
 
 export function MoneyInputNumber({ value, onChange, ...props }: NumberProps) {
@@ -330,13 +395,13 @@ export function MoneyInputNumber({ value, onChange, ...props }: NumberProps) {
     value == null || Number.isNaN(value) ? "" : String(value),
   );
   useEffect(() => {
-    const cur = draftToNumber(draft);
-    const ext = value == null || Number.isNaN(value) ? undefined : value;
-    if (cur !== ext) setDraft(ext == null ? "" : String(ext));
+    const ext = comparable(value);
+    if (comparable(draftToNumber(draft)) !== ext) setDraft(ext == null ? "" : String(ext));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return (
     <MoneyInput
+      strict
       {...props}
       value={draft}
       onChange={(raw) => {

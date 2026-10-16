@@ -459,6 +459,21 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(h.replace).toHaveBeenLastCalledWith("/company/satis", { scroll: false });
   });
 
+  it("aktif süzgeç şeridi SONUÇ sütununun ilk çocuğu (yapışkan şerit rayın üstüne binmez, mobil denetim 2026-10)", () => {
+    h.rows = [row({ title: "Çelik Boru Alımı" })];
+    h.search = "q=%C3%A7elik";
+    const { container } = render(<SellerTendersView />);
+    const bar = container.querySelector("[data-chip-bar]")!;
+    expect(bar).not.toBeNull();
+    // Sarmalanmadan sonuç sütununda (yapışkanlık sütun boyunca sürer); ray kardeş sütunda.
+    const column = bar.parentElement!;
+    expect(column).toHaveClass("min-w-0");
+    expect(column.firstElementChild).toBe(bar);
+    const grid = column.parentElement!;
+    expect(grid).toHaveClass("lg:grid-cols-[15rem_1fr]");
+    expect(grid.querySelector(":scope > aside")).not.toBeNull();
+  });
+
   it("kategori süzgeci SEGMENT adıyla ve sayaçlı; kapanış/para/usul sayaçları", () => {
     h.rows = [
       row({ categories: [{ code: "39121501", name: "Kablo" }], isInternational: true, currency: "USD", format: "ENGLISH_AUCTION", closesAt: new Date(Date.now() + 2 * 86_400_000).toISOString() }),

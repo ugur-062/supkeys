@@ -254,3 +254,33 @@ describe("ApprovalFlowsSection — erişim (doğrulama) kapısı (derin denetim 
     expect(screen.queryByText(/firma doğrulaması gerektirir/)).toBeNull();
   });
 });
+
+/**
+ * Mobil denetim g04: kart eylem grubu (Aktifleştir · Düzenle · Kopyala · Sil)
+ * `shrink-0` ve sarılmazdı — 360 px'te 370 px'lik satır sayfayı yana 407 px'e
+ * taşırıyor, Sil düğmesi ekran dışında kalıyordu. Telefonda grup tam genişlik
+ * ve sarılır; sm+ sağda, büzülmez.
+ */
+describe("ApprovalFlowsSection — kart eylemleri telefonda sarılır (g04)", () => {
+  it("eylem grubu: w-full + flex-wrap, sm+ w-auto + shrink-0; Sil görünür", () => {
+    h.flows = [
+      {
+        id: "f1",
+        name: "Yüksek tutar",
+        status: "ACTIVE",
+        listingType: "ALIM",
+        initiatorRoles: [],
+        steps: [{ order: 1, approverName: "Ali", displayLabel: null, conditionMinAmount: null }],
+      },
+    ];
+    render(<ApprovalFlowsSection canManage />);
+    const del = screen.getByRole("button", { name: /Yüksek tutar/ });
+    const group = del.parentElement as HTMLElement;
+    for (const cls of ["flex-wrap", "w-full", "sm:w-auto", "sm:shrink-0"]) {
+      expect(group.className).toMatch(new RegExp(`(^|\\s)${cls.replace(":", "\\:")}(\\s|$)`));
+    }
+    // Telefonda büzülmeyen eski sınıf kalmadı (yalnız sm+).
+    expect(group.className).not.toMatch(/(^|\s)shrink-0(\s|$)/);
+    expect(within(group).getByRole("button", { name: /Düzenle/ })).toBeInTheDocument();
+  });
+});

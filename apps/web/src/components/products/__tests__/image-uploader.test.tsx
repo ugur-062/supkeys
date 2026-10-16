@@ -116,3 +116,36 @@ describe("ImageUploader — klavye/dokunmatik sıralama (arayüz testi D-288)", 
     expect(bar.className).toContain("group-focus-within:opacity-100");
   });
 });
+
+/**
+ * Mobil denetim g09: telefonda karolar 84 px, düğmeler 16–23×22 px'ti;
+ * dokunmatikte sürükle-bırak çalışmadığı hâlde metin "sürükleyerek sıralayın"
+ * diyordu; başlık ile ipucu aralıksız yapışıyordu.
+ */
+describe("ImageUploader — telefon düzeni (mobil denetim g09)", () => {
+  it("telefonda iki sütun, karo düğmeleri en az 36 px (sm'den eski boyut)", () => {
+    render(<Harness initial={["https://cdn/a.jpg", "https://cdn/b.jpg", "https://cdn/c.jpg"]} />);
+    const grid = screen.getAllByRole("listitem")[0]!.parentElement!;
+    expect(grid.className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+    expect(grid.className).toMatch(/sm:grid-cols-4/);
+    for (const name of ["Sola taşı", "Kapak yap", "Sağa taşı", "Kaldır"]) {
+      for (const b of screen.getAllByRole("button", { name })) {
+        expect(b.className).toMatch(/(^|\s)min-h-9(\s|$)/);
+        expect(b.className).toMatch(/sm:min-h-0/);
+      }
+    }
+  });
+
+  it("dokunmatikte sürükleme metni gizli, sıralama ok düğmeleriyle anlatılır; başlık satırı sarar ve aralık bırakır", () => {
+    render(<Harness initial={["https://cdn/a.jpg"]} />);
+    const dragRule = screen.getByText(/sürükleyerek sıralayın/);
+    const touchRule = screen.getByText(/ok düğmeleriyle sıralayın/);
+    expect(dragRule.className).toMatch(/\[@media\(hover:none\)\]:hidden/);
+    expect(touchRule.className).toMatch(/hidden/);
+    expect(touchRule.className).toMatch(/\[@media\(hover:none\)\]:block/);
+    expect(screen.getByText("ya da sürükleyip bırakın").className).toMatch(/\[@media\(hover:none\)\]:hidden/);
+    const header = screen.getByText("Görseller").parentElement!;
+    expect(header.className).toMatch(/flex-wrap/);
+    expect(header.className).toMatch(/gap-x-3/);
+  });
+});

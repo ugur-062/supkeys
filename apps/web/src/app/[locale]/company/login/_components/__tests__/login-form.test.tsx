@@ -448,6 +448,18 @@ describe("CompanyLoginForm — okunurluk ve dokunma alanları (login-5, login-9,
     expect(forgot).toHaveAttribute("href", "/company/sifremi-unuttum");
   });
 
+  // Mobil denetim 2026-10 (g03-auth-ru-login-row): Rusça 360 px'te ikisi tek
+  // satıra 6 px sığmıyor, ikisi de küçülüp ikişer satıra sarılıyordu. Satır
+  // sarılır; bağlantı kırılmaz ve sığmayınca alt satırda sağa yaslanır.
+  it("'Oturumumu açık bırak' + 'Şifremi unuttum' satırı sığmayınca sarılır, bağlantı tek satır ve sağda", () => {
+    render(<CompanyLoginForm nextPath="/company" />);
+    const forgot = screen.getByRole("link", { name: "Şifremi unuttum" });
+    const row = forgot.parentElement as HTMLElement;
+    expect(row).toContainElement(screen.getByText("Oturumumu açık bırak"));
+    expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-wrap", "justify-between"]));
+    expect(forgot.className.split(/\s+/)).toEqual(expect.arrayContaining(["ml-auto", "whitespace-nowrap"]));
+  });
+
   it("E-posta ve Şifre etiketlerinin ardındaki öğe data-slot=control taşır (etiket boşluğu eşit)", () => {
     render(<CompanyLoginForm nextPath="/company" />);
     for (const label of ["E-posta", "Şifre"]) {

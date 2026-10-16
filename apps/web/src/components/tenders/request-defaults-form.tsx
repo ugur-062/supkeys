@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_ALLOWED_CURRENCIES_MAX, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
-import { Globe, MapPin } from "lucide-react";
+import { Globe, MapPin, X } from "lucide-react";
 import { createContext, useContext, useId, useState } from "react";
 
 const INPUT =
@@ -127,7 +127,9 @@ export function RequestDefaultsForm({
   return (
     <BareContext.Provider value={bare}>
     {/* `fieldset disabled` içindeki bütün düğme/seçim/girişleri pasifler. */}
-    <fieldset disabled={readOnly} className={cn("min-w-0", gap)}>
+    {/* `data-request-defaults`: hızlı talebin "şartları kaydet" kapısı geçersiz
+        şart kutusunu yalnız bu formların içinde arar. */}
+    <fieldset disabled={readOnly} data-request-defaults="" className={cn("min-w-0", gap)}>
       {show("scope") ? (
         <Block title={tr("gorunurlukUlkesi")} hint={tr("talebiHangiUlkelerdekiTedarikcilerGorsun")}>
           <div className="grid grid-cols-2 gap-3">
@@ -152,27 +154,37 @@ export function RequestDefaultsForm({
           </div>
           {limited ? (
             <div className="mt-3 space-y-2">
-              <ul className="flex flex-wrap gap-1.5" aria-label={tr("seciliUlkeler")}>
+              <ul className="flex flex-wrap gap-2" aria-label={tr("seciliUlkeler")}>
                 {countries.map((c) => (
-                  <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                  <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 py-1 pr-1 pl-2.5 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
                     <CountryFlag code={c} decorative />
                     {countryDisplayName(c, locale)}
                     {/* Son ülke çıkarılamaz (derin denetim S084): boş liste "tüm
                         ülkeler" demektir → kip sessizce genişliyordu. Değiştirmek
-                        için önce yenisi eklenir; tümüne açmak "Tüm ülkeler"le. */}
+                        için önce yenisi eklenir; tümüne açmak "Tüm ülkeler"le.
+                        Mobil denetim 2026-10 g06: eskiden 8×16 px çıplak "×";
+                        artık çip yüksekliğinde 24 px daire (after: katmanıyla
+                        dikeyde 32 px dokunma alanı; çipler arası 8 px, komşu
+                        alanlar çakışmaz) ve pasifliğin nedeni çiplerin ALTINDA
+                        görünür metin — dokunmatikte `title` okunmuyordu. */}
                     <button
                       type="button"
                       aria-label={tr("ulkesiniCikar", { countryName: countryDisplayName(c, locale) })}
-                      title={countries.length === 1 ? tr("sonUlkeCikarilamaz") : undefined}
+                      aria-describedby={countries.length === 1 ? fid("son-ulke") : undefined}
                       disabled={countries.length === 1}
                       onClick={() => set({ targetCountries: countries.filter((x) => x !== c) })}
-                      className="text-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-blue-400"
+                      className="relative -my-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-blue-500 after:absolute after:inset-x-0 after:-inset-y-1 hover:bg-blue-100 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500"
                     >
-                      ×
+                      <X aria-hidden className="size-4" />
                     </button>
                   </li>
                 ))}
               </ul>
+              {countries.length === 1 ? (
+                <p id={fid("son-ulke")} className="text-xs text-zinc-500">
+                  {tr("sonUlkeCikarilamaz")}
+                </p>
+              ) : null}
               {/* Aranabilir seçici + bayraklar (2026-10-04; eskiden 245 satırlık
                   native select). Kayda kapalı ülke hedeflenemez (API de
                   reddeder; derin denetim X24). */}
@@ -244,7 +256,18 @@ export function RequestDefaultsForm({
               </option>
             ))}
           </select>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Alt alanlar FORMUN genişliğine göre dizilir (mobil denetim v4new1):
+              form hızlı talep sütununda (1024'te kutu 272 px), sağ rayda ve
+              Talep Şartları kartında daralıyor; ekran kırılımı (`sm:`) kutuyu
+              ikiye bölüp alanı 130 px'e eziyor, RU akreditif tipi "По
+              предъявле" diye kesiliyordu. İki sütun yalnız kap ≥ 36 rem iken
+              (sütun 282 px: akreditif tipi + vade yan yana sığar); dar kapta
+              tek alan tam genişlik. RU akreditif etiketleri de kısaldı (eskisi
+              467 px'ti, tam genişlikte bile sığmıyordu). `@container` yalnız
+              bu sarmalayıcıda: bloğun tamamı katman bağlamı olursa açılır
+              liste (ülke seçici) sonraki bloğun altında kalırdı. */}
+          <div className="@container mt-3">
+          <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
             {value.paymentCategory === "ADVANCE" ? (
               <Field hint={tr("n100TamPesinAltiKismi")} error={fieldErrors.advancePercent ? tr("pesinYuzdesiAraligi") : undefined}>
                 <Label htmlFor={fid("pesin")}>{tr("pesinYuzdesi")}</Label>
@@ -268,12 +291,17 @@ export function RequestDefaultsForm({
               </Field>
             ) : null}
           </div>
+          </div>
         </Block>
       ) : null}
 
       {show("currency") ? (
         <Block title={tr("paraBirimi")} hint={tr("anaBirimTeklifKarsilastirmasininTabanidir")}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Kabın genişliğine göre (ödeme alt alanlarıyla aynı neden): sağ
+              rayda (304 px) ekran kırılımı ana birim seçimini 146 px'e
+              indiriyor, RU "TRY — турецкая лира" kesiliyordu. */}
+          <div className="@container">
+          <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
             <Field>
               <Label htmlFor={fid("para")}>{tr("anaParaBirimi")}</Label>
               <select
@@ -323,12 +351,18 @@ export function RequestDefaultsForm({
               ) : null}
             </div>
           </div>
+          </div>
         </Block>
       ) : null}
 
       {show("visibility") ? (
         <Block title={tr("kimlerGorsun")} hint={tr("talebinVarsayilanGorunurluguHerTalepte")}>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {/* Üç kart yan yana yalnız kap ≥ 32 rem iken: Talep Şartları
+              sayfasında 1024 + kenar çubuğuyla form 336 px, ekran kırılımı
+              kartları 107 px'e eziyor, RU ipucu ve TR "Bağlantılarım" kartın
+              kenarından taşıyordu. */}
+          <div className="@container">
+          <div className="grid grid-cols-1 gap-2 @lg:grid-cols-3">
             {(["PUBLIC", "CONNECTIONS", "PRIVATE"] as const).map((v) => (
               <button
                 key={v}
@@ -341,6 +375,7 @@ export function RequestDefaultsForm({
                 <p className="mt-0.5 text-xs text-zinc-500">{visibilityLabels[v].hint}</p>
               </button>
             ))}
+          </div>
           </div>
         </Block>
       ) : null}

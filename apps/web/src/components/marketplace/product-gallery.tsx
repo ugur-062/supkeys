@@ -159,7 +159,8 @@ export function ProductGallery({
                 type="button"
                 aria-label={t("close")}
                 onClick={() => setZoom(false)}
-                className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-800"
+                // Güvenli alan: Kapat durum çubuğunun / yatay çentiğin altında kalmaz.
+                className="absolute top-[calc(1rem+var(--safe-top))] right-[calc(1rem+var(--safe-right))] inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-800"
               >
                 <XMarkIcon aria-hidden className="size-5" />
               </button>

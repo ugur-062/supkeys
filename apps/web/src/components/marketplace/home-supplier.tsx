@@ -76,9 +76,11 @@ export function HomeSupplier({
             <p className="mt-1 max-w-2xl text-sm text-zinc-500">{t("demandsLead")}</p>
           </div>
           {demands.length >= MIN_DEMANDS ? (
+            /* Dokunma alanı 44 px, görünüm yerinde (mobil denetim 2026-10
+               g01): dolgu + eksi kenar boşluğu; bağlantı 20 px'ti. */
             <Link
               href={MARKETPLACE_ROUTES.demands}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+              className="-my-3 inline-flex items-center gap-1 py-3 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
             >
               {t("allDemands")}{total > 0 ? ` (${total})` : ""}
               <ArrowRightIcon aria-hidden className="size-4" />

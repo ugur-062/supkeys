@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { countryDisplayName } from "@/i18n/domain";
@@ -319,7 +320,7 @@ export function CompanyProfileSection() {
         </div>
         <DescriptionList className="mt-3">
           <DescriptionTerm>{t("firmaKodu")}</DescriptionTerm>
-          <DescriptionDetails className="tabular-nums">
+          <DescriptionDetails className={ID_TOKEN_CLASS}>
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>{t("kayitUlkesi")}</DescriptionTerm>
@@ -604,30 +605,35 @@ export function CompanyProfileSection() {
         />
       </section>
 
-      {/* KAYDET — yalnız değişiklik varsa aktif; Vazgeç forma geri döner. */}
+      {/* KAYDET — yalnız değişiklik varsa aktif; Vazgeç forma geri döner.
+          Vazgeç + Kaydet tek grup: birlikte sarar, ayrılmaz; telefonda not kendi
+          satırında (mobil denetim 2026-10 g11: "Kaydet" tek başına alt satıra
+          düşüyordu). */}
       <div className="flex flex-wrap items-center justify-end gap-3">
         {dirty ? (
-          <Text className="mr-auto text-xs text-amber-700">
+          <Text className="w-full text-xs text-amber-700 sm:mr-auto sm:w-auto">
             {t("kaydedilmemisDegisikliklerVar")}
           </Text>
         ) : null}
-        {dirty ? (
+        <div className="ml-auto flex items-center gap-3">
+          {dirty ? (
+            <Button
+              plain
+              type="button"
+              disabled={update.isPending}
+              onClick={() => initial && setForm(initial)}
+            >
+              {t("vazgec")}
+            </Button>
+          ) : null}
           <Button
-            plain
             type="button"
-            disabled={update.isPending}
-            onClick={() => initial && setForm(initial)}
+            onClick={() => void handleSave()}
+            disabled={!dirty || hasError || update.isPending || saveLock.locked}
           >
-            {t("vazgec")}
+            {update.isPending || saveLock.locked ? t("kaydediliyor") : t("kaydet")}
           </Button>
-        ) : null}
-        <Button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={!dirty || hasError || update.isPending || saveLock.locked}
-        >
-          {update.isPending || saveLock.locked ? t("kaydediliyor") : t("kaydet")}
-        </Button>
+        </div>
       </div>
 
       {/* Herkese açık profil → Profilim */}

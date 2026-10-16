@@ -137,25 +137,36 @@ export function KpiCard({
         </div>
       ) : null}
       <div className="relative">
-        <div className="flex items-start justify-between gap-2">
+        {/* Telefonda iki sütunlu ızgarada (~124 px iç genişlik) en uzun sözcük
+            + değişim rozeti sığmayınca rozet kartın overflow-hidden'ında
+            kırpılıyordu ("Tekliflerim" + "%100"); rozet alt satıra iner.
+            sm+ eskisi gibi tek satır. */}
+        <div className="flex items-start justify-between gap-x-2 gap-y-1 max-sm:flex-wrap">
           <p className="text-sm font-medium text-slate-500">{label}</p>
           <TrendBadge pct={deltaPct} periodLabel={deltaPeriodLabel} />
         </div>
+        {/* Telefonda kart iki sütunlu ızgarada dar: değer bir boy küçük ve
+            sığmazsa sarar ("12,5 saat") — kartın overflow-hidden'ı onu
+            sessizce kırpmasın. sm+ eskisi gibi tek satır. */}
         <p
-          className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950"
+          className="mt-2 text-2xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950 max-sm:whitespace-normal sm:text-3xl"
           title={valueTitle}
         >
           {value}
         </p>
+        {/* Telefonda ipucu SARAR (mobil denetim g10-14): kart iki sütunlu
+            ızgarada ~150 px; kırpılan ipucunun ("Kısmi kazanım dahil")
+            dokunmatikte okunacak başka yeri yok. sm+ eskisi gibi tek satır. */}
         {hint ? (
-          <p className="mt-1 truncate text-xs text-slate-500">{hint}</p>
+          <p className="mt-1 text-xs text-slate-500 sm:truncate">{hint}</p>
         ) : null}
       </div>
     </>
   );
   const frame = cn(
     DASH_CARD,
-    "relative block overflow-hidden",
+    // Telefonda iki sütunlu ızgarada dar kart: iç boşluk p-4 (sm+ p-5).
+    "relative block overflow-hidden p-4 sm:p-5",
     attention && "border-l-[3px] border-l-amber-500",
   );
   if (!href) return <div className={frame}>{body}</div>;
@@ -201,10 +212,13 @@ export function ChartCard({
     <section className={cn(DASH_CARD, className)} aria-label={ariaLabel}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-slate-500">
+          {/* Dar ekranda başlık sarınca aralık rozeti kendi içinde iki
+              satıra bölünüyordu ("son 12" / "ay", mobil denetim g10-15):
+              rozet bölünmez, sığmazsa başlığın altına iner. */}
+          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-slate-500">
             {title}
             {rangeBadge ? (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
                 {rangeBadge}
               </span>
             ) : null}
@@ -215,10 +229,12 @@ export function ChartCard({
         </div>
         {right}
         {href ? (
+          /* Görünen ok 24 px; dokunma alanı görünmez katmanla 44 px (mobil
+             denetim g10-15) — yerleşim ve hover zemini değişmez. */
           <Link
             href={href}
             aria-label={t("listeyeGit", { title: title })}
-            className="rounded p-1 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+            className="relative shrink-0 rounded p-1 text-slate-400 transition after:absolute after:-inset-2.5 hover:bg-slate-50 hover:text-slate-700"
           >
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

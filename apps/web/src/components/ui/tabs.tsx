@@ -2,7 +2,10 @@
 
 import { cn } from "@/lib/utils";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+
+/** Solan kenarın genişliği (px) — maskedeki 2.5rem ile aynı. */
+const FADE_PX = 40;
 
 export interface TabItem {
   /** URL hash anahtarı (`#ozellikler`) — hashSync açıkken. */
@@ -68,6 +71,55 @@ export function Tabs({
     listRef.current?.scrollIntoView?.({ block: "start" });
   }, [scrollToSelected, index]);
 
+  /**
+   * KAYDIRMA İPUCU (mobil denetim 2026-10 g02): telefonda sekmeler çubuğa
+   * sığmıyor (TR 360 px'te 383 px, RU 577 px) ve gizli kaydırma çubuğu
+   * yüzünden üçüncü sekmenin varlığı görünmüyordu ("Se", RU'da "Сертификаты"
+   * hiç). Taşan yönde kenar yumuşakça solar (maske — zemin rengi bilmez)
+   * ve seçilen sekme çubukta tam görünür olacak kadar kaydırılır. Sığan
+   * çubukta (masaüstü) ikisi de devreye girmez.
+   */
+  const [overflow, setOverflow] = useState<{ start: boolean; end: boolean }>({ start: false, end: false });
+  const measure = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const next = { start: max > 1 && el.scrollLeft > 1, end: max > 1 && el.scrollLeft < max - 1 };
+    setOverflow((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+  }, []);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    ro?.observe(el);
+    // Sekmeler de izlenir: çubuğun boyu değişmeden içerik genişleyebilir
+    // (seçilen sekme kalınlaşır, yazı tipi sonradan yüklenir).
+    for (const tab of Array.from(el.children)) ro?.observe(tab);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro?.disconnect();
+    };
+  }, [measure, visible.length]);
+
+  // Seçilen sekme kısmen görünüyorsa çubuk yatayda kaydırılır (sayfa dikeyde
+  // OYNAMAZ — `scrollIntoView` kullanılmaz). Solan kenar payı kadar içeri.
+  useEffect(() => {
+    const el = listRef.current;
+    // Seçili sekme dizinden (Headless `aria-selected`i bir sonraki çizimde
+    // yazabilir; o an eski sekme seçili görünür).
+    const tab = el?.querySelectorAll<HTMLElement>('[role="tab"]')[Math.min(index, visible.length - 1)];
+    if (!el || !tab || el.scrollWidth <= el.clientWidth) return;
+    const list = el.getBoundingClientRect();
+    const box = tab.getBoundingClientRect();
+    let next = el.scrollLeft;
+    if (box.left < list.left + FADE_PX) next -= list.left + FADE_PX - box.left;
+    else if (box.right > list.right - FADE_PX) next += box.right - (list.right - FADE_PX);
+    next = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, next));
+    if (next !== el.scrollLeft) el.scrollLeft = next;
+  }, [index, visible.length]);
+
   const onChange = (i: number) => {
     setIndex(i);
     if (hashSync && visible[i]) {
@@ -80,7 +132,21 @@ export function Tabs({
       {/* Sekme çubuğu (2026-09-08): seçili sekme KALIN + renkli alt çizgi,
           seçili olmayanlarda hover'da yumuşak zemin. Eskiden hepsi aynı
           ağırlıkta gri metindi ve çubuk "düz" duruyordu. */}
-      <TabList ref={listRef} className="flex scroll-mt-28 gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none]">
+      <TabList
+        ref={listRef}
+        className={cn(
+          "flex scroll-mt-28 gap-1 overflow-x-auto overscroll-x-contain border-b border-zinc-200 [scrollbar-width:none]",
+          overflow.start && overflow.end
+            ? "[mask-image:linear-gradient(to_right,transparent,white_2.5rem,white_calc(100%_-_2.5rem),transparent)]"
+            : overflow.end
+              ? "[mask-image:linear-gradient(to_right,white_calc(100%_-_2.5rem),transparent)]"
+              : overflow.start
+                ? "[mask-image:linear-gradient(to_right,transparent,white_2.5rem)]"
+                : null,
+        )}
+        data-overflow-start={overflow.start || undefined}
+        data-overflow-end={overflow.end || undefined}
+      >
         {visible.map((t) => (
           <Tab
             key={t.id}

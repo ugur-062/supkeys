@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { foldSearchText } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { formatDate } from "@/lib/format-date";
@@ -22,6 +23,7 @@ import {
   UsersIcon,
 } from "@heroicons/react/20/solid";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { FAB_CLEARANCE_SM_IN_PX3_CLASS } from "@/components/company-shell/assistant/fab-clearance";
 import {
   BuildingOffice2Icon,
   ChevronDownIcon,
@@ -113,6 +115,7 @@ export function ListingCard({
   variant = "tile",
   dense = false,
   imageMode = "cover-only",
+  fabClearance = true,
   className,
 }: {
   /** Herkese açık pazar yeri kartı (sunucu bileşenlerinden). */
@@ -127,12 +130,18 @@ export function ListingCard({
    * `category` (pazar yeri): kapak yoksa üretilmiş kategori görseli.
    */
   imageMode?: "cover-only" | "category";
+  /**
+   * Row: alt satırın sm+ sağ payı — panelde sağ-alttaki AI Asistan düğmesi
+   * "Teklif ver"in üstüne düşmesin. Düğmenin olmadığı herkese açık satır
+   * (`ListingTeaserRow`) `false` verir.
+   */
+  fabClearance?: boolean;
   className?: string;
 }) {
   if (listing) return <PublicTile listing={listing} />;
   if (!data) return null;
   return variant === "row" ? (
-    <PanelRow data={data} dense={dense} className={className} />
+    <PanelRow data={data} dense={dense} fabClearance={fabClearance} className={className} />
   ) : (
     <PanelTile data={data} imageMode={imageMode} className={className} />
   );
@@ -166,7 +175,7 @@ function PanelTile({
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start gap-2.5">
           <div className="min-w-0 flex-1">
-            <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
+            <span className={cn(ID_TOKEN_CLASS, "inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] leading-tight text-zinc-600")}>
               {d.number ?? "—"}
             </span>
             <h3 className="mt-1 line-clamp-2 text-sm/5 font-semibold text-zinc-950">
@@ -236,10 +245,12 @@ function factIcon(f: { label: string; icon?: FactIcon }): { Icon: typeof Documen
 function PanelRow({
   data: d,
   dense,
+  fabClearance,
   className,
 }: {
   data: ListingCardData;
   dense: boolean;
+  fabClearance: boolean;
   className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -276,7 +287,7 @@ function PanelRow({
             <div className="flex min-w-0 items-start gap-2">
               {d.leading}
               <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
-                <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
+                <span className={cn(ID_TOKEN_CLASS, "inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] leading-tight text-zinc-600")}>
                   {d.number ?? "—"}
                 </span>
                 <span className="mt-1 line-clamp-1 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600" title={d.title}>
@@ -338,27 +349,34 @@ function PanelRow({
           en eski boyutuyla aynı olsun"): px-3 py-2.5, başlık 13 px, etiket
           10 px, değer 13 px; ikon karoları küçük. */}
       <div className="px-3 py-2.5">
-        {/* BAŞLIK */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2.5">
-            {d.leading}
-            <span aria-hidden className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", tone.tile)}>
-              <DocumentTextIcon className="size-4" />
-            </span>
-            <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
-              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">{d.number ?? "—"}</span>
-              <span className="mt-1 line-clamp-2 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600" title={d.title}>
+        {/* BAŞLIK — telefonda durum pili başlığın ALTINA iner (mobil denetim
+            2026-10 g01/g02): sağ sütunda `whitespace-nowrap` duran RU pili
+            "Открыт для предложений" (162 px) başlığı 360 px'te 69–85 px'e
+            sıkıştırıyor, iki satırlık başlık 1–2 sözcük gösteriyordu; numara
+            pili de "ROT-" / "000846" diye kırılıyordu. Tek düğüm, iki yerleşim:
+            içerik ızgarası telefonda pili ikinci satıra (başlıkla aynı hizaya),
+            sm ve üstünde eskisi gibi sağ üste koyar. DOM sırası (bağlantı →
+            durum) değişmez; durum ikinci kez çizilmez. */}
+        <div className="flex items-start gap-2.5">
+          {d.leading}
+          <span aria-hidden className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", tone.tile)}>
+            <DocumentTextIcon className="size-4" />
+          </span>
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-3 sm:gap-y-0">
+            <Link href={d.href} onClick={stop} className={cn("min-w-0 justify-self-start rounded", ROW_FOCUS)}>
+              <span className={cn(ID_TOKEN_CLASS, "inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] leading-tight text-zinc-600")}>{d.number ?? "—"}</span>
+              <span className="mt-1 line-clamp-3 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600 sm:line-clamp-2" title={d.title}>
                 {d.title}
               </span>
               {d.chips ? <span className="mt-1 flex flex-wrap gap-1">{d.chips}</span> : null}
             </Link>
-          </div>
-          <div className="flex shrink-0 items-start gap-1">
-            <div className="flex flex-col items-end gap-1 pt-0.5">
-              <span className={cn("whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none", d.status.className)}>{d.status.label}</span>
-              {d.timeNote && !noteUnderClosing ? <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span> : null}
+            <div className="flex min-w-0 items-start gap-1 sm:shrink-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex-col sm:flex-nowrap sm:items-end sm:gap-1 sm:pt-0.5">
+                <span className={cn("whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none", d.status.className)}>{d.status.label}</span>
+                {d.timeNote && !noteUnderClosing ? <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span> : null}
+              </div>
+              {d.menu ? <span onClick={stop} className="ml-auto sm:ml-0">{d.menu}</span> : null}
             </div>
-            {d.menu ? <span onClick={stop}>{d.menu}</span> : null}
           </div>
         </div>
 
@@ -371,7 +389,18 @@ function PanelRow({
                 // dl > div altında yalnız dt/dd olabilir (axe definition-list;
                 // 2026-09-19 incelemesinde 240 düğüm): ikon dt'nin içinde,
                 // değer satırları ikon genişliği kadar içeriden başlar.
-                <div key={f.label} className={cn("min-w-0", i > 0 && "lg:pl-3")}>
+                // Tek kalan son sütun telefonda iki sütunu da kaplar (mobil
+                // denetim 2026-10 g01/g08): beşinci sütun (Kategori) sol
+                // yarıda tek başına kalıp "Hidrolik silindir ve bile…" diye
+                // kırpılıyor, sağ yarı boş duruyordu. sm'de üç sütun, normal.
+                <div
+                  key={f.label}
+                  className={cn(
+                    "min-w-0",
+                    i > 0 && "lg:pl-3",
+                    i === d.facts.length - 1 && d.facts.length % 2 === 1 && "col-span-2 sm:col-span-1",
+                  )}
+                >
                   <dt className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">
                     <span aria-hidden className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", iconTone)}>
                       <Icon className="size-3.5" />
@@ -394,10 +423,25 @@ function PanelRow({
           </dl>
         ) : null}
 
-        {/* ALT SATIR: detay oku solda, metrik ortada, eylem sağda */}
+        {/* ALT SATIR: detay oku solda, metrik ortada, eylem sağda.
+            TELEFON (mobil denetim 2026-10, RU 360): "Показать детали" iki satıra
+            kırılıyor, metrik ("Моё предложение: Отозвано") "Отозв…" diye
+            kırpılıyordu → sm altında sol grup SARAR: düğme tek satırda kalır,
+            metrik sığmazsa kendi satırına iner ve kırpılmaz (sarar). sm ve üstü
+            değişmedi (tek satır + kırpma).
+            sm+ SAĞ PAY (mobil denetim 2026-10, dördüncü tur): 1280'de "Teklif
+            ver" 1111-1228'de, AI Asistan düğmesinin sütununda (1192-1248)
+            duruyordu; düğme Açık Talepler'de 20 durağan konumun 5'inde
+            çekiliyordu. Satır `px-3` kartın içinde → `FAB_CLEARANCE_SM_IN_PX3_CLASS`
+            (kartın 12 px'i + bu = alt çubuk payı). Telefonda pay yok. */}
         {d.metric || d.action || d.expandable ? (
-          <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
-            <span className="flex min-w-0 items-center gap-4">
+          <div
+            className={cn(
+              "mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500",
+              fabClearance && FAB_CLEARANCE_SM_IN_PX3_CLASS,
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-4 max-sm:flex-wrap max-sm:gap-y-1">
               {d.expandable ? (
                 <button
                   type="button"
@@ -417,7 +461,7 @@ function PanelRow({
                 </button>
               ) : null}
               {d.metric ? (
-                <span className="truncate">
+                <span className="truncate max-sm:whitespace-normal max-sm:break-words">
                   {d.metric.label}: <span className="font-semibold text-slate-800">{d.metric.value}</span>
                 </span>
               ) : null}
@@ -513,7 +557,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
                 </span>
               ) : null}
             </p>
-            <span className="shrink-0 tabular-nums text-[11px] text-zinc-500">{listing.number}</span>
+            <span className={cn(ID_TOKEN_CLASS, "shrink-0 text-[11px] text-zinc-500")}>{listing.number}</span>
           </div>
 
           <dl className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">

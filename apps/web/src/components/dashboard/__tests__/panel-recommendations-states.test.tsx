@@ -87,3 +87,17 @@ describe("PanelRecommendations — okunamayan şerit (OUTF-3)", () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe("PanelRecommendations — sağ ok AI Asistan köşesinden içeride (mobil denetim 2026-10)", () => {
+  it("'İleri kaydır' sm'den itibaren içerik kenarından içeride; 'Geri kaydır' kenarda kalır", async () => {
+    h.get.mockResolvedValue({ data: pageOf(12) });
+    view("fresh");
+    await screen.findByText("Ürün 1");
+    const next = screen.getByRole("button", { name: "İleri kaydır" });
+    const prev = screen.getByRole("button", { name: "Geri kaydır" });
+    expect(next).toHaveClass("sm:right-18", "lg:right-16", "xl:right-14", "sm:flex", "hidden");
+    expect(prev).toHaveClass("left-3");
+    expect(prev.className).not.toMatch(/right-/);
+  });
+});
+

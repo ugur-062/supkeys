@@ -54,8 +54,10 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
   };
 
   return (
-    <div className="mt-2 space-y-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    // `@container`: başlık | ülke yan yana yalnız kutu yeterince genişken
+    // (masaüstünde dar form sütunu — mobil denetim smoke-buyer#new1).
+    <div className="@container mt-2 space-y-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
+      <div className="grid grid-cols-1 gap-2 @md:grid-cols-2">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("baslikDepoSantiye")} aria-label={t("adresBasligi")} className={INPUT} />
         <CountryCombobox
           value={country}

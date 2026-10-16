@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useTranslations } from "next-intl";
 import { useFormatNumber } from "@/i18n/domain";
 import {
@@ -205,7 +206,7 @@ export function TedarikciTab({ data, period }: Props) {
           </div>
 
           <div className="mt-3 space-y-0.5 border-t border-zinc-950/5 pt-3 text-center">
-            <p className="tabular-nums text-xs text-zinc-500">
+            <p className={`${ID_TOKEN_CLASS} text-xs text-zinc-500`}>
               #{competitive.tenderNumber}
             </p>
             <p className="text-sm font-semibold text-zinc-950">

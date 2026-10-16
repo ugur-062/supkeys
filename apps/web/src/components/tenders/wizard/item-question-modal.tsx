@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
-import { Checkbox } from "@/components/catalyst/checkbox";
+import { Checkbox, CheckboxField } from "@/components/catalyst/checkbox";
+import { Label as CatalystLabel } from "@/components/catalyst/fieldset";
 import {
   Dialog,
   DialogActions,
@@ -291,11 +292,13 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                   <span className="text-xs font-semibold text-zinc-500">
                     {tr("soruN", { n: qi + 1 })}
                   </span>
+                  {/* Dokunma alanı 40 px (p-3 + -m-3; simge yerinde) — mobil denetim
+                      2026-10 g06: eskiden çıplak 16 px simge. */}
                   <button
                     type="button"
                     onClick={() => remove(qi)}
                     aria-label={tr("soruyuKaldir")}
-                    className="text-danger-500 hover:text-danger-700"
+                    className="-m-3 rounded-lg p-3 text-danger-500 hover:bg-danger-50 hover:text-danger-700"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -329,15 +332,21 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                     control={control}
                     name={`items.${index}.questions.${qi}.required`}
                     render={({ field }) => (
-                      <div className="flex items-center gap-2 text-sm text-zinc-700">
+                      // "Zorunlu" yazısı da kutuyu çevirir (CheckboxField + Label —
+                      // yerel <label> Headless kutuya tıklamayı iletmez). Etiketin
+                      // dokunma alanı 40 px yüksek (-my-2 py-2: yazı yerinde).
+                      <CheckboxField className="text-zinc-700">
                         <Checkbox
-                          aria-label={tr("zorunluSoru")}
                           checked={!!field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                         />
-                        <span>{tr("zorunlu2")}</span>
-                      </div>
+                        {/* `!`: Catalyst Label'ın kendi text-base/6 + text-zinc-950'si
+                            sınıf sırasından bağımsız ezilir (eski "Zorunlu" yazısı 14 px, zinc-700). */}
+                        <CatalystLabel className="-my-2 cursor-pointer py-2 text-sm/6! text-zinc-700!">
+                          {tr("zorunlu2")}
+                        </CatalystLabel>
+                      </CheckboxField>
                     )}
                   />
                 </div>

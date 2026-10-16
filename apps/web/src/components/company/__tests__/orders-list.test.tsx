@@ -443,3 +443,22 @@ describe("OrdersList — hata ekranında sayaç yok (arayüz testi D-259)", () =
     expect(screen.queryByText(/0 sipariş/)).not.toBeInTheDocument();
   });
 });
+
+describe("OrdersList — tablo görünümü telefonda (mobil denetim g08)", () => {
+  it("tablo kartının gutter'ı telefonda kart dolgusuna eşit; satır çizgileri kart dışına taşmaz", async () => {
+    h.orders = {
+      data: [order({ listingTitle: "Tablo Siparişi" })],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    render(<OrdersList role="buyer" />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Tablo görünümü" }));
+    const card = (await screen.findByRole("table")).closest(".card")!;
+    const cls = card.className.split(/\s+/);
+    expect(cls).toEqual(
+      expect.arrayContaining(["px-2", "[--gutter:--spacing(2)]", "sm:[--gutter:--spacing(4)]", "overflow-hidden"]),
+    );
+    expect(cls).not.toContain("[--gutter:--spacing(4)]");
+  });
+});

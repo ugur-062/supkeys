@@ -50,6 +50,7 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { enterSendsMessage, useCoarsePointer } from "@/components/messaging/use-coarse-pointer";
 import { AssistantMarkdown } from "./assistant-markdown";
 
 interface LocalMsg {
@@ -262,6 +263,8 @@ export function AssistantPanel({
   }, [sessionId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Dokunmatik cihaz: Enter yeni satır (klavyenin dönüş tuşu da öyle yazar).
+  const coarsePointer = useCoarsePointer();
 
   // Composer otomatik büyür: yazdıkça yükseklik içeriğe uyar (scroll yerine),
   // tavana (max-h) dayanınca kaydırmaya döner. Gönderim sonrası tek satıra iner.
@@ -480,13 +483,17 @@ export function AssistantPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {/* Mobil denetim g04: telefonda hap yazısıyla 111 px yer kaplıyor,
+              başlık 'Rothern …'e iniyordu → sm altında yalnız + simgesi
+              (32 px, komşu düğmelerle aynı); ad ekran okuyucuda kalır. */}
           <button
             type="button"
             onClick={startNew}
             disabled={send.isPending}
-            className="flex items-center gap-1 disabled:opacity-50 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+            className="flex size-8 items-center justify-center gap-1 disabled:opacity-50 rounded-full border border-zinc-950/10 bg-white text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 sm:size-auto sm:px-2.5 sm:py-1.5"
           >
-            <Plus className="h-3.5 w-3.5" /> {tr("yeniSohbet")}
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only sm:not-sr-only">{tr("yeniSohbet")}</span>
           </button>
           <button
             type="button"
@@ -992,12 +999,17 @@ export function AssistantPanel({
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                // Mobil denetim g04 (kullanıcı kararı): dokunmatik cihazda
+                // ekran klavyesinin Enter'ı yeni satır açar, gönderim yalnız
+                // Gönder düğmesiyle; masaüstünde Enter gönderir (Shift+Enter
+                // yeni satır). Kural mesaj kutusuyla ortak.
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (enterSendsMessage(e)) {
                     e.preventDefault();
                     void submit();
                   }
                 }}
+                enterKeyHint={coarsePointer ? "enter" : "send"}
                 rows={1}
                 placeholder={canBuy ? tr("birSeySorunVeyaSatin") : tr("birSeySorun")}
                 disabled={send.isPending}

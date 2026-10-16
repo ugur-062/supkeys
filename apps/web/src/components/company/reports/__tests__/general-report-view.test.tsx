@@ -159,6 +159,37 @@ describe("GeneralReportView", () => {
     expect(screen.getByText("Demir Ltd.")).toBeInTheDocument();
   });
 
+  // Mobil denetim g10-01 / g10-06: yapışkan ilk sütun en uzun başlık kadar
+  // genişleyip (517 px) 344 px'lik kaydırıcının tamamını örtüyordu; kart da
+  // ikinci bir yatay kaydırıcıydı.
+  it("telefon: yapışkan ilk sütun dar ve sarar; kart ikinci kaydırıcı değil", () => {
+    h.reportData = result();
+    render(<GeneralReportView {...base} />);
+    const link = screen.getByRole("link", { name: "Çelik Alımı" });
+    const cell = link.closest("td")!;
+    expect(cell.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "left-0", "z-10", "bg-white"]));
+    const col = link.parentElement!;
+    // Alt sınır (doğrulama turu g10): tablo kaydırıcıdan genişken otomatik
+    // düzen saran sütunu en uzun sözcüğe (48 px) indiriyordu.
+    expect(col.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "min-w-[36vw]",
+        "max-w-[45vw]",
+        "whitespace-normal",
+        "sm:min-w-0",
+        "sm:max-w-none",
+        "sm:whitespace-nowrap",
+      ]),
+    );
+    // Talep numarası kendi içinde bölünmez ("ROT-" / "000745").
+    expect(within(col).getByText("IHL-2026-0001").className.split(/\s+/)).toContain("whitespace-nowrap");
+    const header = screen.getByRole("columnheader", { name: "Satın Alma Talebi" });
+    expect(header.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "max-sm:whitespace-normal"]));
+    const card = cell.closest(".card")!;
+    expect(card.className).not.toMatch(/overflow-x-auto/);
+    expect(card.className.split(/\s+/)).toEqual(expect.arrayContaining(["overflow-hidden", "px-2", "[--gutter:--spacing(2)]"]));
+  });
+
   it("yalnız rapor yetkilisi (buy:view yok): talep adı bağlantı değil düz metin (arayüz testi T3)", () => {
     useCompanyAuthStore.setState({
       user: { permissions: ["buy:reports:view"], roles: [], isOwner: false },

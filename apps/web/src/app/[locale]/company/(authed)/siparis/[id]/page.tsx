@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { useBidDeliveryTimeLabel, useFormatPaymentPlan, useNavLabel, useRoleLabel, useQuantityLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
@@ -31,6 +32,7 @@ import {
   useReceiveOrder,
   useRejectOrder,
   useShipOrder,
+  type CompanyOrderDetail,
 } from "@/hooks/use-company-orders";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { formatDate } from "@/lib/format-date";
@@ -189,6 +191,42 @@ export default function OrderDetailPage() {
     invoiceNo: t("print.faturaNo"),
   };
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
+  // Kalem satırının ortak parçaları — telefon kartı ve sm+ tablosu AYNI
+  // kaynaktan çizer (iki kopya ayrışmasın).
+  type OrderItem = CompanyOrderDetail["items"][number];
+  const orderItemDelivery = (it: OrderItem) =>
+    itemDeliveryLabel(
+      it.deliveryDate,
+      o.expectedDeliveryDate,
+      it.deliveryTime,
+      printLabels.general,
+      deliveryTimeLabel,
+      locale,
+    );
+  const orderItemNotes = (it: OrderItem) => (
+    <>
+      {/* O-003: muadil beyanı / istenen marka-parça no siparişte
+          de bağlayıcı kayıt (award snapshot'ı). */}
+      {it.isAlternative ? (
+        <AlternativeOfferNote
+          bidItem={it}
+          item={{ brand: it.requestedBrand, mpn: it.requestedMpn }}
+        />
+      ) : it.requestedBrand || it.requestedMpn ? (
+        <span className="block text-xs font-normal text-zinc-500">
+          {[it.requestedBrand, it.requestedMpn]
+            .map((v) => v?.trim())
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      ) : null}
+      {it.note ? (
+        <span className="block text-xs font-normal text-zinc-400">
+          {it.note}
+        </span>
+      ) : null}
+    </>
+  );
   const ordersHref = isSeller
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
@@ -593,7 +631,7 @@ export default function OrderDetailPage() {
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           {o.number ? (
-            <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-400">
+            <span className={`${ID_TOKEN_CLASS} text-xs font-medium text-zinc-400`}>
               {o.number}
             </span>
           ) : null}
@@ -604,8 +642,13 @@ export default function OrderDetailPage() {
 
       {/* P2 (denetim §5): sticky ActionBar — solda durum, sağda durum makinesine
           göre TEK birincil aksiyon + ikincil aksiyonlar. Kritik aksiyonun sayfa
-          dibinde (y≈1148px) kalması biter; mobil dahil ilk ekranda durur. */}
-      <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
+          dibinde (y≈1148px) kalması biter; mobil dahil ilk ekranda durur.
+          Mobil denetim (g07/g08): telefonda çubuk YAPIŞMAZ — iki-üç satıra
+          sarıp (144 px) üst çubukla birlikte ekranın ~%27'sini kaydırma boyunca
+          örtüyordu; başlığın hemen altında ilk ekranda kalır. sm'den itibaren
+          yapışkan; ofset = üst çubuk (`--topbar-h`) — top-16'nın 8 px açık şeridi ve
+          yarı saydam zemin altta kayan içeriği gösteriyordu (talep detayı B2). */}
+      <div className="z-20 rounded-xl border border-zinc-950/10 bg-white px-3 py-2 shadow-sm sm:sticky sm:top-(--topbar-h) sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <StatusBadge tone={statusMeta.tone}>{statusLabel}</StatusBadge>
           <div className="flex flex-wrap items-center gap-2">
@@ -711,15 +754,24 @@ export default function OrderDetailPage() {
                 {o.status === "REJECTED" ? t("saticiReddetti") : t("iptalEdildi")}
               </StatusBadge>
             ) : (
-              <div className="flex items-start gap-2">
+              // Mobil denetim (g07, sweep S2): etiketler nowrap'ti; RU 360 px'te
+              // "Завершение" kartın dışına taşıp sayfayı 392 px'e genişletiyordu.
+              // Telefonda adımlar EŞİT sütun: daire ortada, etiket sütun içinde
+              // sarar (RU'da hecelenir), bağlantı çizgisi daireler arasında
+              // mutlak konumlu. sm ve üstü eski düzen (daire + etiket, yanında
+              // esneyen çizgi).
+              <div className="flex items-start sm:gap-2">
                 {steps.map((s, i) => {
                   const done = i < stage.done;
                   const current = i === stage.current;
                   const disputedStep = current && !!stage.disputed;
                   return (
-                    <div key={s.key} className="flex flex-1 items-start gap-2">
+                    <div
+                      key={s.key}
+                      className="relative flex min-w-0 flex-1 items-start gap-2 sm:min-w-auto"
+                    >
                       <div
-                        className="flex min-w-0 flex-col items-center gap-2"
+                        className="flex w-full min-w-0 flex-col items-center gap-2 sm:w-auto"
                         aria-current={current ? "step" : undefined}
                       >
                         <div
@@ -742,7 +794,7 @@ export default function OrderDetailPage() {
                           )}
                         </div>
                         <span
-                          className={`whitespace-nowrap text-center text-xs ${
+                          className={`max-w-full break-words text-center text-[11px]/[1.25] [&:lang(ru)]:hyphens-auto sm:whitespace-nowrap sm:text-xs ${
                             done
                               ? "text-emerald-700"
                               : disputedStep
@@ -757,7 +809,8 @@ export default function OrderDetailPage() {
                       </div>
                       {i < steps.length - 1 ? (
                         <div
-                          className={`mt-3.5 h-0.5 flex-1 rounded-full ${
+                          aria-hidden
+                          className={`absolute top-3.5 right-[calc(-50%+1.25rem)] left-[calc(50%+1.25rem)] h-0.5 rounded-full sm:static sm:mt-3.5 sm:flex-1 ${
                             i < stage.done - 1 || stage.done >= steps.length
                               ? "bg-emerald-400"
                               : "bg-zinc-200"
@@ -786,8 +839,8 @@ export default function OrderDetailPage() {
                     <p className="truncate text-sm font-medium text-zinc-900">
                       {o.listingTitle ?? "—"}
                     </p>
-                    <p className="mt-0.5 tabular-nums text-xs text-zinc-500">
-                      {o.listingNumber ?? "—"}
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      <span className={ID_TOKEN_CLASS}>{o.listingNumber ?? "—"}</span>
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
                           {isSeller ? t("alimTalebi") : t("satinAlmaTalebi")}
@@ -827,7 +880,7 @@ export default function OrderDetailPage() {
                   <dd className="font-medium text-zinc-900">
                     {o.counterparty}
                     {o.counterpartyProfile.rothernId ? (
-                      <span className="ml-2 tabular-nums text-xs text-zinc-400">
+                      <span className={`${ID_TOKEN_CLASS} ml-2 text-xs text-zinc-400`}>
                         {o.counterpartyProfile.rothernId}
                       </span>
                     ) : null}
@@ -897,8 +950,36 @@ export default function OrderDetailPage() {
           {o.items.length > 0 ? (
             /* D-285: sütun kırılımı GÖRÜNTÜ ALANINA değil KARTIN genişliğine
                bağlı (`@container`): lg iki sütunlu düzende kart ~460 px'e
-               iner; beş sütun yalnız kart beşini taşıyabildiğinde (@2xl). */
+               iner; beş sütun yalnız kart beşini taşıyabildiğinde (@2xl).
+               Mobil denetim (g07, kullanıcı kararı): telefonda kalemler KART
+               listesi — 360 px'te tablo 348/328 px'e çıkıp 'TUTAR' başlığını ve
+               7 haneli tutarın '₺'sini kesiyordu. Tablo sm'den itibaren. */
             <section className="@container">
+              <ul className="card divide-y divide-zinc-950/5 sm:hidden">
+                {o.items.map((it) => (
+                  <li key={it.id} className="px-4 py-3">
+                    <p className="text-sm font-medium text-zinc-900 [overflow-wrap:anywhere]">
+                      {it.name}
+                      {orderItemNotes(it)}
+                    </p>
+                    <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 text-xs">
+                      <dt className="text-zinc-500">{t("miktar")}</dt>
+                      <dd className="text-right text-zinc-700">{quantity(it.quantity, it.unit)}</dd>
+                      <dt className="text-zinc-500">{t("birimFiyat")}</dt>
+                      <dd className="text-right tabular-nums text-zinc-700">
+                        {formatMoney(it.unitPrice, o.currency)}
+                      </dd>
+                      <dt className="text-zinc-500">{t("teslimTarihi")}</dt>
+                      <dd className="text-right text-zinc-700">{orderItemDelivery(it)}</dd>
+                      <dt className="text-zinc-500">{t("tutar")}</dt>
+                      <dd className="text-right text-sm font-semibold tabular-nums text-zinc-900">
+                        {formatMoney(Number(it.unitPrice) * Number(it.quantity), o.currency)}
+                      </dd>
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden sm:block">
               <Table dense>
                 <TableHead>
                   <TableRow>
@@ -917,40 +998,14 @@ export default function OrderDetailPage() {
                 </TableHead>
                 <TableBody>
                   {o.items.map((it) => {
-                    const deliveryCell = itemDeliveryLabel(
-                      it.deliveryDate,
-                      o.expectedDeliveryDate,
-                      it.deliveryTime,
-                      printLabels.general,
-                      deliveryTimeLabel,
-                      locale,
-                    );
+                    const deliveryCell = orderItemDelivery(it);
                     return (
                     <TableRow key={it.id}>
                       {/* D-285: uzun kalem adı SARILIR (tablo whitespace-nowrap;
                           tek satır ad Tutar sütununu kart dışına itiyordu). */}
                       <TableCell className="min-w-28 whitespace-normal font-medium @md:min-w-40 text-zinc-900 [overflow-wrap:anywhere]">
                         {it.name}
-                        {/* O-003: muadil beyanı / istenen marka-parça no siparişte
-                            de bağlayıcı kayıt (award snapshot'ı). */}
-                        {it.isAlternative ? (
-                          <AlternativeOfferNote
-                            bidItem={it}
-                            item={{ brand: it.requestedBrand, mpn: it.requestedMpn }}
-                          />
-                        ) : it.requestedBrand || it.requestedMpn ? (
-                          <span className="block text-xs font-normal text-zinc-500">
-                            {[it.requestedBrand, it.requestedMpn]
-                              .map((v) => v?.trim())
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        ) : null}
-                        {it.note ? (
-                          <span className="block text-xs font-normal text-zinc-400">
-                            {it.note}
-                          </span>
-                        ) : null}
+                        {orderItemNotes(it)}
                         <span className="mt-0.5 block text-xs font-normal text-zinc-500 @2xl:hidden">
                           {t("teslimTarihi")}: {deliveryCell} · {t("birimFiyat")}:{" "}
                           <span className="tabular-nums">{formatMoney(it.unitPrice, o.currency)}</span>
@@ -976,6 +1031,7 @@ export default function OrderDetailPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </section>
           ) : null}
 
@@ -1060,8 +1116,10 @@ export default function OrderDetailPage() {
           ) : null}
         </div>
 
-        {/* Sağ kolon — sticky özet: taraf, tutar, ödeme durumu, vade. */}
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-32">
+        {/* Sağ kolon — sticky özet: taraf, tutar, ödeme durumu, vade. Ofset
+            üst çubuk + aksiyon çubuğu; güvenli alanın üst payı da eklenir
+            (çubuklar o kadar aşağıda; pay 0 iken `top-32`). */}
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-[calc(8rem+var(--safe-top))]">
           <section className="card p-5">
             <h2 className="text-sm font-semibold text-zinc-900">{t("ozet")}</h2>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">

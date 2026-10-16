@@ -201,5 +201,28 @@ describe("InviteUserDialog", () => {
       useCompanyAuthStore.setState({ company: null } as never);
     }
   });
-});
 
+  // Mobil denetim 2026-10 g11: telefonda pencere ekran yüksekliğine sığar, tek
+  // kaydırma alanı gövde, Davet Gönder / Vazgeç altta sabit (yetki listesinin
+  // sonuna dek kaydırmadan ulaşılır). `sm` ve üstünde gövde eskisi gibi 70vh.
+  it("telefonda pencere ekrana sığar: panel sütun + dvh sınırı, gövde kayar, eylemler sabit", () => {
+    render(<InviteUserDialog open onClose={() => {}} />);
+    const dialog = screen.getByRole("dialog");
+    const panel = dialog.querySelector<HTMLElement>('[class*="100dvh"]');
+    expect(panel).not.toBeNull();
+    expect(panel!.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["max-sm:flex", "max-sm:flex-col", "max-sm:max-h-[calc(100dvh-1.5rem-var(--safe-top))]"]),
+    );
+    const body = screen.getByPlaceholderText("kisi@firma.com").closest<HTMLElement>('[class*="overflow-y-auto"]');
+    expect(body!.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["max-sm:min-h-0", "sm:max-h-[70vh]"]),
+    );
+    // İç kutu telefonda 70vh ile sınırlanmaz (dış sayfayla yarışan ikinci kaydırma yok).
+    expect(body!.className.split(/\s+/)).not.toContain("max-h-[70vh]");
+    // Kaydırma kabı kenarında kırpmasın: dış halka / odak çizgisi için 4 px iç pay.
+    expect(body!.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-sm:-mx-1", "max-sm:p-1"]));
+    const actions = screen.getByRole("button", { name: "Davet Gönder" }).parentElement!;
+    expect(actions.className.split(/\s+/)).toContain("max-sm:shrink-0");
+    expect(body!.contains(actions)).toBe(false);
+  });
+});

@@ -391,12 +391,16 @@ export function PasswordSection() {
         ))}
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <p className="flex items-center gap-2 text-xs text-zinc-500">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+      {/* Telefonda düğme tam genişlik ve üstte, not altında: yan yana satırda
+          düğme 90 px'e sıkışıp "Şifreyi / Değiştir" iki satıra kırılıyordu
+          (mobil denetim 2026-10 g11). */}
+      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-start gap-2 text-xs text-zinc-500 sm:items-center">
+          <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-600 sm:mt-0" />
           {t("sifrenizSifrelenmisOlarakSaklanirEkibimiz")}
         </p>
         <Button
+          className="whitespace-nowrap sm:shrink-0"
           onClick={() => void save()}
           disabled={
             changePassword.isPending || saveLock.locked || !pw.current || !pw.next || !pw.confirm
@@ -542,8 +546,10 @@ export function NotificationPrefsSection() {
         </p>
         <ul className="mt-2 space-y-1">
           {TRANSACTIONAL_KEYS.map((k) => (
-            <li key={k} className="flex items-center gap-2 text-sm text-zinc-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+            // Nokta ilk satırla hizalı: iki satıra sarılan maddede ortada
+            // kalıyordu (mobil denetim 2026-10 g11). 7 px = (20 px satır − 6 px) / 2.
+            <li key={k} className="flex items-start gap-2 text-sm text-zinc-700">
+              <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
               {t(`transactional.${k}` as never)}
             </li>
           ))}

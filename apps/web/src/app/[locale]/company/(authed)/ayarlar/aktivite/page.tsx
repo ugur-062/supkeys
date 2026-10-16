@@ -18,7 +18,7 @@ import {
   useActivityLog,
   type ActivityLogRow,
 } from "@/hooks/use-activity-log";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import { formatDate } from "@/lib/format-date";
@@ -31,6 +31,7 @@ import {
   VIEWER_PRESET,
 } from "@rothern/shared";
 import { useDocLabels, type DocKind } from "@/hooks/use-company-docs";
+import { rootScrollPaddingTopFor } from "@/lib/safe-area";
 
 /** `company.docs.*` kayıtlarındaki `kind` — bilinen belge anahtarları (API DOC_META). */
 const DOC_KINDS: readonly DocKind[] = [
@@ -74,6 +75,20 @@ export default function AktivitePage() {
   const { data, isError, error, refetch } = useActivityLog(page, module || undefined, tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
   const totalPages = data?.pagination.totalPages ?? 1;
+  // Sayfa değişince listenin başına dön — yalnız listenin başı ekranın üstünde
+  // (sabit üst çubuğun altında) kaldıysa. Telefonda "Sonraki"ye en altta
+  // basılıyor, yeni sayfanın son satırlarında kalınıyordu (mobil denetim
+  // 2026-10 g11). Pay `scroll-mt-*` sınıfından (üst çubuk + nefes) ve kökün
+  // `scroll-padding-top`undan (güvenli alanın üst payı) okunur.
+  const listTopRef = useRef<HTMLDivElement>(null);
+  const goToPage = (next: number) => {
+    setPage(next);
+    const el = listTopRef.current;
+    if (!el) return;
+    const margin =
+      (Number.parseFloat(getComputedStyle(el).scrollMarginTop) || 0) + rootScrollPaddingTopFor(el);
+    if (el.getBoundingClientRect().top < margin) el.scrollIntoView?.({ block: "start" });
+  };
 
   const moduleOptions = MODULES.map((m) => ({ value: m.value, label: t(`module.${m.key}` as never) }));
   /** Eylem sözlükte var mı — yoksa ham anahtar yalnız title'da kalır (destek teşhisi). */
@@ -209,7 +224,10 @@ export default function AktivitePage() {
       description={t("firmanizdakiEylemKayitlariKimSatin")}
     >
       <VerifiedOnly minTier="SILVER">
-        <div className="space-y-4">
+        <div
+          ref={listTopRef}
+          className="scroll-mt-18 space-y-4"
+        >
           <div className="flex items-center gap-2">
             <label className="text-xs text-zinc-500" htmlFor="aktivite-modul">
               {t("modul")}
@@ -248,10 +266,14 @@ export default function AktivitePage() {
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>{t("tarih")}</TableHeader>
-                    <TableHeader>{t("eylem")}</TableHeader>
-                    {/* Dar ekranda (O-111) kişi ve detay eylem hücresinin
-                        altına iner; tablo yatay kaymaz. */}
+                    {/* Dar ekranda (O-111) tarih, kişi ve detay eylem hücresine
+                        iner; tablo yatay kaymaz. Tarih sütunu telefonda satırın
+                        yarısını alıyordu (RU "… (GMT+3)", mobil denetim 2026-10
+                        g11) → eylem tam genişlikte okunur. Gizli tarih hücresi
+                        hâlâ `:first-child` olduğundan eylem sütunu ilk sütunun
+                        kenar boşluğunu (`pl-2`) telefonda açıkça alır. */}
+                    <TableHeader className="hidden sm:table-cell">{t("tarih")}</TableHeader>
+                    <TableHeader className="max-sm:pl-2">{t("eylem")}</TableHeader>
                     <TableHeader className="hidden sm:table-cell">{t("kisi")}</TableHeader>
                     <TableHeader className="hidden sm:table-cell">{t("detay")}</TableHeader>
                   </TableRow>
@@ -269,13 +291,19 @@ export default function AktivitePage() {
                       const actor = r.actorEmail ?? t("sistem");
                       return (
                         <TableRow key={r.id}>
-                          <TableCell className="whitespace-nowrap align-top text-xs text-zinc-500">
+                          <TableCell className="hidden whitespace-nowrap align-top text-xs text-zinc-500 sm:table-cell">
                             {fmtDate(r.createdAt)}
                           </TableCell>
                           <TableCell
-                            className="whitespace-normal text-sm text-zinc-900"
+                            className="whitespace-normal text-sm text-zinc-900 max-sm:pl-2"
                             title={actionKnown(r.action) ? undefined : r.action}
                           >
+                            <time
+                              dateTime={r.createdAt}
+                              className="mb-0.5 block text-xs text-zinc-500 sm:hidden"
+                            >
+                              {fmtDate(r.createdAt)}
+                            </time>
                             {auditAction(r.action)}
                             <span className="mt-0.5 block text-xs text-zinc-600 [overflow-wrap:anywhere] sm:hidden">
                               {actor}
@@ -313,14 +341,14 @@ export default function AktivitePage() {
                     <Button
                       plain
                       disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      onClick={() => goToPage(Math.max(1, page - 1))}
                     >
                       {t("onceki")}
                     </Button>
                     <Button
                       plain
                       disabled={page >= totalPages}
-                      onClick={() => setPage((p) => p + 1)}
+                      onClick={() => goToPage(page + 1)}
                     >
                       {t("sonraki")}
                     </Button>

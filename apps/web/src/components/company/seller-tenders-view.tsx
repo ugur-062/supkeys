@@ -247,12 +247,14 @@ function RequestList({
         />
       ) : (
       <>
-      <RequestActiveChips facets={facets} />
-
+      {/* Aktif süzgeç şeridi SONUÇ sütununun başında (mobil denetim 2026-10,
+          `PublicListPage`ın eşi): `lg`de yapışkan şerit tam genişlikteyken
+          yapışkan süzgeç rayının üst kısmını örtüyordu. Telefonda ray gizli,
+          sıra (şerit → araç çubuğu) ve boşluk (şeridin `mb-4`ü) aynı. */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[15rem_1fr]">
         <aside
           aria-label={tr("suzgecler")}
-          className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]"
+          className="hidden lg:sticky lg:top-[calc(6rem+var(--safe-top))] lg:block lg:max-h-[calc(100vh-7rem-var(--safe-top))] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]"
         >
           {isPending ? (
             <p className="text-sm text-zinc-500">{tr("suzgeclerYukleniyor")}</p>
@@ -262,6 +264,8 @@ function RequestList({
         </aside>
 
         <div className="min-w-0">
+          {/* Sarmalanmaz: şerit `lg:sticky` — sarmalayıcı onu kendi kutusuna hapsederdi. */}
+          <RequestActiveChips facets={facets} />
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />

@@ -194,13 +194,18 @@ export function BidImportDialog({
         {!result ? (
           <>
             {!isAi ? (
+              // Telefonda düğme metnin ALTINA iner (mobil denetim g08): metin
+              // `flex-1` (taban 0) iken düğme hiç sarmıyor, adım cümlesi ~100 px'lik
+              // sütunda sözcük sözcük kırılıyordu (RU 17 satır). Metnin gerçek
+              // tabanı var; düğme telefonda tam genişlik, sm ve üstünde yanında.
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2.5">
                 <Download className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
-                <div className="min-w-0 flex-1 text-sm text-zinc-700">
+                <div className="min-w-0 flex-1 basis-56 text-sm text-zinc-700">
                   {t.rich("sablonuIndirinAdim", { strong: (c) => <strong>{c}</strong> })}
                 </div>
                 <Button
                   outline
+                  className="w-full sm:w-auto"
                   disabled={busy}
                   onClick={() =>
                     download

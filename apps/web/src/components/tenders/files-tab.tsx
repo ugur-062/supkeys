@@ -18,6 +18,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useEntityLabels } from "@/i18n/domain";
+import { useListingDocKindFieldLabel, useListingDocKindLabel } from "@/components/tenders/use-listing-doc-kind-label";
 import { toast } from "sonner";
 
 export function FilesTab({
@@ -25,6 +26,7 @@ export function FilesTab({
   isOwner,
   canEdit = false,
   manageHint = false,
+  embedded = false,
 }: {
   listingId: string;
   isOwner: boolean;
@@ -34,13 +36,19 @@ export function FilesTab({
   /** Burada düzenlenmiyor ama Düzenle ekranından yönetilebilir — ipucu yalnız
    *  o zaman (arayüz testi D-250: teklif almış talepte de basılıyordu). */
   manageHint?: boolean;
+  /** Başka bir kartın içinde (talep formunun 4. bölümü): telefonda kendi
+   *  çerçevesini ve dolgusunu çizmez — kart içinde kart iki kez 20 px dolgu
+   *  yiyordu (mobil denetim 2026-10, g06-request-create#new1; yeni talepteki
+   *  `StagedDocuments` ile aynı kural). */
+  embedded?: boolean;
 }) {
   const t = useTranslations("web.panel.requests.filesTab");
   const locale = useLocale();
   const L = useEntityLabels();
-  // Belge bölümü adları katalogdan (`LISTING_DOC_KIND_LABELS` Türkçe sözlüğü
-  // diğer tüketiciler için duruyor; burada kod → anahtar).
-  const docKindLabel = (k: ListingDocKind) => t(`docKind.${k}` as never);
+  // Belge bölümü adları tek sözlükten — yeni talepteki StagedDocuments ile
+  // aynı (mobil denetim fix3 r5-requests#new2: iki ayrı sözlük RU'da ayrışıyordu).
+  const docKindLabel = useListingDocKindLabel();
+  const docKindFieldLabel = useListingDocKindFieldLabel();
   const confirm = useConfirm();
   const docs = useListingDocuments(listingId, true);
   const upload = useUploadListingDoc(listingId);
@@ -92,24 +100,29 @@ export function FilesTab({
   })).filter((g) => g.items.length > 0);
 
   return (
-    <section className="card p-5 md:p-6">
+    <section className={`card p-5 md:p-6${embedded ? " max-sm:p-0 max-sm:shadow-none max-sm:ring-0" : ""}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">{t("dosyalari", { entityShort: L.entityShort })}</h3>
+          {/* Başlık yeni talepteki belgeler bölümüyle aynı ad ("Talep
+              Dokümanları" / "Документы запроса"; fix3 #new2). */}
+          <h3 className="font-semibold text-zinc-900">{L.docs}</h3>
         </div>
         {isOwner && canEdit ? (
-          <div className="flex flex-wrap items-center gap-2">
+          // Telefonda seçici satırın tamamını alır, uzun bölüm adı kırpılır
+          // (RU 360: "Административная спецификация" 283 px ile kartı
+          // aşıyordu); dosya düğmesi altına iner. sm'den eski dizilim.
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <label className="sr-only" htmlFor="listing-doc-kind">
-              {t("dosyaBolumu")}
+              {docKindFieldLabel}
             </label>
             <SelectMenu
               id="listing-doc-kind"
               value={kind}
               onChange={(v) => setKind(v as ListingDocKind)}
-              className="min-w-44"
+              className="w-full min-w-0 sm:w-auto sm:min-w-44"
               options={LISTING_DOC_KINDS.map((k) => ({
                 value: k,
                 label: docKindLabel(k),
@@ -182,7 +195,7 @@ export function FilesTab({
                       {d.fileName}
                     </a>
                     <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-zinc-500">
                         {formatDate(d.createdAt, locale)}
                       </span>
                       {isOwner && canEdit && d.mine ? (
@@ -190,7 +203,9 @@ export function FilesTab({
                           type="button"
                           onClick={() => handleDelete(d.id)}
                           aria-label={t("dosyasiniSil", { fileName: d.fileName })}
-                          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
+                          // Dokunma alanı ~36 px (dolgu + eksi kenar boşluğu;
+                          // yazı yerinde) — yeni talepteki "Kaldır" ile aynı.
+                          className="-mx-2 -my-2.5 inline-flex items-center gap-1 rounded-lg px-2 py-2.5 text-xs text-zinc-500 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           {t("sil")}

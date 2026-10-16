@@ -111,7 +111,35 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
                 </li>
               ))}
             </ul>
-            <div className="overflow-x-auto">
+            {/* TELEFONDA KALEM KARTLARI (mobil denetim g04, kullanıcı kararı:
+                satır satır okunan tablolar sm altında kart). 294 px'lik kutuda
+                5 sütunlu tablo "Tutar"ı ekran dışına itiyor, 6.000.000,00 ₺
+                "6.000" okunuyordu — onaycı onayladığı tutarı yanlış okuyabilirdi.
+                Kart: kalem adı, miktar · firma, birim fiyat ve satır tutarı
+                etiketli; tablo sm+ aynen. */}
+            <ul className="space-y-1.5 sm:hidden" data-testid="approval-lines-cards">
+              {d.award.lines.map((l, i) => (
+                <li key={i} className="rounded-lg border border-zinc-950/10 px-3 py-2 text-xs">
+                  <p className="font-medium break-words text-zinc-950">{l.itemName}</p>
+                  <p className="mt-0.5 break-words text-zinc-600">
+                    <span className="tabular-nums">{qty(l.quantity, l.unit)}</span> · {l.companyName}
+                  </p>
+                  <dl className="mt-1.5 grid grid-cols-2 gap-x-3">
+                    <div className="min-w-0">
+                      <dt className="text-zinc-500">{t("birimFiyat")}</dt>
+                      <dd className="tabular-nums break-words text-zinc-800">{money(l.unitPrice, l.currency)}</dd>
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <dt className="text-zinc-500">{t("tutar")}</dt>
+                      <dd className="tabular-nums break-words font-semibold text-zinc-950">
+                        {money(l.lineTotal, l.currency)}
+                      </dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-xs">
                 <thead className="text-left text-zinc-500">
                   <tr>

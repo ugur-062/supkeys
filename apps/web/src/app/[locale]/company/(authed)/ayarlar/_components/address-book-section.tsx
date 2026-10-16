@@ -35,7 +35,9 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
 import { toast } from "sonner";
+import { SHEET_ACTIONS, SHEET_BODY, SHEET_FORM, SHEET_PANEL } from "./dialog-sheet";
 
 const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
 
@@ -106,8 +108,13 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
 
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div>
+      {/* Düğme etiketi tek satır kalır (mobil denetim 2026-10 g11: boşluksuz
+          satırda "Adres / Ekle" iki satıra kırılıyordu). Satır SARAR: metin en
+          az 12rem ister, sığmazsa düğme kendi satırına iner — RU'da 167 px'lik
+          "Добавить адрес" yanında açıklama 107 px'lik sütuna sıkışıp 9 satıra
+          bölünüyordu (doğrulama turu). sm ve üstünde yan yana, eskisi gibi. */}
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap sm:items-center">
+        <div className="min-w-0 flex-[1_1_12rem]">
           <Subheading>{t("kayitliAdresler")}</Subheading>
           <Text className="mt-0.5 text-sm text-zinc-500">
             {t("faturaVeTeslimatAdresleriniKaydedin")}
@@ -115,6 +122,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
         </div>
         {canManage ? (
           <Button
+            className="shrink-0 whitespace-nowrap"
             disabled={atCap}
             aria-describedby={atCap ? "address-cap-note" : undefined}
             onClick={() => setEditing("new")}
@@ -291,6 +299,10 @@ function AddressDialog({
   const set = (patch: Partial<typeof f>) => setF((p) => ({ ...p, ...patch }));
   const [touched, setTouched] = useState(false);
   const isTR = f.country === "TR";
+  // Ekle'ye basınca ilk hatalı alana odak + kaydırma: telefonda "Başlık zorunlu"
+  // ekranın üstünde kalıyor, dokunuş hiçbir şey yapmamış gibi görünüyordu
+  // (mobil denetim 2026-10 g11).
+  const invalidFocus = useFocusFirstInvalid<HTMLFormElement>();
 
   // Satır içi hatalar — backend DTO ile aynı zorunluluk (title/addressLine
   // MinLength 1); telefon tek kaynak `isValidPhone`.
@@ -307,7 +319,10 @@ function AddressDialog({
 
   const submit = async () => {
     setTouched(true);
-    if (hasError) return;
+    if (hasError) {
+      invalidFocus.focusFirstInvalid();
+      return;
+    }
     // Fatura adresinde vergi dairesi/no ve TR VKN/TCKN formatı ESKİDEN zorunluydu
     // ama backend (company-address.dto) bu alanları @IsOptional tutar ve format
     // doğrulamaz — frontend backend'den katı olmamalı (backend otoritedir). Bloklama
@@ -322,17 +337,20 @@ function AddressDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} size="2xl">
+    <Dialog open onClose={onClose} size="2xl" className={SHEET_PANEL}>
       <DialogTitle>{address ? t("adresiDuzenle") : t("yeniAdres")}</DialogTitle>
-      {/* Form + Enter ile gönderim (arayüz testi D-307). */}
+      {/* Form + Enter ile gönderim (arayüz testi D-307). Telefonda yalnız
+          gövde kayar, Ekle / Vazgeç altta sabit (`dialog-sheet.ts`). */}
       <form
+        ref={invalidFocus.ref}
         noValidate
+        className={SHEET_FORM}
         onSubmit={(e) => {
           e.preventDefault();
           void lock.run(submit);
         }}
       >
-      <DialogBody className="space-y-4">
+      <DialogBody className={`space-y-4 ${SHEET_BODY}`}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
             <Label>{t("adresTipi")}</Label>
@@ -370,7 +388,11 @@ function AddressDialog({
           </Field>
           <Field>
             <Label>{t("telefon")}</Label>
-            <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />
+            <PhoneInput
+              value={f.phone}
+              onChange={(v) => set({ phone: v })}
+              invalid={touched && Boolean(phoneError)}
+            />
             {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
           </Field>
           <Field>
@@ -474,7 +496,7 @@ function AddressDialog({
           {t("buTipIcinVarsayilanAdres")}
         </label>
       </DialogBody>
-      <DialogActions>
+      <DialogActions className={SHEET_ACTIONS}>
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>

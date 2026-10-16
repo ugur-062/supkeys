@@ -150,6 +150,19 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     expect(h.lastFacetParams).toMatchObject({ connection: "connected" });
   });
 
+  it("aktif süzgeç şeridi SONUÇ sütununun ilk çocuğu — xl'de yapışkan rayın üstüne binmez (mobil denetim 2026-10)", () => {
+    h.search = "dogrulanmis=1";
+    const { container } = render(<PanelCompanyIndex />);
+    const bar = container.querySelector("[data-chip-bar]")!;
+    expect(bar).not.toBeNull();
+    const column = bar.parentElement!;
+    expect(column).toHaveClass("@container", "min-w-0");
+    expect(column.firstElementChild).toBe(bar);
+    const grid = column.parentElement!;
+    expect(grid).toHaveClass("xl:grid-cols-[16rem_1fr]");
+    expect(grid.querySelector(":scope > aside")).not.toBeNull();
+  });
+
   it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
     h.result = { data: undefined, isLoading: true, isPending: true };
     render(<PanelCompanyIndex />);

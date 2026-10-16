@@ -125,4 +125,52 @@ describe("Talep davet önizlemesi", () => {
     render(<Page />);
     expect(await screen.findByText("Davet bulunamadı")).toBeInTheDocument();
   });
+
+  /* Mobil denetim 2026-10 g01: uygulama kabuğunda (iOS'ta adres çubuğu ve geri
+     düğmesi yok) açılan bağlantı çıkışsız bir kartta kalıyordu. */
+  it("çıkış yolu: ana sayfaya bağlı logo her hâlde; geçersiz kartta 'Ana sayfaya dön' (44 px)", async () => {
+    h.get.mockRejectedValue(new Error("404"));
+    render(<Page />);
+    expect(await screen.findByText("Davet bulunamadı")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rothern" })).toHaveAttribute("href", "/");
+    const home = screen.getByRole("link", { name: "Ana sayfaya dön" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(home.className).toMatch(/\bmin-h-11\b/);
+  });
+
+  it("telefonda: kayıt çağrısı ortalı ve yumuşak köşeli (sm'de hap), davet kapatma bağlantısı 44 px", async () => {
+    h.get.mockResolvedValue({ data: preview });
+    render(<Page />);
+    expect(screen.getByRole("link", { name: "Rothern" })).toHaveAttribute("href", "/");
+    const cta = await screen.findByRole("link", { name: "Ücretsiz kaydol ve teklif ver" });
+    const ctaCls = cta.className.split(/\s+/);
+    expect(ctaCls).toEqual(expect.arrayContaining(["text-center", "rounded-xl", "sm:rounded-full", "min-h-11"]));
+    expect(ctaCls).not.toContain("rounded-full");
+    const optOut = screen.getByRole("link", { name: "Davet almak istemiyorum" });
+    expect(optOut.getAttribute("href")).toContain("/davet-kapat?token=TOK123");
+    expect(optOut.className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-flex", "min-h-11", "items-center"]));
+  });
+
+  /* 2. tur g01: RU etiketi ile davet kapatma bağlantısı 608 px'lik kartta yan
+     yana sığmıyor, ikisi de daralıp iki satırlık oval hap oluyordu. sm ve
+     üstünde satır sarar, öğeler daralmaz: hap tek satır kalır. */
+  it("sm ve üstünde: çağrı satırı sarar, hap ve davet kapatma bağlantısı daralmaz", async () => {
+    h.get.mockResolvedValue({ data: preview });
+    render(<Page />);
+    const cta = await screen.findByRole("link", { name: "Ücretsiz kaydol ve teklif ver" });
+    const optOut = screen.getByRole("link", { name: "Davet almak istemiyorum" });
+    const row = cta.parentElement!;
+    expect(row).toContainElement(optOut);
+    expect(row.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["flex-col", "sm:flex-row", "sm:flex-wrap", "sm:justify-between"]),
+    );
+    for (const el of [cta, optOut]) {
+      expect(el.className.split(/\s+/)).toEqual(expect.arrayContaining(["sm:flex-none", "sm:max-w-full"]));
+    }
+    // Tek öğe kalan alt satırda bağlantı sola yaslanır: ml-auto yok.
+    expect(optOut.className).not.toMatch(/ml-auto/);
+    // Tablette de dokunma alanı en az 24 px.
+    expect(optOut.className.split(/\s+/)).toContain("sm:min-h-6");
+    expect(optOut.className).not.toMatch(/sm:min-h-0/);
+  });
 });

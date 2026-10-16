@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import { recipientLocale, type Locale } from "@rothern/i18n";
 import { foldSearchText, tierAtLeast } from "@rothern/shared";
@@ -79,7 +80,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
@@ -143,6 +144,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
     if (viewParam) setView(viewParam);
   }, [viewParam]);
 
+  const narrow = useNarrowScreen();
   const rothernId = self.data?.rothernId ?? null;
   const incomingRows = incoming.data ?? [];
   const outgoingRows = outgoing.data ?? [];
@@ -269,13 +271,14 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           {/* Rothern ID — tek sessiz satır; başka firmalar sizi bununla bulur. */}
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
             <span>{t("rothernId")}</span>
-            <span className="rounded-md bg-zinc-100 px-2 py-0.5 tabular-nums font-semibold text-zinc-900">{rothernId ?? "—"}</span>
+            <span className={cn(ID_TOKEN_CLASS, "rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-900")}>{rothernId ?? "—"}</span>
             {rothernId ? (
               <button
                 type="button"
                 onClick={copyId}
                 aria-label={t("rothernIdYiKopyala")}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
+                // Dokunma alanı 44 px (mobil denetim g05: 78x20 idi); görünüm aynı.
+                className="relative inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-zinc-600 after:absolute after:-inset-x-1 after:-inset-y-3 hover:bg-zinc-100 hover:text-zinc-950"
               >
                 {copied ? (
                   <>
@@ -322,6 +325,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           listeleriyle aynı kalıp (durum süzgeci çipleri). */}
       <section aria-labelledby="baglantilar-liste" className="space-y-3">
         <h2 id="baglantilar-liste" className="sr-only">{t("baglantiListesi")}</h2>
+        {/* Telefonda kısa yer tutucu (mobil denetim g05: uzun metin 360 px'te
+            "…sektör veya ş" diye sözcük ortasından kesiliyordu, RU daha da
+            kısa); yine de taşarsa kesim "…" ile belli olur. */}
         <InputGroup>
           <MagnifyingGlassIcon />
           <Input
@@ -332,7 +338,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               setShown(PAGE);
               if (view !== "mine") setView("mine");
             }}
-            placeholder={t("firmaAdiRothernIdSektor")}
+            placeholder={narrow ? t("firmaIdSektorSehirKisa") : t("firmaAdiRothernIdSektor")}
+            className="[&_input]:text-ellipsis"
           />
         </InputGroup>
         <div role="group" aria-label={t("gorunum")} className="flex flex-wrap gap-2">
@@ -403,17 +410,29 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           )
         ) : (
           <>
+            {/* E-posta davetinin ne olacağını anlatan cümle xl altında satır
+                başına değil listenin üstünde BİR KEZ (mobil denetim g05: dar
+                hücrede 6 satıra bölünüp satırı 137 px yapıyordu; RU 768 / 1024'te
+                "Статус" rozeti geniş, firma sütunu 144-160 px kalıyor, cümle 12
+                satıra bölünüp satır 269-301 px oluyordu). xl+ satırda. */}
+            {view === "pending" && referralRows.length > 0 ? (
+              <p className="text-xs text-zinc-500 xl:hidden">{t("kaydoluncaOtomatikBaglanir")}</p>
+            ) : null}
             <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white px-2 [--gutter:--spacing(4)]">
-              <Table dense>
-                <TableHead>
+              <Table dense className={STACKED_TABLE}>
+                <TableHead className="max-sm:hidden">
                   <TableRow>
                     <TableHeader className={TH}>{t("firma")}</TableHeader>
-                    <TableHeader className={cn(TH, "hidden md:table-cell")}>{t("sektorSehir")}</TableHeader>
+                    {/* Sektör · şehir sütunu yalnız xl+: aynı bilgi firma adının altında
+                        zaten yazıyor; RU 768 / 1024'te bu sütun ve geniş "Статус" rozeti
+                        firma sütununu 144-160 px'e indiriyordu (e-posta etiketin
+                        ortasından bölünüyordu). */}
+                    <TableHeader className={cn(TH, "hidden xl:table-cell")}>{t("sektorSehir")}</TableHeader>
                     <TableHeader className={cn(TH, "hidden sm:table-cell")}>{t("durum")}</TableHeader>
                     <TableHeader className={cn(TH, "text-right")}>{t("islemler")}</TableHeader>
                   </TableRow>
                 </TableHead>
-                <TableBody>
+                <TableBody className="max-sm:block">
                   {rows.slice(0, shown).map((r) => (
                     <ConnectionTableRow
                       key={`${r.kind}-${r.id}`}
@@ -455,11 +474,143 @@ function parseView(raw: string | null | undefined): View | null {
 /** Tablo başlığı — küçük büyük harf, sessiz (mockup 2026-09-18). */
 const TH = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 /**
+ * TELEFONDA SATIR = KART (mobil denetim g05/g08, kullanıcı kararı: satır satır
+ * okunan tablolar sm altında kart, sm+ tablo). 360 px'te firma hücresi eylem
+ * hücresinin yanında 45-138 px'e iniyor, ad "QA …" kalıyor, "Doğrulanmış"
+ * rozeti "Kabul et"in altına kayıyordu. DOM aynı tablo (ikinci liste
+ * çizilmez — ekran okuyucu ve testler tek ağaç görür); yalnız sm altında
+ * tablo blok akışına döner, başlık satırı gizlenir ve her satır sarılan bir
+ * flex satırı olur: firma en az 11rem alır ve büyür, eylemler sağda
+ * (`ml-auto`); ikisi sığmazsa eylemler alt satıra iner (Kabul et / Reddet,
+ * Engeli kaldır), firma satırın tamamını alır — 360 px'te Mesaj + ⋮ firmanın
+ * yanında kalır. Hücre dolgusu satıra taşınır (Catalyst `first:`/`last:`
+ * dolgusu `!` ile sıfırlanır — iki satıra inince firma ve eylem aynı hizada
+ * başlasın); satır dolgusu Catalyst'in telefondaki kenar dolgusuyla aynı
+ * (8 px). Catalyst tablosu `bleed`siz kenara taşmaz; `max-sm:mx-0` yalnız
+ * güvence (satır kartın içerik kutusunda kalır, Catalyst sürümünden bağımsız).
+ */
+const STACKED_TABLE =
+  "max-sm:mx-0 max-sm:whitespace-normal max-sm:[&>div]:block max-sm:[&_table]:block";
+const STACKED_ROW =
+  "max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-2 max-sm:border-b max-sm:border-zinc-950/5 max-sm:px-2 max-sm:py-3";
+const STACKED_CELL = "max-sm:border-b-0 max-sm:p-0!";
+/**
  * Firma sütunu kalan genişliği alır ve İÇİNDE kısalır (`max-w-0 w-full`):
  * tablo `whitespace-nowrap` olduğu için uzun ad/alt satır dar ekranda eylem
- * sütununu ekran dışına itiyordu (arayüz testi D-008).
+ * sütununu ekran dışına itiyordu (arayüz testi D-008). Telefonda kart düzeni:
+ * en az 11rem, büyür; ad ve alt satır kırpılmaz, sarar.
  */
-const FIRM_CELL = "w-full max-w-0";
+const FIRM_CELL = cn("w-full max-w-0 max-sm:max-w-none max-sm:min-w-0 max-sm:flex-[1_1_11rem]", STACKED_CELL);
+/**
+ * TEK KISA EYLEMLİ satır (giden istek "Geri çek"; e-posta daveti aynı tabanla
+ * `EMAIL_CELL`): firma en az 9rem (mobil denetim g05: RU 360'ta 11rem + "Отменить" 302 px
+ * istiyor, satır 294 px — her satırın tek eylemi e-postanın altına iniyor,
+ * satırlar 69 yerine 109–117 px oluyordu). Eylem yanında kalır; ad gerekirse
+ * sözcük aralarından sarar.
+ */
+const FIRM_CELL_SINGLE_ACTION = cn(
+  "w-full max-w-0 max-sm:max-w-none max-sm:min-w-0 max-sm:flex-[1_1_9rem]",
+  STACKED_CELL,
+);
+
+/**
+ * E-POSTA DAVETİ SATIRI (mobil denetim v-public-filter-comm#new0): telefonda
+ * hücre en az adresin EN UZUN BÖLÜNMEZ PARÇASI kadar (`min-w-auto`; parçalar
+ * `emailBreakParts`) ve en çok satır kadar geniştir. Parça eylemin yanına
+ * sığmazsa eylem ("Отменить") alt satıra iner — adres alan adının ortasından
+ * bölünmez (RU 360'ta 124 px'lik sütunda "tanerelektrik.co | m.tr" oluyordu).
+ */
+const EMAIL_CELL = cn("w-full max-w-0 max-sm:max-w-full max-sm:min-w-auto max-sm:flex-[1_1_9rem]", STACKED_CELL);
+
+/**
+ * E-posta adresinin satır kırılabilecek parçaları: `kişi@` · alan adının ilk
+ * etiketi · `.etiket`… Kısa ikinci düzey son ek (`com.tr`, `co.uk`, `org.pl`)
+ * son etiketle BİRLİKTE kalır — "tanerelektrik" / ".com.tr" (".com" / ".tr"
+ * değil). Kişi kısmı bölünmez.
+ */
+export function emailBreakParts(email: string): string[] {
+  const at = email.lastIndexOf("@");
+  if (at <= 0 || at === email.length - 1) return [email];
+  const labels = email.slice(at + 1).split(".");
+  const tail = labels.length >= 3 && labels[labels.length - 2]!.length <= 3 ? 2 : 1;
+  const head = labels.slice(0, labels.length - tail);
+  return [
+    email.slice(0, at + 1),
+    ...head.map((label, i) => (i === 0 ? label : `.${label}`)),
+    `${head.length ? "." : ""}${labels.slice(-tail).join(".")}`,
+  ].filter((part) => part.length > 0);
+}
+
+/** Tire bir sonraki karakterle bölünmez kutuya alınır: satır tireden kırılmaz ("noark-" / "electric"). */
+function glueHyphens(text: string, key: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let from = 0;
+  for (let i = text.indexOf("-"); i !== -1 && i < text.length - 1; i = text.indexOf("-", from)) {
+    if (i > from) out.push(text.slice(from, i));
+    out.push(
+      <span key={`${key}-${i}`} className="whitespace-nowrap">
+        {text.slice(i, i + 2)}
+      </span>,
+    );
+    from = i + 2;
+  }
+  if (from < text.length) out.push(text.slice(from));
+  return out;
+}
+
+/**
+ * E-posta adresi: satır YALNIZ `@`ten sonra ve alan adının noktalarından önce
+ * kırılabilir (`<wbr>`); etiketin içinden (tire dahil) kırılmaz. Alan adı
+ * satır içi blokta: sığıyorsa BÜTÜN hâlde alt satıra iner ("solera@" /
+ * "psolera.com" — "solera@psolera" / ".com" değil), sığmıyorsa kendi içinde
+ * noktalardan sarar. Bölünmez parça satıra hiç sığmıyorsa son çare herhangi
+ * bir yerden (`break-words`) — adres kırpılmaz. Metin adresin kendisidir
+ * (kopyalanan değer aynı).
+ */
+function EmailText({ email }: { email: string }) {
+  const [local = email, ...domain] = emailBreakParts(email);
+  if (!domain.length) return <>{glueHyphens(local, "l")}</>;
+  return (
+    <>
+      {glueHyphens(local, "l")}
+      <wbr />
+      <span className="inline-block max-w-full">
+        {domain.map((part, i) => (
+          <Fragment key={i}>
+            {i > 0 ? <wbr /> : null}
+            {glueHyphens(part, String(i))}
+          </Fragment>
+        ))}
+      </span>
+    </>
+  );
+}
+/** Eylem hücresi — telefonda sağa yaslı, sarılmaz. */
+const ACTION_CELL = cn("text-right max-sm:ml-auto max-sm:shrink-0", STACKED_CELL);
+/** Sığmayan metin: telefonda sarar (sm+ tek satır + "…"). */
+const WRAP_ON_PHONE = "max-sm:whitespace-normal max-sm:break-words";
+
+/**
+ * Ekran sm kırılımının altında mı (yer tutucu metni seçmek için; CSS ile
+ * değiştirilemeyen öznitelik). Sunucuda geniş varsayılır.
+ */
+const NARROW_QUERY = "(max-width: 639.98px)";
+function narrowMediaQuery(): MediaQueryList | null {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
+  return window.matchMedia(NARROW_QUERY);
+}
+// Modül düzeyinde: her çizimde yeni işlev verilseydi React aboneliği her
+// çizimde söküp yeniden kurardı.
+function subscribeNarrow(onChange: () => void): () => void {
+  const mql = narrowMediaQuery();
+  if (!mql || typeof mql.addEventListener !== "function") return () => {};
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
+const isNarrowScreen = () => narrowMediaQuery()?.matches === true;
+function useNarrowScreen(): boolean {
+  return useSyncExternalStore(subscribeNarrow, isNarrowScreen, () => false);
+}
 type TableRowData =
   | { kind: "mine"; id: string; company: ConnectionCompany }
   | { kind: "incoming"; id: string; company: ConnectionCompany }
@@ -483,18 +634,21 @@ function CompanyLine({
 }) {
   const t = useTranslations("web.panel.company.connectionsView");
   const cityLabel = useCityLabel();
-  const meta = [c.industry, cityLabel(c.city)].filter(Boolean).join(" · ");
+  // Ayraç öncekine bükülmez boşlukla yapışık: satır "·" ile başlamaz.
+  const meta = [c.industry, cityLabel(c.city)].filter(Boolean).join("\u00A0· ");
   const size = compact ? "sm" : "md";
   const inner = (
     <>
+      {/* Logo kutusu baş harf avatarıyla aynı boyda (mobil denetim g05:
+          logolu satır baş harfli satırlardan farklı girintideydi). */}
       {c.logoUrl ? (
-        <Thumb src={c.logoUrl} size={size} fallbackIcon={Building2} className="bg-white" />
+        <Thumb src={c.logoUrl} size={size} fallbackIcon={Building2} className={cn("bg-white", compact ? "size-8" : "size-10")} />
       ) : (
         <AvatarInitials name={c.name} size={size} />
       )}
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-zinc-900">{c.name}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className={cn("min-w-0 truncate text-sm font-semibold text-zinc-900", WRAP_ON_PHONE)}>{c.name}</span>
           {c.verified ? (
             <span
               className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
@@ -505,8 +659,18 @@ function CompanyLine({
             </span>
           ) : null}
         </div>
-        <div className="truncate text-xs text-zinc-500">
-          {hint ?? [meta, c.rothernId].filter(Boolean).join(" · ") ?? ""}
+        {/* Rothern ID kullanıcının kopyalayıp aktardığı belirteç: tireden
+            bölünmez (mobil denetim r3-comm#new2: RU 360'ta "0WZH-" / "3BAK").
+            Ayraç öncekine bükülmez boşlukla yapışık — satır sığmazsa ID
+            bütün hâlde alt satıra iner. */}
+        <div className={cn("truncate text-xs text-zinc-500", WRAP_ON_PHONE)}>
+          {hint ?? (
+            <>
+              {meta}
+              {meta && c.rothernId ? "\u00A0· " : null}
+              {c.rothernId ? <span className="whitespace-nowrap">{c.rothernId}</span> : null}
+            </>
+          )}
         </div>
       </div>
     </>
@@ -548,27 +712,35 @@ function ConnectionTableRow({
 
   if (row.kind === "referral") {
     return (
-      <TableRow>
-        <TableCell className={FIRM_CELL}>
+      <TableRow className={STACKED_ROW}>
+        <TableCell className={EMAIL_CELL}>
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
               <MailPlus className="size-4" />
             </span>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-zinc-900">{row.email}</div>
+              {/* Adres kırpılmaz (her genişlikte; RU 768 / 1024'te dar sütunda
+                  "…" ile kesiliyordu): `@`ten sonra / noktalardan önce sarar
+                  (`EmailText`). `break-words` (anywhere DEĞİL): bölünmez parça
+                  hücrenin en küçük genişliğini belirler, telefonda sığmazsa
+                  eylem alt satıra iner (`EMAIL_CELL`). */}
+              <div className="text-sm font-semibold whitespace-normal break-words text-zinc-900">
+                <EmailText email={row.email} />
+              </div>
               {/* Ne olacağını TAM söyler (kayıt denetimi 2026-10 reinvite-new-1):
                   bağlantı yalnız davet e-postasındaki bağlantıyla kaydolunca
                   kendiliğinden kurulur; sonradan kaydolan firma istek alır.
-                  Cümle kırpılmaz, alt satıra sarar (tablo `nowrap`). */}
-              <div className="text-xs whitespace-normal text-zinc-500">{t("kaydoluncaOtomatikBaglanir")}</div>
+                  Cümle kırpılmaz, alt satıra sarar (tablo `nowrap`). xl altında
+                  listenin üstünde bir kez yazılır. */}
+              <div className="text-xs whitespace-normal text-zinc-500 max-xl:hidden">{t("kaydoluncaOtomatikBaglanir")}</div>
             </div>
           </div>
         </TableCell>
-        <TableCell className="hidden text-sm text-zinc-500 md:table-cell">—</TableCell>
+        <TableCell className="hidden text-sm text-zinc-500 xl:table-cell">—</TableCell>
         <TableCell className="hidden sm:table-cell">
           <Badge color="zinc">{t("ePostaDaveti")}</Badge>
         </TableCell>
-        <TableCell className="text-right">
+        <TableCell className={ACTION_CELL}>
           {canManage ? (
             <Button
               plain
@@ -660,11 +832,11 @@ function ConnectionTableRow({
   };
 
   return (
-    <TableRow>
-      <TableCell className={FIRM_CELL}>
+    <TableRow className={STACKED_ROW}>
+      <TableCell className={row.kind === "outgoing" ? FIRM_CELL_SINGLE_ACTION : FIRM_CELL}>
         <CompanyLine company={c} compact linked={row.kind !== "blocked"} />
       </TableCell>
-      <TableCell className="hidden text-sm text-zinc-600 md:table-cell">{meta || "—"}</TableCell>
+      <TableCell className="hidden text-sm text-zinc-600 xl:table-cell">{meta || "—"}</TableCell>
       <TableCell className="hidden sm:table-cell">
         {row.kind === "mine" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/15 ring-inset">
@@ -679,7 +851,7 @@ function ConnectionTableRow({
           <Badge color="zinc">{t("istekGonderildi")}</Badge>
         )}
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className={ACTION_CELL}>
         <div className="flex items-center justify-end gap-1">
           {row.kind === "incoming" ? (
             canManage ? (

@@ -101,6 +101,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
             durum: state.state,
           },
           placeholder: t("listingPlaceholder"),
+          shortPlaceholder: t("listingPlaceholderShort"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -141,13 +142,16 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
             </ResultGrid>
           )}
         </FilterResults>
-        <Pagination
-          page={page.page}
-          total={Math.min(page.total, LISTING_PAGE_LIMIT * page.pageSize)}
-          pageSize={page.pageSize}
-          className="mt-10 border-t border-zinc-950/5 pt-6"
-          hrefBuilder={(p) => `${basePath}${buildListingFilterQuery({ ...state, page: p })}`}
-        />
+        {/* Gezinme bekçisi bu bağlantıları da izler (bkz. `FilterShellCore`, g02-01). */}
+        <div data-filter-nav>
+          <Pagination
+            page={page.page}
+            total={Math.min(page.total, LISTING_PAGE_LIMIT * page.pageSize)}
+            pageSize={page.pageSize}
+            className="mt-10 border-t border-zinc-950/5 pt-6"
+            hrefBuilder={(p) => `${basePath}${buildListingFilterQuery({ ...state, page: p })}`}
+          />
+        </div>
       </PublicListPage>
     </ListingFilterShell>
     </>

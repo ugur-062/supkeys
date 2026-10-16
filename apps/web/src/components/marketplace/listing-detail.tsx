@@ -1,3 +1,4 @@
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { BuyerCountryScope, TargetScope } from "@/components/tenders/target-scope";
@@ -173,7 +174,12 @@ export function ListingDetail({
               <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 ring-1 ring-zinc-200">
                 {tl("demandOne")}
               </span>
-              <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-500">
+              {/* Talep numarası tek belirteç: tabular rakam + geniş harf aralığı
+                  YOK (mobil denetim smoke-public#new1) — Inter'in tabular tiresi
+                  rakam genişliği alıp sağa yaslanıyordu, numara "ROT -000846"
+                  okunuyordu; kartlardaki gibi "ROT-000846". Bölünmez. Kural her
+                  numara / Rothern ID için tek sınıf: `lib/id-token.ts`. */}
+              <span className={`${ID_TOKEN_CLASS} text-xs font-medium text-zinc-500`}>
                 {listing.number}
               </span>
             </div>
@@ -195,7 +201,11 @@ export function ListingDetail({
                       // "Üretim Bileşenleri" segmentini açıyordu. Dizin yaprağı
                       // önekle süzer; aktif çip adı facet'in `selectedCategory`sinden.
                       href={`${indexBase}?kategori=${c.id}`}
-                      className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200 transition hover:text-zinc-950 hover:ring-zinc-900/30"
+                      // `inline-block max-w-full` (mobil denetim g02-07): satır içi
+                      // bağlantı RU'da iki satıra bölününce yuvarlak çerçeve de
+                      // bölünüyordu (ilk satır sağda açık, ikincinin solu kesik).
+                      // Hap artık tek blok olarak sarar.
+                      className="inline-block max-w-full rounded-full bg-white px-3 py-1 text-xs font-medium break-words text-zinc-700 ring-1 ring-zinc-200 transition hover:text-zinc-950 hover:ring-zinc-900/30"
                     >
                       {c.name}
                     </Link>
@@ -292,10 +302,13 @@ export function ListingDetail({
                 </h2>
                 <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
                   {listing.items.map((row) => (
-                    <li key={row.lineNo} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
+                    // Kalem adı SARAR (mobil denetim g02-04): tedarikçinin okuması
+                    // gereken tek bilgi ("…36 modül IP40 metal kapaklı") telefonda
+                    // tek satıra kesiliyordu ve başka yerde okunamıyordu.
+                    <li key={row.lineNo} className="flex items-start gap-3 bg-white px-5 py-3 text-sm">
                       <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900" lang={row.name ? contentLang : undefined}>{row.name || t("itemFallback", { n: row.lineNo })}</span>
-                      <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
+                      <span className="min-w-0 flex-1 font-medium break-words text-zinc-900" lang={row.name ? contentLang : undefined}>{row.name || t("itemFallback", { n: row.lineNo })}</span>
+                      <span className="ml-auto shrink-0 tabular-nums whitespace-nowrap text-zinc-700">
                         {quantity(row.quantity, row.unit)}
                       </span>
                     </li>
@@ -362,7 +375,7 @@ export function ListingDetail({
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-28 lg:self-start">
+          <aside className="lg:sticky lg:top-[calc(7rem+var(--safe-top))] lg:self-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
                 {t("buyer")}

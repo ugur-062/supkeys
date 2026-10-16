@@ -559,9 +559,14 @@ describe("OrderDetailPage — arayüz testi webB-07", () => {
       ],
     });
     render(<OrderDetailPage />);
-    expect(screen.getByText("Muadil")).toBeInTheDocument();
-    expect(screen.getByText("Teklif edilen: FAG · 6204-2Z-C3")).toBeInTheDocument();
-    expect(screen.getByText("İstenen: SKF · 6204-2RS")).toBeInTheDocument();
+    // Kalem içeriği iki yerde çizilir: telefon kartı (sm:hidden) ve sm+ tablo.
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Muadil")).toBeInTheDocument();
+    expect(within(table).getByText("Teklif edilen: FAG · 6204-2Z-C3")).toBeInTheDocument();
+    expect(within(table).getByText("İstenen: SKF · 6204-2RS")).toBeInTheDocument();
+    const card = table.closest("section")!.querySelector("ul")!;
+    expect(within(card).getByText("Muadil")).toBeInTheDocument();
+    expect(within(card).getByText("Teklif edilen: FAG · 6204-2Z-C3")).toBeInTheDocument();
   });
 });
 
@@ -780,5 +785,62 @@ describe("OrderDetailPage — arayüz testi webB-08 yeniden doğrulama", () => {
     const html = doc.write.mock.calls.map((c) => String(c[0])).join("");
     expect(html).toMatch(/<th class="num">Birim Fiyat<\/th>/);
     open.mockRestore();
+  });
+});
+
+describe("OrderDetailPage — mobil denetim (g07/g08)", () => {
+  const item = {
+    id: "i1",
+    name: "Çelik boru DN50",
+    quantity: "1000",
+    unit: "adet",
+    unitPrice: "2345.67",
+    deliveryDate: null,
+  };
+
+  it("telefonda kalemler kart listesi (sm:hidden), tablo yalnız sm'den; kartta tutar ve etiketler", () => {
+    h.order = order("COMPLETED", "buyer", {
+      amount: "2345670",
+      items: [item] as unknown as CompanyOrderDetail["items"],
+    });
+    render(<OrderDetailPage />);
+    const table = screen.getByRole("table");
+    const section = table.closest("section")!;
+    // Tablo sarmalayıcısı telefonda gizli, sm'den görünür.
+    expect(table.closest(".hidden")?.className).toMatch(/(^|\s)sm:block(\s|$)/);
+    const list = section.querySelector("ul")!;
+    expect(list.className).toMatch(/(^|\s)sm:hidden(\s|$)/);
+    const card = within(list).getByRole("listitem");
+    expect(within(card).getByText("Çelik boru DN50")).toBeInTheDocument();
+    expect(within(card).getByText("Miktar")).toBeInTheDocument();
+    expect(within(card).getByText("Birim Fiyat")).toBeInTheDocument();
+    expect(within(card).getByText("Tutar")).toBeInTheDocument();
+    expect(within(card).getByText("2.345.670,00 ₺")).toBeInTheDocument();
+  });
+
+  it("aksiyon çubuğu telefonda yapışmaz; sm'den üst çubuk ofsetiyle (--topbar-h) + opak zeminle yapışır", () => {
+    h.order = order("PENDING", "seller");
+    render(<OrderDetailPage />);
+    const bar = screen.getByRole("button", { name: "Kabul Et" }).closest(".rounded-xl")!;
+    const cls = bar.className.split(/\s+/);
+    expect(cls).toContain("sm:sticky");
+    expect(cls).toContain("sm:top-(--topbar-h)");
+    expect(cls).not.toContain("sticky");
+    expect(cls).not.toContain("top-16");
+    expect(cls).toContain("bg-white");
+    expect(cls).not.toContain("backdrop-blur");
+  });
+
+  it("durum adımı etiketleri telefonda sarar (RU taşması), sm'den tek satır", () => {
+    h.order = order("ACCEPTED", "buyer");
+    const { container } = render(<OrderDetailPage />);
+    const current = container.querySelector('[aria-current="step"]')!;
+    const label = current.querySelector(":scope > span")!;
+    const cls = label.className.split(/\s+/);
+    expect(cls).not.toContain("whitespace-nowrap");
+    expect(cls).toContain("sm:whitespace-nowrap");
+    expect(cls).toContain("break-words");
+    // Adım sütunu telefonda eşit pay ve daralabilir.
+    expect(current.parentElement!.className.split(/\s+/)).toContain("min-w-0");
   });
 });

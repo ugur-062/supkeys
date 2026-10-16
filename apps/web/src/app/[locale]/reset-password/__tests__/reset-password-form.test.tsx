@@ -168,7 +168,10 @@ describe("ResetPasswordForm", () => {
     h.token = "deadbeef";
     render(<ResetPasswordForm />);
     expect(screen.getByRole("alert")).toHaveTextContent("Geçersiz bağlantı");
-    expect(screen.getByRole("link", { name: "Yeni bağlantı iste" })).toBeInTheDocument();
+    const requestNew = screen.getByRole("link", { name: "Yeni bağlantı iste" });
+    // Kartın tek eylemi: dokunma hedefi 44 px (mobil denetim 2026-10; eskiden 20 px).
+    expect(requestNew.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+    expect(requestNew.className).toMatch(/(^|\s)inline-flex(\s|$)/);
     expect(screen.queryByLabelText("Yeni Şifre")).toBeNull();
   });
 

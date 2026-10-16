@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useTranslations } from "next-intl";
 import { useFormatDate, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
@@ -321,7 +322,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         {/* SOL — kimlik */}
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-            <span className="tabular-nums font-medium text-zinc-700">{o.number ?? "—"}</span>
+            <span className={cn(ID_TOKEN_CLASS, "font-medium text-zinc-700")}>{o.number ?? "—"}</span>
             <span aria-hidden>·</span>
             <span>{fmtDate(o.createdAt, "short")}</span>
           </p>
@@ -341,7 +342,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
               <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs">
                 <ClipboardList className="size-3.5 shrink-0 text-zinc-600" aria-hidden />
                 <span className="text-zinc-600">{t("talep")}</span>
-                <span className="tabular-nums font-semibold text-zinc-900">{o.listingNumber}</span>
+                <span className={cn(ID_TOKEN_CLASS, "font-semibold text-zinc-900")}>{o.listingNumber}</span>
               </span>
             ) : !o.listingType ? (
               <span
@@ -764,8 +765,12 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         </div>
       ) : view === "table" ? (
         <>
-          {/* P2 (denetim §10.2): yoğun tablo — çok kayıtta karşılaştırma. */}
-          <div className="card px-2 [--gutter:--spacing(4)]">
+          {/* P2 (denetim §10.2): yoğun tablo — çok kayıtta karşılaştırma.
+              Mobil denetim (g08/g07): tablo (`bleed`siz Catalyst Table) kartın
+              içerik kutusunda kalır, kenara taşmaz — `--gutter` artık yalnız
+              `bleed` tablolarda okunur, buradaki değer etkisiz. overflow-hidden:
+              köşedeki başlık zemini. */}
+          <div className="card overflow-hidden px-2 [--gutter:--spacing(2)] sm:[--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>
@@ -785,7 +790,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                   );
                   return (
                     <TableRow key={o.id}>
-                      <TableCell className=" text-xs text-zinc-500 tabular-nums">
+                      <TableCell className={cn(ID_TOKEN_CLASS, "text-xs text-zinc-500")}>
                         {o.number ?? "—"}
                       </TableCell>
                       <TableCell className="max-w-64">

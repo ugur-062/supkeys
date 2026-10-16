@@ -107,6 +107,19 @@ describe("BidImportDialog — Excel şablonu", () => {
     ]);
   });
 
+  it("mobil denetim g08: 1. adım metninin gerçek tabanı var, 'Şablonu indir' telefonda alt satırda tam genişlik", () => {
+    render(
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={() => {}} />,
+    );
+    const button = screen.getByRole("button", { name: "Şablonu indir" });
+    const row = button.parentElement as HTMLElement;
+    expect(row.className).toContain("flex-wrap");
+    // Metin `flex-1` (taban 0) kalsaydı düğme hiç sarmaz, metin ~100 px'e ezilirdi.
+    const text = row.querySelector("div") as HTMLElement;
+    expect(text.className.split(" ")).toEqual(expect.arrayContaining(["flex-1", "basis-56", "min-w-0"]));
+    expect(button.className.split(" ")).toEqual(expect.arrayContaining(["w-full", "sm:w-auto"]));
+  });
+
   it("uygula kutusu kaldırılan kalem listeden düşer", async () => {
     const onApply = vi.fn();
     render(

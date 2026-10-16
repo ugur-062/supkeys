@@ -50,10 +50,14 @@ export function CategorySuggest({ seedText, selected, onPick }: { seedText: stri
 
   if (!q || suggestions.length === 0) return null;
   return (
-    <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+    // TELEFONDA çipler en az 32 px yüksek, aralarında 8 px (mobil denetim
+    // 2026-10 g06: 21 px yükseklik + 11 px yazı, 6 px arayla üst üsteydi);
+    // uzun ad sarar. sm'den itibaren eski boy (masaüstü değişmez — yanındaki
+    // tedarikçi tipi ve seçili kategori çipleriyle aynı boyda kalır).
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 sm:mt-1.5 sm:gap-1.5">
       {t("oneri")}
       {suggestions.map((s) => (
-        <button key={s.id} type="button" onClick={() => onPick(s.id)} className="rounded-md border border-dashed border-blue-300 px-1.5 py-0.5 text-[11px] font-medium text-blue-800 hover:border-blue-600 hover:bg-blue-50">
+        <button key={s.id} type="button" onClick={() => onPick(s.id)} className="min-h-8 max-w-full rounded-md border border-dashed border-blue-300 px-2.5 py-1.5 text-left text-xs font-medium break-words text-blue-800 hover:border-blue-600 hover:bg-blue-50 sm:min-h-0 sm:px-1.5 sm:py-0.5 sm:text-[11px]">
           {t("ekle", { name: s.name })}
         </button>
       ))}

@@ -12,8 +12,14 @@ const MIN_EDGE = 800;
 const MAX_IMAGES = 8;
 /** Kural metniyle aynı sayı; üstü reddedilmez, küçültülür (uyarıyla). */
 const MAX_BYTES = 5 * 1024 * 1024;
+/**
+ * Karo düğmeleri telefonda 36 px yüksek (mobil denetim g09: 84 px'lik karoda
+ * 16–23×22 px'ti; dokunmatikte sürükle-bırak çalışmadığı için sıralamanın tek
+ * yolu bu düğmeler). Telefonda iki sütun → karo ~130 px, dört düğme bile ≥28 px
+ * geniş. sm ve üstü eski boyut.
+ */
 const TILE_BUTTON =
-  "flex-1 rounded-md bg-white/90 py-1 text-zinc-700 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-zinc-900";
+  "flex min-h-9 flex-1 items-center justify-center rounded-md bg-white/90 text-zinc-700 outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-zinc-900 sm:min-h-0 sm:py-1";
 
 /**
  * ÜRÜN GÖRSELLERİ — ilki KAPAK.
@@ -128,7 +134,8 @@ export function ImageUploader({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      {/* Sarar ve aralık bırakır: dar ekranda ipucu "(2/8)"nin hemen yanına yapışıp iki satırlık sütuna sıkışıyordu. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <p className="text-sm font-medium text-zinc-900">
           {t("gorseller")}
           <span className="ml-1 font-normal text-zinc-500">
@@ -139,8 +146,12 @@ export function ImageUploader({
           {images.length > 0 ? t("ilkGorselKapakGorselOnerilir") : t("gorselOnerilir")}
         </p>
       </div>
-      <p className="mt-1 text-xs text-zinc-500">
+      {/* Dokunmatikte (hover yok) HTML5 sürükle-bırak çalışmaz: kural metni sıralamayı ok düğmeleriyle anlatır. */}
+      <p className="mt-1 text-xs text-zinc-500 [@media(hover:none)]:hidden">
         {t("jpgPngVeyaWebpEnAz", { minW: MIN_EDGE, minH: MIN_EDGE * 0.75 })}
+      </p>
+      <p className="mt-1 hidden text-xs text-zinc-500 [@media(hover:none)]:block">
+        {t("jpgPngVeyaWebpEnAzDokunmatik", { minW: MIN_EDGE, minH: MIN_EDGE * 0.75 })}
       </p>
 
       {/* BIRAKMA ALANI: dosyaları buraya sürükleyin — telefon/masaüstü fark etmez. */}
@@ -164,7 +175,7 @@ export function ImageUploader({
         data-dragover={dragOver || undefined}
         className="mt-3 rounded-2xl border-2 border-dashed border-transparent p-1 transition data-[dragover]:border-zinc-900 data-[dragover]:bg-zinc-50"
       >
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {images.map((src, i) => (
           <li
             key={src}
@@ -265,7 +276,7 @@ export function ImageUploader({
               <span className="text-xs font-medium">
                 {busy ? t("yukleniyor") : t("gorselEkle")}
               </span>
-              <span className="text-[10px] text-zinc-500">{t("yaDaSurukleyipBirakin")}</span>
+              <span className="text-[10px] text-zinc-500 [@media(hover:none)]:hidden">{t("yaDaSurukleyipBirakin")}</span>
             </button>
           </li>
         ) : null}

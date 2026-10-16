@@ -79,6 +79,19 @@ describe("CompanyOverview — KPI bağlantıları", () => {
     ).not.toBeNull();
     expect(h.tedarikciProps?.period).toBe("quarter");
   });
+
+  // Mobil denetim g10-14: telefonda tek sütun 10 kartı ~1.400 px'e yayıyordu.
+  it("KPI ızgarası telefonda iki sütun; tek kalan son kart iki sütuna yayılır, sm+ aynen", () => {
+    render(<CompanyOverview />);
+    const grid = savingsCard().parentElement!;
+    const cls = grid.className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["grid", "grid-cols-2", "xl:grid-cols-5"]));
+    expect(cls).not.toContain("grid-cols-1");
+    expect(cls).toContain("max-sm:[&>:last-child:nth-child(odd)]:col-span-2");
+    // Satınalma satırı: 5 kart, 5. kart (Tasarruf) yayılan son çocuk.
+    expect(grid.children).toHaveLength(5);
+    expect(grid.lastElementChild).toBe(savingsCard());
+  });
 });
 
 describe("CompanyOverview — portal erişimi olmayan kişiye kısayollar (arayüz testi webC-06 NEW-1)", () => {

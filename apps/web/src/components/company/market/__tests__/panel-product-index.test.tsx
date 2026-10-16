@@ -172,6 +172,22 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(screen.queryByText("41000000")).toBeNull();
   });
 
+  it("aktif süzgeç şeridi SONUÇ sütununun ilk çocuğu — xl'de yapışkan rayın üstüne binmez (mobil denetim 2026-10)", () => {
+    h.search = "kategori=39000000";
+    h.selectedCategory = { id: "39000000", name: "Elektrik", level: 1 };
+    const { container } = render(<PanelProductIndex />);
+    const bar = container.querySelector("[data-chip-bar]")!;
+    expect(bar).not.toBeNull();
+    // Sarmalanmadan (yapışkanlık sütun boyunca sürer) sonuç sütununun başında.
+    const column = bar.parentElement!;
+    expect(column).toHaveClass("@container", "min-w-0");
+    expect(column.firstElementChild).toBe(bar);
+    // Ray kardeş sütunda; şerit ızgaranın üstünde tam genişlikte DEĞİL.
+    const grid = column.parentElement!;
+    expect(grid).toHaveClass("xl:grid-cols-[16rem_1fr]");
+    expect(grid.querySelector(":scope > aside")).not.toBeNull();
+  });
+
   // 2026-10-09 (sahip kararı; arayüz denetimi W-12): gizli segment kodu süzgeç
   // değildir — panel dizini de adını ya da ham kodunu aktif çip olarak basmaz.
   it("?kategori=<gizli segment> süzgeç sayılmaz: ne ad ne ham kod çip olur", () => {

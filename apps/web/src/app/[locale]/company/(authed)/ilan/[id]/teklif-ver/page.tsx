@@ -62,16 +62,28 @@ import {
   X,
 } from "lucide-react";
 import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "@/components/bids/bid-import-dialog";
+import {
+  bidDraftBase,
+  bidFormFingerprint,
+  clearBidFormDraft,
+  mergeBidFormDraft,
+  readBidFormDraft,
+  saveBidFormDraft,
+  type BidFormDraft,
+} from "@/components/bids/bid-form-draft";
+import { useTouchTyping } from "@/components/bids/use-touch-typing";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { VerifyNudge } from "@/components/company/verify-nudge";
 import { tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AuctionLiveCard } from "../_components/auction-live-card";
+import { fitMoneyFontSize } from "./fit-total";
 import {
   AuctionBidWorkbench,
   type WorkbenchTarget,
@@ -238,6 +250,7 @@ const NUMBER_ANSWER_DECIMALS = 6;
 
 export default function TeklifVerPage() {
   const tr = useTranslations("web.panel.requests.page");
+  const tUnsaved = useTranslations("web.panel.shell.unsavedChanges");
   const docKindLabel = useBidDocKindLabel();
   const deliveryTimeLabel = useBidDeliveryTimeLabel();
   const systemText = useSystemText();
@@ -286,7 +299,36 @@ export default function TeklifVerPage() {
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   // Fiyat içe aktarma dialog durumu + paket (hook'lar erken return'den ÖNCE).
   const [bidImport, setBidImport] = useState<BidImportVariant | null>(null);
-  const { company: authCompany } = useCompanyAuth();
+  const { company: authCompany, user: authUser } = useCompanyAuth();
+  // Kaydedilmemiş form taslağı (mobil denetim g08: Vazgeç / geri hareketi
+  // fiyatları sormadan siliyordu) — kullanıcı + talep anahtarlı oturum deposu.
+  const draftUserId = authUser?.id ?? "";
+  const draftCompanyId = authCompany?.id ?? "";
+  // Sunucudaki teklifin forma tohumlanan hâli — "değişti mi" kıyasının tabanı.
+  const [seedForm, setSeedForm] = useState<BidFormDraft | null>(null);
+  // Form açılışında saklanan kaydedilmemiş taslak geri yüklendi mi (bant).
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  // Mobil: alt çubuk klavye açıkken gizlenir (dokunmatik cihazda alan odakta).
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const touchTyping = useTouchTyping(formRef);
+  // Form gerçekten çizili mi: kapı ekranlarında (talep kapandı, teklif zaten
+  // verildi, yetki yok…) form yoktur — geri yüklenen taslak orada "kaydedilmemiş
+  // değişiklik" sorusu sordurmasın (korunacak form yok).
+  const [formMounted, setFormMounted] = useState(false);
+  const attachForm = useCallback((el: HTMLFormElement | null) => {
+    formRef.current = el;
+    setFormMounted(el !== null);
+  }, []);
+  // Mobil yapışkan "Teklif Gönder" eksik varken basılınca eksik listesi
+  // görünür alana getirilir ve kısa süre vurgulanır (mobil denetim g08).
+  const problemsRef = useRef<HTMLUListElement>(null);
+  const problemsId = useId();
+  const [problemsFlash, setProblemsFlash] = useState(false);
+  useEffect(() => {
+    if (!problemsFlash) return;
+    const t = setTimeout(() => setProblemsFlash(false), 1600);
+    return () => clearTimeout(t);
+  }, [problemsFlash]);
   const [initialPrices, setInitialPrices] = useState<Record<string, string>>(
     {},
   );
@@ -324,6 +366,8 @@ export default function TeklifVerPage() {
     setLockedIds(new Set());
     setInitialPrices({});
     setConvertedFromItemCurrency(false);
+    setSeedForm(null);
+    setRestoredDraft(false);
   }, [id]);
 
   // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
@@ -365,7 +409,6 @@ export default function TeklifVerPage() {
         offeredMpn: bi?.offeredMpn ?? "",
       };
     }
-    setItemState(next);
     // Taşınan fiyatların anlık görüntüsü — çalışma masası diff ve Sıfırla
     // için (kullanıcı fiyatları değiştirdikçe bu sabit kalır).
     const initP: Record<string, string> = {};
@@ -374,14 +417,36 @@ export default function TeklifVerPage() {
     }
     setInitialPrices(initP);
     setConvertedFromItemCurrency(converted);
-    if (bid) {
-      if (!l.items?.length) setSingleAmount(normalizeSeedPrice(bid.amount));
-      if (bid.deliveryTime) setDeliveryTime(bid.deliveryTime);
-      if (bid.validityDays) setValidityDays(String(bid.validityDays));
-      if (bid.note) setNote(bid.note);
-      if (bid.currency) setCurrency(bid.currency);
-    }
-  }, [l, seeded]);
+    // Sunucu tohumu: mevcut teklif varsa onun değerleri, yoksa form varsayılanı.
+    const seed: BidFormDraft = {
+      itemState: next,
+      singleAmount: bid && !l.items?.length ? normalizeSeedPrice(bid.amount) : "",
+      deliveryTime: bid?.deliveryTime || "",
+      validityDays: bid?.validityDays ? String(bid.validityDays) : "30",
+      currency: bid?.currency || "",
+      note: bid?.note || "",
+    };
+    setSeedForm(seed);
+    // Kaydedilmemiş taslak (geri hareketiyle çıkılmış form) tohumun üstüne
+    // geri yüklenir — sunucudaki teklif bu arada değiştiyse okunmaz.
+    const itemIds = (l.items ?? []).map((it) => it.id);
+    const stored = readBidFormDraft({
+      userId: draftUserId,
+      companyId: draftCompanyId,
+      listingId: id,
+      base: bidDraftBase(bid),
+    });
+    const form = stored ? mergeBidFormDraft(seed, stored, itemIds) : seed;
+    setItemState(form.itemState);
+    setSingleAmount(form.singleAmount);
+    setDeliveryTime(form.deliveryTime);
+    setValidityDays(form.validityDays);
+    setNote(form.note);
+    setCurrency(form.currency);
+    setRestoredDraft(
+      !!stored && bidFormFingerprint(form, itemIds) !== bidFormFingerprint(seed, itemIds),
+    );
+  }, [l, seeded, id, draftUserId, draftCompanyId]);
 
   const items = l?.items ?? [];
   const hasItems = items.length > 0;
@@ -480,6 +545,10 @@ export default function TeklifVerPage() {
       <span className="whitespace-nowrap">{part}</span>
     </Fragment>
   ));
+  // Bölünmeyen parça dar kutuya (1024 + kenar çubuğu: sağ kolon 221 px) sığsın
+  // diye yazı boyu küçülür; kutu `@container` (bkz. `fit-total.ts`).
+  const totalFontLarge = fitMoneyFontSize(totalParts, { max: 1.5, min: 0.875 });
+  const totalFontBar = fitMoneyFontSize(totalParts, { max: 1, min: 0.75 });
 
   // ── Pazarlık çalışma masası hesapları ──
   // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
@@ -590,6 +659,56 @@ export default function TeklifVerPage() {
       noReference: !ownLastTotal,
     };
   }, [effectiveTarget, ownLastTotal, exactTotalStr, comparableTotalStr]);
+
+  // ── Kaydedilmemiş değişiklik (mobil denetim g08: Vazgeç / geri hareketi) ──
+  // Form sunucu tohumundan farklıysa "kirli": uygulama içi bağlantı (Vazgeç,
+  // geri bağlantısı, menü) ve sekme kapatma sorar; geri hareketi soru
+  // soramaz — onun için form oturum deposuna sürekli yazılır, yeniden
+  // açılınca geri yüklenir (`bid-form-draft.ts`).
+  const itemIds = useMemo(() => (l?.items ?? []).map((it) => it.id), [l?.items]);
+  const formNow = useMemo<BidFormDraft>(
+    () => ({ itemState, singleAmount, deliveryTime, validityDays, currency, note }),
+    [itemState, singleAmount, deliveryTime, validityDays, currency, note],
+  );
+  const formFingerprint = useMemo(
+    () => bidFormFingerprint(formNow, itemIds),
+    [formNow, itemIds],
+  );
+  const seedFingerprint = useMemo(
+    () => (seedForm ? bidFormFingerprint(seedForm, itemIds) : null),
+    [seedForm, itemIds],
+  );
+  const formDiffers =
+    seeded && seedFingerprint !== null && formFingerprint !== seedFingerprint;
+  const formDirty =
+    formMounted &&
+    submitPhase === "idle" &&
+    (formDiffers || (seeded && stagedFiles.length > 0));
+  const draftBase = bidDraftBase(l?.myBid);
+  useEffect(() => {
+    if (!seeded || seedFingerprint === null || submitPhase !== "idle") return;
+    if (formDiffers) {
+      saveBidFormDraft(
+        { userId: draftUserId, companyId: draftCompanyId, listingId: id, base: draftBase },
+        formNow,
+      );
+    } else {
+      clearBidFormDraft(draftUserId, id);
+    }
+  }, [
+    seeded,
+    seedFingerprint,
+    submitPhase,
+    formDiffers,
+    formNow,
+    draftUserId,
+    draftCompanyId,
+    id,
+    draftBase,
+  ]);
+  useUnsavedChangesGuard(formDirty, {
+    onDiscard: () => clearBidFormDraft(draftUserId, id),
+  });
 
   // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
   // "Satın alma talebine ulaşılamıyor — kaldırılmış olabilir" çizilirdi.
@@ -906,8 +1025,16 @@ export default function TeklifVerPage() {
 
   const renderItemExtras = (it: ListingItemRow) => {
     const st = itemState[it.id];
+    // Ek alanlar EKRANA değil kendi genişliklerine göre dizilir (mobil
+    // denetim v4new2): kart ve pazarlık masası satırı daralınca (1024 +
+    // sabit kenar çubuğu: kart 463 px) ekran kırılımı (`sm:`) iki seçimi
+    // 208 px'e eziyor, RU "Действует общий срок" sözcük ortasından
+    // kesiliyordu. İki sütun yalnız kap ≥ 32 rem iken (sütun ≥ 250 px).
+    // Sarmalayıcı kendi kabı: iki çağıran da (kart, pazarlık masası) aynı
+    // kuralı alır; içinde açılır katman yok (yalnız yerel denetimler).
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="@container">
+      <div className="grid grid-cols-1 gap-3 @lg:grid-cols-2">
         {isAuctionRebid ? null : (
         <Field>
           <VisualLabel>{tr("kalemTeslimSuresiOpsiyonel")}</VisualLabel>
@@ -949,11 +1076,14 @@ export default function TeklifVerPage() {
             göstermek kafa karıştırır). Alıcının istediği marka varsa
             hatırlatılır ki tedarikçi ne yerine ne önerdiğini bilsin. */}
         {it.alternativeAllowed !== false ? (
-          <Field className="sm:col-span-2">
-            <label className="flex items-start gap-2.5">
+          <Field className="@lg:col-span-2">
+            {/* Mobil denetim g08: RU'da iki satırlık etiket kutuyu 13 px'e
+                eziyordu → kutu `shrink-0`; dokunma satırı görseli kaydırmadan
+                dikeyde büyür (-my-2 py-2). */}
+            <label className="-my-2 flex items-start gap-2.5 py-2">
               <input
                 type="checkbox"
-                className="mt-0.5 size-4 rounded border-zinc-300"
+                className="mt-0.5 size-4 shrink-0 rounded border-zinc-300"
                 checked={st?.isAlternative ?? false}
                 onChange={(e) =>
                   setItem(it.id, { isAlternative: e.target.checked })
@@ -1006,6 +1136,7 @@ export default function TeklifVerPage() {
             }
           />
         ))}
+      </div>
       </div>
     );
   };
@@ -1217,8 +1348,14 @@ export default function TeklifVerPage() {
       return;
     }
     setSavingDraft(true);
+    // Kaydedilen hâl sunucunun yeni tohumu olur: form artık kirli sayılmaz,
+    // oturum deposundaki kopya silinir.
+    const savedForm = formNow;
     try {
       await placeBid.mutateAsync(buildPayload(true));
+      setSeedForm(savedForm);
+      clearBidFormDraft(draftUserId, id);
+      setRestoredDraft(false);
       const up = await uploadStaged();
       if (up.ok) {
         toast.success(tr("taslakKaydedildi"));
@@ -1262,6 +1399,7 @@ export default function TeklifVerPage() {
       }
       await placeBid.mutateAsync(buildPayload(false));
       setSubmitPhase("sent");
+      clearBidFormDraft(draftUserId, id);
       toast.success(tr("teklifinizGonderildi"));
       router.push(detailHref);
     } catch (err) {
@@ -1278,10 +1416,48 @@ export default function TeklifVerPage() {
       ? 100
       : 0;
 
+  /**
+   * Mobil yapışkan "Teklif Gönder" eksik varken basılınca (mobil denetim g08):
+   * eskiden düğme pasifti ve hiçbir şey olmuyordu; eksik listesi telefonda
+   * formun en altında, ~3.000 px aşağıdaydı. Liste görünür alana getirilir,
+   * odak ona taşınır (ekran okuyucu eksikleri okur) ve kısa süre vurgulanır.
+   */
+  const revealProblems = () => {
+    const list = problemsRef.current;
+    if (!list) return;
+    list.focus({ preventScroll: true });
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollIntoView?.({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+    setProblemsFlash(true);
+  };
+
+  /** Geri yüklenen taslağı atar: form sunucu tohumuna döner, kopya silinir. */
+  const discardDraft = async () => {
+    if (!seedForm) return;
+    const ok = await confirm({
+      title: tUnsaved("baslik"),
+      confirmLabel: tr("degisiklikleriAt"),
+      cancelLabel: tUnsaved("kal"),
+      destructive: true,
+    });
+    if (!ok) return;
+    setItemState(seedForm.itemState);
+    setSingleAmount(seedForm.singleAmount);
+    setDeliveryTime(seedForm.deliveryTime);
+    setValidityDays(seedForm.validityDays);
+    setCurrency(seedForm.currency);
+    setNote(seedForm.note);
+    clearBidFormDraft(draftUserId, id);
+    setRestoredDraft(false);
+  };
+
   return (
     // P1 (denetim §4.2): sayfa mantıksal bir form — Enter, doğrulama
     // temizse onay diyaloğunu açar (buton akışıyla birebir).
     <form
+      ref={attachForm}
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
@@ -1320,6 +1496,24 @@ export default function TeklifVerPage() {
       {/* Doğrulama teşviki (2026-09-28): belgesiz firma teklif verirken alıcının
           onu "Doğrulanmamış firma" olarak göreceğini öğrenir. */}
       <VerifyNudge required={!!l.bidRequiresVerification} />
+
+      {/* Geri hareketiyle çıkılmış formun kaydedilmemiş değerleri geri
+          yüklendi (mobil denetim g08) — kullanıcı isterse atar. */}
+      {restoredDraft && formDiffers ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800"
+        >
+          <p className="min-w-0 flex-[1_1_14rem]">{tr("kaydedilmemisTeklifGeriYuklendi")}</p>
+          <button
+            type="button"
+            onClick={() => void discardDraft()}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-semibold text-blue-700 underline-offset-2 hover:underline sm:min-h-0 sm:py-1"
+          >
+            {tr("degisiklikleriAt")}
+          </button>
+        </div>
+      ) : null}
 
       {isRebidAfterLoss && l.myBid?.eliminationReason ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -1469,15 +1663,25 @@ export default function TeklifVerPage() {
                     <div
                       key={it.id}
                       className={cn(
-                        "rounded-xl border bg-white p-4",
+                        // Kart KENDİ genişliğine göre dizilir (`@container`;
+                        // mobil denetim 2026-10): ekran genişliği yanıltıyordu —
+                        // 1024'te sabit kenar çubuğuyla sol sütun 443 px, kalem
+                        // adına (yanında 144 px fiyat + "teklif vermiyorum")
+                        // 69 px kalıyor, ad 7 satıra kırılıyordu (RU'da düğme
+                        // 289 px: 1280'de bile 136 px).
+                        "@container rounded-xl border bg-white p-4",
                         optedOut
                           ? "border-zinc-100 opacity-60"
                           : "border-zinc-950/10",
                       )}
                     >
-                      {/* Mobilde ad üstte, fiyat altta (D-151): yan yana dizilimde
-                          ad 51 px'lik sütunda kelime kelime kırılıyordu. */}
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      {/* Dar kartta (iç genişlik < 24 rem; telefon) ad üstte, fiyat
+                          altta (D-151: yan yana dizilimde ad 51 px'lik sütunda
+                          kelime kelime kırılıyordu). Geniş kartta ad solda, fiyat
+                          sütunu (144 px) sağda; "teklif vermiyorum" HER genişlikte
+                          fiyatın altında, sütunun içinde sarar — ad kartın geri
+                          kalanını alır (1024 + kenar çubuğu: 273 px). */}
+                      <div className="flex flex-col gap-3 @sm:flex-row @sm:items-start @sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-xs font-semibold text-zinc-600">
@@ -1518,13 +1722,19 @@ export default function TeklifVerPage() {
                           <button
                             type="button"
                             onClick={() => setItem(it.id, { price: "" })}
-                            className="text-xs font-semibold text-blue-600 hover:underline"
+                            // Dokunma alanı dikeyde büyür, görsel kaymaz.
+                            className="-my-2 py-2 text-left text-xs font-semibold text-blue-600 hover:underline @sm:shrink-0"
                           >
                             {tr("kalemiGeriEkle")}
                           </button>
                         ) : (
-                          <div className="flex items-start gap-2">
-                            <div className="w-full sm:w-36">
+                          // "Teklif vermiyorum" fiyatın ALTINDA, etiketli (mobil
+                          // denetim g08): sağ kolondaki çıplak × "alanı temizle"
+                          // gibi okunuyor ve AI düğmesinin altında kalıyordu.
+                          // Geniş kartta da altında (mobil denetim 2026-10):
+                          // fiyatın yanında adı sıkıştırıyordu.
+                          <div className="flex flex-col items-start gap-1 @sm:w-36 @sm:shrink-0">
+                            <div className="w-full">
                               <Field>
                                 <VisualLabel>{tr("birimFiyat")}</VisualLabel>
                                 <MoneyInput
@@ -1552,14 +1762,14 @@ export default function TeklifVerPage() {
                                 // Kalem adını taşıyan erişilebilir ad: her
                                 // kalemin düğmesi ayırt edilsin (webC-01).
                                 aria-label={tr("kalemeTeklifVermiyorumAria", { name: it.name })}
-                                className="mt-7 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600"
+                                // Fiyat sütununun (144 px) içinde sözcük
+                                // arasında sarar (RU 3 satıra kadar; × ilk
+                                // satırda); dokunma alanı 44 px, görsel
+                                // yatayda kaymaz (-mx-2 px-2).
+                                className="-mx-2 inline-flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600 @sm:items-start"
                               >
-                                <X className="h-3.5 w-3.5" aria-hidden="true" />
-                                {/* Mobilde metin görsel olarak gizli ama
-                                    erişilebilir adı korunur (D-277). */}
-                                <span className="sr-only sm:not-sr-only">
-                                  {tr("buKalemeTeklifVermiyorum")}
-                                </span>
+                                <X className="h-3.5 w-3.5 shrink-0 @sm:mt-px" aria-hidden="true" />
+                                <span className="min-w-0">{tr("buKalemeTeklifVermiyorum")}</span>
                               </button>
                             ) : null}
                           </div>
@@ -1799,7 +2009,8 @@ export default function TeklifVerPage() {
                         href={d.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="min-w-0 flex-1 truncate text-sm text-blue-600 hover:underline"
+                        title={d.fileName}
+                        className="line-clamp-2 min-w-0 flex-1 text-sm break-all text-blue-600 hover:underline sm:line-clamp-1"
                       >
                         {d.fileName}
                       </a>
@@ -1835,7 +2046,8 @@ export default function TeklifVerPage() {
                               );
                             }
                           }}
-                          className="shrink-0 text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                          // Dokunma alanı 32 px; görsel yeri değişmez (-m-2 p-2).
+                          className="-m-2 shrink-0 rounded-md p-2 text-zinc-400 hover:text-red-600 disabled:opacity-50"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1843,13 +2055,20 @@ export default function TeklifVerPage() {
                     </li>
                   ))}
                   {stagedFiles.map((sf, i) => (
+                    // Mobilde tür seçici kendi satırına iner (mobil denetim
+                    // g08): yan yana dizilimde ad 40 px'e ("MO…") iniyor,
+                    // boyut/durum metni seçicinin altına giriyordu. sm ve
+                    // üstünde tek satır (seçici adın sağında) değişmedi.
                     <li
                       key={`${sf.file.name}-${i}`}
-                      className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2 sm:flex-nowrap"
                     >
                       <Paperclip className="h-4 w-4 shrink-0 text-blue-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-zinc-800">
+                        <p
+                          className="line-clamp-2 text-sm break-all text-zinc-800 sm:line-clamp-1"
+                          title={sf.file.name}
+                        >
                           {sf.file.name}
                         </p>
                         <p className="text-xs text-zinc-400">
@@ -1866,7 +2085,7 @@ export default function TeklifVerPage() {
                             ),
                           )
                         }
-                        className="w-40 shrink-0"
+                        className="order-last w-full sm:order-none sm:w-40 sm:shrink-0"
                         options={BID_DOC_SELECTABLE_KINDS.map((k) => ({
                           value: k,
                           label: docKindLabel(k),
@@ -1893,11 +2112,13 @@ export default function TeklifVerPage() {
         {/* Sağ — yapışkan toplam */}
         <div className="lg:sticky lg:top-6 lg:self-start">
           <div className="space-y-3">
-            <div className="rounded-2xl bg-emerald-700 p-5 text-white">
+            {/* `@container`: toplamın yazı boyu kartın iç genişliğine göre
+                (mobil denetim 2026-10 — 1024 + kenar çubuğunda 181 px). */}
+            <div className="@container rounded-2xl bg-emerald-700 p-5 text-white">
               <p className="text-xs font-semibold tracking-wide text-emerald-200 uppercase">
                 {tr("toplamTeklif")}
               </p>
-              <p className="mt-1 text-2xl font-bold tabular-nums">
+              <p className="mt-1 text-2xl font-bold tabular-nums" style={{ fontSize: totalFontLarge }}>
                 {totalLabel}
               </p>
               {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
@@ -1961,15 +2182,30 @@ export default function TeklifVerPage() {
                 {tr("taslakOlarakKaydet")}
               </Button>
             ) : null}
+            {/* Kaydedilmemiş değişiklik varken sayfadaki koruma sorar
+                (`useUnsavedChangesGuard`; mobil denetim g08). Mobilde dokunma
+                alanı 36 px. */}
             <Link
               href={detailHref}
-              className="block text-center text-sm text-zinc-500 hover:text-zinc-700"
+              className="block py-2 text-center text-sm text-zinc-500 hover:text-zinc-700 sm:py-0"
             >
               {tr("vazgec")}
             </Link>
 
             {problems.length > 0 ? (
-              <ul className="space-y-1 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-xs text-zinc-500">
+              // Mobil yapışkan "Teklif Gönder" eksik varken buraya getirir,
+              // odaklar ve kısa süre vurgular (`revealProblems`).
+              <ul
+                ref={problemsRef}
+                id={problemsId}
+                tabIndex={-1}
+                className={cn(
+                  "scroll-mt-20 space-y-1 rounded-lg border p-3 text-xs transition-colors duration-300 focus:outline-none",
+                  problemsFlash
+                    ? "border-amber-300 bg-amber-50 text-amber-800"
+                    : "border-zinc-100 bg-zinc-50/60 text-zinc-500",
+                )}
+              >
                 {/* key=metin OLMAZ: aynı adlı iki kalem aynı mesajı üretip
                     çift key ile bayat <li> bırakıyordu. */}
                 {problems.map((p, i) => (
@@ -1997,13 +2233,27 @@ export default function TeklifVerPage() {
         </div>
       </div>
 
-      {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
-      <div className="fixed inset-x-0 bottom-0 z-20 mb-0 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
-        <div className="min-w-0">
+      {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var).
+          Mobil denetim g08:
+          - Dokunmatik cihazda bir metin alanı odaktayken (ekran klavyesi
+            açık) GİZLİ: klavyenin üstüne binen çubuk yazılan alanı örtüyordu.
+          - Toplam sütunu kalan genişliği alır, düğme en çok yarı genişlik ve
+            gerekirse iki satır: RU "Отправить предложение" tek satırda
+            240 px tutup tutarı düğmenin altına itiyordu.
+          - `data-sticky-cta`: AI düğmesi alt çubukları bu işaretle de tanır. */}
+      <div
+        data-sticky-cta=""
+        className={cn(
+          // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
+          "fixed inset-x-0 bottom-0 z-20 mb-0 items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] backdrop-blur lg:hidden",
+          touchTyping ? "hidden" : "flex",
+        )}
+      >
+        <div className="@container min-w-0 flex-1">
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
             {tr("toplamTeklif")}
           </p>
-          <p className="text-base font-bold text-zinc-950 tabular-nums">
+          <p className="text-base font-bold text-zinc-950 tabular-nums" style={{ fontSize: totalFontBar }}>
             {totalLabel}
           </p>
           {/* Sınır yerine YAPILAN indirim (öncekine göre). */}
@@ -2028,11 +2278,27 @@ export default function TeklifVerPage() {
             </p>
           ) : null}
         </div>
+        {/* Eksik varken düğme PASİF DEĞİL (mobil denetim g08): pasif düğmeye
+            dokunmak hiçbir şey yapmıyordu, nedenler formun en altındaydı.
+            Görünümü pasif gibi kalır (`data-incomplete`; `aria-disabled`
+            KULLANILMAZ — Headless UI o öznitelikte tıklama işleyicisini
+            söker), eksik listesi açıklama olarak bağlı; basınca liste görünür
+            alana gelir. Masaüstü sağ kolon düğmesi ve Enter (formun ilk
+            gönder düğmesi o) değişmedi. */}
         <Button
           type="submit"
           color="emerald"
-          disabled={problems.length > 0 || busy}
-          className="shrink-0 whitespace-nowrap"
+          disabled={busy}
+          data-incomplete={problems.length > 0 ? "" : undefined}
+          aria-describedby={problems.length > 0 ? problemsId : undefined}
+          onClick={(e) => {
+            if (problems.length === 0) return;
+            e.preventDefault();
+            revealProblems();
+          }}
+          // Telefonda iki satıra sarabilir: satır yüksekliği sıkı, dolgu 2 px
+          // fazla → tek satırlık etiket (TR/EN) yine 44 px, RU iki satır 64 px.
+          className="max-w-[50%] shrink-0 text-center leading-tight whitespace-normal max-sm:py-[calc(--spacing(3)-1px)] data-incomplete:text-zinc-400 data-incomplete:[--btn-hover-overlay:transparent] data-incomplete:[--btn-icon:var(--color-zinc-400)] data-incomplete:before:shadow-none data-incomplete:after:shadow-none sm:max-w-none sm:whitespace-nowrap"
         >
           {tr("teklifGonder")}
         </Button>
@@ -2054,9 +2320,9 @@ export default function TeklifVerPage() {
             : tr("teklifGonder")}
         </DialogTitle>
         <DialogBody>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+          <div className="@container rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
             <p className="text-xs font-semibold text-emerald-700">{tr("toplamTeklif")}</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
+            <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums" style={{ fontSize: totalFontLarge }}>
               {totalLabel}
             </p>
             {mixedCurrency ? (

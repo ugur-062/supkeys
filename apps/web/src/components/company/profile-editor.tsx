@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
@@ -445,7 +446,7 @@ export function ProfileEditor({
           </span>
         ) : null}
         {profile.rothernId ? (
-          <span className="tabular-nums text-xs text-zinc-400">{profile.rothernId}</span>
+          <span className={cn(ID_TOKEN_CLASS, "text-xs text-zinc-400")}>{profile.rothernId}</span>
         ) : null}
       </div>
     ),
@@ -672,7 +673,8 @@ export function ProfileEditor({
       {dirty ? (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur sm:pl-72"
+          // Alt pay: ana ekran çizgisi (güvenli alan); yatay telefonda çentik tarafı.
+          className="fixed inset-x-0 bottom-0 z-20 mb-0 border-t border-zinc-950/10 bg-white/95 pt-3 pr-[calc(1rem+var(--safe-right))] pb-[calc(0.75rem+var(--safe-bottom))] pl-[calc(1rem+var(--safe-left))] shadow-2xl backdrop-blur sm:pl-72"
         >
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
             {/* GERİ YÜKLENEN TASLAK ÇUBUKTA DA SÖYLENİR (canlı doğrulama PD-R4).
@@ -708,7 +710,7 @@ export function ProfileEditor({
 
 /** Sayfa düzeni — sol profil + sağ yapışkan ray (xl altında alt alta). */
 const FRAME = "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]";
-const RAIL = "space-y-4 xl:sticky xl:top-20 xl:self-start";
+const RAIL = "space-y-4 xl:sticky xl:top-[calc(5rem+var(--safe-top))] xl:self-start";
 
 function EditorHeader({
   profile,
@@ -1334,6 +1336,17 @@ function AboutEditor({
   );
 }
 
+/**
+ * Çip / liste kaldır düğmesi (mobil denetim g10-08, 2026-10-15): 14 px çıplak
+ * simgeydi. Kutu 28 px; negatif dikey boşlukla satır / çip yüksekliği
+ * değişmez. Çiplerde görünmez katman alanı 36 px'e çıkarır (çip satırları
+ * arası 8 px — komşu çiple çakışmaz); liste satırları 28 px arayla durduğu
+ * için orada katman yok.
+ */
+const LIST_REMOVE_CLASS =
+  "relative -my-1 -mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700";
+const CHIP_REMOVE_CLASS = `${LIST_REMOVE_CLASS} after:absolute after:-inset-1`;
+
 function ChipEditor({
   ariaLabel,
   values,
@@ -1385,19 +1398,19 @@ function ChipEditor({
           {values.map((v) => (
             <span key={v} className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
               {v}
-              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
+              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className={CHIP_REMOVE_CLASS}>
                 <X className="size-3.5" />
               </button>
             </span>
           ))}
         </div>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-2">
           {values.map((v) => (
             <li key={v} className="flex items-center gap-2 text-sm text-zinc-700">
-              <span className="flex size-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">✓</span>
-              <span className="flex-1">{v}</span>
-              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs text-white">✓</span>
+              <span className="min-w-0 flex-1 wrap-break-word">{v}</span>
+              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className={LIST_REMOVE_CLASS}>
                 <X className="size-3.5" />
               </button>
             </li>
@@ -1513,7 +1526,8 @@ function GalleryEditor({
               type="button"
               aria-label={t("kaldir", { v: `${label} ${i + 1}` })}
               onClick={() => onChange(values.filter((_, j) => j !== i))}
-              className="absolute right-1.5 top-1.5 rounded-full bg-white/90 p-1 text-zinc-700 shadow hover:bg-white"
+              // Görünen düğme 22 px; dokunma alanı görünmez katmanla ~40 px (g10-08).
+              className="absolute right-1.5 top-1.5 rounded-full bg-white/90 p-1 text-zinc-700 shadow after:absolute after:-inset-2.5 hover:bg-white"
             >
               <X className="size-3.5" />
             </button>

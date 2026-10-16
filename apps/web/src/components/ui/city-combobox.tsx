@@ -3,7 +3,7 @@
 import { Input as HeadlessInput } from "@headlessui/react";
 import type { Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,16 @@ export function CityCombobox({
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<GeoCity[]>([]);
   const [active, setActive] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
+  const showList = open && options.length > 0;
+
+  // Liste alanın İÇİNDE (absolute) çizilir: telefonda kayan pencere gövdesinde
+  // (adres penceresi; klavye açıkken ~150-200 px) altı kırpılıyordu. Açılınca
+  // ya da seçenekler değişince en yakın kaydırma kabı listeyi gösterecek kadar
+  // kayar (mobil denetim g11; görünüyorsa kaydırmaz).
+  useEffect(() => {
+    if (showList) listRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [showList, options]);
 
   useEffect(() => {
     const q = value.trim();
@@ -116,6 +126,15 @@ export function CityCombobox({
             e.preventDefault();
             choose(options[active]!);
           } else if (e.key === "Escape") {
+            // Açık liste Escape'i TÜKETİR: yalnız liste kapanır. Eskiden tuş
+            // pencereye de ulaşıyor, Adres Ekle penceresi yazılanlarla birlikte
+            // kapanıyordu (Ülke seçici yalnız listesini kapatır — mobil denetim
+            // g11). Headless `Dialog` `defaultPrevented` Escape'i yok sayar;
+            // liste kapalıyken (seçenek yok) tuş pencereye geçer.
+            if (showList) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
             setOpen(false);
           }
         }}
@@ -124,8 +143,9 @@ export function CityCombobox({
           invalid ? "border-red-500" : "border-zinc-950/10 focus:border-zinc-950/20",
         )}
       />
-      {open && options.length > 0 ? (
+      {showList ? (
         <ul
+          ref={listRef}
           id={listId}
           role="listbox"
           className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-zinc-950/10 bg-white p-1 shadow-lg ring-1 ring-zinc-950/5"

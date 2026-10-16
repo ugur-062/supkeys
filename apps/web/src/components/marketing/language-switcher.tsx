@@ -64,8 +64,11 @@ export function LanguageSwitcher({
             hrefLang={code}
             lang={code}
             aria-current={code === locale ? "true" : undefined}
+            // Telefonda 44 px dokunma alanı (mobil denetim 2026-10 g01): mobil
+            // menüde dil değiştirmenin tek yolu bu satır, bağlantılar 20 px'ti.
+            // Yatay boşluk (gap-x-4) aynı; sm ve üstünde eski satır yüksekliği.
             className={cn(
-              "text-sm transition",
+              "inline-flex min-h-11 items-center text-sm transition sm:min-h-0",
               code === locale ? "font-semibold text-zinc-950" : "text-zinc-500 hover:text-zinc-950",
             )}
           >

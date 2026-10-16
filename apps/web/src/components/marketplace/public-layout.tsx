@@ -56,7 +56,17 @@ export function PublicLayout({
           bağlanırlar. */}
       <JsonLd data={siteGraph(isLocale(locale) ? locale : undefined)} />
       <MarketingHeader />
-      <main>{children}</main>
+      {/* Sabit üst çubuk güvenli alanın üst payı kadar uzar (mobil kabuk);
+          sayfaların kendi üst boşluğu (`pt-28`, hero `pt-32`) aynı kalır,
+          pay burada eklenir. Pay 0 iken eskisiyle aynı.
+          `@container` (2. tur safe-area): tam genişlik bantlar (`100cqw`,
+          anasayfa hero'su — `heroBandClass`) gövdenin yatay güvenli alan
+          payı DÜŞÜLMÜŞ genişliği ölçer; kapsayıcı yokken `100cqw` görünüm
+          alanının tamamıydı ve yatay iPhone'da arama kutusu ile "Ara"
+          çentik tarafına taşıyordu. Panelde `main` zaten kapsayıcı. Kapsayıcı
+          sabit konumlu öğeler için içerik bloğu kurmaz (yüzen düğmeler
+          görünüm alanına göre kalır). */}
+      <main className="@container pt-(--safe-top)">{children}</main>
       <MarketplaceFooter />
     </div>
   );

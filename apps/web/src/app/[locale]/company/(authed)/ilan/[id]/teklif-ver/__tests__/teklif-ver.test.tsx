@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,8 @@ const h = vi.hoisted(() => ({
   push: vi.fn(),
   refetch: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  /** Onay penceresi (`useConfirm`) — varsayılan "evet". */
+  confirm: vi.fn<(opts: unknown) => Promise<boolean>>(async () => true),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,7 +30,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/components/providers/confirm-dialog", () => ({
-  useConfirm: () => async () => true,
+  useConfirm: () => h.confirm,
 }));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const mod = await importOriginal<Record<string, unknown>>();
@@ -140,6 +142,8 @@ beforeEach(() => {
   h.isLoading = false;
   h.paused = false;
   h.docs = [];
+  // Kaydedilmemiş form taslağı oturum deposunda — testler arasında taşınmasın.
+  sessionStorage.clear();
 });
 
 describe("TeklifVerPage — kapılar", () => {
@@ -1023,5 +1027,364 @@ describe("TeklifVerPage — yanıt beklenirken (canlı doğrulama 2026-10-09 tar
     render(<TeklifVerPage />);
     expect(screen.queryByRole("heading", { name: "Talebe ulaşılamıyor." })).toBeNull();
     expect(screen.getByText("Yükleniyor…")).toBeInTheDocument();
+  });
+});
+
+describe("TeklifVerPage — mobil denetim 2026-10 g08", () => {
+  /** Dokunmatik cihaz (birincil işaretçi kaba) sahtesi; testten sonra geri alınır. */
+  function withCoarsePointer(): () => void {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === "(pointer: coarse)",
+      media: query,
+      onchange: null,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  }
+
+  const stickyBar = () => document.querySelector<HTMLElement>("[data-sticky-cta]")!;
+
+  /** Taslak deposu kullanıcı + firma kimliğine bağlı — oturum açık kullanıcı. */
+  function withSignedInUser(): () => void {
+    const prev = useCompanyAuthStore.getState();
+    useCompanyAuthStore.setState({
+      user: { id: "u1", permissions: ["sell:view", "sell:bid:submit"], roles: [], isOwner: true },
+      company: { id: "c1" },
+    } as never);
+    return () => useCompanyAuthStore.setState({ user: prev.user, company: prev.company } as never);
+  }
+
+  it("yapışkan çubuk data-sticky-cta taşır; toplam sütunu esner, düğme en çok yarı genişlik ve telefonda sarabilir (RU taşması)", () => {
+    render(<TeklifVerPage />);
+    const bar = stickyBar();
+    expect(bar).not.toBeNull();
+    expect(bar.className.split(" ")).toEqual(expect.arrayContaining(["fixed", "inset-x-0", "bottom-0", "mb-0", "flex"]));
+    expect((bar.firstElementChild as HTMLElement).className.split(" ")).toEqual(
+      expect.arrayContaining(["min-w-0", "flex-1"]),
+    );
+    const btn = within(bar).getByRole("button", { name: "Teklif Gönder" });
+    const classes = btn.className.split(" ");
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "max-w-[50%]",
+        "whitespace-normal",
+        "sm:whitespace-nowrap",
+        // Sıkı satır yüksekliğinde tek satırlık etiket yine 44 px kalsın.
+        "leading-tight",
+        "max-sm:py-[calc(--spacing(3)-1px)]",
+      ]),
+    );
+    expect(classes).not.toContain("whitespace-nowrap");
+  });
+
+  it("eksik varken yapışkan 'Teklif Gönder' pasif değil: basınca eksik listesi odaklanır, onay penceresi açılmaz; masaüstü düğmesi pasif kalır", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    const desktop = screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!;
+    const sticky = within(stickyBar()).getByRole("button", { name: "Teklif Gönder" });
+    expect(desktop).toBeDisabled();
+    expect(sticky).toBeEnabled();
+    // Pasif GÖRÜNÜR ama tıklanır (Headless UI `aria-disabled`de işleyiciyi söker).
+    expect(sticky).toHaveAttribute("data-incomplete");
+    expect(sticky).not.toHaveAttribute("aria-disabled");
+    const list = screen.getByText(/En az bir kaleme birim fiyat girin/).closest("ul")!;
+    expect(sticky).toHaveAttribute("aria-describedby", list.id);
+
+    await user.click(sticky);
+    expect(list).toHaveFocus();
+    expect(list.className).toContain("border-amber-300");
+    expect(screen.queryByRole("button", { name: "Teklifi Gönder" })).toBeNull();
+  });
+
+  it("eksik kalmayınca yapışkan 'Teklif Gönder' onay penceresini açar", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    const sticky = within(stickyBar()).getByRole("button", { name: "Teklif Gönder" });
+    expect(sticky).not.toHaveAttribute("data-incomplete");
+    await user.click(sticky);
+    expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+  });
+
+  it("dokunmatik cihazda metin alanı odaktayken (ekran klavyesi) yapışkan çubuk gizlenir, odak çıkınca geri gelir", async () => {
+    const restore = withCoarsePointer();
+    try {
+      render(<TeklifVerPage />);
+      expect(stickyBar().className).toContain("flex");
+      const price = screen.getByLabelText("Çelik Boru birim fiyat");
+      act(() => price.focus());
+      await waitFor(() => expect(stickyBar().className.split(" ")).toContain("hidden"));
+      // Seçim kutusu klavye açmaz → çubuk geri gelir.
+      act(() => screen.getByLabelText("Genel teslim süresi").focus());
+      await waitFor(() => expect(stickyBar().className.split(" ")).toContain("flex"));
+    } finally {
+      restore();
+    }
+  });
+
+  it("fareli cihazda alan odakta olsa da yapışkan çubuk yerinde kalır", async () => {
+    render(<TeklifVerPage />);
+    act(() => screen.getByLabelText("Çelik Boru birim fiyat").focus());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(stickyBar().className.split(" ")).not.toContain("hidden");
+  });
+
+  it("kalem 'teklif vermiyorum' düğmesinin metni telefonda da görünür (yalnız × değil)", () => {
+    render(<TeklifVerPage />);
+    const btn = screen.getByRole("button", { name: "Çelik Boru kalemine teklif vermiyorum" });
+    expect(btn).toHaveTextContent("Bu kaleme teklif vermiyorum");
+    expect(btn.querySelector(".sr-only")).toBeNull();
+    expect(btn.className.split(" ")).toEqual(expect.arrayContaining(["min-h-11", "-mx-2", "px-2", "text-left"]));
+  });
+
+  // Mobil denetim 2026-10 (1024 + sabit kenar çubuğu): sol sütun 443 px; ekran
+  // genişliğine (`sm:`) bağlı yan yana dizilimde 144 px fiyat + "teklif
+  // vermiyorum" (RU 289 px) kalem adına 69 px bırakıyor, ad 7 satıra
+  // kırılıyordu. Kart KENDİ genişliğine göre dizilir; düğme her genişlikte
+  // fiyatın altında, 144 px'lik sütunun içinde sarar.
+  it("kalem kartı kendi genişliğine göre dizilir (@container): ad solda, fiyat sütunu 144 px, 'teklif vermiyorum' fiyatın altında sarar", () => {
+    render(<TeklifVerPage />);
+    const btn = screen.getByRole("button", { name: "Çelik Boru kalemine teklif vermiyorum" });
+    const priceCol = btn.parentElement as HTMLElement;
+    expect(priceCol.className.split(" ")).toEqual(
+      expect.arrayContaining(["flex", "flex-col", "items-start", "@sm:w-36", "@sm:shrink-0"]),
+    );
+    // Fiyat ve düğme aynı sütunda, alt alta (yan yana dizilim yok).
+    expect(priceCol.className).not.toMatch(/(^|\s)(@?\w*:)?flex-row(\s|$)/);
+    expect(within(priceCol).getByLabelText("Çelik Boru birim fiyat")).toBeInTheDocument();
+    const row = priceCol.parentElement as HTMLElement;
+    expect(row.className.split(" ")).toEqual(
+      expect.arrayContaining(["flex", "flex-col", "@sm:flex-row", "@sm:items-start"]),
+    );
+    expect(row.className).not.toMatch(/(^|\s)sm:flex-row(\s|$)/);
+    const card = row.parentElement as HTMLElement;
+    expect(card.className.split(" ")).toContain("@container");
+    // Ad sütunu esner, taban 0 (fiyat sütunu onu sıkıştırmaz, taşırmaz).
+    expect((row.firstElementChild as HTMLElement).className.split(" ")).toEqual(
+      expect.arrayContaining(["min-w-0", "flex-1"]),
+    );
+    // Düğme metni sarabilir: ekran genişliğine bağlı hizalama/boyut kalmadı.
+    const cls = btn.className.split(" ");
+    expect(cls).not.toContain("shrink-0");
+    expect(cls.filter((c) => /^sm:/.test(c))).toEqual([]);
+    expect(btn.querySelector("svg")?.getAttribute("class")).toMatch(/(^|\s)shrink-0(\s|$)/);
+  });
+
+  // Mobil denetim v4new2: kalem ek alanları ekran kırılımıyla (`sm:`) iki
+  // sütundu — 1024 + sabit kenar çubuğunda 463 px'lik kartta seçimler 208 px'e
+  // iniyor, RU "Действует общий срок" sözcük ortasından kesiliyordu. Izgara
+  // kendi kabının (`@container`) genişliğine bakar: iki sütun ≥ 32 rem.
+  it("kalem ek alanları kendi kabının genişliğine göre dizilir (@container, @lg:grid-cols-2)", () => {
+    h.detail = baseDetail({ allowedCurrencies: ["TRY", "EUR"] });
+    render(<TeklifVerPage />);
+    const delivery = screen.getByLabelText("Çelik Boru teslim süresi");
+    const grid = delivery.closest(".grid") as HTMLElement;
+    expect(grid).toBe(screen.getByLabelText("Çelik Boru para birimi").closest(".grid"));
+    expect(grid.className.split(" ")).toEqual(expect.arrayContaining(["grid-cols-1", "@lg:grid-cols-2"]));
+    expect(grid.className).not.toMatch(/(^|\s)sm:/);
+    expect((grid.parentElement as HTMLElement).className.split(" ")).toContain("@container");
+    // Muadil satırı iki sütunu kaplar — aynı kap kırılımıyla (tek sütunda
+    // `col-span-2` örtük ikinci sütun açardı).
+    const altField = screen.getByLabelText(/^Muadil \(eşdeğer\) ürün teklif ediyorum/).closest("label")!.parentElement as HTMLElement;
+    expect(altField.parentElement).toBe(grid);
+    expect(altField.className).toMatch(/(^|\s)@lg:col-span-2(\s|$)/);
+    expect(altField.className).not.toMatch(/(^|\s)sm:col-span/);
+  });
+
+  // Mobil denetim 2026-10: 1024 + kenar çubuğunda sağ kolon 221 px — 24 px'lik
+  // "1.800.000.000,00 ₺" kartı ve sayfayı taşırıyordu (scrollWidth 1028). Tutar
+  // bölünmez; yazı boyu kutuya göre küçülür (`fit-total.ts`).
+  it("toplam kutuları @container; tutar bölünmeyen parça olarak kalır", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+    const label = screen.getAllByText("Toplam Teklif").find((p) => p.closest(".bg-emerald-700"))!;
+    const card = label.closest(".bg-emerald-700") as HTMLElement;
+    expect(card.className.split(" ")).toContain("@container");
+    const amount = label.nextElementSibling as HTMLElement;
+    expect(amount.className.split(" ")).toEqual(expect.arrayContaining(["text-2xl", "tabular-nums"]));
+    for (const part of amount.querySelectorAll("span")) {
+      expect(part.className.split(" ")).toContain("whitespace-nowrap");
+    }
+    expect(amount.className).not.toMatch(/(^|\s)(break-all|wrap-anywhere|break-words)(\s|$)/);
+    // Mobil alt çubuğun toplam sütunu da kapsayıcı.
+    const barTotal = within(stickyBar()).getByText("Toplam Teklif").parentElement as HTMLElement;
+    expect(barTotal.className.split(" ")).toEqual(expect.arrayContaining(["@container", "min-w-0", "flex-1"]));
+  });
+
+  it("muadil onay kutusu iki satırlık etikette ezilmez (shrink-0)", () => {
+    render(<TeklifVerPage />);
+    const box = screen.getByRole("checkbox", { name: /muadil/i });
+    expect(box.className.split(" ")).toContain("shrink-0");
+  });
+
+  it("seçilen dosya satırı: tür seçici telefonda ayrı satırda, ad iki satıra kadar okunur", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    const name = "MOBIL-QA-teklif-mektubu-ornek-uzun-dosya-adi-2026.pdf";
+    await user.upload(
+      screen.getByLabelText("Teklif dosyası seç"),
+      new File(["%PDF-1.4"], name, { type: "application/pdf" }),
+    );
+    const nameEl = screen.getByText(name);
+    expect(nameEl).toHaveAttribute("title", name);
+    expect(nameEl.className.split(" ")).toEqual(expect.arrayContaining(["line-clamp-2", "break-all"]));
+    const row = nameEl.closest("li")!;
+    expect(row.className.split(" ")).toEqual(expect.arrayContaining(["flex-wrap", "sm:flex-nowrap"]));
+    // Tür seçicinin (SelectMenu) kökü, adlandırılmış düğmesinin ebeveyni.
+    const selectRoot = within(row).getByRole("button", { name: `${name} kategorisi` })
+      .parentElement as HTMLElement;
+    expect(selectRoot.className.split(" ")).toEqual(
+      expect.arrayContaining(["order-last", "w-full", "sm:order-none", "sm:w-40"]),
+    );
+  });
+
+  it("Vazgeç: fiyat yazılmışsa sormadan gitmez; 'Ayrıl' denince talebe döner ve saklanan taslak silinir", async () => {
+    const restore = withSignedInUser();
+    try {
+      const user = userEvent.setup();
+      render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await waitFor(() =>
+        expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toContain("150"),
+      );
+      await user.click(screen.getByRole("link", { name: "Vazgeç" }));
+      await waitFor(() => expect(h.confirm).toHaveBeenCalledTimes(1));
+      expect(h.confirm.mock.calls[0]![0]).toMatchObject({ title: "Kaydedilmemiş değişiklikler kaybolsun mu?" });
+      await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/l1"));
+      expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it("Vazgeç diyaloğunda 'Formda kal' → sayfada kalınır, fiyat ve taslak durur", async () => {
+    const restore = withSignedInUser();
+    h.confirm.mockResolvedValueOnce(false);
+    try {
+      const user = userEvent.setup();
+      render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await user.click(screen.getByRole("link", { name: "Vazgeç" }));
+      await waitFor(() => expect(h.confirm).toHaveBeenCalledTimes(1));
+      expect(h.push).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toContain("150");
+    } finally {
+      restore();
+    }
+  });
+
+  it("geri hareketiyle çıkılan form yeniden açılınca fiyatlar geri yüklenir; 'Değişiklikleri at' sunucu hâline döndürür", async () => {
+    const restore = withSignedInUser();
+    try {
+      const user = userEvent.setup();
+      const first = render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+      await waitFor(() =>
+        expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toContain("Türkiye"),
+      );
+      // Geri hareketi: soru sorulmadan sayfa kapanır.
+      first.unmount();
+      expect(h.confirm).not.toHaveBeenCalled();
+
+      render(<TeklifVerPage />);
+      expect(
+        await screen.findByText("Kaydetmediğiniz teklif bilgileri geri yüklendi."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Fiyatlandırılan kalem 1/1")).toBeInTheDocument();
+      expect(screen.getByLabelText(/Menşei ülke/)).toHaveValue("Türkiye");
+
+      await user.click(screen.getByRole("button", { name: "Değişiklikleri at" }));
+      await waitFor(() => expect(screen.getByText("Fiyatlandırılan kalem 0/1")).toBeInTheDocument());
+      expect(screen.queryByText("Kaydetmediğiniz teklif bilgileri geri yüklendi.")).toBeNull();
+      expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it("taslak saklıyken talep kapandıysa (kapı ekranı, form yok) bağlantı kaydedilmemiş değişiklik sormaz", async () => {
+    const restore = withSignedInUser();
+    try {
+      const user = userEvent.setup();
+      const first = render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await waitFor(() => expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).not.toBeNull());
+      first.unmount();
+
+      // Teklif aynı (taban değişmedi) ama talep kapandı → form yerine kapı ekranı.
+      h.detail = baseDetail({ status: "CLOSED" });
+      render(<TeklifVerPage />);
+      await screen.findByText("Bu alım talebine artık teklif verilemez");
+      // jsdom belge gezinmesini desteklemez: koruma (yakalama aşaması) sormazsa
+      // tıklama buraya ulaşır, gezinme burada durdurulur.
+      const stopNavigation = (e: MouseEvent) => e.preventDefault();
+      document.addEventListener("click", stopNavigation);
+      try {
+        await user.click(screen.getByRole("link", { name: "Alım Talebi Detayına Dön" }));
+      } finally {
+        document.removeEventListener("click", stopNavigation);
+      }
+      expect(h.confirm).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("sunucudaki teklif değiştiyse (ör. taslak kaydedildi) eski oturum taslağı geri yüklenmez", async () => {
+    const restore = withSignedInUser();
+    try {
+      const user = userEvent.setup();
+      const first = render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await waitFor(() => expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).not.toBeNull());
+      first.unmount();
+
+      h.detail = baseDetail({
+        myBid: {
+          amount: "900",
+          status: "DRAFT",
+          version: 2,
+          note: null,
+          items: [{ itemId: "i1", unitPrice: "90" }],
+        },
+      } as Partial<ListingDetail>);
+      render(<TeklifVerPage />);
+      await screen.findByText("Fiyatlandırılan kalem 1/1");
+      expect(screen.queryByText("Kaydetmediğiniz teklif bilgileri geri yüklendi.")).toBeNull();
+      expect(screen.getAllByText(/900/).length).toBeGreaterThan(0);
+      expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it("başarılı gönderim saklanan taslağı siler", async () => {
+    const restore = withSignedInUser();
+    h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
+    try {
+      const user = userEvent.setup();
+      render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+      await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+      await waitFor(() => expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).not.toBeNull());
+      await user.click(screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!);
+      await user.click(await screen.findByRole("button", { name: "Teklifi Gönder" }));
+      await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/l1"));
+      expect(sessionStorage.getItem("rothern:bid-form-draft:u1:l1")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });

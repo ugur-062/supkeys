@@ -52,6 +52,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useProductArchive } from "./use-product-archive";
+import { useRailFitTop } from "./use-rail-fit-top";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -353,6 +354,22 @@ export function ProductShowcaseForm({
   useEffect(() => () => dirtyCb.current?.(false), []);
 
   /**
+   * Yapışkan rayın ofseti eylem çubuğunun GERÇEK yüksekliğinden: çubuk notla
+   * ya da iki satırlık eylemle 80–88 px olunca sabit `7.5rem` ofsetli ray
+   * çubuğun altında kalıyor, "Tamamlanma" satırı görünmüyordu (masaüstü, mobil
+   * denetim g09 doğrulama turu). Değer kökün `--product-bar-h` değişkenine
+   * DOM'dan yazılır (formu yeniden çizdirmez); ölçülmeden önce 4rem (64 px,
+   * notsuz tek satır çubuk).
+   */
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const writeBarHeight = (px: number) => {
+    layoutRef.current?.style.setProperty("--product-bar-h", `${px}px`);
+  };
+  /* Ray görünür alana sığar: henüz yapışmamışken (ilk görünüm) de AI düğmesinin üstünde biter. */
+  const railRef = useRef<HTMLElement>(null);
+  useRailFitTop(railRef, layoutRef);
+
+  /**
    * CANLI tamamlanma + onay kapısı — sunucuyla AYNI kurallar
    * (`@rothern/shared` product-completion).
    */
@@ -630,7 +647,15 @@ export function ProductShowcaseForm({
       : status === "rejected"
         ? t("duzeltVeYenidenGonder")
         : t("kaydet");
+  /* Telefon şeridindeki kısa metin — tam metnin parçası (erişilebilir ad tam metin kalır). */
+  const primaryShortLabel =
+    status === "draft" ? t("onayaGonderKisa") : status === "rejected" ? t("duzeltVeYenidenGonderKisa") : undefined;
   const primaryAction = () => void handleSave(status === "draft" || status === "rejected");
+  /* Çubuktaki "Eksikler (N)": yayındaki üründe kaydı KESEN eksikler, taslak /
+     düzeltmede onaya göndermek için gerekenler (mobil denetim g09 — ray lg
+     altında sayfanın en altında; taslak eksiklerini ancak hata toast'ından
+     öğreniyordu). */
+  const missingBlockers = status === "published" ? cuttingBlockers : live.blockers;
 
   const publicHref =
     !isNew && product.isPublic && company?.slug && product.slug ? productPath(company.slug, product.slug) : null;
@@ -670,8 +695,9 @@ export function ProductShowcaseForm({
      Canlı önizleme paneli KALDIRILDI — yayındaki ürün önce salt-okunur
      önizlemeyle açılır, "Düzenle" bu forma getirir. */
   return (
-    <div>
+    <div ref={layoutRef}>
       <ProductActionBar
+        onHeightChange={writeBarHeight}
         name={name}
         status={status}
         isNew={isNew}
@@ -679,6 +705,7 @@ export function ProductShowcaseForm({
         busy={busy}
         canManage={canManage}
         primaryLabel={primaryLabel}
+        primaryShortLabel={primaryShortLabel}
         onPrimary={primaryAction}
         // Yayındaki üründe değişiklik yokken Kaydet KAPALI (2026-09-19, kullanıcı
         // bulgusu: değişmeden kaydedince yeniden incelemeye giriyordu).
@@ -692,8 +719,8 @@ export function ProductShowcaseForm({
         publicHref={publicHref}
         publishLocked={publishLocked}
         blockedNotice={publishedBlocked && dirty}
-        blockedCount={cuttingBlockers.length}
-        onShowMissing={publishedBlocked ? () => jump(sectionFor(cuttingBlockers[0])) : undefined}
+        missingCount={missingBlockers.length}
+        onShowMissing={missingBlockers.length > 0 ? () => jump(sectionFor(missingBlockers[0]!)) : undefined}
       />
       {status === "rejected" && product.rejectReason ? (
         <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
@@ -705,7 +732,12 @@ export function ProductShowcaseForm({
         {/* İZİNSİZ (salt-okur) kullanıcıda alanlar KAPALI, yükleme kontrolleri
             çizilmez (arayüz testi O-099) — eskiden form tam düzenlenebilir
             açılıyor, yüklemeler 403 alıyordu. */}
-        <fieldset disabled={!canManage} className="min-w-0">
+        {/* Klavye açılınca tarayıcı odaktaki alanı görünür alana kaydırır; alan
+            (ve üstündeki etiket) yapışkan çubuğun altında kalmasın (mobil denetim g09). */}
+        <fieldset
+          disabled={!canManage}
+          className="min-w-0 [&_:is(input,textarea,select)]:scroll-mt-40 sm:[&_:is(input,textarea,select)]:scroll-mt-44"
+        >
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
             <Section id="urun-temel" n={1} title={t("temelBilgiler")} lead={t("adKategoriVeAciklamaArama")}>
@@ -780,13 +812,17 @@ export function ProductShowcaseForm({
                 {keywords.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {keywords.map((k) => (
-                      <span key={k} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700">
-                        {k}
+                      <span key={k} className="inline-flex max-w-full items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700">
+                        <span className="min-w-0 break-words">{k}</span>
+                        {/* Kaldır düğmesi 28 px (ikon aynı); dokunmatikte isabet alanı 40×36 px —
+                            eskiden 14×14 px'ti (mobil denetim g09). `-my-1` çip yüksekliğini korur.
+                            Dikey taşma 4 px = satır aralığının (`gap-2`) yarısı: alt alta iki
+                            çipin × alanı üst üste binmez. */}
                         <button
                           type="button"
                           onClick={() => setKeywords(keywords.filter((x) => x !== k))}
                           aria-label={t("etiketiniKaldir", { keyword: k })}
-                          className="text-zinc-400 hover:text-zinc-900"
+                          className="relative -my-1 -mr-1.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full text-zinc-500 after:absolute pointer-coarse:after:-inset-x-1.5 pointer-coarse:after:-inset-y-1 hover:bg-zinc-200 hover:text-zinc-900"
                         >
                           <XMarkIcon aria-hidden className="size-3.5" />
                         </button>
@@ -820,14 +856,14 @@ export function ProductShowcaseForm({
                   </div>
                 ) : null}
                 {keywordSuggestions.length && keywords.length < MAX_KEYWORDS ? (
-                  <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                  <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500 sm:gap-1.5">
                     {t("oneri")}
                     {keywordSuggestions.map((s) => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => addKeyword(s)}
-                        className="rounded-md border border-dashed border-zinc-300 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
+                        className="inline-flex min-h-8 items-center rounded-md border border-dashed border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 sm:min-h-0 sm:px-1.5 sm:py-0.5 sm:text-[11px]"
                       >
                         + {s}
                       </button>
@@ -938,16 +974,22 @@ export function ProductShowcaseForm({
                               }
                               maxLength={200}
                               aria-label={t("belgeBasligi", { n: i + 1 })}
-                              className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                             />
-                            <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-600 underline hover:text-zinc-900">
+                            {/* Telefonda "Aç" ve kaldır düğmesi parmakla vurulabilir boyutta (mobil denetim g09: × 16×16 px'ti). */}
+                            <a
+                              href={d.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-h-10 shrink-0 items-center px-1 text-xs font-medium text-zinc-600 underline hover:text-zinc-900 sm:min-h-0 sm:px-0"
+                            >
                               {t("ac")}
                             </a>
                             <button
                               type="button"
                               onClick={() => setDocuments((docs) => docs.filter((_, j) => j !== i))}
                               aria-label={t("belgesiniKaldir", { title: d.title })}
-                              className="text-zinc-400 hover:text-zinc-900"
+                              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 sm:size-auto sm:rounded-none sm:hover:bg-transparent"
                             >
                               <XMarkIcon aria-hidden className="size-4" />
                             </button>
@@ -989,7 +1031,23 @@ export function ProductShowcaseForm({
           </div>
         </fieldset>
 
-        <aside className="min-w-0 lg:sticky lg:top-[7.5rem] lg:self-start">
+        {/* Ray çubuğun 1rem altında yapışır; çubuğun yüksekliği `--product-bar-h`.
+            YÜKSEKLİK EKRANLA SINIRLI (mobil denetim r6): ray (tamamlanma + açık
+            Öneriler + varyasyon notu) 1154–1512 px'e çıkıyordu; 800 px ekranda
+            alt yarısı formun sonuna dek görünmüyordu. Ray artık görünür alanın
+            altında biter ve İÇİNDE kayar; alttaki 6rem AI Asistan düğmesinin
+            (tam boy: alttan 32 + 56 px) yeri — düğme rayın sağ kenarına binmez.
+            Üst kenar yapışma ofseti ile rayın o anki üstünün BÜYÜĞÜ
+            (`--rail-fit-top`, `useRailFitTop`): yapışmadan önceki ilk görünümde
+            de ray düğmenin üstünde biter. `p-1/-m-1`: kaydırma kabı kartların
+            halka/gölgesini kırpmasın (içerik yerinde kalır; kutunun üstü
+            0.75rem, içerik çubuğun 1rem altında). `overscroll-contain` YOK
+            (bilinçli): ray sonuna gelince tekerlek sayfayı kaydırmaya devam
+            etsin — imleç rayın üstündeyken sayfa "takılmasın" (ölçüldü). */}
+        <aside
+          ref={railRef}
+          className="min-w-0 [--rail-top:calc(var(--topbar-h)+var(--product-bar-h,4rem)+0.75rem)] lg:sticky lg:top-(--rail-top) lg:-m-1 lg:max-h-[max(12rem,calc(100dvh-max(var(--rail-top),var(--rail-fit-top,0px))-6rem-var(--safe-bottom)))] lg:self-start lg:overflow-y-auto lg:p-1 lg:[scrollbar-width:thin]"
+        >
           <EditorRail
             completion={live.completion}
             blockers={live.blockers}
@@ -1052,7 +1110,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-44">
+    <section id={id} aria-labelledby={`${id}-baslik`} className="scroll-mt-36 sm:scroll-mt-44">
       <div className="mb-5 flex items-start gap-3">
         <span aria-hidden className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-semibold text-white">
           {n}

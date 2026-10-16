@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   setAuth: vi.fn(),
   replace: vi.fn(),
   storeUser: null as { id: string; email: string } | null,
+  previewError: null as unknown,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -19,11 +20,14 @@ vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) => sel({ user: h.storeUser, isHydrated: true }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useInvitationPreview: () => ({
-    data: { email: "yeni@firma.com", roles: ["SATISCI"], companyName: "Örnek AŞ", expiresAt: "2026-12-01" },
-    isLoading: false,
-    error: null,
-  }),
+  useInvitationPreview: () =>
+    h.previewError
+      ? { data: undefined, isLoading: false, error: h.previewError }
+      : {
+          data: { email: "yeni@firma.com", roles: ["SATISCI"], companyName: "Örnek AŞ", expiresAt: "2026-12-01" },
+          isLoading: false,
+          error: null,
+        },
   useAcceptInvitation: () => ({ mutateAsync: h.acceptAsync, isPending: false }),
   useSetCompanyAuth: () => h.setAuth,
 }));
@@ -54,6 +58,7 @@ async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
 beforeEach(() => {
   vi.clearAllMocks();
   h.storeUser = null;
+  h.previewError = null;
 });
 
 const submitButton = () => screen.getByRole("button", { name: "Daveti Kabul Et ve Katıl" });
@@ -61,6 +66,17 @@ const password = () => screen.getByLabelText("Şifre", { exact: true });
 const passwordRepeat = () => screen.getByLabelText(/Şifre \(/);
 
 describe("AcceptInviteClient", () => {
+  // Mobil denetim 2026-10 (g03-auth-standalone-links-20px): geçersiz davet
+  // kartının tek eylemi 20 px yüksekti; dokunma hedefi artık 44 px, satır boyu.
+  it("geçersiz davet: 'Giriş sayfasına dön' bağlantısı 44 px dokunma hedefi", () => {
+    h.previewError = new Error("yok");
+    render(<AcceptInviteClient token="tok" />);
+    const back = screen.getByRole("link", { name: "Giriş sayfasına dön" });
+    expect(back).toHaveAttribute("href", "/company/login");
+    expect(back.className).toMatch(/(^|\s)min-h-11(\s|$)/);
+    expect(back.className).toMatch(/(^|\s)flex(\s|$)/);
+  });
+
   // Sahip kararı 2026-10-08: davet kabul formu telefonu SORMAZ (kayıt formuyla
   // aynı gerekçe: numara doğrulanmıyordu, başka firmaya gösterilmiyordu).
   it("telefon alanı YOK: ne etiket, ne ülke kodu seçici, ne tel kutusu", () => {

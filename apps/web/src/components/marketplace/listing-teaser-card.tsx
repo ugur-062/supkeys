@@ -1,3 +1,4 @@
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,7 +142,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         </dl>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-          <span className="tnum text-xs font-medium text-zinc-500">{l.number}</span>
+          <span className={`${ID_TOKEN_CLASS} text-xs font-medium text-zinc-500`}>{l.number}</span>
           {/* Dönüş PANEL karşılığına: herkese açık sayfa aynı kayıt düğmesini
               yeniden gösteriyordu (arayüz testi O-113). */}
           <Button href={signupHref("teklif", PANEL_TARGET.listing(l.number))} className="relative z-10">

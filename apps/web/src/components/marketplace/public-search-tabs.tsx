@@ -1,6 +1,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Link } from "@/i18n/navigation";
+import { TabScrollRow } from "./tab-scroll-row";
 
 /**
  * ARAMA SONUCU SEKMELERİ — "aynı sorgu, öteki yüzey" (2026-09-07).
@@ -46,7 +47,11 @@ export function PublicSearchTabs({
   ];
   return (
     <nav aria-label={t("label")} className="mt-6 border-b border-zinc-200">
-      <ul className="-mb-px flex flex-wrap gap-x-6">
+      {/* TEK SATIR (mobil denetim g02-06): sayaçlarla 360 px'e sığmayınca
+          sarıyordu — etkin çizgi 1. satırda, alt çizgi 2. satırın altında
+          kalıyordu. Artık sığmazsa yatay kayar (etkin sekme görünür alana
+          alınır, devamı kenarda solar); `sm`den sonra eski aralık. */}
+      <TabScrollRow className="-mb-px flex gap-x-4 overflow-x-auto overflow-y-hidden whitespace-nowrap [scrollbar-width:none] sm:gap-x-6 [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => {
           const on = t.key === active;
           // Kural bileşende uygulanır (arayüz testi D-327): çağıranlar etkin
@@ -54,11 +59,14 @@ export function PublicSearchTabs({
           // "Ürünler 190" rozeti çıkıyor, öteki sekmeler sayısız kalıyordu.
           const n = q ? counts?.[t.key] : undefined;
           return (
-            <li key={t.key}>
+            <li key={t.key} className="shrink-0">
               <Link
                 href={t.href}
                 aria-current={on ? "page" : undefined}
-                className={`inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition ${
+                // Odak çerçevesi İÇE çizilir: kayan satır (`overflow-x-auto`)
+                // dikeyde de kırpar; dışa taşan 2+2 px'lik global çerçeve
+                // üstten, alttan ve ilk sekmede soldan kesiliyordu.
+                className={`inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition focus-visible:-outline-offset-2 ${
                   on
                     ? onCls
                     : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
@@ -78,7 +86,7 @@ export function PublicSearchTabs({
             </li>
           );
         })}
-      </ul>
+      </TabScrollRow>
     </nav>
   );
 }

@@ -40,8 +40,8 @@ describe("CategoryTile — kare kart etiketi", () => {
     // yalnız uzun sözcüğü; kısa sözcük bütün olarak alt satıra iner.
     expect(classes()).toContain("[&:lang(ru)]:hyphens-auto");
     expect(classes()).toContain(HYPHENATE_LIMIT);
-    // İki satır sınırı ve punto yerinde.
-    expect(classes()).toEqual(expect.arrayContaining(["line-clamp-2", "text-[13px]/5"]));
+    // İki satır sınırı (sm ve üstü) ve punto yerinde.
+    expect(classes()).toEqual(expect.arrayContaining(["sm:line-clamp-2", "text-[13px]/5"]));
   });
 
   // Fotoğraflı kare kart 2026-10-10'a dek panel vitriniydi; bugün hiçbir sayfa
@@ -49,8 +49,31 @@ describe("CategoryTile — kare kart etiketi", () => {
   it("fotoğraflı kare kart (bugün çağıranı yok): aynı kural", () => {
     render(<CategoryTile category={category} href="/k" variant="square" />);
     expect(classes()).toEqual(
-      expect.arrayContaining(["break-words", "[&:lang(ru)]:hyphens-auto", HYPHENATE_LIMIT, "line-clamp-2"]),
+      expect.arrayContaining(["break-words", "[&:lang(ru)]:hyphens-auto", HYPHENATE_LIMIT, "sm:line-clamp-2"]),
     );
+  });
+
+  /* Mobil denetim 2026-10 g01/g05: telefonda iki satırda kesilen ad dokunmatikte
+     hiçbir yoldan okunamıyordu (360 px'te RU adların 20/24'ü kesikti; en uzun RU
+     ad 6 satır tutuyor). Telefonda kırpma YOK, iki satır sınırı yalnız sm ve
+     üstünde; tam ad masaüstünde de `title`da. */
+  it.each([
+    ["ikonlu", "icon"],
+    ["fotoğraflı", "photo"],
+  ] as const)("%s kart: telefonda ad kırpılmaz, sm ve üstünde iki satır + title", (_ad, visual) => {
+    render(<CategoryTile category={category} href="/k" variant="square" visual={visual} />);
+    expect(classes()).toContain("line-clamp-none");
+    expect(classes()).toContain("sm:line-clamp-2");
+    // Çıplak (telefonda da geçerli) iki satır sınırı geri gelmez.
+    expect(classes()).not.toContain("line-clamp-2");
+    expect(classes()).not.toContain("line-clamp-3");
+    expect(label()).toHaveAttribute("title", category.name);
+  });
+
+  it("ikonlu kart: telefonda rozet küçük (48 px), sm ve üstünde 64 px", () => {
+    render(<CategoryTile category={category} href="/k" variant="square" visual="icon" />);
+    const badge = screen.getByRole("link", { name: category.name }).firstElementChild as HTMLElement;
+    expect(badge.className.split(/\s+/)).toEqual(expect.arrayContaining(["size-12", "sm:size-16"]));
   });
 
   /* Kapanış kontrolü 2026-10-10, CL-03: `hyphenate-limit-chars: 13` kutuya SIĞAN

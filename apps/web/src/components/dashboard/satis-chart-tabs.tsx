@@ -8,7 +8,7 @@
  * sekme grafiksiz. Ayrı dosya + `next/dynamic` ile grafik kodu ancak ilgili
  * sekme açıldığında iniyor. Sadece TAŞINDI — mantık değişmedi.
  */
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ChartCard,
   DashboardEmptyState,
@@ -29,6 +29,7 @@ import {
 } from "recharts";
 import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
 import { useFormatPercent } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { visibleBreakdownRows } from "@/lib/visible-categories";
@@ -179,6 +180,35 @@ export function SatisGelirTab({
   );
 }
 
+/**
+ * Teklif yanıt süresi ekseni (mobil denetim g10-11, 2026-10-15): değerler SAAT
+ * (kesirli). Eksen eskiden sabit 34 px genişlikte ve biçimsizdi — Türkçe
+ * arayüzde "0.075" (nokta) basıyor, 5 karakterlik etiketin başı kırpılıyordu
+ * (".075"); 0,075 saat de süre olarak okunmuyordu. Kural: serinin en büyüğü
+ * 1 saatin altındaysa DAKİKAYA çevrilir (tam sayı tik), değilse saat (en çok
+ * 2 ondalık); sayılar arayüz dilinin ayracıyla, eksen genişliği en uzun
+ * etiketten, birim grafiğin altında yazılır.
+ */
+export function responseTimeAxis(
+  points: readonly { value: number | null }[],
+  locale: string,
+) {
+  let max = 0;
+  for (const p of points) if (p.value != null && p.value > max) max = p.value;
+  const minutes = max > 0 && max < 1;
+  const scale = minutes ? 60 : 1;
+  const tick = (v: number) =>
+    formatNumber(v, locale, { maximumFractionDigits: minutes ? 0 : 2 });
+  const tip = (v: number) => formatNumber(v, locale, { maximumFractionDigits: 1 });
+  // En uzun etiket: ölçeğin üstü (tam kısım) ya da saat ekseninde "0,25" gibi
+  // kesirli tik. ~6,6 px/karakter (11 px yazı) + kenar payı; masaüstüyle aynı
+  // en az 34 px.
+  const top = tick(Math.ceil(max * scale));
+  const chars = Math.max(top.length, minutes ? 0 : tick(0.25).length);
+  const width = Math.min(64, Math.max(34, Math.ceil((chars + 1) * 6.6 + 8)));
+  return { minutes, scale, tick, tip, width };
+}
+
 /** Müşteri sekmesi — Pareto + kategori kazanma + yanıt süresi + kaçırılan. */
 export function SatisMusteriTab({
   analytics,
@@ -189,6 +219,7 @@ export function SatisMusteriTab({
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
   const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const locale = useLocale();
   const { money: formatMoney } = useFormatMoney();
   const pct = useFormatPercent();
   if (loading || !analytics) {
@@ -203,6 +234,13 @@ export function SatisMusteriTab({
   const AXIS = { fontSize: 11, fill: "#94a3b8" };
   // Gizli segment satırı çizilmez (2026-10-09); asıl süzgeç API'de.
   const categoryWinRate = visibleBreakdownRows(analytics.categoryWinRate);
+  const responseAxis = responseTimeAxis(analytics.responseTrend, locale);
+  const responseData =
+    responseAxis.scale === 1
+      ? analytics.responseTrend
+      : analytics.responseTrend.map((p) =>
+          p.value == null ? p : { ...p, value: p.value * responseAxis.scale },
+        );
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
@@ -309,20 +347,39 @@ export function SatisMusteriTab({
       <ChartCard
         title={t("teklifYanitSuresi")}
         rangeBadge={tRange("son12Ay")}
-        subtitle={t("davettenTeklifeGecenOrtalamaSure")}
+        subtitle={t("davettenTeklifeGecenOrtalamaSureAylik")}
         ariaLabel={t("teklifYanitSuresiTrendi")}
       >
         {analytics.responseTrend.some((p) => p.value != null) ? (
-          <div className="h-48">
-            <RContainer width="100%" height="100%">
-              <AreaChart data={analytics.responseTrend}>
-                <CartesianGrid vertical={false} stroke="#e2e8f0" />
-                <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
-                <RYAxis tickLine={false} axisLine={false} width={34} tick={AXIS} />
-                <RTooltip formatter={(v) => [t("saatKisa", { n: Number(v ?? 0) }), t("ortalama")]} />
-                <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
-              </AreaChart>
-            </RContainer>
+          <div>
+            <div className="h-48">
+              <RContainer width="100%" height="100%">
+                <AreaChart data={responseData}>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                  <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+                  <RYAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={responseAxis.width}
+                    tick={AXIS}
+                    allowDecimals={!responseAxis.minutes}
+                    tickFormatter={(v: number) => responseAxis.tick(Number(v))}
+                  />
+                  <RTooltip
+                    formatter={(v) => [
+                      responseAxis.minutes
+                        ? t("dakikaKisa", { n: responseAxis.tip(Number(v ?? 0)) })
+                        : t("saatKisa", { n: responseAxis.tip(Number(v ?? 0)) }),
+                      t("ortalama"),
+                    ]}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
+                </AreaChart>
+              </RContainer>
+            </div>
+            <p className="mt-1 text-right text-[11px] text-slate-500">
+              {responseAxis.minutes ? t("birimDakika") : t("birimSaat")}
+            </p>
           </div>
         ) : (
           <DashboardEmptyState

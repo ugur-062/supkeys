@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useEffect, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Building2, Lock } from "lucide-react";
@@ -132,7 +133,7 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
               <Lock aria-hidden className="size-3" />
               {t("maskeliEtiket")}
             </span>
-            <span className="tabular-nums font-medium tracking-wide text-zinc-500">{listing.number}</span>
+            <span className={cn(ID_TOKEN_CLASS, "font-medium text-zinc-500")}>{listing.number}</span>
           </div>
           <h1 id="maskeli-talep-baslik" className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
             {listing.title}
@@ -205,12 +206,15 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
               <h2 className="text-base font-semibold text-zinc-950">{t("kalemler", { count: listing.itemCount })}</h2>
               <ul className="mt-3 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
                 {listing.items.map((row) => (
-                  <li key={row.lineNo} className="flex items-center gap-3 bg-white px-4 py-2.5 text-sm">
+                  // Kalem adı SARAR (mobil denetim g09): "Kaçak akım rölesi 4 kutu…"
+                  // diye kesilen ad (40 A 30 mA, IP40…) sayfanın hiçbir yerinde
+                  // tam okunamıyordu. Miktar tek satırda kalır.
+                  <li key={row.lineNo} className="flex items-start gap-3 bg-white px-4 py-2.5 text-sm">
                     <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
-                    <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">
+                    <span className="min-w-0 flex-1 font-medium break-words text-zinc-900">
                       {row.name || t("kalemYedek", { n: row.lineNo })}
                     </span>
-                    <span className="ml-auto shrink-0 tabular-nums text-zinc-700">{quantity(row.quantity, row.unit)}</span>
+                    <span className="ml-auto shrink-0 tabular-nums whitespace-nowrap text-zinc-700">{quantity(row.quantity, row.unit)}</span>
                   </li>
                 ))}
               </ul>
@@ -235,7 +239,7 @@ function MaskedDetailBody({ listing }: { listing: MaskedDetail }) {
           </p>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-[calc(6rem+var(--safe-top))] lg:self-start">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             <h2 className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">{t("alici")}</h2>
             <div className="mt-3 flex items-start gap-3">

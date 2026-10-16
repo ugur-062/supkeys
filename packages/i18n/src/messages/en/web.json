@@ -13,6 +13,7 @@
       "howItWorks": "How It Works",
       "login": "Log In",
       "signup": "Sign Up Free",
+      "signupCompact": "Sign Up Free",
       "openMenu": "Open menu",
       "menu": "Menu",
       "siteMenu": "Site menu",
@@ -804,11 +805,13 @@
     },
     "search": {
       "placeholder": "What are you looking for? (product, service, material)",
+      "placeholderShort": "What do you need?",
       "ariaLabel": "Search the marketplace",
       "submit": "Search"
     },
     "typeahead": {
       "productsPlaceholder": "Search products, brands or part numbers",
+      "productsPlaceholderShort": "Products or brands",
       "companiesPlaceholder": "Company name, industry or service",
       "listingsLabel": "Requests",
       "listingsPlaceholder": "Request title or category",
@@ -969,6 +972,7 @@
       "joinFree": "Join free",
       "login": "Log in",
       "listingPlaceholder": "Search request titles, items or categories",
+      "listingPlaceholderShort": "Requests or items",
       "listingResults": "Request results",
       "results": "Results",
       "productsEmptyTitle": "No products match these criteria.",
@@ -1593,10 +1597,11 @@
       "IDARI_SARTNAME": "Administrative specification",
       "TEKNIK_SARTNAME": "Technical specification",
       "SOZLESME": "Draft contract",
-      "EK": "Attachment / Drawing",
-      "NUMUNE": "Sample / Image",
+      "EK": "Attachment / drawing",
+      "NUMUNE": "Sample / image",
       "DIGER": "Other"
     },
+    "listingDocKindField": "File section",
     "orderStatus": {
       "PENDING": "Pending approval",
       "ACCEPTED": "Approved",
@@ -2020,7 +2025,10 @@
       "kvkk": "I have read the <a>KVKK privacy notice</a>",
       "kvkkProviders": "(processors outside Türkiye: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profile and service improvement (optional)",
-      "marketing": "Marketing and analytics / commercial messages (optional)"
+      "marketing": "Marketing and analytics / commercial messages (optional)",
+      "readTerms": "Read the user agreement",
+      "readMediation": "Read the intermediation agreement",
+      "readKvkk": "Read the privacy notice"
     },
     "pwRules": {
       "len": "At least 10 characters",
@@ -2499,7 +2507,10 @@
         "onumuzdeki30GununOdemeYukuCur": "Payment load for the next 30 days (weekly, in {currency})",
         "hedefFiyataGoreCur": "vs. target price · in {currency}",
         "analitikAlinamadi": "Chart data could not be loaded",
-        "saatAlti": "<1 hour"
+        "saatAlti": "<1 hour",
+        "sirala": "Sort:",
+        "siraArtan": "ascending",
+        "siraAzalan": "descending"
       },
       "satisChartTabs": {
         "gelirTrendi": "Revenue trend",
@@ -2518,6 +2529,9 @@
         "satisHunisi": "Sales funnel",
         "davetAdetSonrakiAsamalarCur": "Invitations by count; later stages in {currency} (the value of an invitation without a quote is unknown)",
         "saatKisa": "{n} h",
+        "dakikaKisa": "{n} min",
+        "birimSaat": "hours",
+        "birimDakika": "minutes",
         "ortalama": "Average",
         "satisHunisi2": "Sales funnel",
         "satisHunisiBos": "Sales funnel is empty",
@@ -2534,7 +2548,7 @@
         "teklif": "({decided, plural, one {# quote} other {# quotes}})",
         "tekliflerinSonuclandikcaKategoriBazliGucun": "As your quotes are decided, your strength by category will appear here.",
         "teklifYanitSuresi": "Quote response time",
-        "davettenTeklifeGecenOrtalamaSure": "Average time from invitation to quote (hours, monthly)",
+        "davettenTeklifeGecenOrtalamaSureAylik": "Average time from invitation to quote (monthly)",
         "teklifYanitSuresiTrendi": "Quote response time trend",
         "henuzYanitVerisiYok": "No response data yet",
         "davetlereTeklifVerdikceOrtalamaYanit": "As you submit quotes for invitations, your average response time will appear here.",
@@ -3005,8 +3019,6 @@
         "dosyaSilinsinMi": "Delete this file?",
         "sil": "Delete",
         "dosyaSilindi": "File deleted",
-        "dosyalari": "{entityShort} files",
-        "dosyaBolumu": "File section",
         "yukleniyor": "Loading…",
         "dosyaEkle": "Add file",
         "bolumuneDosyaEkle": "Add file to the {item} section",
@@ -3016,15 +3028,7 @@
         "henuzDosyaEklenmemisBolumSecip": "No files added yet. Select a section and add specifications, technical drawings, etc.",
         "buDosyaEklenmemis": "No files have been added to this {dat}.",
         "dosyasiniSil": "Delete file {fileName}",
-        "silinemedi": "Could not delete",
-        "docKind": {
-          "IDARI_SARTNAME": "Administrative specification",
-          "TEKNIK_SARTNAME": "Technical specification",
-          "SOZLESME": "Draft contract",
-          "EK": "Attachment / drawing",
-          "NUMUNE": "Sample / image",
-          "DIGER": "Other"
-        }
+        "silinemedi": "Could not delete"
       },
       "generalInfoTab": {
         "surec": "Process",
@@ -3218,7 +3222,9 @@
         "tumKalemiDetaydaGor": "{total, plural, one {View the # line item in detail →} other {View all # line items in detail →}}",
         "kalemler": "Line items",
         "kalemlerN": "Line items ({n})",
-        "nKalemDahaGoster": "Show {n, plural, one {# more line item} other {# more line items}}"
+        "nKalemDahaGoster": "Show {n, plural, one {# more line item} other {# more line items}}",
+        "miktarSatiri": "Quantity: {qty}",
+        "hedefFiyatSatiri": "Target price: {price}"
       },
       "browsetenderrow": {
         "firma": "Company",
@@ -3519,6 +3525,8 @@
         "birimFiyat": "Unit price",
         "buKalemeTeklifVermiyorum": "I am not quoting on this line item",
         "kalemeTeklifVermiyorumAria": "I am not quoting on {name}",
+        "kaydedilmemisTeklifGeriYuklendi": "Your unsaved quote entries have been restored.",
+        "degisiklikleriAt": "Discard changes",
         "buKalemeTeklifVerilmeyecek": "No quote will be submitted for this line item.",
         "teklifTutari": "Quote amount",
         "tutar": "Amount",
@@ -4048,7 +4056,6 @@
       "stagedDocuments": {
         "n50mbSiniriniAsiyor": "\"{name}\" exceeds the 50 MB limit",
         "zatenEkli": "\"{name}\" is already attached",
-        "dosyaBolumu": "File section",
         "dosyaEkle": "Add file",
         "bolumuneDosyaEkle": "Add file to the {item} section",
         "bolumSecipSartnameTeknikResim": "Select a section and add specifications, technical drawings, etc. — files are uploaded when the {shortLower} is saved (as a draft or published).",
@@ -5063,6 +5070,8 @@
         "onayaGonderildiIncelemeBiteneKadar": "Submitted for approval — the product cannot be edited until the review is complete; preview only",
         "onayaGonder": "Submit for approval",
         "duzeltVeYenidenGonder": "Fix and resubmit",
+        "onayaGonderKisa": "Submit",
+        "duzeltVeYenidenGonderKisa": "Resubmit",
         "urunVitrindenCekildi": "Product removed from the showcase",
         "duzeltmeGerekcesi": "Reason for the correction request:",
         "temelBilgiler": "Basic information",
@@ -5165,7 +5174,7 @@
         "eklenme": "Added",
         "islemler": "Actions",
         "kategoriSecilmedi": "No category selected",
-        "duzeltme": "· Revision: {rejectReason}",
+        "duzeltmeSatiri": "Revision: {rejectReason}",
         "min": "Min. {qty}",
         "priceMode": {
           "FIXED": "Fixed price",
@@ -5227,7 +5236,8 @@
         "arsivle": "Archive",
         "yayindakiUrunEksik": "A published product can't be saved with missing content — complete the fields required for review.",
         "yayindakiUrunEksikKisa": "Can't be saved: content is missing.",
-        "eksikleriGoster": "Show missing ({count})"
+        "eksikleriGoster": "Show missing ({count})",
+        "eksikler": "Missing ({count})"
       },
       "productPreview": {
         "urunVitrindeSaltOkunur": "The product is live in the showcase. Editing products requires the “Manage products and showcase” permission — ask your company administrator.",
@@ -5264,7 +5274,8 @@
         "gorseller": "Images",
         "gorselOnerilir": "3–8 images recommended",
         "ilkGorselKapakGorselOnerilir": "First image is the cover — 3–8 images recommended",
-        "jpgPngVeyaWebpEnAz": "JPG, PNG or WebP · at least {minW}×{minH} px · up to 5 MB (larger files are resized automatically). At least 1 image is required to submit for review; drag to reorder, the first one becomes the cover."
+        "jpgPngVeyaWebpEnAz": "JPG, PNG or WebP · at least {minW}×{minH} px · up to 5 MB (larger files are resized automatically). At least 1 image is required to submit for review; drag to reorder, the first one becomes the cover.",
+        "jpgPngVeyaWebpEnAzDokunmatik": "JPG, PNG or WebP · at least {minW}×{minH} px · up to 5 MB (larger files are resized automatically). At least 1 image is required to submit for review; use the arrow buttons on the images to reorder, the first one becomes the cover."
       },
       "priceModeField": {
         "fiyat": "Price",
@@ -5364,6 +5375,7 @@
         "yanitGonderilemedi": "Could not send reply",
         "yanitiniziYazin": "Write your reply…",
         "yanitinizAlicininPanelindeGorunurCtrl": "Your reply appears in the buyer panel. Press Ctrl+Enter to send.",
+        "yanitinizAlicininPanelindeGorunur": "Your reply appears in the buyer panel.",
         "ziyaretciyeYanitGeldiBildirimiGider": "The visitor receives a “reply received” notification; they must create an account to read it.",
         "yanitla": "Reply",
         "kimMesaj": "{who}: {text}"
@@ -6076,6 +6088,7 @@
         "roller": "Roles",
         "durum": "Status",
         "sonGiris": "Last login",
+        "sonGirisSatir": "Last login: {when}",
         "siz": "(You)",
         "goruntuleyici": "Viewer",
         "yetkiYok": "No permissions",
@@ -6749,6 +6762,7 @@
         "baglantiListesi": "Connection list",
         "baglantilarimdaAra": "Search my connections",
         "firmaAdiRothernIdSektor": "Company name, Rothern ID, industry or city",
+        "firmaIdSektorSehirKisa": "Company, ID, industry, city",
         "gorunum": "View",
         "henuzBaglantinizYok": "You have no connections yet",
         "anasayfadanFirmaBulupBaglantiIstegi": "Find a company from the home page and send a connection request, or invite one by email.",
@@ -7429,6 +7443,7 @@
         "mesajlasmakIcinOnceBirFirmayla": "To send messages, first connect with a company.",
         "yeniSohbet": "New conversation",
         "kisiler": "← Contacts",
+        "kisilereDon": "Back to contacts",
         "aliciOlarak": "As buyer",
         "saticiOlarak": "As seller",
         "birKisiSec": "Select a contact",
@@ -7509,6 +7524,7 @@
       "icinSonucBulunamadi": "No results found for “{query}”",
       "dahaGenelBirTerimDeneyin": "Try a more general term (for example the product name instead of the brand), or clear the search and browse the list.",
       "cokFazlaSonucVarTumu": "Too many results — not all of them can be shown. Narrow your search.",
+      "cokFazlaSonucKisa": "Too many results — narrow your search.",
       "yenidenDene": "Try again",
       "kategorilerYuklenemediYenidenDeneyin": "Categories could not be loaded. Please try again.",
       "buBolumYuklenemedi": "This section could not be loaded.",
@@ -7659,7 +7675,8 @@
       "close": "Close",
       "remove": "Remove",
       "selectPlaceholder": "— select —",
-      "missing": "Missing"
+      "missing": "Missing",
+      "notifications": "Notifications"
     },
     "phoneInput": {
       "label": "Phone",

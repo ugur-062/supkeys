@@ -144,13 +144,14 @@ export function SearchVisibilityCard({
           ))}
           {readiness.missing.length > 4 ? (
             /* "+N madde daha" eskiden düz metindi — kullanıcı tıklayıp göremiyordu
-               (2026-09-10). Şimdi aç/kapa düğmesi; liste yerinde aşağı açılır. */
+               (2026-09-10). Şimdi aç/kapa düğmesi; liste yerinde aşağı açılır.
+               Telefonda 40 px yüksek dokunma alanı (mobil denetim g09: 94×16 px'ti). */
             <li>
               <button
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
                 aria-expanded={showAll}
-                className="text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950"
+                className="inline-flex min-h-10 items-center text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950 sm:min-h-0"
               >
                 {showAll ? t("showLess") : t("showMore", { n: readiness.missing.length - 4 })}
               </button>

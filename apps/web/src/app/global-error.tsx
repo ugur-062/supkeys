@@ -36,6 +36,9 @@ export default function GlobalError({
   return (
     <html lang={locale}>
       <head>
+        {/* Kök düzenin `viewport` dışa aktarımının eşi (bu sınır kendi <html>'ini çizer). */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#ffffff" />
         <meta name="robots" content="noindex" />
       </head>
       <body className="antialiased">

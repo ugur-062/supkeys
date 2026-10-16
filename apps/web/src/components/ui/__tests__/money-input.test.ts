@@ -3,6 +3,7 @@ import {
   INVALID_NUMBER_RAW,
   formatMoneyDisplay,
   hasInvalidNumber,
+  hasIrregularSeparators,
   numberFromInputText,
   padMoneyFraction,
   parseMoneyDisplay,
@@ -299,5 +300,49 @@ describe("parseNumberStrict — kesin yerel sayı", () => {
     expect(hasInvalidNumber({ items: [{ warrantyMonths: Number.NaN }] })).toBe(true);
     expect(hasInvalidNumber({ a: { b: INVALID_NUMBER_RAW } })).toBe(true);
     expect(hasInvalidNumber({ a: 1, b: "x", c: null, d: [2, 3] })).toBe(false);
+  });
+});
+
+/**
+ * Mobil denetim 2026-10 g06: telefonun ondalık klavyesinde çift dokunuşla
+ * yazılan "1,2,3" / "1.2.3" 12,3 olarak SESSİZCE kaydediliyordu.
+ * `hasIrregularSeparators` yalnız tam kısımdaki düzensiz ayracı yakalar;
+ * geçerli sayının yazım ara hâlleri ve ondalık fazlası (kırpma kuralı)
+ * düzensiz sayılmaz.
+ */
+describe("hasIrregularSeparators — düzensiz ayraç", () => {
+  it("TR: çoklu ondalık ve düzensiz gruplama düzensizdir", () => {
+    for (const s of ["1,2,3", "1.2.3", "1,,5", "1,5,", "1.23,4", "1.234,567,89", ",,5", "0.125"]) {
+      expect(hasIrregularSeparators(s, "tr"), s).toBe(true);
+    }
+  });
+
+  it("TR: geçerli biçimler ve yazım ara hâlleri düzenlidir", () => {
+    for (const s of ["", "12", "2,5", ",5", "1.500", "1.250,5", "1.234.567,89", "1.234.", "1.234,", "1,234.56", "1,234,567", "1500.50", "1.", "0,125"]) {
+      expect(hasIrregularSeparators(s, "tr"), s).toBe(false);
+    }
+  });
+
+  it("miktar (3 ondalık): '0.125' / '1.2505' ondalıktır, '1,2,3' yine düzensiz", () => {
+    expect(hasIrregularSeparators("0.125", "tr", 3)).toBe(false);
+    expect(hasIrregularSeparators("1.2505", "tr", 3)).toBe(false);
+    expect(hasIrregularSeparators("1,2,3", "tr", 3)).toBe(true);
+    expect(hasIrregularSeparators("1.2.3", "tr", 3)).toBe(true);
+  });
+
+  it("EN ve RU kendi ayraçlarıyla", () => {
+    expect(hasIrregularSeparators("1.2.3", "en")).toBe(true);
+    expect(hasIrregularSeparators("1,2,3", "en")).toBe(true);
+    expect(hasIrregularSeparators("12,500", "en")).toBe(false);
+    expect(hasIrregularSeparators("1,234,567.8", "en")).toBe(false);
+    // Ondalık fazlası kırpma kuralıdır (12.505 → 12.50), düzensizlik değil.
+    expect(hasIrregularSeparators("12.505", "en")).toBe(false);
+    expect(hasIrregularSeparators("1 234,5", "ru")).toBe(false);
+    expect(hasIrregularSeparators("1,2,3", "ru")).toBe(true);
+  });
+
+  it("parseMoneyDisplay davranışı değişmedi (yalnız ayrıca işaretlenir)", () => {
+    expect(parseMoneyDisplay("1,2,3", "tr", 3)).toBe("12.3");
+    expect(parseMoneyDisplay("1.250,5", "tr", 3)).toBe("1250.5");
   });
 });

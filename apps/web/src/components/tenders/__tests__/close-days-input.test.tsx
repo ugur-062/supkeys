@@ -160,6 +160,25 @@ describe("useCloseDaysGuard", () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it("mobil denetim g06: önce KAYDIRMASIZ odak, sonra anında ortalama (yumuşak kaydırma + düz focus kutuyu üst çubuğun altında bırakıyordu)", () => {
+    render(<Harness onCommit={vi.fn()} />);
+    const input = screen.getByLabelText("Özel gün");
+    fireEvent.change(input, { target: { value: "999" } });
+    fireEvent.blur(input);
+    const calls: string[] = [];
+    const focus = input.focus.bind(input);
+    vi.spyOn(input, "focus").mockImplementation((opts) => {
+      calls.push(`focus:${JSON.stringify(opts)}`);
+      focus(opts);
+    });
+    input.scrollIntoView = vi.fn((opts) => {
+      calls.push(`scroll:${JSON.stringify(opts)}`);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(calls).toEqual(['focus:{"preventScroll":true}', 'scroll:{"block":"center"}']);
+    expect(document.activeElement).toBe(input);
+  });
+
   it("geçerli kutuda kayıt son onaylı değerle sürer", () => {
     render(<Harness onCommit={vi.fn()} />);
     const input = screen.getByLabelText("Özel gün");

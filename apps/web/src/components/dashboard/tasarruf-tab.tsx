@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
@@ -195,6 +196,9 @@ export function TasarrufTab({ data, period, analytics }: Props) {
         ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Sol — sıralı liste */}
+          {/* Telefonda numara başlığın ÜSTÜNDE ve başlık sarar (mobil denetim
+              g10-10): tek satırda başlığa ~60 px kalıyor, hangi talebin
+              tasarruf ettiği okunmuyordu ("RV-B0…"). sm+ eski tek satır. */}
           <ul className="divide-y divide-slate-100">
             {topRows.map((r) => (
               <li
@@ -204,13 +208,15 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
                   {r.rank}
                 </span>
-                <span className="tabular-nums text-xs text-slate-500">
-                  #{r.tenderNumber}
+                <span className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
+                  <span className={`${ID_TOKEN_CLASS} block text-xs text-slate-500 sm:shrink-0`}>
+                    #{r.tenderNumber}
+                  </span>
+                  <span className="block text-sm text-zinc-900 wrap-break-word sm:min-w-0 sm:flex-1 sm:truncate">
+                    {r.title}
+                  </span>
                 </span>
-                <span className="flex-1 truncate text-sm text-zinc-900">
-                  {r.title}
-                </span>
-                <span className="tabular-nums text-sm font-semibold text-success-700">
+                <span className="shrink-0 whitespace-nowrap tabular-nums text-sm font-semibold text-success-700">
                   {formatTRY(r.amount)}
                 </span>
               </li>
@@ -359,11 +365,14 @@ function BreakdownCard({
           const hasData = typeof r.percent === "number";
           return (
             <li key={i}>
+              {/* Tutar + yüzde tek satırda kalır (mobil denetim g10-10: bazı
+                  satırlarda "320,00 ₺" / "%0,01" iki satıra bölünüyordu);
+                  telefonda uzun kategori adı kırpılmaz, sarar. */}
               <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                <span className="truncate text-slate-700" title={r.label}>
+                <span className="min-w-0 text-slate-700 wrap-break-word sm:truncate" title={r.label}>
                   {r.label}
                 </span>
-                <span className="tabular-nums font-semibold text-zinc-900">
+                <span className="shrink-0 whitespace-nowrap tabular-nums font-semibold text-zinc-900">
                   {r.amountLabel ? (
                     <span className="mr-1.5 text-slate-500">
                       {r.amountLabel}

@@ -94,7 +94,10 @@ export function DeleteAccountSection() {
             />
             {error ? <ErrorMessage>{error}</ErrorMessage> : null}
           </Field>
-          <div className="flex flex-wrap justify-end gap-3">
+          {/* Telefonda iki düğme tam genişlik, alt alta, silme üstte (pencere
+              eylemleriyle aynı düzen); yan yana sığmayınca "Vazgeç" tek başına
+              kalıp silme düğmesi alta kırılıyordu (mobil denetim 2026-10 g11). */}
+          <div className="flex flex-col-reverse gap-3 *:w-full sm:flex-row sm:flex-wrap sm:justify-end sm:*:w-auto">
             <Button type="button" plain onClick={close} disabled={lock.locked}>
               {t("cancel")}
             </Button>

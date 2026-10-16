@@ -171,9 +171,14 @@ export function useSendInquiry() {
       message: string;
       quantity?: string;
     }) => {
+      // Hata YALNIZ kutunun yapışkan alt şeridinde (mobil denetim g05):
+      // küresel toast aynı metni ikinci kez basıyor, klavye açıkken telefonda
+      // kutunun başlığını ve Kapat'ını örtüyordu — Kapat'a dokunan yalnız
+      // toast'ı kapatıyordu. Kesinti sinyali ve 401 yönlendirmesi sürer.
       const { data } = await companyApi.post<{ id: string }>(
         "/company/inquiries",
         input,
+        { skipErrorToast: true },
       );
       return data;
     },

@@ -133,7 +133,12 @@ beforeEach(() => {
 describe("teklif veren talep detayı — kalem bilgileri (O-037 / D-278)", () => {
   it("marka · parça no, muadil kapalı rozeti ve istenen teslim tarihi görünür", () => {
     renderPage();
-    expect(screen.getByText("Marka / Parça no: Valfsan · KV-50")).toBeInTheDocument();
+    // Satır tek metin okunur; parça no (kod) ayrı nowrap öğede — kalem adı
+    // hücresi her genişlikte sardığı için "KV-" / "50" diye bölünmez (fix3).
+    const line = screen.getByText(
+      (_, el) => el?.tagName === "DIV" && el.textContent === "Marka / Parça no: Valfsan · KV-50",
+    );
+    expect(within(line).getByText("KV-50").className.split(/\s+/)).toContain("whitespace-nowrap");
     expect(screen.getByText("Muadil kabul edilmez")).toBeInTheDocument();
     expect(screen.getByText(/^İstenen teslim: 20 Kas 2026/)).toBeInTheDocument();
   });
@@ -262,5 +267,130 @@ describe("arka plan yoklaması ve bekleme (canlı doğrulama 2026-10-09 taramas�
     const { container } = renderPage();
     expect(screen.queryByText(/bulunamadı/)).toBeNull();
     expect(container.querySelector(".animate-pulse")).not.toBeNull();
+  });
+});
+
+describe("teklif veren talep detayı — mobil denetim (g08)", () => {
+  it("meta şeridinde alıcı firma ve kapanış kırpılmaz (sarar); kutucuk kendi genişliğine göre dizilir", () => {
+    h.detail = detail({ owner: { id: "c1", name: "QA Alıcı Sanayi A.Ş." } } as Partial<ListingDetail>);
+    renderPage();
+    const cls = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
+    const name = screen.getByText("QA Alıcı Sanayi A.Ş.", { selector: "[data-slot=\"meta-item\"] > dd" });
+    expect(cls(name)).not.toContain("truncate");
+    expect(cls(name)).not.toContain("sm:@[9.25rem]:truncate");
+    // Dar düzende değer kutucuğun tam genişliğinde (iki sütunu kaplar).
+    expect(cls(name)).toEqual(expect.arrayContaining(["col-span-2", "min-w-0", "break-words"]));
+    // Kutucuk = `dl`nin çocuğu, hem kapsayıcı hem ızgara; çocukları yalnız dt / dd
+    // (axe `definition-list`). Eşikler içerik kutusundan: kutucuk 10.75rem /
+    // 12.5rem = içerik 9.25rem / 11rem (dolgu p-3 kutucuğun kendisinde).
+    const item = name.closest('[data-slot="meta-item"]')!;
+    expect(item.parentElement!.tagName).toBe("DL");
+    expect(cls(item)).toEqual(expect.arrayContaining(["@container", "grid", "grid-cols-[auto_minmax(0,1fr)]", "p-3", "content-start"]));
+    expect([...item.children].map((c) => c.tagName)).toEqual(["DT", "DT", "DD"]);
+    // Simge: ayrı, ekran okuyucudan gizli dt; telefonda etiketin yanında kutusuz;
+    // yan yana düzende kutu (iki satıra yayılır), geniş kutucukta eski 48 px.
+    const icon = item.firstElementChild!;
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(cls(icon)).toEqual(expect.arrayContaining(["size-4", "sm:@[9.25rem]:size-9", "sm:@[9.25rem]:row-span-2", "sm:@[11rem]:size-12"]));
+    // Etiket dt'si ekran okuyucuya açık; değer yan yana düzende 2. satır / 2. sütunda.
+    expect(item.children[1]).toHaveTextContent("Alıcı Firma");
+    expect(item.children[1]).not.toHaveAttribute("aria-hidden");
+    expect(cls(name)).toEqual(expect.arrayContaining(["sm:@[9.25rem]:col-start-2", "sm:@[9.25rem]:row-start-2"]));
+    // Dört sütun yalnız şerit yeterince genişse (kutucuk ≥ 10.75rem).
+    const dl = name.closest("dl")!;
+    expect(cls(dl)).toContain("lg:@[43.5rem]:grid-cols-4");
+    expect(cls(dl)).not.toContain("lg:grid-cols-4");
+    expect(cls(dl.parentElement)).toContain("@container");
+  });
+
+  it("Kalemler tablosunda 'Benim birim fiyatım' başlığı her genişlikte sarar (tablo yana kaymaz)", () => {
+    h.detail = detail({
+      myBid: {
+        amount: "485",
+        status: "SUBMITTED",
+        version: 1,
+        note: null,
+        currency: "TRY",
+        items: [{ itemId: "i1", unitPrice: "48.5", currency: "TRY" }],
+      },
+    } as unknown as Partial<ListingDetail>);
+    renderPage();
+    const header = screen.getByRole("columnheader", { name: "Benim Birim Fiyatım" });
+    expect(header.className.split(/\s+/)).toEqual(expect.arrayContaining(["text-right", "whitespace-normal"]));
+  });
+
+  // Mobil denetim fix3 r5-requests#new1: 768/1024'te nowrap kalem adı (407 px)
+  // ve nowrap başlıklar tabloyu 792 px'e (RU 864) zorluyor, "Benim Birim
+  // Fiyatım" sütunu tümüyle kartın dışında kalıyordu. Ad ve sayı başlıkları
+  // her genişlikte sarar; ad sm'den itibaren 12rem tabanlı; kod nowrap.
+  it("Kalemler tablosunda kalem adı ve sayı başlıkları tablette de sarar; malzeme kodu bölünmez", () => {
+    h.detail = detail({
+      items: [
+        {
+          id: "i1",
+          lineNo: 1,
+          name: "Kompakt şalter 3 kutuplu 250 A 36 kA termik manyetik",
+          quantity: "40",
+          unit: "Adet",
+          unitCode: "C62",
+          materialCode: "HAVB-X8EM",
+          targetPrice: null,
+        },
+      ],
+      myBid: {
+        amount: "485",
+        status: "SUBMITTED",
+        version: 1,
+        note: null,
+        currency: "TRY",
+        items: [{ itemId: "i1", unitPrice: "48.5", currency: "TRY" }],
+      },
+    } as unknown as Partial<ListingDetail>);
+    renderPage();
+    const table = screen.getByRole("columnheader", { name: "Benim Birim Fiyatım" }).closest("table")!;
+    const nameCell = within(table).getByText("Kompakt şalter 3 kutuplu 250 A 36 kA termik manyetik").closest("td")!;
+    const nameCls = nameCell.className.split(/\s+/);
+    expect(nameCls).toEqual(expect.arrayContaining(["whitespace-normal", "sm:min-w-[12rem]"]));
+    expect(nameCls.some((c) => /^(sm|md|lg):whitespace-nowrap$/.test(c))).toBe(false);
+    for (const name of ["Miktar", "Hedef Fiyat"]) {
+      const th = within(table).getByRole("columnheader", { name });
+      expect(th.className.split(/\s+/)).toContain("whitespace-normal");
+    }
+    // Tireli kod bölünmez ve tabular rakamla çizilmez (Inter'in tabular tiresi
+    // "HAVB - X8EM" boşluğu bırakıyordu; `lib/id-token.ts`).
+    const code = within(table).getByText("HAVB-X8EM").className.split(/\s+/);
+    expect(code).toEqual(expect.arrayContaining(["whitespace-nowrap", "normal-nums", "tracking-normal"]));
+    expect(code).not.toContain("tabular-nums");
+  });
+
+  // Mobil denetim fix3 handoffs#new3: şerit akıştaydı ve başlık görünümden
+  // çıkınca h-0 → 42 px büyüyordu; kaydırma sabitlemesi olmayan motorda
+  // (iOS WebKit) içerik 42 px zıplıyordu. Akışta yalnız 0 yükseklikli
+  // yapışkan çapa; şerit içinde absolute, yalnız görünürlüğü değişir.
+  it("yapışkan eylem şeridi akış dışında: çapa h-0, şerit absolute, gizliyken yükseklik sınıfı değişmez", () => {
+    renderPage();
+    const anchor = document.querySelector("[data-sticky-action-bar]") as HTMLElement;
+    expect(anchor).not.toBeNull();
+    const anchorCls = anchor.className.split(/\s+/);
+    expect(anchorCls).toEqual(expect.arrayContaining(["sticky", "top-(--topbar-h)", "h-0"]));
+    // Çapa kendi biçimlendirme bağlamını kurar: `space-y` payı içinden geçip
+    // komşununkiyle birleşmez, eski gizli şeridin boşluğu (sahip sayfasıyla
+    // aynı) kalır; `overflow-hidden` değil — absolute şeridi kırpardı.
+    expect(anchorCls).toContain("flow-root");
+    expect(anchorCls).not.toContain("overflow-hidden");
+    const bar = anchor.firstElementChild as HTMLElement;
+    const barCls = bar.className.split(/\s+/);
+    expect(barCls).toEqual(expect.arrayContaining(["absolute", "inset-x-0", "top-0"]));
+    // Görünürlük yalnız `invisible` ile değişir; boyutu değiştiren sınıf yok.
+    for (const c of ["h-0", "py-0", "border-0", "overflow-hidden"]) expect(barCls).not.toContain(c);
+  });
+
+  it("kapalı zarf bandında metin en az 12rem alır; 'Nasıl çalışır?' telefonda kendi satırına iner", () => {
+    renderPage();
+    const link = screen.getByRole("link", { name: "Nasıl çalışır?" });
+    expect(link.className.split(/\s+/)).toEqual(expect.arrayContaining(["ml-auto", "whitespace-nowrap"]));
+    const text = link.previousElementSibling!;
+    expect(text.className.split(/\s+/)).toContain("flex-[1_1_12rem]");
+    expect(text.className.split(/\s+/)).not.toContain("flex-1");
   });
 });

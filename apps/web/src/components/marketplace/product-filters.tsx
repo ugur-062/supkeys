@@ -591,16 +591,25 @@ function CategoryGroup({
       {facets.categories.length > SHOW ? (
         <div className="relative mb-2">
           <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" />
+          {/* TEK temizle düğmesi (mobil denetim g02-09): Android WebView'de
+              `type=search`ün yerel mavi × düğmesi bizimkinin yanında ikinci bir
+              × çiziyordu — yerel olan gizlenir. Bizimki 16 px'ten 32×32'ye
+              büyüdü; ikon aynı yerde (sağdan 16 px merkez). */}
           <input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("categorySearch")}
             aria-label={t("categorySearch")}
-            className="h-9 w-full rounded-lg border border-zinc-200 pr-8 pl-8 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            className="h-9 w-full rounded-lg border border-zinc-200 pr-8 pl-8 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 [&::-webkit-search-cancel-button]:hidden"
           />
           {q ? (
-            <button type="button" onClick={() => setQ("")} aria-label={t("clearSearch")} className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700">
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              aria-label={t("clearSearch")}
+              className="absolute top-1/2 right-0 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 hover:text-zinc-700"
+            >
               <XMarkIcon aria-hidden className="size-4" />
             </button>
           ) : null}
@@ -734,7 +743,11 @@ function PriceGroup({
       {/* HAZIR ARALIKLAR — histogramın gerçek uçlarına göre türetilir; sabit
           "0-100 / 100-1.000" listesi envanterle ilgisiz kovalar basardı. */}
       {hist ? (
-        <div className="mb-2 flex flex-wrap gap-1.5 px-2">
+        // Hazır aralıklar 24 px'ti (mobil denetim g05): görünüm aynı, dokunma
+        // alanı dikeyde 6'şar px büyür (36 px). Satır sarınca araya 12 px
+        // konur ki iki satırın alanı çakışmasın; histogram etiketine ve alttaki
+        // kutulara (8 px) değmez.
+        <div className="mb-2 flex flex-wrap gap-x-1.5 gap-y-3 px-2">
           {presetRanges(hist, formatPrice).map((r) => {
             const on = state.priceMin === r.from && state.priceMax === r.to;
             return (
@@ -743,7 +756,7 @@ function PriceGroup({
                 type="button"
                 aria-pressed={on}
                 onClick={() => (on ? setRange(undefined, undefined) : setRange(r.from, r.to))}
-                className={`tnum rounded-full px-2.5 py-1 text-xs transition ${
+                className={`tnum relative rounded-full px-2.5 py-1 text-xs transition after:absolute after:inset-x-0 after:-inset-y-1.5 ${
                   on
                     ? accent === "blue"
                       ? "bg-blue-600 text-white"

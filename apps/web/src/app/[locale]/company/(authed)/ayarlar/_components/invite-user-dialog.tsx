@@ -29,6 +29,7 @@ import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useRef, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
+import { SHEET_ACTIONS, SHEET_BODY, SHEET_PANEL } from "./dialog-sheet";
 
 /**
  * Token'lı davet — e-posta + YETKİ TABLOSU (Faz 4): davetli hangi tiklerle
@@ -142,12 +143,14 @@ export function InviteUserDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} size="2xl">
+    <Dialog open={open} onClose={handleClose} size="2xl" className={SHEET_PANEL}>
       <DialogTitle>{t("uyeDavetEt")}</DialogTitle>
       <DialogDescription>
         {t("davetliEPostasindakiLinktenAdini")}
       </DialogDescription>
-      <DialogBody className="-mr-3 max-h-[70vh] space-y-4 overflow-y-auto pr-3">
+      {/* Telefonda yalnız gövde kayar, Davet Gönder / Vazgeç altta sabit
+          (mobil denetim 2026-10 g11; `dialog-sheet.ts`). */}
+      <DialogBody className={`-mr-3 space-y-4 overflow-y-auto pr-3 sm:max-h-[70vh] ${SHEET_BODY}`}>
         <Field>
           <Label>{t("ePosta")}</Label>
           <Input
@@ -211,7 +214,7 @@ export function InviteUserDialog({
           </div>
         </div>
       </DialogBody>
-      <DialogActions>
+      <DialogActions className={SHEET_ACTIONS}>
         <Button plain onClick={handleClose} disabled={invite.isPending}>
           {t("vazgec")}
         </Button>

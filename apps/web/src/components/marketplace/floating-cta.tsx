@@ -18,7 +18,8 @@ export function FloatingCta({ href, label }: { href: string; label?: string }) {
   return (
     <div
       aria-hidden={!show}
-      className={`fixed right-5 bottom-5 z-40 transition duration-300 sm:right-8 sm:bottom-8 ${
+      // Güvenli alan: köşe payına ana ekran çizgisi / yatay çentik payı eklenir.
+      className={`fixed right-5 bottom-5 mr-(--safe-right) mb-(--safe-bottom) z-40 transition duration-300 sm:right-8 sm:bottom-8 ${
         show ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
       }`}
     >

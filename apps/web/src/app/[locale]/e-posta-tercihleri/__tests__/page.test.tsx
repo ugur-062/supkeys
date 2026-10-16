@@ -48,4 +48,21 @@ describe("E-posta tercihleri sayfası", () => {
     render(<Page />);
     expect(await screen.findByText("Bağlantı geçersiz")).toBeInTheDocument();
   });
+  /* Mobil denetim 2026-10 g01: geçersiz bağlantı kartında hiçbir bağlantı yoktu;
+     uygulama kabuğunda (iOS) kullanıcı uygulamayı kapatmadan çıkamıyordu. */
+  it("çıkış yolu: logo ana sayfaya bağlı; hata ve sonuç kartında 'Ana sayfaya dön'", async () => {
+    h.get.mockRejectedValue(new Error("400"));
+    const invalid = render(<Page />);
+    expect(await screen.findByText("Bağlantı geçersiz")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rothern" })).toHaveAttribute("href", "/");
+    const home = screen.getByRole("link", { name: "Ana sayfaya dön" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(home.className).toMatch(/\bmin-h-11\b/);
+    invalid.unmount();
+
+    h.get.mockResolvedValue({ data: { scope: "reminder", email: "a•••@b.com", locale: "tr", unsubscribed: true } });
+    render(<Page />);
+    expect(await screen.findByText("Abonelikten çıktınız")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ana sayfaya dön" })).toHaveAttribute("href", "/");
+  });
 });

@@ -50,6 +50,34 @@ describe("ProductCard", () => {
     expect(screen.getByText(company.name).parentElement?.contains(verified)).toBe(true);
   });
 
+  // Mobil denetim g05 (2026-10): 160 px'lik şerit kartında avatar + bayrak +
+  // rozet aynı satırda ada 62 px bırakıyordu ("Ege Tek…").
+  it("compact: firma adı iki satıra sarar (tam ad title'da), avatar telefonda yok, bayrak şehir satırında", () => {
+    const long = { ...company, name: "MX-DOWN-GOLD Test Otomotiv A.Ş.", country: "TR", logoUrl: null };
+    const { container } = render(<ProductCard product={product} companySlug="d" company={long} variant="compact" />);
+    const name = screen.getByText(long.name);
+    expect(name.getAttribute("title")).toBe(long.name);
+    expect(name.className).toMatch(/(^|\s)line-clamp-2(\s|$)/);
+    expect(name.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(name.className).not.toMatch(/(^|\s)truncate(\s|$)/);
+    // Avatar (monogram) yalnız `sm`den sonra.
+    expect(screen.getByRole("img", { name: long.name }).getAttribute("class")).toContain("max-sm:hidden");
+    // Bayrak ad satırında değil, şehir satırında.
+    const flag = container.querySelector('img[src="/flags/4x3/tr.svg"]') as HTMLElement;
+    expect(flag).not.toBeNull();
+    expect(name.parentElement?.contains(flag)).toBe(false);
+    expect(screen.getByText("Kocaeli").parentElement?.contains(flag)).toBe(true);
+  });
+
+  it("tile: firma satırı değişmedi (avatar + bayrak + kırpılan ad, tam ad title'da)", () => {
+    const { container } = render(<ProductCard product={product} companySlug="d" company={{ ...company, country: "TR" }} />);
+    const name = screen.getByText(company.name);
+    expect(name.className).toMatch(/(^|\s)truncate(\s|$)/);
+    expect(name.getAttribute("title")).toBe(company.name);
+    const flag = container.querySelector('img[src="/flags/4x3/tr.svg"]') as HTMLElement;
+    expect(name.parentElement?.contains(flag)).toBe(true);
+  });
+
   it("kapakta çağıranın rozeti 'Yeni'nin YERİNE geçer (tek rozet)", () => {
     const fresh = new Date(Date.now() - 2 * 86_400_000).toISOString();
     const { container } = render(

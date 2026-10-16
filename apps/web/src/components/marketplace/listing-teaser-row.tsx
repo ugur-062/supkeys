@@ -179,7 +179,11 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
               icon: "category" as const,
               value: (
                 <span title={categories.map((c) => c.name).join(", ")}>
-                  <span className="block truncate font-medium text-slate-700">{primary.name}</span>
+                  {/* Telefonda iki satır (mobil denetim 2026-10 g01): `title`
+                      dokunmatikte okunmaz; sütun orada kartın tam genişliğinde,
+                      uzun RU adları ("Ремкомплекты для гидроцилиндров…") iki
+                      satıra sığar. sm ve üstünde dar sütunda tek satır kalır. */}
+                  <span className="block font-medium text-slate-700 max-sm:line-clamp-2 sm:truncate">{primary.name}</span>
                   {categories.length > 1 ? (
                     <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: categories.length - 1 })}</span>
                   ) : null}
@@ -196,5 +200,6 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     action: state === "open" && bid ? { label: bid.label, href: bid.href } : null,
   };
 
-  return <ListingCard variant="row" data={data} />;
+  // Herkese açık yüzeyde AI Asistan düğmesi yok: "Teklif ver" sağ kenarda kalır.
+  return <ListingCard variant="row" data={data} fabClearance={false} />;
 }

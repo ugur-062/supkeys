@@ -96,6 +96,24 @@ describe("IhaleItemsPanel", () => {
     expect(screen.queryByText(/detayda gör/)).not.toBeInTheDocument();
   });
 
+  it("mobil denetim g06: telefonda yatay kaydırma yok — Miktar / Hedef fiyat satırın İÇİNDE, sütunları sm'den itibaren", async () => {
+    h.get.mockResolvedValue({
+      data: detail([item({ name: "Çelik Boru", quantity: "1500", unit: "metre", targetPrice: "1000" })]),
+    });
+    const { view } = renderPanel();
+    expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
+    const table = view.container.querySelector("table")!;
+    // 420 px alt sınır yalnız sm'den itibaren (293 px kutuda Miktar ekran dışındaydı).
+    expect(table.className).not.toMatch(/(^|\s)min-w-\[420px\]/);
+    expect(table.className).toMatch(/sm:min-w-\[420px\]/);
+    expect(screen.getByRole("columnheader", { name: "Miktar" }).className).toMatch(/\bhidden\b.*sm:table-cell/);
+    // Telefon satırı: ad hücresinde, sm'den itibaren gizli.
+    const phoneLine = screen.getByText("Miktar: 1.500 m");
+    expect(phoneLine.closest("td")).toBe(screen.getByText("Çelik Boru").closest("td"));
+    expect(phoneLine.className).toMatch(/sm:hidden/);
+    expect(screen.getByText("Hedef fiyat: 1.000,00 ₺")).toBeInTheDocument();
+  });
+
   it("hedef fiyat verisi geldiyse kolon görünür (sahip / opt-in)", async () => {
     h.get.mockResolvedValue({
       data: detail([
@@ -123,9 +141,12 @@ describe("IhaleItemsPanel", () => {
 
     expect(await screen.findByText("Kalem 1")).toBeInTheDocument();
     expect(screen.queryByText("Kalem 6")).not.toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "3 kalem daha göster" }),
+    const more = screen.getByRole("button", { name: "3 kalem daha göster" });
+    // Mobil denetim 2026-10: telefonda 44 px dokunma satırı, sm'den eski boy.
+    expect(more.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["inline-flex", "min-h-11", "sm:inline-block", "sm:min-h-0"]),
     );
+    await user.click(more);
     expect(screen.getByText("Kalem 8")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Daha az göster" }));
     expect(screen.queryByText("Kalem 8")).not.toBeInTheDocument();
@@ -149,6 +170,10 @@ describe("IhaleItemsPanel", () => {
     const link = screen.getByRole("link", { name: "Tüm 25 kalemi detayda gör →" });
     // Kalemler detayın varsayılan sekmesi: `tab` eklenmez (`tab=1` = Dosyalar).
     expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x");
+    // Mobil denetim 2026-10: telefonda 44 px dokunma satırı, sm'den eski boy.
+    expect(link.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["inline-flex", "min-h-11", "sm:inline-block", "sm:min-h-0"]),
+    );
   });
 
   it("kalem yoksa boş durum metni", async () => {
@@ -167,7 +192,10 @@ describe("IhaleItemsPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("Kalemler yüklenemedi.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    const retry = screen.getByRole("button", { name: "Tekrar dene" });
+    // Görünmeyen dolgu (eksi kenar boşluklu): satır kutusu büyümez, hedef ~30 px.
+    expect(retry.className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-block", "-my-1.5", "py-1.5"]));
+    await user.click(retry);
     expect(await screen.findByText("Vana")).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledTimes(2);
   });

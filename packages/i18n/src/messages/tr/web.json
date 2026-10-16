@@ -13,6 +13,7 @@
       "howItWorks": "Nasıl Çalışır",
       "login": "Giriş Yap",
       "signup": "Ücretsiz Kaydol",
+      "signupCompact": "Ücretsiz Kaydol",
       "openMenu": "Menüyü aç",
       "menu": "Menü",
       "siteMenu": "Site menüsü",
@@ -804,11 +805,13 @@
     },
     "search": {
       "placeholder": "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
+      "placeholderShort": "Ne arıyorsunuz?",
       "ariaLabel": "Pazar yerinde ara",
       "submit": "Ara"
     },
     "typeahead": {
       "productsPlaceholder": "Ürün, marka veya parça numarası arayın",
+      "productsPlaceholderShort": "Ürün veya marka arayın",
       "companiesPlaceholder": "Firma adı, sektör veya hizmet",
       "listingsLabel": "Talepler",
       "listingsPlaceholder": "Talep başlığı veya kategori",
@@ -969,6 +972,7 @@
       "joinFree": "Ücretsiz üye ol",
       "login": "Giriş yap",
       "listingPlaceholder": "Talep başlığı, kalem veya kategori arayın",
+      "listingPlaceholderShort": "Talep veya kalem arayın",
       "listingResults": "Talep sonuçları",
       "results": "Sonuçlar",
       "productsEmptyTitle": "Bu kriterlerle ürün bulunamadı.",
@@ -1597,6 +1601,7 @@
       "NUMUNE": "Numune / Görsel",
       "DIGER": "Diğer"
     },
+    "listingDocKindField": "Dosya bölümü",
     "orderStatus": {
       "PENDING": "Onay Bekliyor",
       "ACCEPTED": "Onaylandı",
@@ -2020,7 +2025,10 @@
       "kvkk": "<a>KVKK Aydınlatma Metni</a> bilgilendirmesini okudum",
       "kvkkProviders": "(yurt dışı sağlayıcılar: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profil ve hizmet iyileştirme (opsiyonel)",
-      "marketing": "Pazarlama ve analitik / ticari ileti (opsiyonel)"
+      "marketing": "Pazarlama ve analitik / ticari ileti (opsiyonel)",
+      "readTerms": "Kullanıcı sözleşmesini oku",
+      "readMediation": "Aracılık sözleşmesini oku",
+      "readKvkk": "Aydınlatma metnini oku"
     },
     "pwRules": {
       "len": "En az 10 karakter",
@@ -2499,7 +2507,10 @@
         "onumuzdeki30GununOdemeYukuCur": "Önümüzdeki 30 günün ödeme yükü (haftalık, {currency} karşılığı)",
         "hedefFiyataGoreCur": "hedef fiyata göre · {currency} karşılığı",
         "analitikAlinamadi": "Grafik verileri alınamadı",
-        "saatAlti": "<1 saat"
+        "saatAlti": "<1 saat",
+        "sirala": "Sırala:",
+        "siraArtan": "artan",
+        "siraAzalan": "azalan"
       },
       "satisChartTabs": {
         "gelirTrendi": "Gelir Trendi",
@@ -2518,6 +2529,9 @@
         "satisHunisi": "Satış Hunisi",
         "davetAdetSonrakiAsamalarCur": "Davet adet; sonraki aşamalar {currency} karşılığı (teklifsiz davetin tutarı bilinemez)",
         "saatKisa": "{n} sa",
+        "dakikaKisa": "{n} dk",
+        "birimSaat": "saat",
+        "birimDakika": "dakika",
         "ortalama": "Ortalama",
         "satisHunisi2": "Satış hunisi",
         "satisHunisiBos": "Satış hunisi boş",
@@ -2534,7 +2548,7 @@
         "teklif": "({decided} teklif)",
         "tekliflerinSonuclandikcaKategoriBazliGucun": "Tekliflerin sonuçlandıkça kategori bazlı gücün burada görünecek.",
         "teklifYanitSuresi": "Teklif Yanıt Süresi",
-        "davettenTeklifeGecenOrtalamaSure": "Davetten teklife geçen ortalama süre (saat, aylık)",
+        "davettenTeklifeGecenOrtalamaSureAylik": "Davetten teklife geçen ortalama süre (aylık)",
         "teklifYanitSuresiTrendi": "Teklif yanıt süresi trendi",
         "henuzYanitVerisiYok": "Henüz yanıt verisi yok",
         "davetlereTeklifVerdikceOrtalamaYanit": "Davetlere teklif verdikçe ortalama yanıt süren burada görünecek.",
@@ -3005,8 +3019,6 @@
         "dosyaSilinsinMi": "Dosya silinsin mi?",
         "sil": "Sil",
         "dosyaSilindi": "Dosya silindi",
-        "dosyalari": "{entityShort} Dosyaları",
-        "dosyaBolumu": "Dosya bölümü",
         "yukleniyor": "Yükleniyor…",
         "dosyaEkle": "Dosya Ekle",
         "bolumuneDosyaEkle": "{item} bölümüne dosya ekle",
@@ -3016,15 +3028,7 @@
         "henuzDosyaEklenmemisBolumSecip": "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsiniz.",
         "buDosyaEklenmemis": "Bu {dat} dosya eklenmemiş.",
         "dosyasiniSil": "{fileName} dosyasını sil",
-        "silinemedi": "Silinemedi",
-        "docKind": {
-          "IDARI_SARTNAME": "İdari Şartname",
-          "TEKNIK_SARTNAME": "Teknik Şartname",
-          "SOZLESME": "Sözleşme Taslağı",
-          "EK": "Ek / Çizim",
-          "NUMUNE": "Numune / Görsel",
-          "DIGER": "Diğer"
-        }
+        "silinemedi": "Silinemedi"
       },
       "generalInfoTab": {
         "surec": "Süreç",
@@ -3218,7 +3222,9 @@
         "tumKalemiDetaydaGor": "Tüm {total} kalemi detayda gör →",
         "kalemler": "Kalemler",
         "kalemlerN": "Kalemler ({n})",
-        "nKalemDahaGoster": "{n} kalem daha göster"
+        "nKalemDahaGoster": "{n} kalem daha göster",
+        "miktarSatiri": "Miktar: {qty}",
+        "hedefFiyatSatiri": "Hedef fiyat: {price}"
       },
       "browsetenderrow": {
         "firma": "Firma",
@@ -3519,6 +3525,8 @@
         "birimFiyat": "Birim Fiyat",
         "buKalemeTeklifVermiyorum": "Bu kaleme teklif vermiyorum",
         "kalemeTeklifVermiyorumAria": "{name} kalemine teklif vermiyorum",
+        "kaydedilmemisTeklifGeriYuklendi": "Kaydetmediğiniz teklif bilgileri geri yüklendi.",
+        "degisiklikleriAt": "Değişiklikleri at",
         "buKalemeTeklifVerilmeyecek": "Bu kaleme teklif verilmeyecek.",
         "teklifTutari": "Teklif Tutarı",
         "tutar": "Tutar",
@@ -4048,7 +4056,6 @@
       "stagedDocuments": {
         "n50mbSiniriniAsiyor": "\"{name}\" 50MB sınırını aşıyor",
         "zatenEkli": "\"{name}\" zaten ekli",
-        "dosyaBolumu": "Dosya bölümü",
         "dosyaEkle": "Dosya Ekle",
         "bolumuneDosyaEkle": "{item} bölümüne dosya ekle",
         "bolumSecipSartnameTeknikResim": "Bölüm seçip şartname, teknik resim vb. ekleyin — dosyalar {shortLower} kaydedilirken (taslak veya yayın) yüklenir.",
@@ -5063,6 +5070,8 @@
         "onayaGonderildiIncelemeBiteneKadar": "Onaya gönderildi — inceleme bitene kadar ürün değiştirilemez, yalnız önizlenir",
         "onayaGonder": "Onaya gönder",
         "duzeltVeYenidenGonder": "Düzelt ve yeniden gönder",
+        "onayaGonderKisa": "Onaya gönder",
+        "duzeltVeYenidenGonderKisa": "Yeniden gönder",
         "urunVitrindenCekildi": "Ürün vitrinden çekildi",
         "duzeltmeGerekcesi": "Düzeltme gerekçesi:",
         "temelBilgiler": "Temel bilgiler",
@@ -5165,7 +5174,7 @@
         "eklenme": "Eklenme",
         "islemler": "İşlemler",
         "kategoriSecilmedi": "Kategori seçilmedi",
-        "duzeltme": "· Düzeltme: {rejectReason}",
+        "duzeltmeSatiri": "Düzeltme: {rejectReason}",
         "min": "Min. {qty}",
         "priceMode": {
           "FIXED": "Sabit fiyat",
@@ -5227,7 +5236,8 @@
         "arsivle": "Arşivle",
         "yayindakiUrunEksik": "Yayındaki ürün eksik içerikle kaydedilemez — onaya göndermek için gerekli alanları tamamlayın.",
         "yayindakiUrunEksikKisa": "Eksik içerik nedeniyle kaydedilemez.",
-        "eksikleriGoster": "Eksikleri göster ({count})"
+        "eksikleriGoster": "Eksikleri göster ({count})",
+        "eksikler": "Eksikler ({count})"
       },
       "productPreview": {
         "urunVitrindeSaltOkunur": "Ürün vitrinde. Ürünleri düzenlemek “Ürün ve vitrin yönetimi” yetkisi ister — firma yöneticinize başvurun.",
@@ -5264,7 +5274,8 @@
         "gorseller": "Görseller",
         "gorselOnerilir": "3–8 görsel önerilir",
         "ilkGorselKapakGorselOnerilir": "İlk görsel kapak — 3–8 görsel önerilir",
-        "jpgPngVeyaWebpEnAz": "JPG, PNG veya WebP · en az {minW}×{minH} px · en fazla 5 MB (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir; sürükleyerek sıralayın, ilki kapak olur."
+        "jpgPngVeyaWebpEnAz": "JPG, PNG veya WebP · en az {minW}×{minH} px · en fazla 5 MB (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir; sürükleyerek sıralayın, ilki kapak olur.",
+        "jpgPngVeyaWebpEnAzDokunmatik": "JPG, PNG veya WebP · en az {minW}×{minH} px · en fazla 5 MB (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir; görsellerin üstündeki ok düğmeleriyle sıralayın, ilki kapak olur."
       },
       "priceModeField": {
         "fiyat": "Fiyat",
@@ -5364,6 +5375,7 @@
         "yanitGonderilemedi": "Yanıt gönderilemedi",
         "yanitiniziYazin": "Yanıtınızı yazın…",
         "yanitinizAlicininPanelindeGorunurCtrl": "Yanıtınız alıcının panelinde görünür. Ctrl+Enter ile gönder.",
+        "yanitinizAlicininPanelindeGorunur": "Yanıtınız alıcının panelinde görünür.",
         "ziyaretciyeYanitGeldiBildirimiGider": "Ziyaretçiye “yanıt geldi” bildirimi gider; okumak için hesap açması gerekir.",
         "yanitla": "Yanıtla",
         "kimMesaj": "{who}: {text}"
@@ -6076,6 +6088,7 @@
         "roller": "Roller",
         "durum": "Durum",
         "sonGiris": "Son Giriş",
+        "sonGirisSatir": "Son giriş: {when}",
         "siz": "(Siz)",
         "goruntuleyici": "Görüntüleyici",
         "yetkiYok": "Yetki yok",
@@ -6749,6 +6762,7 @@
         "baglantiListesi": "Bağlantı listesi",
         "baglantilarimdaAra": "Bağlantılarımda ara",
         "firmaAdiRothernIdSektor": "Firma adı, Rothern ID, sektör veya şehir",
+        "firmaIdSektorSehirKisa": "Firma, ID, sektör, şehir",
         "gorunum": "Görünüm",
         "henuzBaglantinizYok": "Henüz bağlantınız yok",
         "anasayfadanFirmaBulupBaglantiIstegi": "Anasayfadan firma bulup bağlantı isteği gönderin ya da e-posta ile davet edin.",
@@ -7429,6 +7443,7 @@
         "mesajlasmakIcinOnceBirFirmayla": "Mesajlaşmak için önce bir firmayla bağlantı kur.",
         "yeniSohbet": "Yeni sohbet",
         "kisiler": "← Kişiler",
+        "kisilereDon": "Kişilere dön",
         "aliciOlarak": "Alıcı olarak",
         "saticiOlarak": "Satıcı olarak",
         "birKisiSec": "Bir kişi seç",
@@ -7509,6 +7524,7 @@
       "icinSonucBulunamadi": "“{query}” için sonuç bulunamadı",
       "dahaGenelBirTerimDeneyin": "Daha genel bir terim deneyin (örn. marka yerine ürün adı) veya aramayı temizleyip listeye göz atın.",
       "cokFazlaSonucVarTumu": "Çok fazla sonuç var — tümü gösterilemiyor. Aramanızı daraltın.",
+      "cokFazlaSonucKisa": "Çok fazla sonuç — aramanızı daraltın.",
       "yenidenDene": "Yeniden dene",
       "kategorilerYuklenemediYenidenDeneyin": "Kategoriler yüklenemedi. Lütfen yeniden deneyin.",
       "buBolumYuklenemedi": "Bu bölüm yüklenemedi.",
@@ -7659,7 +7675,8 @@
       "close": "Kapat",
       "remove": "Kaldır",
       "selectPlaceholder": "— seç —",
-      "missing": "Eksik"
+      "missing": "Eksik",
+      "notifications": "Bildirimler"
     },
     "phoneInput": {
       "label": "Telefon",

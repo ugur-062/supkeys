@@ -93,11 +93,14 @@ export function CompanyTopbar({
   );
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-2 border-b border-zinc-950/10 bg-white px-3 sm:gap-3 sm:px-4">
+    // Güvenli alan (mobil kabuk): çubuk durum çubuğunun altından başlar —
+    // yükseklik `--topbar-h` (56 px + üst pay), içerik üst payın altında;
+    // yatay tutulan telefonda çentik tarafı da pay alır. Pay 0 iken eskisiyle aynı.
+    <header className="fixed inset-x-0 top-0 z-40 flex h-(--topbar-h) items-center gap-2 border-b border-zinc-950/10 bg-white pt-(--safe-top) pr-[calc(0.75rem+var(--safe-right))] pl-[calc(0.75rem+var(--safe-left))] sm:gap-3 sm:pr-[calc(1rem+var(--safe-right))] sm:pl-[calc(1rem+var(--safe-left))]">
       {/* A11y (denetim §7.2): klavye kullanıcısı nav'ı atlayıp içeriğe geçer. */}
       <a
         href="#icerik"
-        className="sr-only rounded-lg bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:left-3 focus:top-2.5 focus:z-50"
+        className="sr-only rounded-lg bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:left-[calc(0.75rem+var(--safe-left))] focus:top-[calc(0.625rem+var(--safe-top))] focus:z-50"
       >
         {t("icerigeGec")}
       </a>

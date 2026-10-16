@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuantityLabel } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
@@ -37,6 +38,7 @@ import { MONEY_FRACTION } from "@/lib/line-amount";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ReportListingPicker } from "./report-listing-picker";
+import { REPORT_FIRST_COL, REPORT_STICKY_CELL, REPORT_STICKY_HEADER } from "./report-table";
 import { readReportQuery, writeReportQuery } from "./report-url-state";
 
 /**
@@ -267,7 +269,7 @@ export function BidComparisonView({
       ) : data ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="tabular-nums text-xs text-zinc-400">
+            <span className={cn(ID_TOKEN_CLASS, "text-xs text-zinc-400")}>
               {data.listing.number ?? "—"}
             </span>
             <Badge color={isAlim ? "blue" : "emerald"}>
@@ -281,17 +283,27 @@ export function BidComparisonView({
             ) : null}
           </div>
 
-          <div className="overflow-x-auto card px-2 [--gutter:--spacing(3)]">
+          {/* Tek yatay kaydırıcı tablonun kendisi (kart kaydırmaz — mobil denetim
+              g10-06; tablo kartın içerik kutusunda kalır, `--gutter` yalnız
+              `bleed`de okunur); etiket sütunu yapışkan, telefonda dar ve saran
+              (g10-01 kuralı). */}
+          <div className="card overflow-hidden px-2 [--gutter:--spacing(2)]">
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">{tr("kalem")}</TableHeader>
+                  <TableHeader className={`${REPORT_STICKY_CELL} ${REPORT_STICKY_HEADER}`}>{tr("kalem")}</TableHeader>
                   <TableHeader className="text-right">{tr("hedef")}</TableHeader>
                   {data.parties.map((p) => {
                     const outcome = partyOutcome(p);
                     return (
                       <TableHeader key={p.companyId} className="text-right">
-                        <span className="block max-w-[140px] truncate">
+                        {/* Tedarikçi adı KIRPILMAZ, en çok 10rem'de sarar
+                            (g10-13: "MX-DOWN-SILVER TE…" dokunmatikte hiç
+                            okunamıyordu); masaüstüne title da kalır. */}
+                        <span
+                          className="ml-auto block max-w-[10rem] whitespace-normal wrap-break-word"
+                          title={p.companyName}
+                        >
                           {p.companyName}
                         </span>
                         {!p.submitted ? (
@@ -311,11 +323,13 @@ export function BidComparisonView({
               <TableBody>
                 {data.items.map((it) => (
                   <TableRow key={it.id}>
-                    <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
-                      {it.name}{" "}
-                      <span className="text-xs text-zinc-400">
-                        ({quantity(it.quantity, it.unit)})
-                      </span>
+                    <TableCell className={`${REPORT_STICKY_CELL} text-zinc-900`}>
+                      <div className={REPORT_FIRST_COL}>
+                        {it.name}{" "}
+                        <span className="whitespace-nowrap text-xs text-zinc-400">
+                          ({quantity(it.quantity, it.unit)})
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
                       {money(it.referenceUnitPrice, baseCurrency, locale)}
@@ -367,8 +381,8 @@ export function BidComparisonView({
                 {data.includePrice ? (
                   <>
                     <TableRow>
-                      <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
-                        {tr("genelToplam")}
+                      <TableCell className={`${REPORT_STICKY_CELL} font-semibold text-zinc-900`}>
+                        <div className={REPORT_FIRST_COL}>{tr("genelToplam")}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-500">
                         {data.listing.referenceTotal > 0
@@ -405,8 +419,8 @@ export function BidComparisonView({
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
-                        {tr("siraEnUcuz1")}
+                      <TableCell className={`${REPORT_STICKY_CELL} font-semibold text-zinc-900`}>
+                        <div className={REPORT_FIRST_COL}>{tr("siraEnUcuz1")}</div>
                       </TableCell>
                       <TableCell />
                       {data.parties.map((p) => (
@@ -419,8 +433,11 @@ export function BidComparisonView({
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="text-zinc-700">
-                        {tr("hedefeGoreTasarruf")}
+                      {/* Bu etiket de yapışkan (g10-03): kaydırınca değerler
+                          etiketsiz kalıyor, ilk tedarikçinin tutarı etiket
+                          sütununda görünüyordu. */}
+                      <TableCell className={`${REPORT_STICKY_CELL} text-zinc-700`}>
+                        <div className={REPORT_FIRST_COL}>{tr("hedefeGoreTasarruf")}</div>
                       </TableCell>
                       <TableCell />
                       {data.parties.map((p) => (
@@ -447,18 +464,21 @@ export function BidComparisonView({
                   {tr("kalemBazindaEnDusukBirimFiyat")}
                 </span>
               </Subheading>
+              {/* Telefonda kalem üstte, altında tedarikçi + fiyat (g10-13: üçü
+                  300 px'te yarışıyor, fiyat "36,00" / "₺" diye bölünüyordu).
+                  Fiyat hiçbir genişlikte bölünmez; sm+ eski tek satır. */}
               <ul className="divide-y divide-zinc-50">
                 {data.recommendedAwards.map((ra) => (
                   <li
                     key={ra.itemId}
-                    className="flex items-center justify-between gap-3 py-2 text-sm"
+                    className="flex flex-col gap-1 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                   >
-                    <span className="text-zinc-900">{ra.itemName}</span>
-                    <span className="flex items-center gap-3">
-                      <span className="font-medium text-zinc-700">
+                    <span className="min-w-0 text-zinc-900 wrap-break-word">{ra.itemName}</span>
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="min-w-0 font-medium text-zinc-700 wrap-break-word">
                         {ra.companyName}
                       </span>
-                      <span className=" font-semibold tabular-nums">
+                      <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">
                         {money(ra.unitPrice, baseCurrency, locale)}
                       </span>
                     </span>

@@ -207,3 +207,31 @@ describe("CompanyProfileView — düzen", () => {
     expect(right?.textContent ?? "").toContain("Şirket Bilgileri");
   });
 });
+
+// Mobil denetim 2026-10 (g02-11): telefonda 24 ürün kartı tek sütunda künyeyi
+// ~11.700 px aşağı itiyordu ve başlıkta oraya giden bir şey yoktu.
+describe("CompanyProfileView — mobil: şirket bilgilerine atlama (g02-11)", () => {
+  it("ürünler araya giriyorsa başlık kartında #hakkinda bağlantısı var (lg altında)", () => {
+    render(<CompanyProfileView profile={base} main={<div>ürünler</div>} />);
+    const jump = screen.getByRole("link", { name: "Şirket Bilgileri" });
+    expect(jump).toHaveAttribute("href", "#hakkinda");
+    expect(jump.className).toMatch(/(^|\s)lg:hidden(\s|$)/);
+    // Dokunma alanı görünmez katmanla büyür (20 px'lik metin bağlantısı).
+    expect(jump.className).toContain("after:absolute");
+  });
+
+  it("tanıtım metni varsa 'Daha fazlasını oku' ile aynı satırda", () => {
+    render(<CompanyProfileView profile={{ ...base, aboutText: "Kısa tanıtım. ".repeat(10) }} main={<div>ürünler</div>} />);
+    const more = screen.getByRole("link", { name: "Daha fazlasını oku" });
+    const jump = screen.getByRole("link", { name: "Şirket Bilgileri" });
+    expect(more.parentElement).toBe(jump.parentElement);
+  });
+
+  it("ürün bölümü yoksa ya da Profilim düzenleyicisinde bağlantı çizilmez", () => {
+    const { unmount } = render(<CompanyProfileView profile={base} />);
+    expect(screen.queryByRole("link", { name: "Şirket Bilgileri" })).toBeNull();
+    unmount();
+    render(<CompanyProfileView profile={base} main={<div>ürünler</div>} edit={{ about: <div>düzenle</div> }} />);
+    expect(screen.queryByRole("link", { name: "Şirket Bilgileri" })).toBeNull();
+  });
+});

@@ -317,9 +317,16 @@ export function ProductDetailBody({
           sorusu iki ayrı yere dağılmıştı. Sol sütun galeri genişliği
           (34 rem) kadar; kalan sağ panele gider (~500 px, kaynaktaki
           540 px'e yakın). Uzun içerik (sekmeler) ızgaranın ALTINDA tam
-          genişlikte — 500 px'lik sütuna sıkıştırmak okunmaz kılardı. */}
-      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[34rem_minmax(0,1fr)] lg:items-start">
-        <div className="min-w-0 lg:sticky lg:top-28">
+          genişlikte — 500 px'lik sütuna sıkıştırmak okunmaz kılardı.
+          GALERİ SÜTUNU DARALABİLİR (mobil denetim 2026-10, 1024 + sabit
+          kenar çubuğu): sabit 34 rem'lik sütun panelin ~704 px'lik içerik
+          alanında sağ sütuna 120 px bırakıyordu — başlık sözcük sözcük
+          kırılıyor, satıcı adı harf harf sarıyor, sayfa yana kayıyordu
+          (scrollWidth 1048). Sağ sütun en az 20 rem; galeri kalan yere
+          (en çok 34 rem) iner. Geniş alanda (herkese açık sayfa 1024/1280,
+          panel 1280+) sütunlar eskisiyle aynı: 34 rem + kalan. */}
+      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,34rem)_minmax(20rem,1fr)] lg:items-start">
+        <div className="min-w-0 lg:sticky lg:top-[calc(7rem+var(--safe-top))]">
           <ProductGallery
             images={product.images}
             alt={product.name}
@@ -338,7 +345,9 @@ export function ProductDetailBody({
 
         </div>
 
-        <aside className="min-w-0">
+        {/* `@container/info`: başlığın yazı boyu sütunun KENDİ genişliğine
+            göre (aşağıda). Sütunun içinde adsız kapsayıcı sorgusu yok. */}
+        <aside className="@container/info min-w-0">
           {/* KATEGORİ HAP OLARAK (2026-09-07, referans: Europages ürün
               sayfası): başlığın üstünde tek bir hap. Faaliyet tipi ve şehir
               buradan KALDIRILDI — aynı iki bilgi hemen altındaki satıcı
@@ -349,9 +358,21 @@ export function ProductDetailBody({
               {category.name}
             </span>
           ) : null}
+          {/* `break-words`: yalnız sütuna tek başına sığmayan sözcük (uzun
+              parça kodu) satır sonunda bölünür; sığan sözcük bölünmez.
+              Dar sütunda (< 24 rem = 384 px) başlık telefondaki boyuta (30 px)
+              iner: 36 px'te 17-18 harfli Rusça sözcük ("Энергосберегающее",
+              "водонепроницаемый", "Электротехнический": 363-364 px) panelin
+              1280'deki 360 px'lik sütununa sığmayıp tek harfi alt satıra
+              bırakıyordu ("водонепроницаемы / й"); 1024'te 320 px'te de 16-17
+              harflisi. 30 px'te bu sözcükler sığar (ölçüldü: panel 1024/1280,
+              herkese açık 1024'ün 376 px'lik sütunu). Hecelemeye (`hyphens`)
+              bilerek gidilmedi: `text-balance` ile birlikte sığan sözcüğü de
+              bölüyordu, Safari sözcük uzunluğu sınırını tanımıyor. 1366+ ve
+              herkese açık 1280'in geniş sütununda (≥ 446 px) 36 px aynen. */}
           <Heading
             level={1}
-            className="mt-2 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+            className="mt-2 text-3xl font-semibold tracking-tight text-balance break-words !text-zinc-950 sm:text-4xl @max-[24rem]/info:text-3xl"
             lang={contentLang}
           >
             {product.name}

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEntityLabels } from "@/i18n/domain";
+import { useListingDocKindFieldLabel, useListingDocKindLabel } from "@/components/tenders/use-listing-doc-kind-label";
 
 import { Badge } from "@/components/catalyst/badge";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -48,9 +49,9 @@ export function StagedDocuments({
 }) {
   const t = useTranslations("web.panel.requests.stagedDocuments");
   const L = useEntityLabels();
-  // Belge bölümü adı katalogdan (`web.domain.listingDocKind.<KOD>`); yoksa kod.
-  const tk = useTranslations("web.domain.listingDocKind");
-  const kindLabel = (k: ListingDocKind) => (tk.has(k as never) ? tk(k as never) : k);
+  // Belge bölümü adı tek sözlükten (FilesTab ile aynı; yoksa kod).
+  const kindLabel = useListingDocKindLabel();
+  const docKindFieldLabel = useListingDocKindFieldLabel();
   const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +87,11 @@ export function StagedDocuments({
   })).filter((g) => g.items.length > 0);
 
   return (
-    <section className="card p-5 md:p-6">
+    // Telefonda çerçevesiz (mobil denetim 2026-10, g06-request-create#new1):
+    // bölüm zaten numaralı bölümün kartında; kart içinde kart iki kez 20 px
+    // dolgu yiyordu, RU 360'ta "Административная спецификация" seçicisi
+    // (283 px) 248 px'lik içeriğe sığmayıp kartın kenarını aşıyordu.
+    <section className="card p-5 max-sm:p-0 max-sm:shadow-none max-sm:ring-0 md:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
@@ -95,15 +100,17 @@ export function StagedDocuments({
           <h3 className="font-semibold text-zinc-900">{L.docs}</h3>
           {docs.length > 0 ? <Badge color="zinc">{docs.length}</Badge> : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Telefonda seçici satırın tamamını alır (uzun bölüm adı kırpılır,
+            kartı aşmaz); dosya düğmesi altına iner. sm'den itibaren eski dizilim. */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <label className="sr-only" htmlFor="staged-doc-kind">
-            {t("dosyaBolumu")}
+            {docKindFieldLabel}
           </label>
           <SelectMenu
             id="staged-doc-kind"
             value={kind}
             onChange={(v) => setKind(v as ListingDocKind)}
-            className="min-w-44"
+            className="w-full min-w-0 sm:w-auto sm:min-w-44"
             options={LISTING_DOC_KINDS.map((k) => ({
               value: k,
               label: kindLabel(k),
@@ -144,7 +151,9 @@ export function StagedDocuments({
                     key={`${d.file.name}-${i}`}
                     className="flex items-center justify-between gap-3 px-3 py-2.5"
                   >
-                    <span className="min-w-0 truncate text-sm font-medium text-zinc-900">
+                    {/* Dosya adı sarar (telefonda kırpılınca hangi dosyanın
+                        kaldırılacağı okunmuyordu — mobil denetim 2026-10 g06). */}
+                    <span className="min-w-0 flex-1 text-sm font-medium text-zinc-900 wrap-anywhere">
                       {d.file.name}
                     </span>
                     <div className="flex shrink-0 items-center gap-3">
@@ -158,7 +167,8 @@ export function StagedDocuments({
                         type="button"
                         onClick={() => removeAt(d)}
                         aria-label={t("dosyasiniKaldir", { name: d.file.name })}
-                        className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
+                        // Dokunma alanı ~36 px (dolgu + eksi kenar boşluğu; yazı yerinde) — eskiden 51×16 px.
+                        className="-mx-2 -my-2.5 inline-flex items-center gap-1 rounded-lg px-2 py-2.5 text-xs text-zinc-500 hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t("kaldir")}

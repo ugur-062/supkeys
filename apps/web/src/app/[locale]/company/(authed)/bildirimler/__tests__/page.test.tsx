@@ -90,6 +90,24 @@ describe("BildirimlerPage", () => {
     expect(btn.className).not.toMatch(/(^|\s)shrink-0(\s|$)/);
   });
 
+  it("mobil denetim g04: telefonda başlık kendi satırını alır, rozet + tarih altında tek satır (tarih bölünmez)", () => {
+    h.pages = [[{ ...n("a", null), portal: "satinalma", title: "Teklif geçerlilikleri dolmak üzere" }]];
+    h.unread = 1;
+    render(<BildirimlerPage />);
+    const title = screen.getByText("Teklif geçerlilikleri dolmak üzere");
+    expect(title.className).toMatch(/(^|\s)max-sm:basis-full(\s|$)/);
+    expect(title.className).toMatch(/(^|\s)min-w-0(\s|$)/);
+    const line = title.parentElement as HTMLElement;
+    expect(line.className).toMatch(/(^|\s)flex-wrap(\s|$)/);
+    // sm+ eski tek satır: tarih alt satıra düşmez, uzun başlık kendi içinde sarar.
+    expect(line.className).toMatch(/(^|\s)sm:flex-nowrap(\s|$)/);
+    const date = line.lastElementChild as HTMLElement;
+    expect(date.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    // sm+ eski düzen: tarih sağa yaslı.
+    expect(date.className).toMatch(/(^|\s)sm:ml-auto(\s|$)/);
+    expect(date.className).not.toMatch(/(^|\s)ml-auto(\s|$)/);
+  });
+
   it("okunmamış yoksa 'Tümünü okundu' gizli", () => {
     h.pages = [[n("a")]];
     render(<BildirimlerPage />);

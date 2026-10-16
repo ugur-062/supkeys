@@ -196,9 +196,12 @@ export function ResetPasswordForm() {
           <div>
             <p className="font-semibold text-red-900">{t("invalidTitle")}</p>
             <p className="mt-1 text-sm text-red-800">{linkError || linkCheck.reason || t("invalidBody")}</p>
+            {/* Kartın tek eylemi: dokunma hedefi 44 px (mobil denetim 2026-10,
+                g03-auth-standalone-links-20px; eskiden 20 px). Kutu metni
+                ortalar; `-mb-3` kartı uzatmaz, metin eski yerinde kalır. */}
             <Link
               href="/company/sifremi-unuttum"
-              className="mt-3 inline-block text-sm font-semibold text-zinc-900 underline"
+              className="-mb-3 inline-flex min-h-11 items-center text-sm font-semibold text-zinc-900 underline"
             >
               {t("requestNew")}
             </Link>

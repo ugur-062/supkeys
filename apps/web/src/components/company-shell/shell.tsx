@@ -92,7 +92,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? RAIL_EXPANDED : RAIL }}
-        className="fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
+        className="fixed top-(--topbar-h) bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
       >
         <CompanySidebarContent expanded={expanded} />
       </aside>
@@ -109,7 +109,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         />
         <Headless.DialogPanel
           transition
-          className="fixed inset-y-0 left-0 z-50 w-full max-w-72 bg-white shadow-xl transition duration-300 ease-in-out data-closed:-translate-x-full"
+          // Güvenli alan: başlık durum çubuğunun, menü sonu ana ekran
+          // çizgisinin altında kalmaz; yatay telefonda çentik tarafı pay alır
+          // (genişlik payı kadar artar, içerik daralmaz). Pay 0 iken aynı.
+          className="fixed inset-y-0 left-0 z-50 w-full max-w-[calc(18rem+var(--safe-left))] bg-white pt-(--safe-top) pb-(--safe-bottom) pl-(--safe-left) shadow-xl transition duration-300 ease-in-out data-closed:-translate-x-full"
         >
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
@@ -141,11 +144,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           Beyaz kart deseni korunur: sayfalar önceki görünümüyle aynı kalır. */}
       <main
         className={cn(
-          /* `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
+          /* Üst pay = üst çubuğun yüksekliği (`--topbar-h`, güvenli alan
+             dahil); alt pay ana ekran çizgisi — `#icerik`teki `pb-24` AI
+             düğmesinin nefes payı olarak aynen kalır, düğme de aynı pay kadar
+             yukarıda durur. `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
              1320px ile sınırlı; hero bandı gibi tam genişlik isteyen bir
              bölüm bu sınırı ancak kapsayıcı sorgusuyla aşabilir
              (`100cqw`) — `100vw` sol menünün altına taşardı. */
-          "@container/panel flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
+          "@container/panel flex min-h-svh flex-col pt-(--topbar-h) pb-(--safe-bottom) transition-[padding] duration-200 ease-out",
           expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >

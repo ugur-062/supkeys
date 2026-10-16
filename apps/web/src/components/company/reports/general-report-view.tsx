@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { useListingStatusLabel } from "@/i18n/domain";
@@ -37,6 +38,12 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
 import { ReportListingPicker } from "./report-listing-picker";
+import {
+  REPORT_FIRST_COL,
+  REPORT_STICKY_CELL,
+  REPORT_STICKY_HEADER,
+  summaryTileSpan,
+} from "./report-table";
 import { isDayValue, isInvertedRange, readReportQuery, writeReportQuery } from "./report-url-state";
 
 // Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası
@@ -386,8 +393,8 @@ export function GeneralReportView({
                 [tr("kazananToplam"), tl(data.summary.totalAwardedValue, locale, data.baseCurrency ?? "TRY")],
                 [tr("toplamTasarruf"), tl(data.summary.totalDelta, locale, data.baseCurrency ?? "TRY"), data.summary.totalDelta >= 0],
               ] as Array<[string, string, boolean?]>
-            ).map(([k, v, accent]) => (
-              <div key={k} className="bg-white p-3.5">
+            ).map(([k, v, accent], i, all) => (
+              <div key={k} className={`bg-white p-3.5 ${summaryTileSpan(i, all.length)}`}>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                   {k}
                 </dt>
@@ -402,11 +409,14 @@ export function GeneralReportView({
             ))}
           </dl>
 
-          <div className="overflow-x-auto card px-2 [--gutter:--spacing(4)]">
+          {/* Tek yatay kaydırıcı tablonun kendisi; kart kaydırmaz (mobil denetim
+              g10-06: kart ikinci bir 8 px'lik kaydırıcı oluyordu). Tablo kartın
+              içerik kutusunda kalır — `--gutter` yalnız `bleed` tablolarda okunur. */}
+          <div className="card overflow-hidden px-2 [--gutter:--spacing(2)]">
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">{tr("satinAlmaTalebi")}</TableHeader>
+                  <TableHeader className={`${REPORT_STICKY_CELL} ${REPORT_STICKY_HEADER}`}>{tr("satinAlmaTalebi")}</TableHeader>
                   <TableHeader>{tr("durum")}</TableHeader>
                   <TableHeader className="text-right">{tr("davet")}</TableHeader>
                   <TableHeader className="text-right">{tr("teklif")}</TableHeader>
@@ -420,24 +430,33 @@ export function GeneralReportView({
               <TableBody>
                 {data.listings.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell className="sticky left-0 z-10 bg-white">
-                      {/* Talep detayı buy:view ister — yalnız rapor yetkilisine
-                          bağlantı yetki duvarına götürürdü (arayüz testi T3). */}
-                      {canOpenListing ? (
-                        <Link
-                          href={`/company/ilan/${t.id}`}
-                          className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
-                        >
-                          {t.title}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-zinc-900">{t.title}</span>
-                      )}
-                      <div className="tabular-nums text-xs text-zinc-400">
-                        {t.number ?? "—"}
-                        {t.closesAt
-                          ? ` · ${formatDate(t.closesAt, "short", locale)}`
-                          : ""}
+                    <TableCell className={REPORT_STICKY_CELL}>
+                      <div className={REPORT_FIRST_COL}>
+                        {/* Talep detayı buy:view ister — yalnız rapor yetkilisine
+                            bağlantı yetki duvarına götürürdü (arayüz testi T3). */}
+                        {canOpenListing ? (
+                          <Link
+                            href={`/company/ilan/${t.id}`}
+                            className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                          >
+                            {t.title}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-zinc-900">{t.title}</span>
+                        )}
+                        {/* Numara ve tarih kendi içinde bölünmez ("ROT-" /
+                            "000745" — mobil denetim g10); satır aralarından sarar. */}
+                        <div className="tabular-nums text-xs text-zinc-400">
+                          <span className={ID_TOKEN_CLASS}>{t.number ?? "—"}</span>
+                          {t.closesAt ? (
+                            <>
+                              {" "}
+                              <span className="whitespace-nowrap">
+                                · {formatDate(t.closesAt, "short", locale)}
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>

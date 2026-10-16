@@ -71,6 +71,8 @@ import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { PermissionTable } from "@/components/company/permission-table";
+import { useFocusFirstInvalid } from "@/lib/company-auth/use-focus-first-invalid";
+import { SHEET_ACTIONS, SHEET_BODY, SHEET_PANEL } from "./dialog-sheet";
 
 export function CompanyUsersSection({
   canManage,
@@ -251,34 +253,50 @@ export function CompanyUsersSection({
                 return (
                   <TableRow key={u.id}>
                     <TableCell>
-                      {/* Dar ekranda genişlik sınırı İÇ kutuda (td'de max-width
-                          tarayıcılarda uygulanmaz) — ad/e-posta kesilir, ⋮ görünür. */}
-                      <div className="flex min-w-0 max-w-[calc(100vw-10rem)] items-center gap-3 sm:max-w-none">
+                      {/* Telefonda satır bir kart: ad, Kurucu rozeti, "(Siz)" ve
+                          e-posta SARAR, kesilmez (mobil denetim 2026-10 g11 —
+                          rozet ve "(Siz)" aynı `truncate` satırında üç noktaya
+                          gidiyor, iki "uguray156+qa-alici-sati…" e-postası
+                          ayırt edilemiyordu; dokunmatikte title yok). Sarma
+                          noktası (`overflow-wrap:anywhere`) hücrenin en dar
+                          genişliğini küçültür → tablo kabına sığar, ⋮ görünür
+                          kalır; eski `100vw` tavanı gereksiz. `sm` ve üstü eskisi
+                          gibi tek satır + kesme. */}
+                      <div className="flex min-w-0 items-center gap-3">
                         <AvatarInitials
                           name={`${u.firstName} ${u.lastName}`}
                           size="sm"
                         />
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-zinc-900">
+                        <div className="min-w-0 max-sm:whitespace-normal">
+                          {/* Telefonda ad, rozet ve "(Siz)" ayrı esnek öğeler:
+                              alt satıra inen rozet / "(Siz)" sol boşlukla girintili
+                              başlamaz (aralık `gap`ten), kendi içinde bölünmez. */}
+                          <p className="font-semibold text-zinc-900 max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-1.5 max-sm:gap-y-0.5 max-sm:[overflow-wrap:anywhere] sm:truncate">
                             {u.firstName} {u.lastName}
                             {u.isOwner ? (
-                              <span className="ml-1.5 align-middle">
+                              <span className="align-middle max-sm:shrink-0 sm:ml-1.5">
                                 <RoleBadge owner />
                               </span>
                             ) : null}
                             {isMe ? (
-                              <span className="ml-1.5 text-xs uppercase text-zinc-500">
+                              <span className="text-xs uppercase text-zinc-500 max-sm:shrink-0 sm:ml-1.5">
                                 {t("siz")}
                               </span>
                             ) : null}
                           </p>
-                          <p className="truncate text-xs text-zinc-500">
+                          <p className="text-xs text-zinc-500 max-sm:[overflow-wrap:anywhere] sm:truncate">
                             {u.email}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1 whitespace-normal sm:hidden">
                             {roleBadges}
                             {statusBadge}
                           </div>
+                          {/* Son giriş sütunu md altında gizli — bilgi hücrede kalır. */}
+                          <p className="mt-1 text-xs text-zinc-500 md:hidden">
+                            {t("sonGirisSatir", {
+                              when: u.lastLoginAt ? formatDate(u.lastLoginAt, "relative", locale) : "—",
+                            })}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
@@ -426,12 +444,13 @@ export function CompanyUsersSection({
         open={seatSelOpen}
         onClose={() => setSeatSelOpen(false)}
         size="lg"
+        className={SHEET_PANEL}
       >
         <DialogTitle>{t("kalacakKoltuklariSec")}</DialogTitle>
         <DialogDescription>
           {t("koltukSiniriKalacak", { limit: seats?.limit ?? 0 })}
         </DialogDescription>
-        <DialogBody className="space-y-2">
+        <DialogBody className={`space-y-2 ${SHEET_BODY}`}>
           {(users ?? [])
             .filter((u) => u.isActive)
             .flatMap((u) =>
@@ -472,7 +491,7 @@ export function CompanyUsersSection({
                       {u.firstName} {u.lastName}
                       {u.isOwner ? ` ${t("kurucu")}` : ""}
                     </span>
-                    <span className="block truncate text-xs font-normal text-zinc-500">
+                    <span className="block text-xs font-normal text-zinc-500 max-sm:[overflow-wrap:anywhere] sm:truncate">
                       {u.email} · {g === "buy" ? t("satinalmaKoltugu") : t("satisKoltugu")}
                     </span>
                   </Label>
@@ -480,7 +499,7 @@ export function CompanyUsersSection({
               );
             })}
         </DialogBody>
-        <DialogActions>
+        <DialogActions className={SHEET_ACTIONS}>
           <Button plain onClick={() => setSeatSelOpen(false)}>
             {t("vazgec")}
           </Button>
@@ -559,7 +578,8 @@ function PendingInvitations() {
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm font-medium text-zinc-900">
+                  {/* Telefonda adres sarar (dokunmatikte kesilen kısmı okumanın yolu yok). */}
+                  <span className="min-w-0 text-sm font-medium text-zinc-900 max-sm:[overflow-wrap:anywhere] sm:truncate">
                     {inv.email}
                   </span>
                   {/* Yalnız görüntüleme izniyle davet: rol seti boş → "Görüntüleyici". */}
@@ -723,10 +743,18 @@ function EditUserModal({
     }
   };
 
+  // Kaydet'e basınca ilk hatalı alana odak + kaydırma: telefonda hata
+  // ("Ad boş olamaz") gövdenin üstünde, görünmez kalıyordu ve dokunuş hiçbir
+  // şey yapmamış gibi görünüyordu (mobil denetim 2026-10 g11).
+  const invalidFocus = useFocusFirstInvalid<HTMLDivElement>();
   const save = () => saveLock.run(doSave);
   const doSave = async () => {
     setTouched(true);
-    if (hasError || !dirty) return;
+    if (hasError) {
+      invalidFocus.focusFirstInvalid();
+      return;
+    }
+    if (!dirty) return;
     // Yarım kayıt olmasın (arayüz testi O-110): reddedilebilir istek (yetki —
     // koltuk/paket/son yönetici kapıları) ÖNCE gider; düşerse ad/telefon hiç
     // gönderilmez. Yetki geçip kişi bilgisi düşerse bu açıkça söylenir.
@@ -768,148 +796,158 @@ function EditUserModal({
   const busy = update.isPending || setPermissions.isPending || saveLock.locked;
 
   return (
-    <Dialog open onClose={onClose} size="3xl">
+    <Dialog open onClose={onClose} size="3xl" className={SHEET_PANEL}>
       <DialogTitle>{t("kullaniciyiDuzenle")}</DialogTitle>
-      <DialogDescription>{user.email}</DialogDescription>
+      <DialogDescription className="[overflow-wrap:anywhere]">{user.email}</DialogDescription>
       {/* Uzun içerik (yetki tablosu) viewport'u aşıp üstü header altında
           kalmasın diye body iç scroll ile sınırlanır; pr/-mr çifti içeriğin
-          scrollbar'a yapışmasını önler. */}
-      <DialogBody className="-mr-3 max-h-[70vh] space-y-5 overflow-y-auto pr-3">
-        <div>
-          <p className="text-sm font-semibold text-zinc-900">{t("kisiBilgileri")}</p>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <Field>
-              <Label>{t("ad")}</Label>
-              <Input
-                value={firstName}
-                invalid={touched && Boolean(firstNameError)}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-              {touched && firstNameError ? <ErrorMessage>{firstNameError}</ErrorMessage> : null}
-            </Field>
-            <Field>
-              <Label>{t("soyad")}</Label>
-              <Input
-                value={lastName}
-                invalid={touched && Boolean(lastNameError)}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-              {touched && lastNameError ? <ErrorMessage>{lastNameError}</ErrorMessage> : null}
-            </Field>
-          </div>
-          <Field className="mt-3">
-            <Label>{t("telefon")}</Label>
-            <PhoneInput value={phone} onChange={setPhone} />
-            {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
-          </Field>
-        </div>
-
-        {/* Yetki tablosu (Faz 4): rol çipleri hazır seti işaretler, tikler
-            kişiye özel. Kurucu satırında yalnız işlem tikleri düzenlenir. */}
-        <div>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900">{t("yetkiler")}</p>
-            {selfLocked ? (
-              <p className="text-xs text-zinc-500">
-                {t("kendiYetkileriniziDuzenleyemezsinizKurucuVey")}
-              </p>
-            ) : ownerLocked ? (
-              <p className="text-xs text-zinc-500">
-                {t("kurucununYetkileriniYalnizKurucuDuzenler")}
-              </p>
-            ) : seatsFull ? (
-              <p className="text-xs text-amber-700">
-                {t("kullaniciHakkiDoluYeniKoltuk")}
-              </p>
-            ) : (
-              <p className="text-xs text-zinc-500">
-                {t("satinalmaSatisIslemTikleriKoltuk")}
-              </p>
-            )}
-          </div>
-          {user.isOwner ? (
-            <div className="mt-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
-                <Crown className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="font-semibold text-zinc-900">{t("kurucu2")}</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
-                  {t("yonetimOnayVeGoruntulemeYetkileri")}
-                </span>
-              </span>
+          scrollbar'a yapışmasını önler. Telefonda sınır panelin kendisi
+          (`dialog-sheet.ts`): tek kaydırma alanı, Kaydet / Vazgeç altta sabit. */}
+      <DialogBody className={`-mr-3 overflow-y-auto pr-3 sm:max-h-[70vh] ${SHEET_BODY}`}>
+        <div ref={invalidFocus.ref} className="space-y-5">
+          <div>
+            <p className="text-sm font-semibold text-zinc-900">{t("kisiBilgileri")}</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <Field>
+                <Label>{t("ad")}</Label>
+                <Input
+                  value={firstName}
+                  invalid={touched && Boolean(firstNameError)}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+                {touched && firstNameError ? <ErrorMessage>{firstNameError}</ErrorMessage> : null}
+              </Field>
+              <Field>
+                <Label>{t("soyad")}</Label>
+                <Input
+                  value={lastName}
+                  invalid={touched && Boolean(lastNameError)}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+                {touched && lastNameError ? <ErrorMessage>{lastNameError}</ErrorMessage> : null}
+              </Field>
             </div>
-          ) : null}
-          <div className="mt-2">
-            {catalog ? (
-              <PermissionTable
-                catalog={catalog}
-                value={perms}
-                onChange={setPerms}
-                viewerIsOwner={viewerIsOwner}
-                targetIsOwner={user.isOwner}
-                freeSeats={freeSeats}
-                canGrantBuy={canGrantBuy}
-                hadGroups={hadGroups}
-                disabled={permsLocked}
+            <Field className="mt-3">
+              <Label>{t("telefon")}</Label>
+              <PhoneInput
+                value={phone}
+                onChange={setPhone}
+                invalid={touched && Boolean(phoneError)}
               />
-            ) : (
-              <p className="text-sm text-zinc-500">{t("yetkiKataloguYukleniyor")}</p>
-            )}
-            {touched && permsError ? (
-              <p className="mt-1 text-xs text-red-600">{permsError}</p>
+              {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
+            </Field>
+          </div>
+
+          {/* Yetki tablosu (Faz 4): rol çipleri hazır seti işaretler, tikler
+              kişiye özel. Kurucu satırında yalnız işlem tikleri düzenlenir. */}
+          <div>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-semibold text-zinc-900">{t("yetkiler")}</p>
+              {selfLocked ? (
+                <p className="text-xs text-zinc-500">
+                  {t("kendiYetkileriniziDuzenleyemezsinizKurucuVey")}
+                </p>
+              ) : ownerLocked ? (
+                <p className="text-xs text-zinc-500">
+                  {t("kurucununYetkileriniYalnizKurucuDuzenler")}
+                </p>
+              ) : seatsFull ? (
+                <p className="text-xs text-amber-700">
+                  {t("kullaniciHakkiDoluYeniKoltuk")}
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500">
+                  {t("satinalmaSatisIslemTikleriKoltuk")}
+                </p>
+              )}
+            </div>
+            {user.isOwner ? (
+              <div className="mt-2 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white">
+                  <Crown className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="font-semibold text-zinc-900">{t("kurucu2")}</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
+                    {t("yonetimOnayVeGoruntulemeYetkileri")}
+                  </span>
+                </span>
+              </div>
+            ) : null}
+            <div className="mt-2">
+              {catalog ? (
+                <PermissionTable
+                  catalog={catalog}
+                  value={perms}
+                  onChange={setPerms}
+                  viewerIsOwner={viewerIsOwner}
+                  targetIsOwner={user.isOwner}
+                  freeSeats={freeSeats}
+                  canGrantBuy={canGrantBuy}
+                  hadGroups={hadGroups}
+                  disabled={permsLocked}
+                />
+              ) : (
+                <p className="text-sm text-zinc-500">{t("yetkiKataloguYukleniyor")}</p>
+              )}
+              {/* Yetki tablosunun alanı yok: ilk hata bu satırsa ona kaydırılır. */}
+              {touched && permsError ? (
+                <p data-reveal-invalid="true" className="mt-1 text-xs text-red-600">
+                  {permsError}
+                </p>
+              ) : null}
+            </div>
+            {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
+            {viewerIsOwner && !user.isOwner ? (
+              transferOpen ? (
+                <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-900">
+                    {t("kuruculuguKisisineDevret", { firstName: user.firstName, lastName: user.lastName })}
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    {t("buIslemGeriAlinamazFatura")}
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    {t.rich("devirdenSonraSizinRolunuz", { strong: (c) => <strong>{c}</strong> })}
+                  </p>
+                  <SelectMenu
+                    value={myNewRole}
+                    onChange={(v) => setMyNewRole(v as typeof myNewRole)}
+                    ariaLabel={t("devirSonrasiRolunuz")}
+                    options={[
+                      { value: "YONETICI", label: t("yoneticiYonetimIslemYok") },
+                      // Satınalma yetkisi yalnız Gold'da — backend eski Kurucunun
+                      // yeni rolünü de koltuk/paket kapısından geçirir (MU-13).
+                      ...(canGrantBuy
+                        ? [{ value: "SATIN_ALMACI", label: t("satinAlmaciYalnizAlis") }]
+                        : []),
+                      { value: "SATISCI", label: t("satisciYalnizSatis") },
+                      ...(canGrantBuy
+                        ? [{ value: "BOTH", label: t("satinAlmaciSatisci") }]
+                        : []),
+                    ]}
+                  />
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button color="amber" onClick={() => void confirmTransfer()} disabled={update.isPending || saveLock.locked}>
+                      <Crown data-slot="icon" />
+                      {update.isPending ? t("devrediliyor") : t("devret")}
+                    </Button>
+                    <Button plain onClick={() => setTransferOpen(false)}>
+                      {t("vazgec")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button outline className="mt-3" onClick={() => setTransferOpen(true)}>
+                  <Crown data-slot="icon" />
+                  {t("kuruculuguBuKullaniciyaDevret")}
+                </Button>
+              )
             ) : null}
           </div>
-          {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
-          {viewerIsOwner && !user.isOwner ? (
-            transferOpen ? (
-              <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs font-semibold text-amber-900">
-                  {t("kuruculuguKisisineDevret", { firstName: user.firstName, lastName: user.lastName })}
-                </p>
-                <p className="text-xs text-amber-800">
-                  {t("buIslemGeriAlinamazFatura")}
-                </p>
-                <p className="text-xs text-amber-800">
-                  {t.rich("devirdenSonraSizinRolunuz", { strong: (c) => <strong>{c}</strong> })}
-                </p>
-                <SelectMenu
-                  value={myNewRole}
-                  onChange={(v) => setMyNewRole(v as typeof myNewRole)}
-                  ariaLabel={t("devirSonrasiRolunuz")}
-                  options={[
-                    { value: "YONETICI", label: t("yoneticiYonetimIslemYok") },
-                    // Satınalma yetkisi yalnız Gold'da — backend eski Kurucunun
-                    // yeni rolünü de koltuk/paket kapısından geçirir (MU-13).
-                    ...(canGrantBuy
-                      ? [{ value: "SATIN_ALMACI", label: t("satinAlmaciYalnizAlis") }]
-                      : []),
-                    { value: "SATISCI", label: t("satisciYalnizSatis") },
-                    ...(canGrantBuy
-                      ? [{ value: "BOTH", label: t("satinAlmaciSatisci") }]
-                      : []),
-                  ]}
-                />
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Button color="amber" onClick={() => void confirmTransfer()} disabled={update.isPending || saveLock.locked}>
-                    <Crown data-slot="icon" />
-                    {update.isPending ? t("devrediliyor") : t("devret")}
-                  </Button>
-                  <Button plain onClick={() => setTransferOpen(false)}>
-                    {t("vazgec")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button outline className="mt-3" onClick={() => setTransferOpen(true)}>
-                <Crown data-slot="icon" />
-                {t("kuruculuguBuKullaniciyaDevret")}
-              </Button>
-            )
-          ) : null}
         </div>
       </DialogBody>
-      <DialogActions>
+      <DialogActions className={SHEET_ACTIONS}>
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>

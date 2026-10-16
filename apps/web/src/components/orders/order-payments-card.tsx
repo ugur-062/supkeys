@@ -31,6 +31,8 @@ import { useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { FAB_CLEARANCE_CLASS } from "@/components/company-shell/assistant/fab-clearance";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 // Etiket katalog anahtarı (`status.<KOD>`) — çizim yerinde `tr(key)`.
@@ -197,11 +199,14 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
 
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3">
-        <div className="min-w-0">
+      {/* Mobil denetim (g07): telefonda başlık ve "Ödemeyi Yaptım" alt alta —
+          yan yana düğme 97 px'e sıkışıp iki satıra kırılıyordu; plan metni
+          telefonda kırpılmaz, sarar. sm ve üstü eskisi gibi tek satır. */}
+      <div className="flex flex-col items-start gap-3 border-b border-zinc-950/5 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 self-stretch sm:self-auto">
           <h2 className="text-sm font-semibold text-zinc-900">{tr("odeme")}</h2>
           {/* İhale şartındaki ödeme planı — award anındaki snapshot. */}
-          <p className="truncate text-xs text-zinc-500">
+          <p className="break-words text-xs text-zinc-500 sm:truncate">
             {formatPlan(order)}
             {order.paymentNote ? ` · ${order.paymentNote}` : ""}
           </p>
@@ -217,7 +222,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 ? tr("tamamiBildirildiOnayBekleyenlerDahil")
                 : undefined
             }
-            className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 ${accentFillClass(accent)}`}
+            className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 sm:min-h-0 sm:px-3 sm:text-xs ${accentFillClass(accent)}`}
           >
             <Plus className="h-3.5 w-3.5" />
             {tr("odemeyiYaptim")}
@@ -225,9 +230,12 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         ) : null}
       </div>
 
-      {/* Toplamlar */}
+      {/* Toplamlar — telefonda her toplam kendi satırında (etiket solda, tutar
+          sağda): üç sütunda hücre 108 px'e iniyor, "BİLDİRİLMEMİŞ" kart
+          kenarına taşıyor, RU'da iki etiket birleşik okunuyor, '₺' tek başına
+          alt satıra düşüyordu (mobil denetim g07/g08). sm ve üstü üç sütun. */}
       <div
-        className={`grid divide-x divide-zinc-950/5 border-b border-zinc-950/5 ${terminal ? "grid-cols-2" : "grid-cols-3"}`}
+        className={`grid grid-cols-1 divide-y divide-zinc-950/5 border-b border-zinc-950/5 sm:divide-x sm:divide-y-0 ${terminal ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}
       >
         <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" currency={cur} />
         <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" currency={cur} />
@@ -352,16 +360,22 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         ) : (
           order.payments.map((p) => {
             const st = PAYMENT_STATUS[p.status];
+            const decidable =
+              canAct && isSeller && p.status === "AWAITING_CONFIRMATION";
             return (
+              // Satır kalıbı (mobil denetim g08): satır sarar, metin en az 12rem
+              // alır; durum + onay/ret düğmeleri sığmazsa kendi satırına iner,
+              // sağa yaslanır. Eskiden shrink-0 düğmeler tutarı '123.456,78 / ₺'
+              // diye kırıp açıklamayı dört satıra sıkıştırıyordu.
               <div
                 key={p.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-3"
               >
-                <div className="min-w-0">
-                  <div className="tabular-nums text-sm font-semibold text-zinc-900">
+                <div className="min-w-0 flex-[1_1_12rem]">
+                  <div className="whitespace-nowrap tabular-nums text-sm font-semibold text-zinc-900">
                     {amountLabel(p.amount)}
                   </div>
-                  <div className="text-xs text-zinc-500">
+                  <div className="break-words text-xs text-zinc-500">
                     {methodLabel(p.method) ? `${methodLabel(p.method)} · ` : ""}
                     {formatDate(p.createdAt, "short", locale)}
                     {p.note ? ` · ${systemText(p.note)}` : ""}
@@ -379,14 +393,25 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                     </div>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                {/* Onay/ret düğmeleri sağ-alttaki asistan düğmesinin sütununa
+                    düşebilir → FAB payı (lg'de kart sol sütunda, pay gerekmez).
+                    Grup daralabilir ve kendi içinde sarar: RU/EN uzun durum
+                    hapı + iki 44 px düğme + pay 360 px'te satırı taşırıyordu.
+                    Onay ve ret düğmeleri BİRLİKTE sarar (hap bir satırda, iki
+                    düğme altında yan yana; ret tek başına alt satıra düşmez). */}
+                <div
+                  className={cn(
+                    "ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2",
+                    decidable && cn(FAB_CLEARANCE_CLASS, "lg:pr-0"),
+                  )}
+                >
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
+                    className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
                   >
                     {tr(st.key as never)}
                   </span>
-                  {canAct && isSeller && p.status === "AWAITING_CONFIRMATION" ? (
-                    <>
+                  {decidable ? (
+                    <div className="flex shrink-0 items-center gap-2">
                       {/* #5 (denetim 2026-08-26 Parça 10): bu aksiyon tek
                           tıkla, onaysız ve GERİ ALINAMAZ idi (backend CAS ile
                           CONFIRMED yazıyor, dönüş yolu yok) — üstelik 28px ve
@@ -411,7 +436,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                       >
                         <X className="h-4 w-4" />
                       </button>
-                    </>
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -449,11 +474,13 @@ function Totals({
 }) {
   const intl = intlLocale(useLocale());
   return (
-    <div className="px-4 py-3 text-center">
-      <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+    <div className="flex items-baseline justify-between gap-3 px-5 py-2.5 sm:block sm:px-4 sm:py-3 sm:text-center">
+      {/* Küçük metin en az zinc-500 (CLAUDE.md; zinc-400 beyazda 2,6:1). */}
+      <div className="min-w-0 break-words text-xs font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </div>
-      <div className={`mt-0.5 tabular-nums text-sm font-semibold ${tone}`}>
+      {/* Tutar ve para birimi bölünmez ('₺' tek başına alt satıra düşmesin). */}
+      <div className={`shrink-0 whitespace-nowrap tabular-nums text-sm font-semibold sm:mt-0.5 ${tone}`}>
         {affixCurrency(fmt(value, intl), currency, intl)}
       </div>
     </div>

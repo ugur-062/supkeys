@@ -20,7 +20,20 @@ import { cn } from "@/lib/utils";
 import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
-
+/**
+ * Kırılım tablolarının ilk sütunu (e-posta / özellik adı) telefonda SARAR:
+ * tablo `whitespace-nowrap` olduğundan tam e-posta sütunu ~305 px'e çıkarıyor,
+ * İstek ve Havuz payı ekranın dışına itiliyordu (mobil denetim 2026-10 g11).
+ * `overflow-wrap:anywhere` hücrenin en dar genişliğini küçültür → üç sütun
+ * 328 px'e sığar, sayılar kaydırmadan okunur. Sütun aralığı telefonda 8 px:
+ * en uzun başlıklar (RU "Пользователь · Запросы · Доля пула", sarmaz)
+ * 16 px'lik aralıkla 330 px'e çıkıp 2 px yatay kaydırma bırakıyordu.
+ * `sm` ve üstü eskisi gibi.
+ */
+const BREAKDOWN_LABEL_COL = "max-sm:pr-2";
+const BREAKDOWN_LABEL_CELL = `text-sm text-zinc-900 max-sm:whitespace-normal max-sm:[overflow-wrap:anywhere] ${BREAKDOWN_LABEL_COL}`;
+const BREAKDOWN_NUM_COL = "max-sm:px-2";
+const BREAKDOWN_NUM_CELL = `text-sm text-zinc-600 ${BREAKDOWN_NUM_COL}`;
 
 /**
  * Yüzde çubuğu — monokrom; uyarı eşiğinden sonra vurgulu. `exhausted`: bütçe
@@ -146,9 +159,9 @@ export default function AiKullanimPage() {
                   <Table dense>
                     <TableHead>
                       <TableRow>
-                        <TableHeader>{t("kullanici")}</TableHeader>
-                        <TableHeader>{t("istek")}</TableHeader>
-                        <TableHeader>{t("havuzPayi")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_LABEL_COL}>{t("kullanici")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_NUM_COL}>{t("istek")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_NUM_COL}>{t("havuzPayi")}</TableHeader>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -161,13 +174,13 @@ export default function AiKullanimPage() {
                       ) : (
                         (data.byUser ?? []).map((r) => (
                           <TableRow key={r.userId}>
-                            <TableCell className="text-sm text-zinc-900">
+                            <TableCell className={BREAKDOWN_LABEL_CELL}>
                               {r.userEmail ?? r.userId}
                             </TableCell>
-                            <TableCell className="text-sm text-zinc-600">
+                            <TableCell className={BREAKDOWN_NUM_CELL}>
                               {r.requests}
                             </TableCell>
-                            <TableCell className="text-sm text-zinc-600">
+                            <TableCell className={BREAKDOWN_NUM_CELL}>
                               {t("yuzde", { n: formatNumber(r.percentOfPool, locale) })}
                             </TableCell>
                           </TableRow>
@@ -184,9 +197,9 @@ export default function AiKullanimPage() {
                   <Table dense>
                     <TableHead>
                       <TableRow>
-                        <TableHeader>{t("ozellik")}</TableHeader>
-                        <TableHeader>{t("istek")}</TableHeader>
-                        <TableHeader>{t("havuzPayi")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_LABEL_COL}>{t("ozellik")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_NUM_COL}>{t("istek")}</TableHeader>
+                        <TableHeader className={BREAKDOWN_NUM_COL}>{t("havuzPayi")}</TableHeader>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -199,13 +212,13 @@ export default function AiKullanimPage() {
                       ) : (
                         (data.byFeature ?? []).map((r) => (
                           <TableRow key={r.feature}>
-                            <TableCell className="text-sm text-zinc-900">
+                            <TableCell className={BREAKDOWN_LABEL_CELL}>
                               {tf.has(r.feature as never) ? tf(r.feature as never) : t("diger")}
                             </TableCell>
-                            <TableCell className="text-sm text-zinc-600">
+                            <TableCell className={BREAKDOWN_NUM_CELL}>
                               {r.requests}
                             </TableCell>
-                            <TableCell className="text-sm text-zinc-600">
+                            <TableCell className={BREAKDOWN_NUM_CELL}>
                               {t("yuzde", { n: formatNumber(r.percentOfPool, locale) })}
                             </TableCell>
                           </TableRow>

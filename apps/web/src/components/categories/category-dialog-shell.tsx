@@ -141,10 +141,13 @@ export function CategoryDialogShell({
         transition
         className="fixed inset-0 bg-zinc-950/45 backdrop-blur-[2px] transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
       />
-      <div className="fixed inset-0 flex w-screen items-start justify-center p-2 pt-4 sm:p-4 sm:pt-6">
+      {/* Güvenli alan (mobil kabuk): pencere durum çubuğunun ve ana ekran
+          çizgisinin arasında kalır — kabın payı ve panelin `dvh` tavanı aynı
+          güvenli payı içerir (pay 0 iken eskisiyle aynı). */}
+      <div className="fixed inset-0 flex w-screen items-start justify-center px-2 pt-[calc(1rem+var(--safe-top))] pb-[calc(0.5rem+var(--safe-bottom))] sm:px-4 sm:pt-[calc(1.5rem+var(--safe-top))] sm:pb-[calc(1rem+var(--safe-bottom))]">
         <DialogPanel
           transition
-          className="relative flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95 supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem)] sm:supports-[height:100dvh]:max-h-[calc(100dvh-2.5rem)] lg:max-w-3xl"
+          className="relative flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95 supports-[height:100dvh]:max-h-[calc(100dvh-1.5rem-var(--safe-top)-var(--safe-bottom))] sm:supports-[height:100dvh]:max-h-[calc(100dvh-2.5rem-var(--safe-top)-var(--safe-bottom))] lg:max-w-3xl"
         >
           {/* `contents`: sarmalayıcı yerleşime girmez; soru açıkken alttaki
               her şey `inert` olur (odak ve tıklama soruya kalır). `onFocus`
@@ -360,7 +363,9 @@ export function CategorySearchField({
   // açıklaması olur (Headless Input kendi `aria-describedby`ını yazar; elle
   // verilen öznitelik eziliyordu).
   return (
-    <Field className="shrink-0 border-b border-zinc-950/5 px-4 py-3 sm:px-6 sm:py-4">
+    // Kısa ekranda (≤ 520 px, ör. ekran klavyesi açık) dikey dolgu 8 px: yer
+    // sonuç listesine kalır (yardımcı satır o kipte zaten gizli).
+    <Field className="shrink-0 border-b border-zinc-950/5 px-4 py-3 sm:px-6 sm:py-4 [@media(max-height:520px)]:py-2">
       <div className="relative">
         <InputGroup>
           <MagnifyingGlassIcon data-slot="icon" />

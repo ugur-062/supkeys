@@ -162,4 +162,14 @@ describe("PasswordSection", () => {
     await user.paste("şifreşifreşifre12");
     expect(screen.getByText("Orta")).toBeInTheDocument();
   });
+
+  // Mobil denetim 2026-10 g11: düğme nota yanında 90 px'e sıkışıp iki satıra kırılıyordu.
+  it("'Şifreyi Değiştir' tek satır; telefonda not ile alt alta (düğme üstte, tam genişlik)", () => {
+    render(<PasswordSection />);
+    const button = screen.getByRole("button", { name: "Şifreyi Değiştir" });
+    expect(button.className.split(/\s+/)).toContain("whitespace-nowrap");
+    expect(button.parentElement!.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["flex-col-reverse", "sm:flex-row", "sm:justify-between"]),
+    );
+  });
 });

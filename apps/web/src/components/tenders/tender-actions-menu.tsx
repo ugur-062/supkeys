@@ -42,6 +42,7 @@ import {
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
 import { toLocalInput } from "@/lib/tenders/map-detail-to-form";
@@ -785,8 +786,8 @@ export function TenderActionsMenu({
                     key={c.id}
                     className={
                       already
-                        ? "flex cursor-default items-center gap-2 px-3 py-2 text-sm opacity-60"
-                        : "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50"
+                        ? "flex cursor-default items-start gap-2 px-3 py-2 text-sm opacity-60 sm:items-center"
+                        : "flex cursor-pointer items-start gap-2 px-3 py-2 text-sm hover:bg-zinc-50 sm:items-center"
                     }
                   >
                     <input
@@ -801,16 +802,30 @@ export function TenderActionsMenu({
                           return next;
                         })
                       }
-                      className="h-4 w-4 rounded border-zinc-300"
+                      // Telefonda adın ilk satırıyla hizalı (satır üste yaslı).
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 sm:mt-0"
                     />
-                    <span className="font-medium text-zinc-900">{c.name}</span>
-                    {already ? (
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                        {t("davetli")}
+                    {/* Mobil denetim (g07): telefonda "Davetli" rozeti ve Rothern
+                        kodu adın ALTINDA ikinci satırda — yanda kaldıklarında RU
+                        360'ta ada 63 px kalıyor, "Tedarikç/i" sözcük ortasından
+                        bölünüyordu; ad artık satırın tamamını alır. sm'den
+                        itibaren tek satır: ad · rozet · kod (sağda). Kod ve
+                        rozet bölünmez ("HAVB-" / "X8EM" kırılması). */}
+                    <span
+                      data-slot="invite-row-text"
+                      className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2"
+                    >
+                      <span className="min-w-0 break-words font-medium text-zinc-900 sm:flex-1">{c.name}</span>
+                      <span className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {already ? (
+                          <span className="whitespace-nowrap rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                            {t("davetli")}
+                          </span>
+                        ) : null}
+                        <span className={`${ID_TOKEN_CLASS} text-xs text-zinc-500`}>
+                          {code}
+                        </span>
                       </span>
-                    ) : null}
-                    <span className="ml-auto tabular-nums text-xs text-zinc-400">
-                      {code}
                     </span>
                   </label>
                 );

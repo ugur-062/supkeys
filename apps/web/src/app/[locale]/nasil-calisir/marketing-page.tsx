@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { PRODUCT_LIMITS } from "@rothern/shared";
@@ -46,7 +47,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { signupHref } from "@/lib/public/visibility";
 import { anchorId, isRemovedPricingAnchor } from "@/lib/public/anchors";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 /**
  * METİN KATALOGDA (i18n Faz 1): `web.marketing.howItWorks.*`. Önizleme
@@ -60,8 +61,11 @@ import { useEffect, useRef, useState } from "react";
  * kart dışına taşmaz (arayüz testi D-063). Satırdaki eylem kümesi (fiyat +
  * "Satın al", "Bağlan", seçenek düğmeleri) sığmadığında ALT SATIRA iner —
  * metni tek harfe sıkıştırmaz, üstüne binmez: satır `flex-wrap`, metin
- * tarafı `flex-[1_1_8rem]` (Keşfet'te 10rem; bu genişliğin altına düşmeden
- * sarar), eylem `ml-auto`.
+ * tarafı `flex-[1_1_10rem]` (Keşfet; bu genişliğin altına düşmeden sarar),
+ * eylem `ml-auto`. Kısa metinli satırlarda (vitrin, gelen talepler, AI
+ * dosyası, alıcının teklif listesi) esas `auto`: tam metin eylemin yanına
+ * sığmazsa eylem alta iner, kesme (…) yalnız metin tek başına satıra
+ * sığmazsa son çare (2. tur g01; teklif listesi 3. tur r1-public#new1).
  * Uzun RU etiketleri ("Добавить в контакты", "Международный") buna göre.
  */
 
@@ -186,6 +190,13 @@ export function BidsPreview() {
             <LockClosedIcon className="size-3.5" /> {t("sealed")}
           </span>
         </div>
+        {/* Teklif satırları öteki maketlerle aynı kalıpta: metin tarafının
+            esası `auto` (rozet + tam firma adı). Sabit 8rem esasla satır
+            ancak 8rem + fiyat sığmadığında sarıyordu; RU 1024–1050 px'te
+            sığdığı için ad "Компан…" diye kesiliyordu (mobil denetim 2026-10,
+            r1-public#new1). Artık tam ad fiyatın yanına sığmazsa fiyat ve
+            "Выбрать" alt satıra, sağa iner; kesme yalnız ad tek başına
+            satıra sığmazsa son çare. */}
         <div className="mt-4 space-y-2">
           {bids.map((b) => (
             <div
@@ -194,7 +205,7 @@ export function BidsPreview() {
                 b.best ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
               }`}
             >
-              <div className="flex min-w-0 flex-[1_1_8rem] items-center gap-2.5">
+              <div className="flex min-w-0 flex-[1_1_auto] items-center gap-2.5">
                 <span className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${b.best ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
                   {b.best ? <TrophyIcon className="size-4" /> : <BuildingOfficeIcon className="size-4" />}
                 </span>
@@ -221,7 +232,7 @@ export function BidsPreview() {
   );
 }
 
-function ShowcasePreview() {
+export function ShowcasePreview() {
   const t = useTranslations("web.marketing.howItWorks.showcase");
   // Satış tarafı artık ÜRÜN VİTRİNİ: firma ürününü fiyat + minimum siparişle
   // yayımlar, alıcı bilgi talebi gönderir. (Satış ilanı 2026-09-04'te kaldırıldı.)
@@ -278,24 +289,30 @@ function ShowcasePreview() {
           <div className="min-w-0 text-sm font-semibold text-zinc-900">{t("inquiries")}</div>
           <span className="shrink-0 text-xs font-medium whitespace-nowrap text-emerald-700">{t("seeAll")}</span>
         </div>
+        {/* 2. tur g01: RU 360 px'te "Ответить" düğmesinin yanında ad ve mesaj
+            53 px'e sıkışıp "Покуп…" diye kesiliyordu. Düğmeli satır sarar
+            (metin tarafının esası `auto`: tam metin düğmenin yanına sığmazsa
+            düğme alta iner); yalnız ok taşıyan satır sarmaz (ok tek başına alt
+            satıra düşmesin). Mesaj önizlemesi kesilmek yerine en çok iki
+            satıra kırılır; ad kısa, kesme yalnız son çare. */}
         <div className="mt-2 space-y-2">
           {inquiries.map((q) => (
             <div
               key={q.n}
-              className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${
-                q.fresh ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
+              className={`flex items-center justify-between gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 ${
+                q.fresh ? "flex-wrap border-emerald-300 bg-emerald-50" : "border-zinc-200"
               }`}
             >
-              <div className="flex min-w-0 items-center gap-2.5">
+              <div className={`flex min-w-0 items-center gap-2.5 ${q.fresh ? "flex-[1_1_auto]" : "flex-1"}`}>
                 <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${q.fresh ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>
                   <BuildingOfficeIcon className="size-4" />
                 </span>
                 <div className="min-w-0">
                   <div className="truncate text-xs font-semibold text-zinc-900">{q.n}</div>
-                  <div className="truncate text-xs text-zinc-500">{q.t}</div>
+                  <div className="line-clamp-2 text-xs text-zinc-500">{q.t}</div>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="ml-auto flex shrink-0 items-center gap-3">
                 <span className="hidden text-xs whitespace-nowrap text-zinc-500 sm:inline">{q.when}</span>
                 {q.fresh ? (
                   <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">
@@ -327,7 +344,7 @@ function OrderTimelinePreview() {
           <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <TruckIcon className="size-6" />
           </span>
-          <div className="tabular-nums text-base font-semibold text-zinc-950">ROT-ORD-000128</div>
+          <div className={`${ID_TOKEN_CLASS} text-base font-semibold text-zinc-950`}>ROT-ORD-000128</div>
         </div>
         <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{t("status")}</span>
       </div>
@@ -453,7 +470,7 @@ function ConnectionsPreview() {
   );
 }
 
-function PublicProfilePreview() {
+export function PublicProfilePreview() {
   const t = useTranslations("web.marketing.howItWorks.profile");
   // Mockup (2026-09-18): tarayıcı çerçevesi, yeşil kapak + sağ üstte slogan,
   // logo kutusu, ad + Doğrulanmış rozeti, sektör çipleri, tanıtım, üç
@@ -495,12 +512,26 @@ function PublicProfilePreview() {
           ))}
         </div>
         <p className="mt-3 text-xs/5 text-zinc-600">{t("about")}</p>
+        {/* Eylem satırı öteki önizlemelerle aynı kalıpta (D-063): satır sarar,
+            metin tarafı `min-w-0`, eylem `ml-auto`. Mobil denetim 2026-10 g01:
+            `flex-1 truncate` metni `min-w-0` taşımadığı için tek satırlık tam
+            genişliğini kartın en küçük genişliğine sayıyordu (RU "Чтобы
+            работать с этой компанией" 346 px) — Vitrin bölümünün ızgarası
+            360 px telefonda ekrandan taşıp metni kırpıyordu.
+            Metin tarafının esası `auto` (içerik genişliği), sabit 8rem değil
+            (2. tur g01): 8rem esasla satır yalnız 8rem + eylem sığmadığında
+            sarıyordu; 390 px'te sığdığı için metin "Bu firmayla çalışm…" /
+            "www.demoste…" diye kesiliyordu. Artık tam metin eylemin yanına
+            sığmazsa eylem alta iner; kesme yalnız metin tek başına satıra
+            sığmazsa son çare. */}
         <div className="mt-4 space-y-2">
           {rows.map((r) => (
-            <div key={r.t} className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2">
-              <r.icon className="size-4 text-zinc-500" />
-              <span className="flex-1 truncate text-xs text-zinc-700">{r.t}</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
+            <div key={r.t} className="flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1.5 rounded-lg border border-zinc-200 px-3 py-2">
+              <span className="flex min-w-0 flex-[1_1_auto] items-center gap-2.5">
+                <r.icon className="size-4 shrink-0 text-zinc-500" />
+                <span className="min-w-0 truncate text-xs text-zinc-700">{r.t}</span>
+              </span>
+              <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold whitespace-nowrap text-blue-700">
                 {r.a} <r.ai className="size-3" />
               </span>
             </div>
@@ -623,6 +654,25 @@ function FeatureText({
       </div>
     </div>
   );
+}
+
+/**
+ * Dosya adını yalnız TİRELERİNDEN kırılabilir yapar (maket dosya adı,
+ * "spetsifikatsiya-2026.pdf"): tire + rakam arasında tarayıcı kendiliğinden
+ * satır kırmaz (UAX #14), dar kartta ad sözcük ortasından bölünmesin ya da
+ * "…" ile kesilmesin diye tireden sonra `<wbr>` konur.
+ */
+function breakAfterHyphens(text: string): React.ReactNode {
+  return text.split("-").map((part, i) => (
+    <Fragment key={i}>
+      {i > 0 ? (
+        <>
+          -<wbr />
+        </>
+      ) : null}
+      {part}
+    </Fragment>
+  ));
 }
 
 function FormatCard({
@@ -882,7 +932,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-16 space-y-20 sm:mt-20 sm:space-y-28">
-            <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
               <FeatureText
                 icon={UserPlusIcon}
                 tone="blue"
@@ -896,7 +946,7 @@ export default function HomePage() {
               </div>
             </Reveal>
 
-            <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
               <div className="relative"><ConnectionsPreview /></div>
               <FeatureText
                 icon={ShareIcon}
@@ -914,7 +964,10 @@ export default function HomePage() {
       <section className="relative isolate overflow-hidden bg-white py-24 sm:py-32">
         <SoftBlobs flip />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* `grid-cols-1` = minmax(0, 1fr): telefonda tek sütun ekranı aşamaz.
+              Şablonsuz örtük sütun içindeki maketin en küçük genişliğine
+              büyüyordu (mobil denetim 2026-10 g01: RU 394 px, metin kırpık). */}
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="relative">
               <HandNote side="left">{t("showcaseSection.note")}</HandNote>
               <Eyebrow>{t("showcaseSection.eyebrow")}</Eyebrow>
@@ -933,7 +986,7 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-            <Reveal className="relative"><PublicProfilePreview /></Reveal>
+            <Reveal className="relative min-w-0"><PublicProfilePreview /></Reveal>
           </div>
         </div>
       </section>
@@ -1003,11 +1056,20 @@ export default function HomePage() {
             {/* AI — belgeden talep taslağı (2026-09-18, kullanıcı: "fiyat/min.
                 sipariş kartını beğenmedim, AI olabilir"). */}
             <FormatCard tag={t("formats.aiTag")} tagTone="violet" title={t("formats.aiTitle")} body={t("formats.aiBody")}>
+              {/* Dosya satırı sarar, kalem adları kırılır (2. tur g01): dosya
+                  adı RU 360 px'te 64 px'e sıkışıp "spetsi…" diye, kalem adı
+                  "Стальная труба Ø60…" diye kesiliyordu. "AI okudu" rozeti tam
+                  dosya adının yanına sığmazsa alta iner. Rozet alta indiği hâlde
+                  ad satıra sığmıyorsa (iki sütunlu kart, 640-690 px: EN/RU)
+                  kesilmez, tiresinden alt satıra kırılır — "-2026" tire+rakam
+                  olduğu için tarayıcı orada kendiliğinden kırmaz, <wbr> verir. */}
               <div className="space-y-2">
-                <div className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2.5 ring-1 ring-zinc-200">
-                  <span className="flex size-7 items-center justify-center rounded-md bg-violet-50 text-violet-600"><DocumentTextIcon className="size-4" /></span>
-                  <span className="flex-1 truncate text-sm text-zinc-700">{t("formats.aiFile")}</span>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-2 py-1 text-[11px] font-semibold text-white"><SparklesIcon className="size-3" /> {t("formats.aiRead")}</span>
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-lg bg-white px-3 py-2.5 ring-1 ring-zinc-200">
+                  <span className="flex min-w-0 flex-[1_1_auto] items-center gap-2.5">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-violet-50 text-violet-600"><DocumentTextIcon className="size-4" /></span>
+                    <span className="min-w-0 text-sm break-words text-zinc-700">{breakAfterHyphens(t("formats.aiFile"))}</span>
+                  </span>
+                  <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-600 px-2 py-1 text-[11px] font-semibold whitespace-nowrap text-white"><SparklesIcon className="size-3" /> {t("formats.aiRead")}</span>
                 </div>
                 {[
                   { n: t("formats.aiItem1"), q: t("formats.aiQty1") },
@@ -1015,9 +1077,9 @@ export default function HomePage() {
                   { n: t("formats.aiItem3"), q: t("formats.aiQty3") },
                 ].map((it) => (
                   <div key={it.n} className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
-                    <span className="size-1.5 rounded-full bg-violet-400" />
-                    <span className="flex-1 truncate text-xs text-zinc-700">{it.n}</span>
-                    <span className="text-xs font-semibold tabular-nums text-zinc-900">{it.q}</span>
+                    <span className="size-1.5 shrink-0 rounded-full bg-violet-400" />
+                    <span className="min-w-0 flex-1 text-xs text-zinc-700">{it.n}</span>
+                    <span className="shrink-0 text-xs font-semibold whitespace-nowrap tabular-nums text-zinc-900">{it.q}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 ring-1 ring-violet-200">
@@ -1115,16 +1177,20 @@ export default function HomePage() {
             <p className="mx-auto mt-6 max-w-xl text-lg/8 text-pretty text-blue-100/80">
               {t("cta.body")}
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
+            {/* Telefonda alt alta (mobil denetim 2026-10 g01): yan yana iki
+                bağlantı 360 px'te sığmıyordu — RU kayıt düğmesi ve "Войти →"
+                oku kartın yuvarlak kenarında kırpılıyor, TR etiketler iki
+                satıra kırılıyordu. sm ve üstünde eskisi gibi yan yana. */}
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-x-6">
               <Link
                 href="/company/kayit"
-                className="rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-100"
+                className="w-full rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-100 sm:w-auto"
               >
                 {t("cta.signup")}
               </Link>
               <Link
                 href="/company/login"
-                className="inline-flex items-center gap-2 text-base font-semibold text-white hover:text-blue-100"
+                className="inline-flex min-h-11 items-center gap-2 text-base font-semibold whitespace-nowrap text-white hover:text-blue-100"
               >
                 {t("cta.login")} <span aria-hidden="true">→</span>
               </Link>

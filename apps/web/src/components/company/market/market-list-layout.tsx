@@ -30,9 +30,17 @@ import type { ReactNode } from "react";
  * kendi genişliğine bakar. Aynı `lg` görüntü alanı bu sayfada 416 px, aynı
  * bileşen herkese açık `/urunler`de 900+ px sütun demek — viewport
  * kırılımı ikisinden birinde her zaman yanlış sütun genişliği üretirdi.
+ *
+ * AKTİF SÜZGEÇ ŞERİDİ (`chips`) sonuç sütununun İLK çocuğu (mobil denetim
+ * 2026-10, `PublicListPage`ın eşi): ızgaranın üstünde tam genişlikteyken
+ * `lg`de yapışkan şerit (`top-(--topbar-h)`, 56-100 px) `xl`de yapışkan rayın
+ * (`top-[calc(5rem+var(--safe-top))]`) üst ~20 px'ini örtüyordu. Sarmalanmaz:
+ * sarmalayıcı yapışkanlığı kendi kutusuna hapsederdi. Telefonda ray gizli,
+ * sıra (şerit → araç çubuğu) ve boşluk (şeridin `mb-4`ü) aynı.
  */
 export function MarketListLayout({
   rail,
+  chips,
   toolbarStart,
   toolbarEnd,
   children,
@@ -44,6 +52,8 @@ export function MarketListLayout({
   perPage,
 }: {
   rail: ReactNode;
+  /** Aktif süzgeç şeridi (`ActiveFilterChips` / `CompanyActiveChips`) — sonuç sütununun başında. */
+  chips?: ReactNode;
   toolbarStart?: ReactNode;
   toolbarEnd?: ReactNode;
   children: ReactNode;
@@ -61,11 +71,12 @@ export function MarketListLayout({
     <div className="grid grid-cols-1 gap-8 xl:grid-cols-[16rem_1fr]">
       <aside
         aria-label={t("suzgecler")}
-        className="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100svh-6rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1 [scrollbar-width:thin]"
+        className="hidden xl:sticky xl:top-[calc(5rem+var(--safe-top))] xl:block xl:max-h-[calc(100svh-6rem-var(--safe-top))] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1 [scrollbar-width:thin]"
       >
         {rail}
       </aside>
       <div className="@container min-w-0">
+        {chips}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <span className="flex items-center gap-3">
             <MobileFilterButton hideAt="xl" />

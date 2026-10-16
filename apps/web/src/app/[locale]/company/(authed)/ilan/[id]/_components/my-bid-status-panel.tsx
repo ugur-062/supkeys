@@ -88,6 +88,19 @@ const LOST_BADGE: Record<ReturnType<typeof lostBidOutcome>, { key: string; color
 /** Talep sonuçlandı/iptal — teklif geçerlilik geri sayımı anlamını yitirir. */
 const TERMINAL_LISTING = new Set(["AWARDED", "CLOSED_NO_AWARD", "CANCELLED"]);
 
+/**
+ * Teklif kalemleri tablosu (sm+) TABLETTE kabına sığsın (mobil denetim 2026-10,
+ * RU 1024: scrollWidth 711-723 > 662-694). Ölçülen kademeler (TR/RU, 640-1279):
+ *  - xl altı: hücre iç payı 16 → 8 px (ilk/son hücrenin dış payı Catalyst'in
+ *    `sm:first:pl-1 sm:last:pr-1`i — daha özgül, değişmez) ve Kalem sütununun
+ *    tabanı 12 → 10rem. Başlıklar tek satırda kalır (TR 1024'te sığıyordu).
+ *  - md altı (640-767): ayrıca başlıklar sarar ve taban 8rem.
+ * Telefon (sm altı) kart listesi, xl (1280+) eskisi gibi.
+ */
+const BID_CELL = "max-xl:px-2";
+const BID_HEAD = "max-md:whitespace-normal";
+const BID_ITEM_COL = "min-w-48 max-xl:min-w-40 max-md:min-w-32";
+
 /** Teklif özeti kartı — statü / versiyon / toplam + geçerlilik + kalemler + not. */
 export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.myBidStatusPanel");
@@ -367,99 +380,170 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             const hasDelivery =
               !!generalDelivery ||
               bid.items!.some((bi) => bi.deliveryTime || bi.deliveryDate);
+            // Satır içeriği bir kez hesaplanır — telefon kartı ve sm+ tablosu
+            // AYNI kaynaktan çizer (iki kopya ayrışmasın).
+            const rows = bid.items!.map((bi) => {
+              const item = itemName.get(bi.itemId);
+              // Kalem sorularına verilen cevaplar (alıcının gördüğüyle aynı).
+              const itemAnswers = (item?.questions ?? [])
+                .map((q) => ({
+                  q,
+                  value: bid.answers?.find((a) => a.questionId === q.id)?.value,
+                }))
+                .filter((x) => x.value);
+              return {
+                key: bi.itemId,
+                name: item?.name ?? t("kalem"),
+                notes: (
+                  <>
+                    <AlternativeOfferNote bidItem={bi} item={item} />
+                    {itemAnswers.map(({ q, value }) => (
+                      <span key={q.id} className="block text-xs font-normal text-zinc-500">
+                        {q.text}:{" "}
+                        <strong className="font-medium text-zinc-700">
+                          {q.answerType === "YES_NO" && value
+                            ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
+                            : value}
+                        </strong>
+                      </span>
+                    ))}
+                  </>
+                ),
+                qty: item ? quantity(item.quantity, item.unit, item.unitCode) : "—",
+                unitPrice: withSym(
+                  Number(bi.unitPrice).toLocaleString(intl, MONEY_FRACTION),
+                  bi.currency || cur,
+                ),
+                delivery:
+                  bidDeliveryTimeLabel(bi.deliveryTime) ??
+                  (bi.deliveryDate
+                    ? formatDate(bi.deliveryDate, "short", locale)
+                    : (generalDelivery ?? "—")),
+                line: item
+                  ? withSym(
+                      lineAmount(Number(item.quantity), Number(bi.unitPrice)).toLocaleString(intl, MONEY_FRACTION),
+                      bi.currency || cur,
+                    )
+                  : "—",
+              };
+            });
+            const total = withSym(Number(bid.amount).toLocaleString(intl, MONEY_FRACTION));
+            const totalNote = mixedItemCurrency ? (
+              <div className="text-xs font-normal whitespace-normal text-zinc-500">
+                {t("toplamAnaBirimeCevrildi", { currency: cur })}
+              </div>
+            ) : null;
             return (
+              <>
+                {/* Mobil denetim (g08, kullanıcı kararı): telefonda kalemler
+                    KART listesi — beş sütunlu tablo 610 px'e çıkıyor, 286 px'lik
+                    kutuda yalnız Kalem/Miktar görünüyor, birim fiyat, teslim,
+                    satır toplamı ve Toplam değeri ekran dışında kalıyordu.
+                    Tablo sm'den itibaren. */}
+                <ul className="divide-y divide-zinc-950/5 overflow-hidden rounded-lg ring-1 ring-zinc-950/5 sm:hidden">
+                  {rows.map((r) => (
+                    <li key={r.key} className="px-3 py-2.5">
+                      <p className="text-sm font-medium text-zinc-900 [overflow-wrap:anywhere]">
+                        {r.name}
+                        {r.notes}
+                      </p>
+                      <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 text-xs">
+                        <dt className="text-zinc-500">{t("miktar")}</dt>
+                        <dd className="text-right tabular-nums text-zinc-700">{r.qty}</dd>
+                        <dt className="text-zinc-500">{t("birimFiyat")}</dt>
+                        <dd className="text-right tabular-nums text-zinc-700">{r.unitPrice}</dd>
+                        {hasDelivery ? (
+                          <>
+                            <dt className="text-zinc-500">{t("teslim")}</dt>
+                            <dd className="text-right text-zinc-700">{r.delivery}</dd>
+                          </>
+                        ) : null}
+                        <dt className="text-zinc-500">{t("satirToplami")}</dt>
+                        <dd className="text-right text-sm font-medium tabular-nums text-zinc-900">
+                          {r.line}
+                        </dd>
+                      </dl>
+                    </li>
+                  ))}
+                  {/* Not (`totalNote`) bir <div> → kapsayıcı da <div> (span içinde
+                      div geçersiz). Zemin yok: tablodaki Toplam satırı gibi düz. */}
+                  <li className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+                    <span className="text-sm font-semibold text-zinc-900">{t("toplam")}</span>
+                    <div className="min-w-0 text-right">
+                      <span className="block whitespace-nowrap text-sm font-bold tabular-nums text-zinc-950">
+                        {total}
+                      </span>
+                      {totalNote}
+                    </div>
+                  </li>
+                </ul>
+                {/* TABLET (mobil denetim 2026-10): RU 1024 px'te tablo yana kayıyordu
+                    (scrollWidth 711-723 > 662-694 px; büyük harfli RU başlıklar
+                    "ЦЕНА ЗА ЕДИНИЦУ" sütunları değerlerden geniş tutuyordu). xl
+                    altında hücre iç payı daralır (`BID_CELL`) ve Kalem sütununun
+                    tabanı 10rem olur — başlıklar tek satırda kalır; md altında
+                    (640-767 px) ayrıca başlıklar sarar (`BID_HEAD`) ve taban 8rem.
+                    Ölçüldü (TR/RU, 640-1279): tablo kabına sığar. Telefon kartı
+                    ve xl (1280+) değişmedi. */}
+                <div className="hidden sm:block">
               <Table dense>
                 <TableHead>
                   <TableRow>
                     {/* Kalem sütunu daralmasın: cevap/muadil satırları dar
-                        ekranda kelime kelime kırılıyordu; tablo zaten yatay kayar. */}
-                    <TableHeader className="min-w-48">{t("kalem")}</TableHeader>
-                    <TableHeader className="text-right">{t("miktar")}</TableHeader>
-                    <TableHeader className="text-right">
+                        ekranda kelime kelime kırılıyordu. Taban xl'de 12rem,
+                        altında kademeli daralır (yukarıda). */}
+                    <TableHeader className={cn(BID_ITEM_COL, BID_CELL, BID_HEAD)}>{t("kalem")}</TableHeader>
+                    <TableHeader className={cn("text-right", BID_CELL, BID_HEAD)}>{t("miktar")}</TableHeader>
+                    <TableHeader className={cn("text-right", BID_CELL, BID_HEAD)}>
                       {t("birimFiyat")}
                     </TableHeader>
                     {hasDelivery ? (
-                      <TableHeader className="text-right">{t("teslim")}</TableHeader>
+                      <TableHeader className={cn("text-right", BID_CELL, BID_HEAD)}>{t("teslim")}</TableHeader>
                     ) : null}
-                    <TableHeader className="text-right">
+                    <TableHeader className={cn("text-right", BID_CELL, BID_HEAD)}>
                       {t("satirToplami")}
                     </TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {bid.items!.map((bi) => {
-                    const item = itemName.get(bi.itemId);
-                    // Kalem sorularına verilen cevaplar (alıcının gördüğüyle aynı).
-                    const itemAnswers = (item?.questions ?? [])
-                      .map((q) => ({
-                        q,
-                        value: bid.answers?.find((a) => a.questionId === q.id)?.value,
-                      }))
-                      .filter((x) => x.value);
-                    return (
-                      <TableRow key={bi.itemId}>
-                        <TableCell className="min-w-48 whitespace-normal text-zinc-900">
-                          {item?.name ?? t("kalem")}
-                          <AlternativeOfferNote bidItem={bi} item={item} />
-                          {itemAnswers.map(({ q, value }) => (
-                            <span key={q.id} className="block text-xs text-zinc-500">
-                              {q.text}:{" "}
-                              <strong className="font-medium text-zinc-700">
-                                {q.answerType === "YES_NO" && value
-                                  ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
-                                  : value}
-                              </strong>
-                            </span>
-                          ))}
+                  {rows.map((r) => (
+                    <TableRow key={r.key}>
+                      <TableCell className={cn(BID_ITEM_COL, "whitespace-normal text-zinc-900", BID_CELL)}>
+                        {r.name}
+                        {r.notes}
+                      </TableCell>
+                      <TableCell className={cn("text-right whitespace-nowrap text-zinc-600 tabular-nums", BID_CELL)}>
+                        {r.qty}
+                      </TableCell>
+                      <TableCell className={cn("text-right whitespace-nowrap text-zinc-600 tabular-nums", BID_CELL)}>
+                        {r.unitPrice}
+                      </TableCell>
+                      {hasDelivery ? (
+                        <TableCell className={cn("text-right whitespace-nowrap text-zinc-600 tabular-nums", BID_CELL)}>
+                          {r.delivery}
                         </TableCell>
-                        <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                          {item
-                            ? quantity(item.quantity, item.unit, item.unitCode)
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                          {withSym(
-                            Number(bi.unitPrice).toLocaleString(intl, MONEY_FRACTION),
-                            bi.currency || cur,
-                          )}
-                        </TableCell>
-                        {hasDelivery ? (
-                          <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                            {bidDeliveryTimeLabel(bi.deliveryTime) ??
-                              (bi.deliveryDate
-                                ? formatDate(bi.deliveryDate, "short", locale)
-                                : (generalDelivery ?? "—"))}
-                          </TableCell>
-                        ) : null}
-                        <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">
-                          {item
-                            ? withSym(
-                                lineAmount(Number(item.quantity), Number(bi.unitPrice)).toLocaleString(intl, MONEY_FRACTION),
-                                bi.currency || cur,
-                              )
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      ) : null}
+                      <TableCell className={cn("text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums", BID_CELL)}>
+                        {r.line}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                   <TableRow>
-                    <TableCell className="font-semibold text-zinc-900">
+                    <TableCell className={cn("font-semibold text-zinc-900", BID_CELL)}>
                       {t("toplam")}
                     </TableCell>
-                    <TableCell />
-                    <TableCell />
-                    {hasDelivery ? <TableCell /> : null}
-                    <TableCell className="text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums">
-                      {withSym(Number(bid.amount).toLocaleString(intl, MONEY_FRACTION))}
-                      {mixedItemCurrency ? (
-                        <div className="text-xs font-normal whitespace-normal text-zinc-500">
-                          {t("toplamAnaBirimeCevrildi", { currency: cur })}
-                        </div>
-                      ) : null}
+                    <TableCell className={BID_CELL} />
+                    <TableCell className={BID_CELL} />
+                    {hasDelivery ? <TableCell className={BID_CELL} /> : null}
+                    <TableCell className={cn("text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums", BID_CELL)}>
+                      {total}
+                      {totalNote}
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
+                </div>
+              </>
             );
           })()}
         </div>

@@ -334,6 +334,26 @@ describe("MyBidsList — sunucu tarafı sayfa/süzgeç (O-005)", () => {
     const href = screen.getByRole("link", { name: "Çelik boru alımı" }).getAttribute("href") ?? "";
     expect(decodeURIComponent(href)).toContain("from=/company/satis/tekliflerim?status=LOST&page=2");
   });
+
+  it("mobil denetim g08: sayfa değişince görünüm listenin başına döner (yeni sayfanın sonunda kalınmaz)", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      h.page = pageOf([bid()], { total: 25 });
+      render(<MyBidsList />);
+      // Liste başı = kartların kabı (sayfalamadan önceki kardeş).
+      const rows = document.querySelector("[data-pagination-root]")!.previousElementSibling as HTMLElement;
+      expect(rows).toContainElement(screen.getByRole("link", { name: "Çelik boru alımı" }));
+      await user.click(screen.getByRole("button", { name: /^2$/ }));
+      expect(lastCall()).toMatchObject({ page: 2 });
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+      expect(scrollIntoView.mock.contexts[0]).toBe(rows);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
 });
 
 describe("MyBidCard", () => {

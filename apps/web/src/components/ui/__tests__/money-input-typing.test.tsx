@@ -236,3 +236,83 @@ describe("MoneyInput — kayıtlı kesirli fiyat 2 haneyle çizilir", () => {
     expect((screen.getByLabelText("I") as HTMLInputElement).value).toBe("7");
   });
 });
+
+/**
+ * Mobil denetim 2026-10 g06: talep kalemi miktarına telefonun ondalık
+ * klavyesinde "1,2,3" (ya da "1.2.3", "1,,5") yazan kullanıcının değeri
+ * odaktan çıkınca SESSİZCE 12,3 oluyordu (aria-invalid yok, taslak kabul
+ * ediyordu). Artık değer NaN (geçersiz) olur, alan kırmızı çizilir ve yazılan
+ * metin düzeltilene dek kalır.
+ */
+describe("MoneyInputNumber — düzensiz ayraç geçersizdir (yeniden yorumlanmaz)", () => {
+  it.each(["1,2,3", "1.2.3", "1,,5"])("TR '%s' → NaN, metin kalır, alan geçersiz", async (typed) => {
+    const user = userEvent.setup();
+    render(<QtyHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    await user.keyboard(typed);
+    expect(screen.getByTestId("qty").textContent).toBe("NaN");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    await user.tab();
+    // Odaktan çıkınca "12,3"e oturmaz, "NaN" da yazmaz: kullanıcının metni.
+    expect(input.value).toBe(typed);
+    expect(screen.getByTestId("qty").textContent).toBe("NaN");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("düzeltince geçerli değere döner ve kırmızı kalkar", async () => {
+    const user = userEvent.setup();
+    render(<QtyHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    await user.keyboard("1,2,3");
+    await user.tab();
+    await user.clear(input);
+    await user.keyboard("12,3");
+    expect(screen.getByTestId("qty").textContent).toBe("12.3");
+    expect(input).not.toHaveAttribute("aria-invalid");
+    await user.tab();
+    expect(input.value).toBe("12,3");
+  });
+
+  it("geçerli yazım ara hâlleri geçersiz sayılmaz (1.234, → 1.234,5)", async () => {
+    const user = userEvent.setup();
+    render(<QtyHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    for (const key of "1.234,5") {
+      await user.keyboard(key);
+      expect(input).not.toHaveAttribute("aria-invalid");
+    }
+    expect(screen.getByTestId("qty").textContent).toBe("1234.5");
+  });
+
+  it("dışarıdan gelen değer geçersiz metni ezer", async () => {
+    function ResetHarness() {
+      const [v, setV] = useState<number | undefined>(1);
+      return (
+        <>
+          <MoneyInputNumber aria-label="Miktar" maxDecimals={3} value={v} onChange={setV} />
+          <button type="button" onClick={() => setV(5)}>
+            Sıfırla
+          </button>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<ResetHarness />);
+    const input = screen.getByLabelText("Miktar") as HTMLInputElement;
+    await user.clear(input);
+    await user.keyboard("1,2,3");
+    await user.tab();
+    await user.click(screen.getByRole("button", { name: "Sıfırla" }));
+    expect(input.value).toBe("5");
+    expect(input).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("ham dize MoneyInput varsayılan olarak değişmedi (strict yalnız açıkça)", async () => {
+    currentLocale = "tr";
+    await typeIn("1,2,3");
+    expect(last).toBe("12.3");
+  });
+});

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { RequestDefaultsForm } from "@/components/tenders/request-defaults-form";
 import { useDeliveryTermLabel, useFormatPaymentPlan, usePaymentCategoryLabel, useScopeLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
+import { FAB_CLEARANCE_SM_CLASS, FAB_CLEARANCE_SM_IN_PX5_CLASS } from "@/components/company-shell/assistant/fab-clearance";
 import { sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
@@ -97,7 +98,8 @@ export function TermsPanel({
           <button
             type="button"
             onClick={() => setOpen(open === "all" ? null : "all")}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-950/35 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-950/50"
+            // Dokunma alanı ≥40 px (after: katmanı; görünen hap aynı) — mobil denetim 2026-10 g06.
+            className="relative inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-950/35 px-2.5 py-1 text-[11px] font-semibold text-white after:absolute after:-inset-2 hover:bg-blue-950/50"
           >
             <PencilSquareIcon aria-hidden className="size-3.5" />
             {open === "all" ? t("kapat") : t("tumunuDuzenle")}
@@ -131,16 +133,25 @@ export function TermsPanel({
                   <r.icon aria-hidden className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{r.label}</div>
+                  {/* Etiket satırı sm'den itibaren alt çubukla AYNI sağ payı alır
+                      (mobil denetim 2026-10, üçüncü tur): "değiştir" 1280'de AI
+                      Asistan düğmesinin sütununa (1192-1248) uzanıyor, sağ ray
+                      yapışkan olduğundan düğme ilk açılışta çekiliyordu. Değer
+                      metni tam genişlikte kalır (dar rayda sarmasın). */}
+                  <div className={cn("flex items-start justify-between gap-2", FAB_CLEARANCE_SM_IN_PX5_CLASS)}>
+                    <div className="min-w-0 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{r.label}</div>
+                    {/* "değiştir" 46×16 px'ti (mobil denetim 2026-10 g06): dolgu + eksi
+                        kenar boşluğu → ~40 px dokunma alanı, yazı yerinde. */}
+                    <button
+                      type="button"
+                      onClick={() => setOpen(open === r.key ? null : r.key)}
+                      className={cn("-mx-2 -my-3 shrink-0 rounded-lg px-2 py-3 text-xs font-semibold whitespace-nowrap hover:underline", r.missing ? "text-red-700" : "text-blue-700")}
+                    >
+                      {open === r.key ? t("kapat2") : r.missing ? t("sec") : t("degistir")}
+                    </button>
+                  </div>
                   <div className={cn("text-sm font-medium", r.missing ? "text-red-700" : "text-zinc-950")}>{r.text ?? t("secilmediGerekli")}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOpen(open === r.key ? null : r.key)}
-                  className={cn("shrink-0 text-xs font-semibold hover:underline", r.missing ? "text-red-700" : "text-blue-700")}
-                >
-                  {open === r.key ? t("kapat2") : r.missing ? t("sec") : t("degistir")}
-                </button>
               </div>
               {open === r.key ? (
                 <div className="mt-3 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
@@ -157,7 +168,12 @@ export function TermsPanel({
           {t("teslimNoktasiTedarikcininKapisiFarkli")}
         </p>
       ) : null}
-      <div className="flex items-center justify-between gap-2 border-t border-zinc-950/5 bg-zinc-50 px-5 py-3">
+      {/* sm'den itibaren sağ pay (mobil denetim 2026-10): 1280'de /yeni açılışında
+          "Varsayılan yap" (1115-1220) tam boy AI Asistan düğmesinin (1192-1248)
+          altında kalıyor, düğme çekiliyordu. Daralan satırda (21rem ray) hap
+          düğme iki satıra kırılmasın: sm'den itibaren `shrink-0 whitespace-nowrap`,
+          kaynak notu sarar. Telefon yerleşimi değişmez. */}
+      <div className={cn("flex items-center justify-between gap-2 border-t border-zinc-950/5 bg-zinc-50 px-5 py-3", FAB_CLEARANCE_SM_CLASS)}>
         <span className="text-[11px] text-zinc-500">
           {source === "saved"
             ? t("kaynakTalepSartlariniz")
@@ -170,7 +186,7 @@ export function TermsPanel({
                   : t("kaynakPlatformVarsayilani")}
         </span>
         {canSave ? (
-          <button type="button" onClick={onSaveDefaults} disabled={saving || !!missing} className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+          <button type="button" onClick={onSaveDefaults} disabled={saving || !!missing} className="relative rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white after:absolute after:-inset-2 hover:bg-blue-700 disabled:opacity-50 sm:shrink-0 sm:whitespace-nowrap">
             {saving ? t("kaydediliyor") : source === "saved" || source === "listing" || source === "seed" ? t("varsayilanYap") : t("sartlariKaydet")}
           </button>
         ) : null}

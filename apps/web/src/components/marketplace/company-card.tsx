@@ -244,7 +244,11 @@ export function CompanyCard({
                         className="after:absolute after:inset-0 after:content-[''] hover:text-blue-700 focus:outline-none"
                       >
                         {pv.name}
-                        <span className="sr-only"> {t("newTab")}</span>
+                        {/* Mobil kabukta aynı ekranda açılır → ipucu gizli (globals.css `data-new-tab-hint`). */}
+                        <span className="sr-only" data-new-tab-hint="">
+                          {" "}
+                          {t("newTab")}
+                        </span>
                       </Link>
                     </p>
                     {pv.moq ? (

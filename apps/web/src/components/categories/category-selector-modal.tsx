@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/catalyst/badge";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { ChevronRight, FolderTree, Loader2, X } from "lucide-react";
@@ -33,13 +33,32 @@ function DisclosureSpacer() {
 }
 
 /**
- * Ağaçtaki BAŞLIK satırlarının (sektör, aile) onay kutusu — dokunma hedefi.
- * Bu satırlarda ada basmak dalı açar; işaretlemenin tek yolu kutudur ve kutu
- * 18 px'tir (geniş ekranda 16). Görünmeyen çerçeve hedefi her yönde 8 px
- * büyütür (34 / 32 px): komşu ok ve ad düğmesine dayanır, üstlerine binmez
- * (aralıklar 8 px). Sınıf / emtia satırlarında ad da işaretlediği için gerekmez.
+ * Ağaçtaki HER satırın onay kutusu — dokunma hedefi. Kutu 18 px'tir (geniş
+ * ekranda 16). Görünmeyen çerçeve hedefi her yönde 8 px büyütür (34 / 32 px):
+ * komşu ok ve ad düğmesine dayanır, üstlerine binmez (aralıklar 8 px); satır
+ * yüksekliğini (telefonda en az 40, geniş ekranda 32 px) aşmaz. Başlık
+ * satırlarında (sektör, aile) ada basmak dalı açar, işaretlemenin tek yolu
+ * kutudur; sınıf / emtia satırlarında ad da işaretler ama kutu yine tek başına
+ * 18 px kalıyordu (mobil denetim 2026-10, g06-request-create-category-tree-small).
  */
-const HEADING_TICK = "relative flex-shrink-0 after:absolute after:-inset-2";
+const TICK_HIT = "relative flex-shrink-0 after:absolute after:-inset-2";
+
+/**
+ * Aç/kapa okunun düğmesi: görünen kutu 20 px. Görünmeyen çerçeve dikeyde satır
+ * boyuna (telefonda 40, geniş ekranda 32 px), solda satırın kenarına uzar →
+ * 24 px genişlik; SAĞA uzamaz (onay kutusunun çerçevesine dayanır, binmez).
+ */
+const DISCLOSURE_HIT =
+  "relative -ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100 after:absolute after:-inset-y-2.5 after:-left-1 after:right-0 sm:after:-inset-y-1.5";
+
+/**
+ * Satırın dikey dolgusu AD DÜĞMESİNDE (mobil denetim 2026-10): eskiden dolgu
+ * satırdaydı, düğme 20 px yükseklikte kalıyor, satırın geri kalanı dokunmaya
+ * yanıt vermiyordu. Telefonda satır en az 40 px; geniş ekranda eski boy
+ * (`py-1.5` + 20 px satır = 32 px).
+ */
+const ROW_NAME_PAD = "min-h-10 py-2 sm:min-h-0 sm:py-1.5";
+
 import {
   type CategoryCatalog,
   categoryAncestors,
@@ -62,6 +81,83 @@ import {
 } from "@/hooks/use-categories";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { plainBreadcrumb } from "./category-breadcrumb";
+
+/** Kısa ekran kipi (klavye açık telefon, yatay telefon) — sınıflardaki `[@media(max-height:520px)]` ile aynı sorgu. */
+const SHORT_VIEWPORT_QUERY = "(max-height: 520px)";
+/** Liste kaydırıcısının ağaç görünümü; arama görünümü `q:<sorgu>` anahtarını taşır. */
+const TREE_VIEW = "tree";
+
+function isShortViewport(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(SHORT_VIEWPORT_QUERY).matches
+  );
+}
+
+/**
+ * Liste kaydırıcısının konumu GÖRÜNÜME aittir (mobil denetim 2026-10,
+ * g03-auth#new0): ağaç ve arama sonuçları aynı kaydırıcıda çizilir; ağacı 300 px
+ * kaydırıp arama yazınca sonuçlar 300 px'ten açılıyor, "çok fazla sonuç" notu,
+ * sektör / aile başlıkları ve ilk eşleşmeler yukarıda gizli kalıyordu.
+ *
+ *  - Arama başlayınca ya da sorgu değişince liste başa döner.
+ *  - Arama bitince (kutu boşaldı) ağaç kaldığı yere döner — ağacın konumu
+ *    kaydırma olayından tutulur (kısa kipte kaydırıcı değildir, olay gelmez,
+ *    son bilinen konum kalır).
+ *  - Kısa ekranda (klavye açık) liste kaydırıcı değildir (`overflow: visible`):
+ *    atama boşa düşer, tarayıcı da eski konumu saklayıp kip bitince geri
+ *    yükler (klavye kapanınca sonuçlar eski konuma sıçrıyordu). Hedef bekletilir,
+ *    kip bitince (ve bir kare sonra, tarayıcının geri yüklemesinden sonra)
+ *    yeniden uygulanır.
+ *  - Pencere kapanınca ağacın konumu ve bekleyen hedef unutulur: yeniden
+ *    açılışta liste yeni çizilir ve dallar daraltılır; eski oturumun konumu
+ *    anlamsızdır (arama temizlenince ağaç başka oturumun konumuna sıçrardı).
+ */
+function useViewScroll(viewKey: string, open: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const shownKey = useRef(viewKey);
+  const treeTop = useRef(0);
+  const pending = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (open) return;
+    treeTop.current = 0;
+    pending.current = null;
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (shownKey.current === viewKey) return;
+    shownKey.current = viewKey;
+    const el = ref.current;
+    if (!el) return;
+    const target = viewKey === TREE_VIEW ? treeTop.current : 0;
+    el.scrollTop = target;
+    pending.current = isShortViewport() ? target : null;
+  }, [viewKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(SHORT_VIEWPORT_QUERY);
+    const onChange = () => {
+      if (mq.matches || pending.current === null) return;
+      const target = pending.current;
+      pending.current = null;
+      const apply = () => {
+        if (ref.current) ref.current.scrollTop = target;
+      };
+      apply();
+      requestAnimationFrame(apply);
+    };
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+
+  const onScroll = () => {
+    if (shownKey.current === TREE_VIEW && ref.current) treeTop.current = ref.current.scrollTop;
+  };
+  return { ref, onScroll };
+}
 
 interface Props {
   isOpen: boolean;
@@ -248,6 +344,19 @@ export function CategorySelectorModal({
   // Kutu boşaltılınca (X düğmesi) gecikmeli değeri beklemeden ağaca dönülür.
   const isSearching =
     search.trim().length >= 2 && debouncedSearch.trim().length >= 2;
+  /**
+   * Çok kısa ekranda (yükseklik ≤ 520 px: telefonda ekran klavyesi açık ya da
+   * yatay telefon) arama kutusu doluyken seçim bloğu gizlenir (mobil denetim
+   * 2026-10, g03-auth-catdlg-kb): o kipte aradaki bölümün tamamı tek parça
+   * kayar; seçim bloğu (~110 px) ve "çok fazla sonuç" notu sonuçları alt
+   * satırın altına itiyor, 360×460'ta görünen yalnız eşleşmenin ata satırları
+   * kalıyordu. Seçim kaybolmaz: alt satırdaki "Onayla (n)" sayıyı söyler,
+   * arama temizlenince ya da klavye kapanınca blok geri gelir; tavan uyarıları
+   * ayrı bildirim bloğunda (gizlenmez).
+   */
+  const listScroll = useViewScroll(isSearching ? `q:${debouncedSearch.trim()}` : TREE_VIEW, isOpen);
+  const hideSelectionWhenShort = search.trim().length > 0;
+  const selectionBlockShort = hideSelectionWhenShort ? " [@media(max-height:520px)]:hidden" : "";
   const dirty = !sameIdSet(draftIds, value);
 
   // Modal her açılışta draft'ı parent value'ya sıfırlar.
@@ -449,7 +558,10 @@ export function CategorySelectorModal({
 
       {/* Seçilenler — chip listesi (mode=multi'de görünür) */}
       {mode === "multi" ? (
-        <div className="shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6 sm:py-3">
+        <div
+          data-slot="selection-block"
+          className={`shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6 sm:py-3${selectionBlockShort}`}
+        >
           <SelectionCounter
             label={tr("seciminiz")}
             count={draftIds.length}
@@ -464,7 +576,9 @@ export function CategorySelectorModal({
             }}
           />
           {draftIds.length === 0 ? (
-            <p className="mt-2 py-1 text-xs italic text-zinc-500">
+            // Kısa ekranda yer listeye kalır: boş durum cümlesi bir ipucudur,
+            // sayaç "0" zaten seçim olmadığını söyler.
+            <p className="mt-2 py-1 text-xs italic text-zinc-500 [@media(max-height:520px)]:hidden">
               {tr("henuzSecimYokAsagidakiListeden")}
             </p>
           ) : (
@@ -564,7 +678,10 @@ export function CategorySelectorModal({
           )}
         </div>
       ) : draftIds.length > 0 ? (
-        <div className="shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6">
+        <div
+          data-slot="selection-block"
+          className={`shrink-0 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2.5 sm:px-6${selectionBlockShort}`}
+        >
           <span className="block text-xs font-semibold text-zinc-700">
             {tr("secili", {
               name:
@@ -598,7 +715,12 @@ export function CategorySelectorModal({
 
       {/* Body */}
       <div className="flex min-h-0 flex-1 flex-col [@media(max-height:520px)]:flex-none">
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 [@media(max-height:520px)]:overflow-visible">
+        <div
+          ref={listScroll.ref}
+          onScroll={listScroll.onScroll}
+          data-slot="category-list"
+          className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-5 [@media(max-height:520px)]:overflow-visible [@media(max-height:520px)]:py-2"
+        >
           {isSearching ? (
             <SearchResults
               loading={searchBusy}
@@ -799,11 +921,11 @@ function SegmentList({
                   : "hover:bg-zinc-50"
             }`}
           >
-            <div className="flex items-center gap-2 px-2 py-2.5">
+            <div className="flex items-center gap-2 px-2">
               <button
                 type="button"
                 onClick={() => onToggleSegment(segment.id)}
-                className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
+                className={DISCLOSURE_HIT}
                 aria-expanded={isExpanded}
                 aria-label={`${isExpanded ? t("daralt") : t("genislet")}: ${segment.nameTr}`}
               >
@@ -813,13 +935,13 @@ function SegmentList({
                 name={segment.nameTr}
                 checked={isSelected}
                 onToggle={() => onToggleSelection(segment.id)}
-                className={HEADING_TICK}
+                className={TICK_HIT}
               />
               <button
                 type="button"
                 onClick={() => onToggleSegment(segment.id)}
                 aria-expanded={isExpanded}
-                className="min-w-0 flex-1 text-left text-sm font-semibold text-zinc-900"
+                className="min-h-10 min-w-0 flex-1 py-2.5 text-left text-sm font-semibold text-zinc-900"
               >
                 {segment.nameTr}
               </button>
@@ -997,7 +1119,7 @@ function FamilyList({
               // Sınıf satırıyla aynı dizilim: ok (aç/kapa) · onay kutusu · ad.
               // Ada tıklamak eskisi gibi dalı açar; seçim onay kutusuyla.
               <div
-                className={`flex items-center gap-2 rounded-lg px-2 py-2 transition-colors ${
+                className={`flex items-center gap-2 rounded-lg px-2 transition-colors ${
                   isSelected
                     ? "bg-zinc-50 ring-1 ring-zinc-950/10"
                     : isExpanded
@@ -1011,7 +1133,7 @@ function FamilyList({
                   <button
                     type="button"
                     onClick={() => onToggleFamily(family.id)}
-                    className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
+                    className={DISCLOSURE_HIT}
                     aria-expanded={isExpanded}
                     aria-label={`${isExpanded ? t("daralt") : t("genislet")}: ${family.nameTr}`}
                   >
@@ -1021,7 +1143,7 @@ function FamilyList({
                 <Checkbox
                   checked={isSelected}
                   onChange={() => onToggleSelection(family.id)}
-                  className={HEADING_TICK}
+                  className={TICK_HIT}
                   aria-label={family.nameTr}
                 />
                 <button
@@ -1030,7 +1152,7 @@ function FamilyList({
                     single ? onToggleSelection(family.id) : onToggleFamily(family.id)
                   }
                   aria-expanded={single ? undefined : isExpanded}
-                  className={`flex-1 text-left text-sm font-medium ${
+                  className={`min-h-10 flex-1 py-2 text-left text-sm font-medium sm:min-h-0 ${
                     isSelected ? "text-zinc-950" : "text-zinc-800"
                   }`}
                 >
@@ -1043,7 +1165,9 @@ function FamilyList({
                 type="button"
                 onClick={() => onToggleFamily(family.id)}
                 aria-expanded={isExpanded}
-                className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors ${
+                // Telefonda öteki ağaç satırlarıyla aynı boy (en az 40 px);
+                // geniş ekranda eski 36 px (mobil denetim 2026-10).
+                className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors sm:min-h-0 ${
                   isExpanded ? "bg-zinc-50" : "hover:bg-zinc-50"
                 }`}
               >
@@ -1158,7 +1282,7 @@ function ClassRow({
   return (
     <li>
       <div
-        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${
+        className={`flex items-center gap-2 rounded-lg px-2 transition-colors ${
           isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : "hover:bg-zinc-50"
         }`}
       >
@@ -1167,7 +1291,7 @@ function ClassRow({
           <button
             type="button"
             onClick={() => onToggleExpand(cls.id)}
-            className="-ml-1 shrink-0 rounded p-0.5 hover:bg-zinc-100"
+            className={DISCLOSURE_HIT}
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? t("daralt") : t("genislet")}: ${cls.nameTr}`}
           >
@@ -1179,13 +1303,13 @@ function ClassRow({
         <Checkbox
           checked={isSelected}
           onChange={() => onToggleSelection(cls.id)}
-          className="flex-shrink-0"
+          className={TICK_HIT}
           aria-label={cls.nameTr}
         />
         <button
           type="button"
           onClick={() => onToggleSelection(cls.id)}
-          className={`flex-1 text-left text-sm transition-colors ${
+          className={`${ROW_NAME_PAD} flex-1 text-left text-sm transition-colors ${
             isSelected
               ? "font-semibold text-zinc-900"
               : "text-zinc-700 hover:text-zinc-900"
@@ -1250,7 +1374,7 @@ function CommodityList({
         return (
           <li
             key={com.id}
-            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${
+            className={`flex items-center gap-2 rounded-lg px-2 transition-colors ${
               isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : "hover:bg-zinc-50"
             }`}
           >
@@ -1258,13 +1382,13 @@ function CommodityList({
             <Checkbox
               checked={isSelected}
               onChange={() => onToggleSelection(com.id)}
-              className="flex-shrink-0"
+              className={TICK_HIT}
               aria-label={com.nameTr}
             />
             <button
               type="button"
               onClick={() => onToggleSelection(com.id)}
-              className={`flex-1 text-left text-sm transition-colors ${
+              className={`${ROW_NAME_PAD} flex-1 text-left text-sm transition-colors ${
                 isSelected
                   ? "font-medium text-zinc-900"
                   : "text-zinc-600 hover:text-zinc-900"
@@ -1367,8 +1491,12 @@ function SearchResults({
   return (
     <>
       {truncated ? (
-        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {t("cokFazlaSonucVarTumu")}
+        // Kısa ekranda (klavye açık) tek satırlık kısa metin: iki satırlık not
+        // ilk sonuçları alt satırın altına itiyordu (mobil denetim 2026-10).
+        // Uzun metin klavye kapanınca yine okunur.
+        <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 [@media(max-height:520px)]:mb-1 [@media(max-height:520px)]:py-1">
+          <span className="[@media(max-height:520px)]:hidden">{t("cokFazlaSonucVarTumu")}</span>
+          <span className="hidden [@media(max-height:520px)]:inline">{t("cokFazlaSonucKisa")}</span>
         </p>
       ) : null}
       <ul className="space-y-3">
@@ -1418,18 +1546,18 @@ function SearchSegmentBlock({
             isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
           }`}
         >
-          <div className="flex items-center gap-2 px-2 py-2">
+          <div className="flex items-center gap-2 px-2">
             {families.length > 0 ? <Disclosure open /> : <DisclosureSpacer />}
             <SectorTick
               name={segment.nameTr}
               checked={isSelected}
               onToggle={() => onToggle(segment.id)}
-              className="flex-shrink-0"
+              className={TICK_HIT}
             />
             <button
               type="button"
               onClick={() => onToggle(segment.id)}
-              className="min-w-0 flex-1 text-left text-sm font-semibold text-zinc-900"
+              className="min-h-10 min-w-0 flex-1 py-2 text-left text-sm font-semibold text-zinc-900 sm:min-h-0"
             >
               <HighlightMatch text={segment.nameTr} query={query} />
             </button>
@@ -1484,7 +1612,7 @@ function SearchFamilyBlock({
     <li>
       {selectFamily ? (
         <div
-          className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
+          className={`flex items-center gap-2 rounded-lg px-2 hover:bg-zinc-50 ${
             isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
           }`}
         >
@@ -1492,13 +1620,13 @@ function SearchFamilyBlock({
           <Checkbox
             checked={isSelected}
             onChange={() => onToggle(family.id)}
-            className="flex-shrink-0"
+            className={TICK_HIT}
             aria-label={family.nameTr}
           />
           <button
             type="button"
             onClick={() => onToggle(family.id)}
-            className="flex-1 text-left text-sm font-medium text-zinc-700"
+            className={`${ROW_NAME_PAD} flex-1 text-left text-sm font-medium text-zinc-700`}
           >
             <HighlightMatch text={family.nameTr} query={query} />
           </button>
@@ -1549,7 +1677,7 @@ function SearchClassBlock({
       {/* Sınıf HER ZAMAN seçilebilir satırdır — `isMatch` yalnız vurguyu
           belirler (adı eşleşen ailenin sınıfları `isMatch=false` gelir). */}
       <div
-        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
+        className={`flex items-center gap-2 rounded-lg px-2 hover:bg-zinc-50 ${
           isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
         }`}
       >
@@ -1557,13 +1685,13 @@ function SearchClassBlock({
         <Checkbox
           checked={isSelected}
           onChange={() => onToggle(cls.id)}
-          className="flex-shrink-0"
+          className={TICK_HIT}
           aria-label={cls.nameTr}
         />
         <button
           type="button"
           onClick={() => onToggle(cls.id)}
-          className={`flex-1 text-left text-sm ${
+          className={`${ROW_NAME_PAD} flex-1 text-left text-sm ${
             hasCommodities ? "font-medium text-zinc-700" : "text-zinc-700"
           }`}
         >
@@ -1578,7 +1706,7 @@ function SearchClassBlock({
             return (
               <li
                 key={com.id}
-                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-zinc-50 ${
+                className={`flex items-center gap-2 rounded-lg px-2 hover:bg-zinc-50 ${
                   comSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
                 }`}
               >
@@ -1586,13 +1714,13 @@ function SearchClassBlock({
                 <Checkbox
                   checked={comSelected}
                   onChange={() => onToggle(com.id)}
-                  className="flex-shrink-0"
+                  className={TICK_HIT}
                   aria-label={com.nameTr}
                 />
                 <button
                   type="button"
                   onClick={() => onToggle(com.id)}
-                  className="flex-1 text-left text-sm text-zinc-600"
+                  className={`${ROW_NAME_PAD} flex-1 text-left text-sm text-zinc-600`}
                 >
                   <HighlightMatch text={com.nameTr} query={query} />
                 </button>

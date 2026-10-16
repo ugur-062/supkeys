@@ -16,6 +16,9 @@ function grouped(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
 }
 
+/** Görünmez dokunma alanı: 22 px düğme → 38 px. */
+const HIT = "relative after:absolute after:-inset-2";
+
 function maskedForm(iban: string): string {
   const raw = iban.replace(/\s+/g, "");
   if (raw.length < 8) return raw;
@@ -43,7 +46,14 @@ export function Iban({
     }
   };
   return (
-    <span className={`inline-flex items-center gap-2 ${className ?? ""}`}>
+    // Dokunma alanları (mobil denetim 2026-10 g07/g08/g11): düğmeler görünüşte
+    // 22 px kalır (`p-1 -m-1` + 14 px ikon), görünmez katman alanı 38 px'e
+    // çıkarır. İki düğmenin alanı çakışmasın diye kopyala düğmesi `ml-3` alır
+    // (görünen kutular arası 16 px, merkezler 38 px ayrık → alanlar yalnız
+    // birbirine değer, çakışmaz); eskiden alanlar BİTİŞİKTİ (gap-2,
+    // -m-1'lerle sıfırlanıyordu). `flex-wrap`: açık IBAN dar kartta sığmazsa
+    // düğmeler alt satıra iner, kart yatay taşmaz.
+    <span className={`inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 ${className ?? ""}`}>
       <span className=" tabular-nums">
         {shown ? grouped(value) : maskedForm(value)}
       </span>
@@ -53,7 +63,7 @@ export function Iban({
           onClick={() => setShown((s) => !s)}
           aria-label={shown ? t("ibaniGizle") : t("ibaniGoster")}
           title={shown ? t("gizle") : t("goster")}
-          className="-m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+          className={`${HIT} -m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700`}
         >
           {shown ? (
             <EyeOff className="size-3.5" aria-hidden />
@@ -67,7 +77,7 @@ export function Iban({
         onClick={copy}
         aria-label={t("ibaniKopyala")}
         title={t("kopyala")}
-        className="-m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+        className={`${HIT} -m-1 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 ${masked ? "ml-3" : ""}`}
       >
         <Copy className="size-3.5" aria-hidden />
       </button>

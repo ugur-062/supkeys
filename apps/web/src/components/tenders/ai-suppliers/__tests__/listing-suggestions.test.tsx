@@ -756,3 +756,18 @@ describe("davet nedeni ve açıklama metinleri üç dilde tam", () => {
     expect(lead("ru")).toBe("Статус каждого найденного поставщика указан в его строке.");
   });
 });
+
+describe("ListingSuggestions — dokunma alanı (mobil denetim g07)", () => {
+  it("'Listeyi göster' ve 'Gizle' görünüş değişmeden 44 px dokunma alanı taşır; yatay paylar aradaki boşluğu aşmaz", () => {
+    h.data = done(MIXED);
+    render(<ListingSuggestions listingId="l1" variant="band" />);
+    for (const name of ["Listeyi göster", "Gizle"]) {
+      const cls = screen.getByRole("button", { name }).className.split(/\s+/);
+      // py-3 + 20 px satır = 44 px; eksi kenar boşluğu düzeni değiştirmez.
+      expect(cls).toEqual(expect.arrayContaining(["py-3", "-my-3", "px-1.5", "-mx-1.5"]));
+    }
+    // 6 + 6 px yatay pay = kardeşler arasındaki gap-3 (12 px): alanlar çakışmaz.
+    expect(screen.getByRole("button", { name: "Gizle" }).parentElement!.className.split(/\s+/)).toContain("gap-3");
+  });
+});
+

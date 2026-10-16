@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -146,7 +146,9 @@ describe("SavingsReportView", () => {
     expect(screen.queryByText("Kalem Detayı")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Kalem detayı: Çelik Alımı" }));
     expect(screen.getByText("Kalem Detayı")).toBeInTheDocument();
-    expect(screen.getByText(/Profil/)).toBeInTheDocument();
+    // Telefonda kart listesi, sm+ iç tablo — ikisi de aynı kalemi taşır (CSS ile biri gizli).
+    expect(within(screen.getByTestId("savings-items-table")).getByText(/Profil/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("savings-items-list")).getByText(/Profil/)).toBeInTheDocument();
   });
 
   it("kalem detayında miktar okuyucunun dilinde biçimlenir (derin denetim LU-28)", async () => {
@@ -156,8 +158,11 @@ describe("SavingsReportView", () => {
     h.reportData = result([r]);
     render(<SavingsReportView {...base} />);
     await user.click(screen.getByRole("button", { name: "Kalem detayı: Çelik Alımı" }));
-    expect(screen.getByText("1.500,5")).toBeInTheDocument();
-    expect(screen.getByText("(adet)")).toBeInTheDocument();
+    for (const id of ["savings-items-table", "savings-items-list"]) {
+      const scope = within(screen.getByTestId(id));
+      expect(scope.getByText("1.500,5")).toBeInTheDocument();
+      expect(scope.getByText("(adet)")).toBeInTheDocument();
+    }
   });
 
   it("satır açıcısı aria-expanded/controls taşır; kalem birim fiyatları para birimiyle (arayüz testi D-295)", async () => {
@@ -172,9 +177,73 @@ describe("SavingsReportView", () => {
     const panelId = toggle.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();
     expect(document.getElementById(panelId!)).not.toBeNull();
-    // Hedef 100, kazanan 90, kalem tasarrufu 100 — hepsi birimli, 2 ondalık.
-    expect(screen.getAllByText("100,00 $").length).toBe(2); // hedef birim + kalem tasarrufu
-    expect(screen.getByText("90,00 $")).toBeInTheDocument();
+    // Hedef 100, kazanan 90, kalem tasarrufu 100 — hepsi birimli, 2 ondalık
+    // (sm+ iç tablo ve telefon kart listesi aynı biçimi kullanır).
+    for (const id of ["savings-items-table", "savings-items-list"]) {
+      const scope = within(screen.getByTestId(id));
+      expect(scope.getAllByText("100,00 $").length).toBe(2); // hedef birim + kalem tasarrufu
+      expect(scope.getByText("90,00 $")).toBeInTheDocument();
+    }
+  });
+
+  // Mobil denetim g10-04 / g10-06 (2026-10-15).
+  it("telefon yerleşimi: açıcı yapışkan ilk hücrede 44 px; kart tek kaydırıcı; kalem detayı telefonda kart listesi", async () => {
+    const user = userEvent.setup();
+    h.reportData = result([row()]);
+    render(<SavingsReportView {...base} />);
+    const toggle = screen.getByRole("button", { name: "Kalem detayı: Çelik Alımı" });
+    // Açıcı başlıkla aynı (ilk, yapışkan) hücrede — tablonun en sağında değil.
+    const cell = toggle.closest("td")!;
+    expect(cell.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "left-0", "bg-white"]));
+    expect(within(cell).getByRole("link", { name: "Çelik Alımı" })).toBeInTheDocument();
+    expect(cell.parentElement!.firstElementChild).toBe(cell);
+    // 44 px kutu; sol pay hücre dolgusuna eşit (telefonda 8, sm+ 4 px) — kaydırıcı
+    // kutuyu kırpmaz, sağ pay kutuyu başlığın önünde bitirir.
+    expect(toggle.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["size-11", "-my-2.5", "-ml-2", "-mr-2", "sm:-ml-1"]),
+    );
+    // İlk sütun telefonda dar ve sarar (açıcıyla birlikte ~%52); sm+ eski tek satır.
+    const firstCol = within(cell).getByRole("link", { name: "Çelik Alımı" }).parentElement!;
+    expect(firstCol.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "min-w-[28vw]",
+        "max-w-[36vw]",
+        "whitespace-normal",
+        "sm:min-w-0",
+        "sm:max-w-none",
+        "sm:whitespace-nowrap",
+      ]),
+    );
+    // Talep numarası bölünmez; kazanan adları satır aralarından sarar.
+    expect(within(firstCol).getByText("IHL-2026-0001 ·").className.split(/\s+/)).toContain("whitespace-nowrap");
+    // Kart ikinci yatay kaydırıcı DEĞİL; kenar payı tablonun gutter'ına eşit.
+    const card = cell.closest(".card")!;
+    expect(card.className).not.toMatch(/overflow-x-auto/);
+    expect(card.className.split(/\s+/)).toEqual(expect.arrayContaining(["overflow-hidden", "px-2", "[--gutter:--spacing(2)]"]));
+
+    await user.click(toggle);
+    const list = screen.getByTestId("savings-items-list");
+    expect(list.className.split(/\s+/)).toContain("sm:hidden");
+    expect(screen.getByTestId("savings-items-table").className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["hidden", "sm:block"]),
+    );
+    // Telefon kartı: kalem adı + miktar + tasarruf + kazanan tedarikçi tek blokta.
+    const item = within(list).getByText(/Profil/).closest("li")!;
+    expect(item.textContent).toMatch(/Demir Ltd\./);
+    expect(item.textContent).toMatch(/100,00 ₺/);
+    // Detay telefonda tablonun görünen genişliğine oturur ve yapışkandır.
+    expect(list.parentElement!.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["sticky", "w-[calc(100cqw-1rem)]", "sm:static"]),
+    );
+  });
+
+  it("özet şeridi: 5 kutuda son kutu telefonda iki sütuna yayılır (boş gri kutu yok)", () => {
+    h.reportData = result([row()]);
+    render(<SavingsReportView {...base} />);
+    const tiles = Array.from(screen.getByText("Toplam Tasarruf").closest("dl")!.children);
+    expect(tiles).toHaveLength(5);
+    expect(tiles[4]!.className).toContain("max-sm:col-span-2");
+    expect(tiles.slice(0, 4).some((el) => el.className.includes("col-span-2"))).toBe(false);
   });
 
   it("kayan nokta gürültüsü (-1e-14) '%-0' değil '%0' basar (arayüz testi webB-01)", () => {

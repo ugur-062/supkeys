@@ -1534,6 +1534,9 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
     await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
 
     const viesBtn = screen.getByRole("button", { name: /VIES ile doğrula/i });
+    // Mobil denetim 2026-10 (g03-auth-vies-btn): tek başına duran eylem 16 px
+    // yüksekti; dokunma hedefi artık 44 px.
+    expect(viesBtn.className).toMatch(/(^|\s)min-h-11(\s|$)/);
     await user.click(viesBtn);
     expect(h.viesAsync).toHaveBeenCalledWith({
       countryCode: "DE",

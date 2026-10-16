@@ -26,6 +26,7 @@ export function SearchForm({
   action,
   defaultValue,
   placeholder,
+  shortPlaceholder,
   hidden,
   hiddenList,
   size = "md",
@@ -33,6 +34,14 @@ export function SearchForm({
   action: string;
   defaultValue?: string;
   placeholder?: string;
+  /**
+   * TELEFONDA görünen kısa yer tutucu (mobil denetim g02-12): 360 px'te kutu
+   * ~165 px metin alanı bırakıyor, uzun yer tutucu sözcük ortasında kesiliyordu
+   * ("Ürün, marka veya p"). `sm` altında yerel yer tutucu saydamlaşır ve bu
+   * metin onun yerinde çizilir; erişilebilir ad ve yerel yer tutucu TAM metin
+   * kalır. Verilmezse genel kısa metin.
+   */
+  shortPlaceholder?: string;
   /** Aramada korunması gereken mevcut süzgeçler (kategori/şehir). */
   hidden?: Record<string, string | undefined>;
   /**
@@ -75,15 +84,25 @@ export function SearchForm({
             defaultValue={defaultValue}
             placeholder={placeholder ?? t("placeholder")}
             aria-label={t("ariaLabel")}
-            className={`w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400 ${
+            className={`peer w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400 max-sm:placeholder:text-transparent ${
               lg ? "h-14" : "h-12"
             }`}
           />
+          {/* Kısa yer tutucu — yalnız telefonda ve kutu BOŞKEN (`:placeholder-shown`);
+              JS'siz çalışır (düz form). Tıklamayı kutuya bırakır. */}
+          <span
+            aria-hidden
+            data-short-placeholder
+            className="pointer-events-none absolute top-1/2 right-4 left-11 hidden -translate-y-1/2 truncate text-sm text-zinc-400 max-sm:peer-placeholder-shown:block"
+          >
+            {shortPlaceholder ?? t("placeholderShort")}
+          </span>
         </div>
+        {/* Telefonda yatay dolgu küçük (px-4): metin alanına ~24 px kalır. */}
         <AccentButton
           type="submit"
           className={`shrink-0 rounded-full font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${
-            lg ? "h-14 px-7 text-sm" : "h-12 px-6 text-sm"
+            lg ? "h-14 px-4 text-sm sm:px-7" : "h-12 px-4 text-sm sm:px-6"
           }`}
         >
           {t("submit")}

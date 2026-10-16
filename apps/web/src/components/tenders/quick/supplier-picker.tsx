@@ -256,8 +256,14 @@ export function SupplierPicker({
           </p>
         ) : null}
 
+        {/* Dar kapsayıcıda (telefon) tablo SABİT düzende (mobil denetim 2026-10
+            g06): otomatik düzen ad + rozetleri içerik genişliğinde tutuyor,
+            360 px'te tablo 347 px'e çıkıp `overflow-hidden` kartta kesiliyordu
+            (ad yarıda, chevron görünmez). Sabit düzende onay kutusu w-10, ok w-8,
+            Firma sütunu kalanı alır ve ad sarar. @md'den itibaren eski otomatik
+            düzen (Şehir/Sektör sütunları içeriğe göre). */}
         <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-zinc-950/5">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm @md:table-auto">
             <thead className="bg-zinc-50">
               <tr>
                 <th scope="col" className="w-10 px-3 py-2.5">
@@ -291,18 +297,24 @@ export function SupplierPicker({
                     <td className="px-3 py-2.5">
                       <span className="flex min-w-0 items-center gap-3">
                         <Avatar c={c} />
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5">
-                            <span className="truncate font-semibold text-zinc-950">{c.company.name}</span>
+                        <span className="min-w-0 flex-1">
+                          {/* Telefonda ad SARAR (okunması gereken metin; kırpılınca
+                              firmalar ayırt edilemiyordu), rozet sığmazsa alt satıra
+                              iner; geniş kapsayıcıda eskisi gibi tek satır. */}
+                          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 @md:flex-nowrap">
+                            <span className="min-w-0 break-words font-semibold text-zinc-950 @md:truncate">{c.company.name}</span>
                             {c.company.verified ? <CheckBadgeIcon aria-label={t("dogrulanmisFirma")} className="size-4 shrink-0 text-blue-600" /> : null}
                             {score > 0 ? (
-                              <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20">
+                              // Telefonda rozet de sarabilir: dar Firma hücresinde (360 px'te
+                              // ~112 px) RU/EN metni ("Подходит по позициям") tek satırda
+                              // hücreden taşıp ok sütununun üstüne biniyordu.
+                              <span className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20 @md:shrink-0 @md:whitespace-nowrap">
                                 <SparklesIcon aria-hidden className="size-3" />
                                 {t("kalemlereUygun")}
                               </span>
                             ) : null}
                           </span>
-                          <span className="block truncate text-xs text-zinc-500 @md:hidden">{[c.company.city ? cityLabel(c.company.city) : null, c.company.industry].filter(Boolean).join(" · ")}</span>
+                          <span className="block break-words text-xs text-zinc-500 @md:hidden">{[c.company.city ? cityLabel(c.company.city) : null, c.company.industry].filter(Boolean).join(" · ")}</span>
                         </span>
                       </span>
                     </td>
@@ -385,17 +397,20 @@ export function SupplierPicker({
               <li key={c.connectionId} className="flex items-center gap-3 rounded-xl px-3 py-2 ring-1 ring-zinc-950/5">
                 <Avatar c={c} />
                 <span className="min-w-0 flex-1">
+                  {/* Telefonda ad sarar: ✕ hemen yanında, kırpılmış adla yanlış firma
+                      kaldırılabiliyordu; geniş kapsayıcıda eskisi gibi tek satır. */}
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-semibold text-zinc-950">{c.company.name}</span>
+                    <span className="min-w-0 break-words text-sm font-semibold text-zinc-950 @md:truncate">{c.company.name}</span>
                     {c.company.verified ? <CheckBadgeIcon aria-hidden className="size-4 shrink-0 text-blue-600" /> : null}
                   </span>
                   <span className="block truncate text-xs text-zinc-500">{[c.company.city ? cityLabel(c.company.city) : null, c.company.industry].filter(Boolean).join(" · ")}</span>
                 </span>
+                {/* Dokunma alanı 44 px (p-3 + -m-3; görünen ikon aynı yerde, 20 px). */}
                 <button
                   type="button"
                   onClick={() => toggle(c.company.rothernId as string)}
                   aria-label={t("davetiniKaldir", { name: c.company.name })}
-                  className="shrink-0 text-zinc-300 hover:text-zinc-600"
+                  className="-m-3 shrink-0 rounded-full p-3 text-zinc-300 hover:text-zinc-600"
                 >
                   <XCircleIcon aria-hidden className="size-5" />
                 </button>

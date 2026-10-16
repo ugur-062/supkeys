@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const h = vi.hoisted(() => ({
@@ -10,15 +10,17 @@ const h = vi.hoisted(() => ({
   /** Yanıt hiç yok (yükleme, çevrimdışı duraklama ya da veri gelmeden düşen istek). */
   noData: false,
   isError: false,
+  totalPages: 1,
+  pages: [] as number[],
 }));
 
 vi.mock("@/hooks/use-activity-log", () => ({
-  useActivityLog: (_page: number, _module?: string, enabled?: boolean) => (h.enabled = enabled, {
+  useActivityLog: (page: number, _module?: string, enabled?: boolean) => (h.enabled = enabled, h.pages.push(page), {
     data: h.noData
       ? undefined
       : {
           items: h.items,
-          pagination: { page: 1, pageSize: 25, total: h.items.length, totalPages: 1 },
+          pagination: { page, pageSize: 25, total: h.items.length, totalPages: h.totalPages },
         },
     isLoading: false,
     isPending: h.noData && !h.isError,
@@ -53,6 +55,8 @@ beforeEach(() => {
   h.items = [];
   h.noData = false;
   h.isError = false;
+  h.totalPages = 1;
+  h.pages = [];
 });
 
 describe("AktivitePage — liste durumları (canlı doğrulama 2026-10-09 taraması)", () => {
@@ -258,5 +262,64 @@ describe("AktivitePage — davet / kabul / çıkarma satırları", () => {
     expect(screen.getAllByText("eklenen izinler: Teklif verme").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^roller: /)).not.toBeInTheDocument();
     expect(screen.getAllByText("önceki roller: Satın Almacı").length).toBeGreaterThan(0);
+  });
+});
+
+// Mobil denetim 2026-10 g11.
+describe("AktivitePage — telefon", () => {
+  const scrollSpy = vi.fn();
+  beforeEach(() => {
+    scrollSpy.mockReset();
+    Element.prototype.scrollIntoView = scrollSpy;
+  });
+  afterEach(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+    vi.restoreAllMocks();
+  });
+
+  /** Filtre + tablo + sayfalayıcıyı saran liste kabı (kaydırma hedefi). */
+  const listTop = () => screen.getByText("Modül").closest<HTMLElement>('[class*="scroll-mt"]')!;
+
+  it("'Sonraki' / 'Önceki' liste başı ekranın üstünde kaldıysa listenin başına kaydırır", async () => {
+    h.totalPages = 3;
+    h.items = [row("company.user.invited", { email: "yeni@example.com", roles: ["SATISCI"] })];
+    render(<AktivitePage />);
+    const top = listTop();
+    // Kullanıcı sayfanın dibinde: liste başı görünümün çok üstünde.
+    vi.spyOn(top, "getBoundingClientRect").mockReturnValue({ top: -1552 } as DOMRect);
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki" }));
+    expect(h.pages.at(-1)).toBe(2);
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy.mock.contexts[0]).toBe(top);
+    expect(scrollSpy).toHaveBeenCalledWith({ block: "start" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Önceki" }));
+    expect(h.pages.at(-1)).toBe(1);
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("liste başı zaten görünürken sayfa değişimi sayfayı kaydırmaz", () => {
+    h.totalPages = 3;
+    h.items = [row("company.user.invited", { email: "yeni@example.com", roles: ["SATISCI"] })];
+    render(<AktivitePage />);
+    vi.spyOn(listTop(), "getBoundingClientRect").mockReturnValue({ top: 180 } as DOMRect);
+    fireEvent.click(screen.getByRole("button", { name: "Sonraki" }));
+    expect(h.pages.at(-1)).toBe(2);
+    expect(scrollSpy).not.toHaveBeenCalled();
+  });
+
+  it("tarih sütunu telefonda gizli, tarih eylem hücresinin üstünde ayrı satır (RU '(GMT+3)' satırı daraltmaz)", () => {
+    h.items = [row("company.user.invited", { email: "yeni@example.com", roles: ["SATISCI"] })];
+    render(<AktivitePage />);
+    const header = screen.getByRole("columnheader", { name: "Tarih" });
+    expect(header.className.split(/\s+/)).toEqual(expect.arrayContaining(["hidden", "sm:table-cell"]));
+    const time = document.querySelector("time")!;
+    expect(time).toHaveAttribute("dateTime", "2026-09-29T10:00:00.000Z");
+    expect(time.className.split(/\s+/)).toContain("sm:hidden");
+    expect(time.closest("td")).toHaveTextContent("Üye davet edildi");
+    // Gizli tarih hücresi hâlâ ilk çocuk: eylem sütunu telefonda ilk sütunun
+    // kenar boşluğunu açıkça alır (16 px yerine 8 px).
+    expect(screen.getByRole("columnheader", { name: "Eylem" }).className.split(/\s+/)).toContain("max-sm:pl-2");
+    expect(time.closest("td")!.className.split(/\s+/)).toContain("max-sm:pl-2");
   });
 });

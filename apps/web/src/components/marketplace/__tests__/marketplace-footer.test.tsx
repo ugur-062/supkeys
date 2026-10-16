@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -47,5 +47,29 @@ describe("MarketplaceFooter — sütun bağlantıları", () => {
       expect(cls).not.toContain("whitespace-nowrap");
     }
     expect(within(lists[2]!).getByRole("link", { name: "Gizlilik" })).toHaveAttribute("href", "/sozlesmeler/gizlilik");
+  });
+  /* Mobil denetim 2026-10 g01: sütun bağlantıları 17 px, alt satır ve dil
+     bağlantıları 20 px yüksekti (24 px tabanın altında). Telefonda her biri
+     44 px dokunma alanı; sm ve üstünde eski satır içi görünüm. */
+  it("telefonda dokunma alanları 44 px, sm ve üstünde eski ritim", () => {
+    const { container } = render(<MarketplaceFooter />);
+    const lists = [...container.querySelectorAll("footer ul")] as HTMLElement[];
+    for (const ul of lists) {
+      const ulCls = ul.className.split(/\s+/);
+      expect(ulCls).toContain("sm:space-y-2");
+      expect(ulCls).not.toContain("space-y-2");
+      for (const link of within(ul).getAllByRole("link")) {
+        // text-sm/6 (24 px) + py-2.5 (2 × 10 px) = 44 px.
+        expect(link.className.split(/\s+/)).toEqual(
+          expect.arrayContaining(["block", "py-2.5", "text-sm/6", "sm:inline", "sm:py-0"]),
+        );
+      }
+    }
+    for (const name of ["Giriş yap", "Ücretsiz kaydol"]) {
+      const link = screen.getByRole("link", { name });
+      expect(link.className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-flex", "min-h-11", "sm:min-h-0"]));
+    }
+    const lang = screen.getByRole("navigation");
+    for (const a of within(lang).getAllByRole("link")) expect(a.className).toMatch(/\bmin-h-11\b/);
   });
 });

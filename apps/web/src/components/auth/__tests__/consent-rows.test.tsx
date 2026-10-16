@@ -43,12 +43,61 @@ describe("ConsentRows", () => {
     const user = userEvent.setup();
     render(<Harness />);
     const box = screen.getByRole("checkbox", { name: "Kullanıcı sözleşmesini okudum ve kabul ediyorum" });
-    const link = screen.getByRole("link", { name: "Kullanıcı sözleşmesini" });
+    const link = screen.getByRole("link", { name: "Kullanıcı sözleşmesini oku" });
+    expect(link).toHaveAttribute("href", "/sozlesmeler/kullanici");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     link.addEventListener("click", (e) => e.preventDefault()); // jsdom gezinmesin
     await user.click(link);
     expect(box).toHaveAttribute("aria-checked", "false");
+  });
+
+  /**
+   * Mobil denetim 2026-10 (g03-auth-consent-link): bağlantı etiketin içindeyken
+   * telefonda etiketin ortasına dokunmak sözleşmeyi yeni sekmede açıyor, kutu
+   * işaretlenmiyordu. Etiket artık bağlantı taşımaz; belge bağlantısı etiketin
+   * DIŞINDA, kendi satırında; kutunun dokunma hedefi büyütülmüş.
+   */
+  it("etiket bağlantı taşımaz: sözleşme adına dokunmak kutuyu işaretler, belge bağlantısı ayrı satırda", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const rows = [
+      ["Kullanıcı sözleşmesini okudum ve kabul ediyorum", "Kullanıcı sözleşmesini oku", "/sozlesmeler/kullanici"],
+      ["Platform aracılık ve kullanım sözleşmesini kabul ediyorum", "Aracılık sözleşmesini oku", "/sozlesmeler/aracilik"],
+      ["KVKK Aydınlatma Metni bilgilendirmesini okudum", "Aydınlatma metnini oku", "/sozlesmeler/kvkk"],
+    ] as const;
+    for (const [name, linkName, href] of rows) {
+      const box = screen.getByRole("checkbox", { name });
+      const label = document.getElementById(box.getAttribute("aria-labelledby") ?? "") as HTMLElement;
+      expect(label).not.toBeNull();
+      expect(label.querySelector("a")).toBeNull();
+      const link = screen.getByRole("link", { name: linkName });
+      expect(link).toHaveAttribute("href", href);
+      expect(label.contains(link)).toBe(false);
+      // Etiketin altında (2. sütun, 2. satır) ve en az 32 px yüksek.
+      expect(link.className).toMatch(/(^|\s)col-start-2(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)row-start-2(\s|$)/);
+      expect(link.className).toMatch(/(^|\s)min-h-8(\s|$)/);
+      // Kutunun dokunma hedefi görünmeyen çerçeveyle büyür.
+      expect(box.className).toMatch(/(^|\s)relative(\s|$)/);
+      expect(box.className).toMatch(/(^|\s)after:absolute(\s|$)/);
+      expect(box.className).toMatch(/(^|\s)after:-left-3(\s|$)/);
+      // Izgara satırı boyunca uzamaz (uzasa çerçeve alttaki bağlantıya binerdi).
+      expect(box.className).toMatch(/(^|\s)self-start(\s|$)/);
+    }
+    // Sözleşme adının kendisine (eskiden bağlantıydı) tıklamak artık işaretler.
+    const terms = screen.getByRole("checkbox", { name: rows[0][0] });
+    await user.click(screen.getByText(/Kullanıcı sözleşmesini okudum/));
+    expect(terms).toHaveAttribute("aria-checked", "true");
+    // İsteğe bağlı satırların belgesi yok: bağlantı sayısı üç.
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+  });
+
+  it("hata iletisi belge bağlantısının altında (3. satır); belgesiz satırda 2. satır", () => {
+    render(<Harness requiredError="Bu onay gereklidir." />);
+    for (const msg of screen.getAllByText("Bu onay gereklidir.")) {
+      expect(msg.className).toMatch(/(^|\s)row-start-3(\s|$)/);
+    }
   });
 
   // Arayüz testi 2026-10 signup-tr-8: işaretlenmemiş ZORUNLU kutu hatalı

@@ -94,4 +94,32 @@ describe("ListingDetail", () => {
     // Ücretsiz dönem (2026-10-07): hiçbir yerde paket adı yazmaz.
     expect(text).not.toMatch(/Gold|Silver|paket|premium/i);
   });
+
+  it("mobil (g02-04 / g02-07): kalem adı kırpılmaz, sarar; miktar tek satır; kategori çipi tek blok sarar", () => {
+    const long = "Sıva altı dağıtım panosu 36 modül IP40 metal kapaklı";
+    render(<ListingDetail listing={{ ...base, items: [{ lineNo: 1, name: long, quantity: "4", unit: "adet" }] } as PublicListingDetail} />);
+    const name = screen.getByText(long, { selector: "li span" });
+    // jsdom yerleşim yapmaz; sınıflar sözleşmedir: `truncate` adı tek satıra kesiyordu.
+    expect(name.className).not.toMatch(/(^|\s)truncate(\s|$)/);
+    expect(name.className).toMatch(/(^|\s)break-words(\s|$)/);
+    const row = name.parentElement as HTMLElement;
+    expect(row.className).toMatch(/(^|\s)items-start(\s|$)/);
+    const qty = row.lastElementChild as HTMLElement;
+    expect(qty.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    expect(qty.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    const chip = screen.getByRole("link", { name: "Vidalar" });
+    expect(chip.className).toMatch(/(^|\s)inline-block(\s|$)/);
+    expect(chip.className).toMatch(/(^|\s)max-w-full(\s|$)/);
+  });
+
+  it("talep numarası tabular rakamsız ve harf aralıksız tek belirteç (smoke-public#new1: 'ROT -000846' boşluğu)", () => {
+    render(<ListingDetail listing={base} />);
+    // Başlık kartındaki numara (bilgi tablosunda da geçer).
+    const ref = screen.getAllByText("ROT-000295").find((el) => el.closest("header")) as HTMLElement;
+    expect(ref).toBeTruthy();
+    // Inter'in tabular tiresi rakam genişliği alıp sağa yaslanıyor → tire önünde boşluk.
+    expect(ref.className).not.toMatch(/tabular-nums|(^|\s)tnum(\s|$)|tracking-(?!normal)/);
+    expect(ref.className).toMatch(/(^|\s)normal-nums(\s|$)/);
+    expect(ref.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+  });
 });

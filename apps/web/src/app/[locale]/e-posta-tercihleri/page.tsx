@@ -1,5 +1,6 @@
 "use client";
 
+import { TokenPageHomeLink, TokenPageLogo } from "@/components/marketing/token-page-shell";
 import { api } from "@/lib/api";
 import { localizePath } from "@/i18n/href";
 import { Link } from "@/i18n/navigation";
@@ -47,10 +48,13 @@ type State =
   | { kind: "done"; scope: Scope }
   | { kind: "invalid" };
 
+/* Kartın üstünde ana sayfaya bağlı logo (mobil denetim 2026-10 g01): uygulama
+   kabuğunda açılan bağlantıdan çıkış yolu — bkz. `token-page-shell.tsx`. */
 function Card({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-zinc-100 px-4 pt-[calc(2.5rem+var(--safe-top))] pb-[calc(2.5rem+var(--safe-bottom))]">
+      <TokenPageLogo />
+      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm sm:p-8">
         {children}
       </div>
     </main>
@@ -130,6 +134,7 @@ function EmailPrefsInner() {
         <XCircle className="mx-auto h-10 w-10 text-rose-500" aria-hidden />
         <h1 className="mt-4 text-lg font-semibold text-zinc-900">{t("invalidTitle")}</h1>
         <p className="mt-2 text-sm text-zinc-600">{t("invalidBody")}</p>
+        <TokenPageHomeLink className="mt-6" />
       </Card>
     );
   }
@@ -140,6 +145,7 @@ function EmailPrefsInner() {
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" aria-hidden />
         <h1 className="mt-4 text-lg font-semibold text-zinc-900">{t("doneTitle")}</h1>
         <p className="mt-2 text-sm text-zinc-600">{t("doneBody", { scope: scopeLabel(state.scope) })}</p>
+        <TokenPageHomeLink className="mt-6" />
         {manage}
       </Card>
     );

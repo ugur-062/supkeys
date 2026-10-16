@@ -19,6 +19,7 @@ import { Bell } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { notificationHref } from "@/i18n/href";
+import { POPOVER_ANCHOR, POPOVER_MAX_HEIGHT_CLASS } from "./popover-anchor";
 
 
 /** Panel rozeti — birleşik kutuda bildirim hangi şapkayla ilgili? */
@@ -66,10 +67,12 @@ function BellPanelContent({
           {t("bildirimler")}
         </span>
         {unread > 0 ? (
+          // Mobil denetim g04: 16 px yüksekliğinde dokunma alanıydı → 44 px;
+          // negatif pay başlığın yüksekliğini ve yazının yerini korur.
           <button
             type="button"
             onClick={() => markAll.mutate(undefined)}
-            className="text-xs font-medium text-blue-600 hover:underline"
+            className="-mx-2 -my-3 inline-flex min-h-11 items-center px-2 text-xs font-medium text-blue-600 hover:underline"
           >
             {t("tumunuOkunduIsaretle")}
           </button>
@@ -143,11 +146,14 @@ function BellPanelContent({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-zinc-100 px-4 py-2 text-center">
+      {/* Mobil denetim g04: bağlantı satırın TAMAMI (telefonda 44 px); sm ve
+          üstünde eski satır yüksekliği (40 px: py-2 + gövde satır kutusu —
+          yalnız py-2 verilse satır 32 px'e inerdi). */}
+      <div className="shrink-0 border-t border-zinc-100 text-center">
         <Link
           href="/company/bildirimler"
           onClick={() => close()}
-          className="text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+          className="flex min-h-11 items-center justify-center px-4 text-xs font-semibold text-zinc-600 hover:text-zinc-900 sm:min-h-10"
         >
           {t("tumBildirimleriGor")}
         </Link>
@@ -184,10 +190,15 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
       </PopoverButton>
 
       <PopoverPanel
-        anchor="bottom end"
-        // B16: panel viewport'a sığar (--anchor-max-height); liste iç scroll,
-        // başlık/footer sabit — son öğe kesilmez, footer üstüne binmez.
-        className="z-50 mt-2 flex w-[22rem] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem] max-h-[min(var(--anchor-max-height),30rem)]"
+        anchor={POPOVER_ANCHOR}
+        // B16: panel viewport'a sığar; liste iç scroll, başlık/footer sabit —
+        // son öğe kesilmez, footer üstüne binmez. Mobil denetim g04: boşluk ve
+        // ekran payı Headless'ın hesabında (eski `mt-2` hesabın DIŞINDAYDI,
+        // panel ekranın altından 8 px taşıyordu); 30rem tavanı değişkenle
+        // (Headless satır içi `max-height`i `--anchor-max-height`i okur, sınıf
+        // ezilirdi; yatay telefonda ana ekran çizgisi payı da düşülür —
+        // `POPOVER_MAX_HEIGHT_CLASS`); telefonda ekran eni − 2×8 px.
+        className={`z-50 flex w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 ${POPOVER_MAX_HEIGHT_CLASS} sm:w-[22rem]`}
       >
         {({ close }) => <BellPanelContent unread={unread} close={close} />}
       </PopoverPanel>

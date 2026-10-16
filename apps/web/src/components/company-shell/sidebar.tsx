@@ -122,7 +122,9 @@ function RailItem({
       aria-current={active ? "page" : undefined}
       aria-label={label}
       // Genişken de tam ad ipucu (arayüz testi D-147): RU'da uzun etiketler
-      // ("Мои запросы информации") ray genişliğinde kesiliyordu.
+      // ray genişliğinde kesiliyordu. Etiketler 185 px'e sığacak kadar kısa
+      // tutulur (mobil denetim 2026-10: "Мои запросы информации" → "Запросы
+      // информации"; `sidebar-label-fit.test.ts`).
       title={label}
       className={cn(
         "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",

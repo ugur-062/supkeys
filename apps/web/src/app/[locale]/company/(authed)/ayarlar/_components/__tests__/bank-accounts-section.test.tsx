@@ -3,7 +3,7 @@
  * Banka Hesapları (2026-09-10): liste + IBAN denetimi backend ile BİREBİR
  * (TR katı, yabancı mod-97) + satır içi hata + geçerli kayıt.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -60,6 +60,19 @@ describe("BankAccountsSection", () => {
     expect(screen.getByText(/Demo A\.Ş\./)).toBeInTheDocument();
     expect(screen.getByText("Varsayılan")).toBeInTheDocument();
     expect(screen.queryByText(TR_OK)).not.toBeInTheDocument();
+  });
+
+  // Mobil denetim g11 (doğrulama turu): örtük ızgara sütunu en geniş kartın
+  // min-content'ine büyüyüp 360 px'te kartları bölümün sağ dolgusuna
+  // taşırıyordu; başlığın truncate'i devreye girmiyordu.
+  it("kart ızgarası telefonda tek minmax(0,1fr) sütun; kart min-w-0, başlık kırpılır", () => {
+    render(<BankAccountsSection canManage />);
+    const title = screen.getByText("TL Vadesiz");
+    expect(title.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-w-0", "truncate"]));
+    const card = title.closest<HTMLElement>(".rounded-lg")!;
+    expect(card.className.split(/\s+/)).toContain("min-w-0");
+    const grid = card.parentElement!;
+    expect(grid.className.split(/\s+/)).toEqual(expect.arrayContaining(["grid", "grid-cols-1", "sm:grid-cols-2"]));
   });
 
   async function openNew() {
@@ -190,5 +203,29 @@ describe("BankAccountsSection", () => {
     expect(box).not.toBeChecked();
     await user.click(screen.getByText(/Varsayılan hesap/));
     expect(box).toBeChecked();
+  });
+
+  // Mobil denetim 2026-10 g11 (adres penceresiyle aynı kural): Kaydet'te hata
+  // ekranın dışında kalmasın; pencere telefonda ekrana sığar, eylemler sabit.
+  it("Kaydet'te ilk hatalı alana (Hesap Başlığı) odak + kaydırma; telefonda pencere ekrana sığar", async () => {
+    const scrollSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollSpy;
+    try {
+      const user = userEvent.setup();
+      render(<BankAccountsSection canManage />);
+      await user.click(screen.getByRole("button", { name: "Hesap Ekle" }));
+      await screen.findByText("Yeni Banka Hesabı");
+      const dialog = screen.getByRole("dialog");
+      const panel = dialog.querySelector<HTMLElement>('[class*="100dvh"]');
+      expect(panel!.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-sm:flex", "max-sm:flex-col"]));
+      const save = screen.getByRole("button", { name: "Kaydet" });
+      expect(save.parentElement!.className.split(/\s+/)).toContain("max-sm:shrink-0");
+      await user.click(save);
+      await waitFor(() => expect(screen.getByLabelText("Hesap Başlığı *")).toHaveFocus());
+      expect(scrollSpy).toHaveBeenCalled();
+      expect(h.save).not.toHaveBeenCalled();
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
   });
 });

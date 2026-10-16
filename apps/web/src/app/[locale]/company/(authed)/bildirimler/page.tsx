@@ -163,30 +163,38 @@ export default function BildirimlerPage() {
               <button
                 type="button"
                 onClick={() => open(n)}
-                className={`flex w-full flex-col gap-1 px-5 py-4 text-left transition hover:bg-zinc-50 ${
+                className={`flex w-full flex-col gap-1 px-4 py-3.5 text-left transition hover:bg-zinc-50 sm:px-5 sm:py-4 ${
                   n.readAt ? "" : "bg-blue-50/40"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                {/* Mobil denetim g04: başlık, panel rozeti ve tarih tek
+                    sarılmayan satırı paylaşıyordu — 360 px'te başlık 3, tarih
+                    3 satıra bölünüyordu ("14 Eki / 2026 / 20:02"). Telefonda
+                    başlık kendi satırının tamamını alır, rozet + tarih altında
+                    tek satır (tarih bölünmez); sm+ eski düzen (tek satır, uzun
+                    başlık kendi içinde sarar, tarih sağda). */}
+                <div className="flex items-start gap-2 sm:items-center">
                   {!n.readAt ? (
                     <span
-                      className="size-2 shrink-0 rounded-full bg-blue-500"
+                      className="mt-1.5 size-2 shrink-0 rounded-full bg-blue-500 sm:mt-0"
                       aria-hidden="true"
                     />
                   ) : null}
-                  <span className="text-sm font-semibold text-zinc-900">
-                    {n.title}
-                  </span>
-                  {n.portal ? (
-                    <span
-                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
-                    >
-                      {t(PORTAL_CHIP[n.portal].label)}
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 sm:flex-nowrap">
+                    <span className="min-w-0 break-words text-sm font-semibold text-zinc-900 max-sm:basis-full">
+                      {n.title}
                     </span>
-                  ) : null}
-                  <span className="ml-auto text-xs text-zinc-400">
-                    {formatDate(n.createdAt, "datetime", locale)}
-                  </span>
+                    {n.portal ? (
+                      <span
+                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
+                      >
+                        {t(PORTAL_CHIP[n.portal].label)}
+                      </span>
+                    ) : null}
+                    <span className="whitespace-nowrap text-xs text-zinc-400 sm:ml-auto">
+                      {formatDate(n.createdAt, "datetime", locale)}
+                    </span>
+                  </div>
                 </div>
                 <span
                   className={n.readAt ? "text-sm text-zinc-600" : "text-sm font-medium text-zinc-800"}

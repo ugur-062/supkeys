@@ -1779,3 +1779,251 @@ describe("CategorySelectorModal — bildirimler kısa ekranda da görünür", ()
     expect(shortModeScroller().querySelector('[class*=":sticky"]')).toBeNull();
   });
 });
+
+/**
+ * Mobil denetim 2026-10:
+ *  - g06-request-create-category-tree-small: sınıf / emtia satırlarında kutu
+ *    18 px, ad düğmesi 20 px yüksekti; satırın dikey dolgusu dokunmaya yanıt
+ *    vermiyordu. Dolgu ad düğmesine taşındı (telefonda en az 40 px), kutunun
+ *    hedefi görünmeyen çerçeveyle büyüdü, aç/kapa oku satır boyuna uzadı.
+ *  - g03-auth-catdlg-kb: ekran klavyesi açıkken (yükseklik ≤ 520 px) seçim
+ *    bloğu ve "çok fazla sonuç" notu sonuçları alt satırın altına itiyordu.
+ */
+describe("CategorySelectorModal — mobil: dokunma hedefleri ve kısa ekran", () => {
+  const SHORT_HIDDEN = "[@media(max-height:520px)]:hidden";
+  const cls = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
+
+  /** Satırın kutusu, ad düğmesi ve satırın kendisi doğru dokunma sınıflarını taşır. */
+  function expectRowTargets(name: string, nameButton: HTMLElement) {
+    const tick = screen.getByRole("checkbox", { name });
+    expect(cls(tick)).toEqual(expect.arrayContaining(["relative", "after:absolute", "after:-inset-2"]));
+    // Dolgu düğmede: telefonda en az 40 px, geniş ekranda eski 32 px.
+    expect(cls(nameButton)).toEqual(expect.arrayContaining(["min-h-10", "py-2", "sm:min-h-0", "sm:py-1.5"]));
+    // Satırın kendisi dikey dolgu taşımaz (dokunulamayan şerit kalmaz).
+    const row = nameButton.parentElement as HTMLElement;
+    expect(cls(row).some((c) => /^py-/.test(c))).toBe(false);
+    expect(row).toContainElement(tick);
+  }
+
+  it("ağaç: sınıf ve emtia satırı — kutu hedefi büyük, dolgu ad düğmesinde; aç/kapa oku sağa taşmaz", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+    await openToCommodities(user);
+    expectRowTargets("Somunlar", screen.getByRole("button", { name: "Somunlar" }));
+    expectRowTargets("Cıvatalar", screen.getByRole("button", { name: "Cıvatalar" }));
+    expectRowTargets("Ankraj somunları", screen.getByRole("button", { name: "Ankraj somunları" }));
+    const disclosure = screen.getByRole("button", { name: "Daralt: Somunlar" });
+    expect(cls(disclosure)).toEqual(
+      expect.arrayContaining(["relative", "after:absolute", "after:-inset-y-2.5", "after:-left-1", "after:right-0"]),
+    );
+    // Sağa uzamaz: onay kutusunun çerçevesine biner olurdu.
+    expect(cls(disclosure).some((c) => /^(sm:)?after:-(inset-\d|inset-x-|right-)/.test(c))).toBe(false);
+    // Seçilemeyen aile satırı (tam satır düğme) da telefonda en az 40 px; geniş ekranda eski boy.
+    expect(cls(screen.getByRole("button", { name: /^Hırdavat/ }))).toEqual(
+      expect.arrayContaining(["min-h-10", "py-2", "sm:min-h-0"]),
+    );
+  });
+
+  it("arama sonucu: aile / sınıf / emtia satırları aynı dokunma kuralında; kısa not kısa ekranda", async () => {
+    const user = userEvent.setup();
+    h.search = {
+      data: {
+        truncated: true,
+        segments: [
+          {
+            id: SEG.id,
+            code: SEG.code,
+            nameTr: SEG.nameTr,
+            level: 1,
+            segmentLetter: "P",
+            families: [
+              {
+                id: FAM.id,
+                code: FAM.code,
+                nameTr: FAM.nameTr,
+                level: 2,
+                classes: [
+                  {
+                    id: CLS.id,
+                    code: CLS.code,
+                    nameTr: CLS.nameTr,
+                    level: 3,
+                    isMatch: true,
+                    commodities: [{ id: COM.id, code: COM.code, nameTr: COM.nameTr, level: 4, isMatch: true }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+    };
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={[]}
+        onConfirm={() => {}}
+        minSelectableLevel={1}
+        singlePickPerBranch
+        maxSectors={5}
+        maxSelection={50}
+      />,
+    );
+    await user.type(searchBox(), "somun");
+    await screen.findByRole("checkbox", { name: "Somunlar" });
+    // Ad vurgu parçalarına bölünür → ad düğmesi kutunun kardeşinden bulunur.
+    const nameButtonOf = (name: string) =>
+      screen.getByRole("checkbox", { name }).nextElementSibling as HTMLElement;
+    expectRowTargets("Hırdavat", nameButtonOf("Hırdavat"));
+    expectRowTargets("Somunlar", nameButtonOf("Somunlar"));
+    expectRowTargets("Ankraj somunları", nameButtonOf("Ankraj somunları"));
+
+    // "Çok fazla sonuç" notu: uzun metin kısa ekranda gizli, yerine tek satırlık kısa metin.
+    const long = screen.getByText("Çok fazla sonuç var — tümü gösterilemiyor. Aramanızı daraltın.");
+    const short = screen.getByText("Çok fazla sonuç — aramanızı daraltın.");
+    expect(cls(long)).toContain(SHORT_HIDDEN);
+    expect(cls(short)).toEqual(expect.arrayContaining(["hidden", "[@media(max-height:520px)]:inline"]));
+    expect(long.parentElement).toBe(short.parentElement);
+  });
+
+  it("kısa ekran: arama kutusu doluyken seçim bloğu gizlenir; boşalınca geri gelir; boş durum cümlesi hep gizli", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.search = { data: { segments: [] }, isLoading: false };
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+    const block = document.querySelector('[data-slot="selection-block"]') as HTMLElement;
+    expect(block).not.toBeNull();
+    expect(cls(block)).not.toContain(SHORT_HIDDEN);
+    // Boş durum cümlesi kısa ekranda yer kaplamaz (sayaç "0" zaten söylüyor).
+    expect(cls(screen.getByText(/^Henüz seçim yok/))).toContain(SHORT_HIDDEN);
+
+    await user.type(searchBox(), "s");
+    expect(cls(block)).toContain(SHORT_HIDDEN);
+    await user.click(screen.getByRole("button", { name: "Aramayı temizle" }));
+    expect(cls(block)).not.toContain(SHORT_HIDDEN);
+    // Arama kutusunun dolgusu kısa ekranda küçülür.
+    expect(cls(searchBox().closest("div.border-b") as HTMLElement)).toContain("[@media(max-height:520px)]:py-2");
+  });
+
+  it("tek seçim (talep formu): seçili kategori bloğu da arama sırasında kısa ekranda gizlenir", async () => {
+    const user = userEvent.setup();
+    h.byIds = { data: [A], isPlaceholderData: false };
+    h.search = { data: { segments: [] }, isLoading: false };
+    render(<CategorySelectorModal isOpen mode="single" onClose={() => {}} value={[A.id]} onConfirm={() => {}} />);
+    const block = document.querySelector('[data-slot="selection-block"]') as HTMLElement;
+    expect(block).toHaveTextContent("Kablo");
+    expect(cls(block)).not.toContain(SHORT_HIDDEN);
+    await user.type(searchBox(), "ka");
+    expect(cls(block)).toContain(SHORT_HIDDEN);
+  });
+});
+
+/**
+ * Mobil denetim 2026-10 (g03-auth#new0): ağaç ve arama sonuçları aynı
+ * kaydırıcıda; ağacı kaydırıp arama yazınca sonuçlar eski konumdan açılıyor,
+ * "çok fazla sonuç" notu ve ilk eşleşmeler yukarıda gizli kalıyordu. Kısa
+ * ekranda (klavye açık) liste kaydırıcı değil; tarayıcı eski konumu saklayıp
+ * klavye kapanınca geri yüklüyordu.
+ */
+describe("CategorySelectorModal — liste konumu görünüme ait", () => {
+  const list = () => document.querySelector('[data-slot="category-list"]') as HTMLElement;
+
+  it("arama başlayınca / sorgu değişince liste başa döner; arama bitince ağaç kaldığı yere döner", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.search = { data: { segments: [] }, isLoading: false };
+    render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+    const el = list();
+    el.scrollTop = 300;
+    fireEvent.scroll(el);
+
+    await user.type(searchBox(), "pas");
+    await waitFor(() => expect(h.searchArgs.some((a) => a[0] === "pas")).toBe(true));
+    expect(el.scrollTop).toBe(0);
+
+    // Sonuçlarda aşağı inilip sorgu değişince yine baştan.
+    el.scrollTop = 120;
+    fireEvent.scroll(el);
+    await user.type(searchBox(), "lanmaz");
+    await waitFor(() => expect(h.searchArgs.some((a) => a[0] === "paslanmaz")).toBe(true));
+    expect(el.scrollTop).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: "Aramayı temizle" }));
+    expect(el.scrollTop).toBe(300);
+  });
+
+  it("kısa ekran: hedef bekletilir, klavye kapanınca (kip bitince) tarayıcının geri yüklediği eski konumu ezer", async () => {
+    const listeners = new Set<() => void>();
+    const mq = {
+      matches: true,
+      media: "(max-height: 520px)",
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+    };
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      query.includes("max-height") ? mq : original(query)) as unknown as typeof window.matchMedia;
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      cb(0);
+      return 0;
+    });
+    try {
+      const user = userEvent.setup();
+      seedTree();
+      h.search = { data: { segments: [] }, isLoading: false };
+      render(<CategorySelectorModal isOpen onClose={() => {}} value={[]} onConfirm={() => {}} />);
+      const el = list();
+      el.scrollTop = 300;
+      fireEvent.scroll(el);
+
+      await user.type(searchBox(), "paslanmaz");
+      await waitFor(() => expect(h.searchArgs.some((a) => a[0] === "paslanmaz")).toBe(true));
+      // Tarayıcı, kaydırıcı geri gelince sakladığı eski konumu yükler …
+      el.scrollTop = 300;
+      // … klavye kapanır: kip biter → sonuçlar baştan.
+      mq.matches = false;
+      for (const fn of listeners) fn();
+      expect(el.scrollTop).toBe(0);
+      // Bekleyen hedef bir kez uygulanır: sonraki kip değişimi kullanıcının konumuna dokunmaz.
+      el.scrollTop = 80;
+      for (const fn of listeners) fn();
+      expect(el.scrollTop).toBe(80);
+    } finally {
+      window.matchMedia = original;
+      raf.mockRestore();
+    }
+  });
+
+  it("pencere kapanınca ağacın konumu unutulur: yeni oturumda arama temizlenince liste başta kalır", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.search = { data: { segments: [] }, isLoading: false };
+    const value: string[] = [];
+    const modal = (isOpen: boolean) => (
+      <CategorySelectorModal isOpen={isOpen} onClose={() => {}} value={value} onConfirm={() => {}} />
+    );
+    const view = render(modal(true));
+    const first = list();
+    first.scrollTop = 300;
+    fireEvent.scroll(first);
+
+    view.rerender(modal(false));
+    await waitFor(() => expect(document.querySelector('[data-slot="category-list"]')).toBeNull());
+    view.rerender(modal(true));
+    const el = await waitFor(() => {
+      const next = list();
+      expect(next).not.toBeNull();
+      return next;
+    });
+    expect(el).not.toBe(first);
+
+    // Bu oturumda ağaç hiç kaydırılmadı: aramadan dönünce eski oturumun 300'üne sıçramaz.
+    await user.type(searchBox(), "pas");
+    await waitFor(() => expect(h.searchArgs.some((a) => a[0] === "pas")).toBe(true));
+    await user.click(screen.getByRole("button", { name: "Aramayı temizle" }));
+    expect(el.scrollTop).toBe(0);
+  });
+});

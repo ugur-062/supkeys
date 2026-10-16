@@ -41,15 +41,21 @@ vi.mock("next/navigation", () => ({
 
 import { BidsPreview, DiscoverPreview, ListingWizardPreview } from "../marketing-page";
 
-/** Satır: metin tarafı esnek tabanlı, eylem kümesi sağa yaslı ve satır sarar. */
-function expectWrappingRow(action: HTMLElement) {
+/**
+ * Satır: metin tarafı esnek tabanlı, eylem kümesi sağa yaslı ve satır sarar.
+ * Esas: uzun metinli satırda sabit rem (Поиск), kısa metinli satırda `auto`
+ * (Для покупателя — tam ad fiyatın yanına sığmazsa fiyat alta iner; 3. tur
+ * r1-public#new1: 8rem esasla RU 1024 px'te ad "Компан…" kesiliyordu).
+ */
+function expectWrappingRow(action: HTMLElement, basis: RegExp = /flex-\[1_1_\d+rem\]/) {
   const actionGroup = action.parentElement!;
   const row = actionGroup.parentElement!;
   expect(row).toHaveClass("flex", "flex-wrap");
   expect(actionGroup).toHaveClass("ml-auto", "shrink-0");
   const textSide = row.firstElementChild as HTMLElement;
   expect(textSide).not.toBe(actionGroup);
-  expect(textSide.className).toMatch(/flex-\[1_1_\d+rem\]/);
+  expect(textSide).toHaveClass("min-w-0");
+  expect(textSide.className).toMatch(basis);
 }
 
 describe("Nasıl Çalışır önizleme kartları — D-063", () => {
@@ -67,7 +73,7 @@ describe("Nasıl Çalışır önizleme kartları — D-063", () => {
 
   it("Для покупателя: en iyi teklif satırında fiyat + 'Выбрать' alt satıra inebilir", () => {
     render(<BidsPreview />);
-    expectWrappingRow(screen.getByText("Выбрать"));
+    expectWrappingRow(screen.getByText("Выбрать"), /flex-\[1_1_auto\]/);
     expect(screen.getByText("Компания B")).toBeInTheDocument();
   });
 

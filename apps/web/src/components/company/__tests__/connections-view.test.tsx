@@ -86,7 +86,7 @@ vi.mock("@/hooks/use-company-connections", async (importOriginal) => {
   };
 });
 
-import { ConnectionsView } from "../connections-view";
+import { ConnectionsView, emailBreakParts } from "../connections-view";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const co = (i: number, over: Record<string, unknown> = {}) => ({
@@ -101,6 +101,9 @@ const co = (i: number, over: Record<string, unknown> = {}) => ({
   productPreview: { thumbnails: [], total: 3 },
   ...over,
 });
+
+/** E-posta davetinin adresi birden çok düğümde (`EmailText`): öğenin TÜM metniyle eşleşir. */
+const emailEl = (email: string) => screen.getByText((_, el) => el?.tagName === "DIV" && el.textContent === email);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -171,7 +174,7 @@ describe("ConnectionsView", () => {
     expect(h.respond).toHaveBeenCalledWith({ connectionId: "g1", action: "accept" });
     await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
     expect(screen.getByText("Firma 5")).toBeInTheDocument();
-    expect(screen.getByText("yeni@firma.com")).toBeInTheDocument();
+    expect(emailEl("yeni@firma.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Geri çek" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "İptal et" })).toBeInTheDocument();
   });
@@ -512,5 +515,235 @@ describe("ConnectionsView", () => {
       expect(within(screen.getByRole("group", { name: "Görünüm" })).getByRole("button", { name: /Bağlantılarım/ })).toHaveTextContent("2");
       qc.clear();
     });
+  });
+});
+
+/**
+ * MOBİL DENETİM g05/g08 (kullanıcı kararı: satır satır okunan tablo telefonda
+ * kart): DOM aynı tablo, sm altında her satır sarılan bir kart — firma en az
+ * 11rem alıp büyür, eylemler sağda; sığmazsa eylemler alt satıra iner. Ad ve
+ * alt satır telefonda kırpılmaz. Kısa yer tutucu, 44 px "Kopyala".
+ */
+describe("ConnectionsView — telefon düzeni", () => {
+  const originalMatchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+  const setNarrow = (narrow: boolean) => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === "(max-width: 639.98px)" ? narrow : false,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia;
+  };
+
+  it("satır telefonda kart: tablo blok akışı, başlık satırı gizli, firma büyür, eylem sağda", async () => {
+    const user = userEvent.setup();
+    h.incoming = [{ connectionId: "g1", company: co(9, { name: "QA Tedarikçi 2 A.Ş." }), createdAt: "" }];
+    render(<ConnectionsView />);
+    const table = screen.getByRole("table");
+    // Catalyst kaydırma kabı (tablonun iki üstü) telefonda sarar ve blok olur.
+    const scroller = table.parentElement!.parentElement!;
+    expect(scroller.className).toMatch(/(^|\s)max-sm:whitespace-normal(\s|$)/);
+    expect(scroller.className).toMatch(/max-sm:\[&_table\]:block/);
+    // Catalyst'in olası kenar taşması telefonda sıfırlanır (satır kartın içinde).
+    expect(scroller.className).toMatch(/(^|\s)max-sm:mx-0(\s|$)/);
+    expect(table.querySelector("thead")!.className).toMatch(/(^|\s)max-sm:hidden(\s|$)/);
+
+    await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+    const accept = screen.getByRole("button", { name: "Kabul et" });
+    const row = accept.closest("tr")!;
+    expect(row.className).toMatch(/(^|\s)max-sm:flex(\s|$)/);
+    expect(row.className).toMatch(/(^|\s)max-sm:flex-wrap(\s|$)/);
+    expect(row.className).toMatch(/(^|\s)max-sm:px-2(\s|$)/);
+    const [firm] = Array.from(row.querySelectorAll("td"));
+    expect(firm!.className).toMatch(/max-sm:flex-\[1_1_11rem\]/);
+    expect(firm!.className).toMatch(/(^|\s)max-sm:max-w-none(\s|$)/);
+    expect(accept.closest("td")!.className).toMatch(/(^|\s)max-sm:ml-auto(\s|$)/);
+    // Ad telefonda sarar (kırpılmaz); "Doğrulanmış" rozeti adın altına inebilir.
+    const name = within(firm!).getByText("QA Tedarikçi 2 A.Ş.");
+    expect(name.className).toMatch(/(^|\s)max-sm:whitespace-normal(\s|$)/);
+  });
+
+  it("e-posta daveti: açıklama xl altında listenin üstünde BİR kez (telefon + RU tablet); adres kırpılmaz", async () => {
+    const user = userEvent.setup();
+    h.referrals = [
+      { id: "r1", email: "miguelez@miguelez.com", createdAt: "" },
+      { id: "r2", email: "info@kiracelektrik.com", createdAt: "" },
+    ];
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    const hints = screen.getAllByText(/E-postadaki bağlantıyla kaydolursa/);
+    // Biri listenin üstünde (xl altında: telefon ve RU 768 / 1024'te firma sütunu 144-160 px), ikisi satırlarda (yalnız xl+).
+    expect(hints).toHaveLength(3);
+    expect(hints.filter((el) => /(^|\s)xl:hidden(\s|$)/.test(el.className))).toHaveLength(1);
+    expect(hints.filter((el) => /(^|\s)max-xl:hidden(\s|$)/.test(el.className))).toHaveLength(2);
+    // Her genişlikte sarar, "…" ile kesilmez; son çare sarma `break-words` (anywhere DEĞİL:
+    // bölünmez parça hücrenin en küçük genişliğini belirler).
+    const email = emailEl("miguelez@miguelez.com");
+    expect(email.className).toMatch(/(^|\s)break-words(\s|$)/);
+    expect(email.className).toMatch(/(^|\s)whitespace-normal(\s|$)/);
+    expect(email.className).not.toMatch(/anywhere|(^|\s)truncate(\s|$)/);
+  });
+
+  // v-public-filter-comm#new0: RU 360'ta 124 px'lik sütunda adresler alan
+  // adının ortasından bölünüyordu ("tanerelektrik.co | m.tr", "noark- | electric").
+  it("e-posta yalnız @'ten sonra ve noktalardan önce kırılır; son ek (com.tr) bütün; tire bölünmez; hücre en az bölünmez parça kadar", async () => {
+    const user = userEvent.setup();
+    h.referrals = [
+      { id: "r1", email: "info@tanerelektrik.com.tr", createdAt: "" },
+      { id: "r2", email: "europe@noark-electric.com", createdAt: "" },
+    ];
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    const taner = emailEl("info@tanerelektrik.com.tr");
+    // Kırılma fırsatları (`<wbr>`) yalnız "info@" ve "tanerelektrik" sonrasında; alan adı satır içi blokta
+    // (sığıyorsa bütün hâlde alt satıra iner).
+    const marks = (node: Node): string =>
+      Array.from(node.childNodes)
+        .map((n) => (n.nodeName === "WBR" ? "|" : n.nodeName === "SPAN" && (n as HTMLElement).className.includes("inline-block") ? `[${marks(n)}]` : n.textContent))
+        .join("");
+    expect(marks(taner)).toBe("info@|[tanerelektrik|.com.tr]");
+    const domain = taner.querySelector("span.inline-block") as HTMLElement;
+    expect(domain.className).toMatch(/(^|\s)max-w-full(\s|$)/);
+    // Tire bir sonraki harfle bölünmez kutuda; kopyalanan metin adresin aynısı.
+    const noark = emailEl("europe@noark-electric.com");
+    expect(marks(noark)).toBe("europe@|[noark-electric|.com]");
+    const glued = Array.from(noark.querySelectorAll("span")).find((sp) => sp.textContent === "-e");
+    expect(glued?.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    expect(noark.textContent).toBe("europe@noark-electric.com");
+    // Hücre: telefonda en az içerik (bölünmez parça), en çok satır; sığmazsa eylem alt satıra iner.
+    const cell = taner.closest("td")!;
+    expect(cell.className).toMatch(/(^|\s)max-sm:min-w-auto(\s|$)/);
+    expect(cell.className).toMatch(/(^|\s)max-sm:max-w-full(\s|$)/);
+    expect(cell.className).not.toMatch(/max-sm:min-w-0/);
+    expect(cell.className).toMatch(/max-sm:flex-\[1_1_9rem\]/);
+  });
+
+  // RU 768 / 1024: "Отрасль · город" sütunu (154 px) + geniş "Статус" rozeti firma sütununu
+  // 144-160 px'e indiriyordu; aynı bilgi firma adının altında zaten yazıyor.
+  it("sektör · şehir sütunu yalnız xl+ (tablet genişliğinde firma sütununa yer kalır)", async () => {
+    const user = userEvent.setup();
+    h.referrals = [{ id: "r1", email: "yeni@firma.com", createdAt: "" }];
+    render(<ConnectionsView />);
+    const th = screen.getAllByRole("columnheader")[1]!;
+    expect(th.className).toMatch(/(^|\s)xl:table-cell(\s|$)/);
+    expect(th.className).not.toMatch(/md:table-cell/);
+    for (const tr of screen.getAllByRole("row").slice(1)) {
+      expect(tr.querySelectorAll("td")[1]!.className).toMatch(/(^|\s)xl:table-cell(\s|$)/);
+    }
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    const referralRow = emailEl("yeni@firma.com").closest("tr")!;
+    expect(referralRow.querySelectorAll("td")[1]!.className).toMatch(/(^|\s)xl:table-cell(\s|$)/);
+  });
+
+  it("emailBreakParts: kişi@ · ilk etiket · .etiket; kısa ikinci düzey son ek son etiketle birlikte", () => {
+    expect(emailBreakParts("info@tanerelektrik.com.tr")).toEqual(["info@", "tanerelektrik", ".com.tr"]);
+    expect(emailBreakParts("hydrotor@hydrotor.com.pl")).toEqual(["hydrotor@", "hydrotor", ".com.pl"]);
+    expect(emailBreakParts("eti@eti.si")).toEqual(["eti@", "eti", ".si"]);
+    expect(emailBreakParts("satis@mail.firma.com")).toEqual(["satis@", "mail", ".firma", ".com"]);
+    expect(emailBreakParts("a@b.co.uk")).toEqual(["a@", "b", ".co.uk"]);
+    expect(emailBreakParts("x@localhost")).toEqual(["x@", "localhost"]);
+    // Adres değilse bölünmez.
+    expect(emailBreakParts("adres-yok")).toEqual(["adres-yok"]);
+    expect(emailBreakParts("@firma.com")).toEqual(["@firma.com"]);
+    for (const e of ["info@tanerelektrik.com.tr", "satis@mail.firma.com", "a@b.co.uk"]) expect(emailBreakParts(e).join("")).toBe(e);
+  });
+
+  // Mobil denetim g05 (yeniden doğrulama): RU 360'ta "В ожидании"daki her
+  // satırın TEK eylemi ("Отменить" / "Отозвать") e-postanın altına iniyordu
+  // (11rem + boşluk + eylem 302 px > satır 294 px; satırlar 109–117 px).
+  it("tek kısa eylemli satır (e-posta daveti, giden istek): firma 9rem — eylem yanında kalır; e-posta @'ten sonra sarar", async () => {
+    const user = userEvent.setup();
+    h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
+    h.referrals = [{ id: "r1", email: "info@palazzoli.it", createdAt: "" }];
+    h.incoming = [{ connectionId: "g1", company: co(9), createdAt: "" }];
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    for (const action of ["İptal et", "Geri çek"]) {
+      const row = screen.getByRole("button", { name: action }).closest("tr")!;
+      const firm = row.querySelector("td")!;
+      expect(firm.className).toMatch(/max-sm:flex-\[1_1_9rem\]/);
+      expect(firm.className).not.toMatch(/11rem/);
+    }
+    const email = emailEl("info@palazzoli.it");
+    expect(email.querySelector("wbr")).not.toBeNull();
+    expect(email.textContent).toBe("info@palazzoli.it");
+    // İki eylemli satır (Kabul et / Reddet) eski tabanda kalır.
+    await user.click(screen.getByRole("button", { name: /Gelen istekler/ }));
+    const incomingFirm = screen.getByRole("button", { name: "Kabul et" }).closest("tr")!.querySelector("td")!;
+    expect(incomingFirm.className).toMatch(/max-sm:flex-\[1_1_11rem\]/);
+  });
+
+  it("dar ekranda arama yer tutucusu kısa; geniş ekranda tam", () => {
+    setNarrow(true);
+    const { unmount } = render(<ConnectionsView />);
+    expect(screen.getByLabelText("Bağlantılarımda ara")).toHaveAttribute("placeholder", "Firma, ID, sektör, şehir");
+    unmount();
+    setNarrow(false);
+    render(<ConnectionsView />);
+    expect(screen.getByLabelText("Bağlantılarımda ara")).toHaveAttribute(
+      "placeholder",
+      "Firma adı, Rothern ID, sektör veya şehir",
+    );
+  });
+
+  it("Rothern ID 'Kopyala' düğmesinin dokunma alanı 44 px (görünmez katman)", () => {
+    render(<ConnectionsView />);
+    const cls = screen.getByRole("button", { name: "Rothern ID'yi kopyala" }).className;
+    expect(cls).toMatch(/(^|\s)relative(\s|$)/);
+    expect(cls).toMatch(/(^|\s)after:absolute(\s|$)/);
+    expect(cls).toMatch(/(^|\s)after:-inset-y-3(\s|$)/);
+  });
+
+  // r3-comm#new2: RU 360'ta alt satır "Стамбул · 0WZH-" / "3BAK" diye ID'nin
+  // tiresinden bölünüyordu; ID kopyalanıp aktarılan belirteç.
+  it("Rothern ID alt satırda tireden bölünmez: kendi nowrap kutusunda, ayraç öncekine yapışık", async () => {
+    const user = userEvent.setup();
+    h.connections = [
+      { connectionId: "k1", origin: "INVITE", company: co(1), decidedAt: null },
+      { connectionId: "k3", origin: "INVITE", company: co(3, { industry: null, city: null }), decidedAt: null },
+    ];
+    h.outgoing = [{ connectionId: "o1", company: co(5), createdAt: "" }];
+    render(<ConnectionsView />);
+    const id1 = screen.getByText("BBBB-0001");
+    expect(id1.tagName).toBe("SPAN");
+    expect(id1.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    // Sarma fırsatı yalnız "·"dan SONRA: önceki boşluk bükülmez (U+00A0) —
+    // satır "·" ile başlamaz, ID bütün hâlde alt satıra iner.
+    expect(id1.parentElement!.textContent).toBe("Elektrik\u00A0· Bursa\u00A0· BBBB-0001");
+    // Sektör/şehir yoksa ayraç da yok — yalnız ID.
+    const id3 = screen.getByText("BBBB-0003");
+    expect(id3.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    expect(id3.parentElement!.textContent).toBe("BBBB-0003");
+    // Giden istek satırı (dar 9rem hücre) da aynı.
+    await user.click(screen.getByRole("button", { name: /Bekleyenler/ }));
+    expect(screen.getByText("BBBB-0005").className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+  });
+
+  it("başlıktaki kendi Rothern ID'si de tek parça (nowrap)", () => {
+    render(<ConnectionsView />);
+    expect(screen.getByText("AAAA-0001").className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+  });
+
+  // s4-misc#v4new1: pil `tabular-nums` taşıyordu; Inter'in tabular tiresi rakam
+  // genişliğinde kutuda sağa yaslanıyor, ID "RC5M - 2N5T" okunuyordu. Satırlardaki
+  // ID'ler gibi orantılı rakam (kimlik belirteci sınıfı, `lib/id-token.ts`).
+  it("başlıktaki Rothern ID pili tabular rakamsız: tirenin çevresinde boşluk yok", () => {
+    render(<ConnectionsView />);
+    const pill = screen.getByText("AAAA-0001").className.split(/\s+/);
+    expect(pill).toEqual(expect.arrayContaining(["normal-nums", "tracking-normal", "whitespace-nowrap"]));
+    expect(pill.some((c) => /^(tabular-nums|tnum|tracking-wide|tracking-wider|tracking-widest)$/.test(c))).toBe(false);
+  });
+
+  it("logolu satır baş harfli satırla aynı girintide (logo kutusu avatar boyunda)", () => {
+    h.connections = [
+      { connectionId: "k1", origin: "INVITE", company: co(1, { logoUrl: "https://cdn.example.com/l.png" }), decidedAt: null },
+    ];
+    const { container } = render(<ConnectionsView />);
+    const logo = container.querySelector("tbody img")!.parentElement!;
+    expect(logo.className).toMatch(/(^|\s)size-8(\s|$)/);
+    expect(logo.className).not.toMatch(/(^|\s)size-10(\s|$)/);
   });
 });

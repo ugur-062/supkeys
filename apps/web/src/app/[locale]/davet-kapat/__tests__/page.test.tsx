@@ -56,4 +56,27 @@ describe("Davet kapatma sayfası", () => {
     expect(await screen.findByText("Bağlantı geçersiz")).toBeInTheDocument();
     expect(h.get).not.toHaveBeenCalled();
   });
+  /* Mobil denetim 2026-10 g01: uygulama kabuğunda (iOS'ta adres çubuğu ve geri
+     düğmesi yok) açılan bağlantı çıkışsız bir kartta kalıyordu. */
+  it("çıkış yolu: logo her hâlde ana sayfaya bağlı; hata ve sonuç kartında 'Ana sayfaya dön'", async () => {
+    h.get.mockResolvedValue({ data: { email: "sa•••@firma.com", optedOut: false } });
+    const ready = render(<Page />);
+    expect(await screen.findByText("Adres: sa•••@firma.com")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Rothern" })).toHaveAttribute("href", "/");
+    ready.unmount();
+
+    h.get.mockResolvedValue({ data: { email: "a•••@b.com", optedOut: true } });
+    const done = render(<Page />);
+    expect(await screen.findByText("Davetler kapatıldı")).toBeInTheDocument();
+    const home = screen.getByRole("link", { name: "Ana sayfaya dön" });
+    expect(home).toHaveAttribute("href", "/");
+    expect(home.className).toMatch(/\bmin-h-11\b/);
+    done.unmount();
+
+    h.get.mockRejectedValue(new Error("404"));
+    render(<Page />);
+    expect(await screen.findByText("Bağlantı geçersiz")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ana sayfaya dön" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Rothern" })).toHaveAttribute("href", "/");
+  });
 });

@@ -93,6 +93,28 @@ describe("ItemQuestionModal — soru tavanı (S085)", () => {
   });
 });
 
+describe("ItemQuestionModal — dokunma hedefleri (mobil denetim 2026-10 g06)", () => {
+  it("'Zorunlu' yazısına dokunmak kutuyu çevirir; kutunun adı görünür etiketten", async () => {
+    const user = userEvent.setup();
+    render(<Harness count={1} />);
+    const box = screen.getByRole("checkbox", { name: "Zorunlu" });
+    expect(box).toBeChecked();
+    await user.click(screen.getByText("Zorunlu"));
+    expect(screen.getByRole("checkbox", { name: "Zorunlu" })).not.toBeChecked();
+  });
+
+  it("'Soruyu kaldır' dolgulu dokunma alanı taşır (simge yerinde: eksi kenar boşluğu)", async () => {
+    const user = userEvent.setup();
+    render(<Harness count={2} />);
+    const removes = screen.getAllByRole("button", { name: "Soruyu kaldır" });
+    expect(removes).toHaveLength(2);
+    expect(removes[0]!.className).toMatch(/(^|\s)-m-3(\s|$)/);
+    expect(removes[0]!.className).toMatch(/(^|\s)p-3(\s|$)/);
+    await user.click(removes[0]!);
+    expect(screen.getAllByRole("button", { name: "Soruyu kaldır" })).toHaveLength(1);
+  });
+});
+
 describe("SaveTemplateDialog — varsayılan ad tavanı (S085)", () => {
   it("uzun talep başlığı varsayılan adda 100 karaktere kırpılır", () => {
     render(<SaveTemplateDialog open onClose={() => {}} onSave={() => {}} isSaving={false} defaultName={"A".repeat(150)} />);

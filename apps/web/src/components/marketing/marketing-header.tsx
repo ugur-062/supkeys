@@ -60,6 +60,15 @@ import { useEffect, useState } from "react";
  * statik/ISR üretimde "/" DÖNMÜYOR (2026-09-05 #418): sunucu HER ZAMAN
  * "aktif yok + kaydırılmamış" hâli basar, işaret hidrasyondan sonra düşer.
  * Yükseklik yalnız kaydırınca değişir, dolayısıyla ilk boyada zıplama olmaz.
+ *
+ * 1024–1279 PX SIĞDIRMA (mobil denetim 2026-10, r1-public#new0): masaüstü
+ * satırı lg'de açılır; RU'da logo + dört menü satırı + dil + "Войти" +
+ * "Бесплатная регистрация" 960 px'lik satıra sığmıyordu, kayıt düğmesi
+ * ekranın sağından 33 px taşıp kırpılıyordu (iPad yatay). xl'e dek menü
+ * aralığı biraz daralır (gap-6) ve kayıt düğmesi `nav.signupCompact`
+ * etiketini taşır (RU "Регистрация"; TR/EN tam etiketle AYNI → tek metin
+ * çizilir, görünüm değişmez). xl'de tam etiket. İki etiket CSS ile
+ * değişir (`display`), erişilebilir ad her zaman görünen metindir.
  */
 
 /** Logonun yanındaki menü — tek kaynak (masaüstü satırı + mobil çekmece). */
@@ -106,13 +115,30 @@ export function MarketingHeader() {
      ikisi birden işaretlenmesin diye yalnız TAM eşleşme aktif sayılır. */
   const isActive = (href: string) => here != null && here === href.split("#")[0] && !href.includes("#");
 
+  /* Masaüstü satırındaki kayıt etiketi: kısa etiket tam etiketten farklıysa
+     (RU) xl altında kısası görünür; aynıysa (TR/EN) tek metin. */
+  const signupFull = t("signup");
+  const signupCompact = t("signupCompact");
+  const desktopSignupLabel =
+    signupCompact === signupFull ? (
+      signupFull
+    ) : (
+      <>
+        <span className="xl:hidden">{signupCompact}</span>
+        <span className="hidden xl:inline">{signupFull}</span>
+      </>
+    );
+
   return (
     <header className="fixed inset-x-0 top-0 z-50">
+      {/* Güvenli alan (mobil kabuk): zemin durum çubuğunun altına uzanır,
+          satır onun altından başlar (yükseklik = satır + üst pay); yatay
+          telefonda çentik tarafı da pay alır. Pay 0 iken eskisiyle aynı. */}
       <div
-        className={`border-b transition-[height,background-color,border-color,box-shadow] duration-200 ${
+        className={`border-b pt-(--safe-top) pr-(--safe-right) pl-(--safe-left) transition-[height,background-color,border-color,box-shadow] duration-200 ${
           scrolled
-            ? "h-14 border-zinc-950/10 bg-white/90 shadow-sm shadow-zinc-950/5 backdrop-blur-md"
-            : "h-16 border-zinc-950/10 bg-white/95 backdrop-blur"
+            ? "h-[calc(3.5rem+var(--safe-top))] border-zinc-950/10 bg-white/90 shadow-sm shadow-zinc-950/5 backdrop-blur-md"
+            : "h-[calc(4rem+var(--safe-top))] border-zinc-950/10 bg-white/95 backdrop-blur"
         }`}
       >
         <div
@@ -130,7 +156,7 @@ export function MarketingHeader() {
               yaslı hâli "çok soldan başlıyor" diye iki kez geri geldi
               (kullanıcı, 2026-09-10). Sağ grup ml-auto taşımaz, boşluğu nav
               iki yana eşit paylaştırır. */}
-          <nav aria-label={t("siteMenu")} className="hidden items-center gap-8 lg:mx-auto lg:flex">
+          <nav aria-label={t("siteMenu")} className="hidden items-center gap-6 lg:mx-auto lg:flex xl:gap-8">
             {NAV.map((item) => {
               const on = isActive(item.href);
               return (
@@ -168,9 +194,11 @@ export function MarketingHeader() {
                 </Link>
               }
             >
+              {/* Dokunma alanı 44 px (iPad yatayda masaüstü satırı dokunmatikle
+                  kullanılır; düz metin bağlantı 20 px'ti). Görünüm aynı. */}
               <Link
                 href="/company/login"
-                className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
+                className="inline-flex min-h-11 items-center text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
               >
                 {t("login")}
               </Link>
@@ -181,7 +209,7 @@ export function MarketingHeader() {
                   signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
                 )}
               >
-                {t("signup")}
+                {desktopSignupLabel}
               </Link>
             </SessionSwap>
           </div>

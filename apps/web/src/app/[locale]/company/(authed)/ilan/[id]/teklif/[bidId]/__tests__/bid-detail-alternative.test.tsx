@@ -98,6 +98,13 @@ beforeEach(() => {
   h.detail = undefined;
 });
 
+/** Telefonda kalem kart listesi (sm:hidden) — tablonun eşi. */
+function mobileList(): HTMLElement {
+  const list = screen.getByRole("table").closest("section")!.querySelector("ul");
+  expect(list).not.toBeNull();
+  return list as HTMLElement;
+}
+
 describe("Teklif detayı — muadil beyanı (Y-16)", () => {
   it("muadil kalemde rozet + teklif edilen marka/parça no + istenen gösterilir", () => {
     h.detail = detail([
@@ -111,15 +118,20 @@ describe("Teklif detayı — muadil beyanı (Y-16)", () => {
       { itemId: "i2", unitPrice: "100", isAlternative: false },
     ]);
     render(<BidDetailPage />);
-    const row = screen.getByText("Rulman").closest("tr")!;
+    // Kalem içeriği iki yerde: telefon kartı (sm:hidden) ve sm+ tablo.
+    const table = screen.getByRole("table");
+    const row = within(table).getByText("Rulman").closest("tr")!;
     expect(within(row).getByText("Muadil")).toBeInTheDocument();
     expect(
       within(row).getByText("Teklif edilen: FAG · 6204-C"),
     ).toBeInTheDocument();
     expect(within(row).getByText("İstenen: SKF · 6204-2RS")).toBeInTheDocument();
     // Muadil olmayan kalemde rozet yok.
-    const row2 = screen.getByText("Kayış").closest("tr")!;
+    const row2 = within(table).getByText("Kayış").closest("tr")!;
     expect(within(row2).queryByText("Muadil")).toBeNull();
+    // Telefon kartı aynı beyanı taşır.
+    const card = within(mobileList()).getByText("Rulman").closest("li")!;
+    expect(within(card).getByText("Teklif edilen: FAG · 6204-C")).toBeInTheDocument();
   });
 
   it("marka/parça no girilmemiş muadil beyanı da görünür", () => {
@@ -127,7 +139,7 @@ describe("Teklif detayı — muadil beyanı (Y-16)", () => {
       { itemId: "i1", unitPrice: "100", isAlternative: true },
     ]);
     render(<BidDetailPage />);
-    const row = screen.getByText("Rulman").closest("tr")!;
+    const row = within(screen.getByRole("table")).getByText("Rulman").closest("tr")!;
     expect(within(row).getByText("Muadil")).toBeInTheDocument();
     expect(
       within(row).getByText("Teklif edilen marka / parça no belirtilmedi"),
@@ -139,5 +151,33 @@ describe("Teklif detayı — muadil beyanı (Y-16)", () => {
     render(<BidDetailPage />);
     expect(screen.queryByText("Muadil")).toBeNull();
     expect(screen.queryByTestId("alternative-offer")).toBeNull();
+  });
+});
+
+describe("Teklif detayı — mobil denetim (g07)", () => {
+  it("telefonda kalemler kart listesi: ad + miktar + birim fiyat + tutar birlikte; tablo yalnız sm'den", () => {
+    h.detail = detail([
+      { itemId: "i1", unitPrice: "100" },
+      { itemId: "i2", unitPrice: "40" },
+    ]);
+    render(<BidDetailPage />);
+    const list = mobileList();
+    expect(list.className).toMatch(/(^|\s)sm:hidden(\s|$)/);
+    expect(screen.getByRole("table").closest(".hidden")?.className).toMatch(/(^|\s)sm:block(\s|$)/);
+    const card = within(list).getByText("Rulman").closest("li")!;
+    expect(within(card).getByText("Miktar")).toBeInTheDocument();
+    expect(within(card).getByText("Birim Fiyat")).toBeInTheDocument();
+    expect(within(card).getByText("100,00 ₺")).toBeInTheDocument();
+    expect(within(card).getByText("Tutar")).toBeInTheDocument();
+    expect(within(card).getByText("1.000,00 ₺")).toBeInTheDocument();
+  });
+
+  it("tutar bloğu telefonda sola, sm'den sağa yaslı (Mesaj Gönder tutarla hizalı)", () => {
+    h.detail = detail([{ itemId: "i1", unitPrice: "100" }]);
+    render(<BidDetailPage />);
+    const amount = screen.getByText("1.500,00 ₺");
+    const cls = amount.parentElement!.className.split(/\s+/);
+    expect(cls).toContain("text-left");
+    expect(cls).toContain("sm:text-right");
   });
 });

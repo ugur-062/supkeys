@@ -12,6 +12,7 @@ import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { MessageSquare } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCompanyPermissionsSynced } from "@/hooks/use-company-auth";
+import { POPOVER_ANCHOR, POPOVER_MAX_HEIGHT_CLASS } from "./popover-anchor";
 
 
 /** "Bu konuşmada ben kimim?" rozeti — birleşik kutu satırları. */
@@ -77,33 +78,40 @@ function RecentThreads({ close }: { close: () => void }) {
               size="sm"
               className="mt-0.5"
             />
+            {/* Mobil denetim g04: ad, rol rozeti ve tarih tek satırdaydı; RU'da
+                ad 'QA Ted…'e iniyor, iki firma ayırt edilemiyordu. Adın
+                yanında yalnız tarih kalır, ad iki satıra sarar; rozet önizleme
+                satırının başında (panel her ekranda 22rem, kural her yerde). */}
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-2">
                 <span
-                  className={`truncate text-sm ${
+                  className={`line-clamp-2 min-w-0 break-words text-sm ${
                     t.unread
                       ? "font-semibold text-zinc-900"
                       : "font-medium text-zinc-700"
                   }`}
+                  title={t.otherPartyName}
                 >
                   {t.otherPartyName}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[t.portal].cls}`}
-                >
-                  {tr(ROLE_CHIP[t.portal].label as never)}
                 </span>
                 <span className="shrink-0 text-xs text-zinc-400">
                   {ago(t.lastMessageAt)}
                 </span>
               </span>
-              <span
-                className={`block truncate text-xs ${
-                  t.unread ? "font-medium text-zinc-700" : "text-zinc-400"
-                }`}
-                title={t.lastMessagePreview ?? undefined}
-              >
-                {t.lastMessagePreview ?? "—"}
+              <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[t.portal].cls}`}
+                >
+                  {tr(ROLE_CHIP[t.portal].label as never)}
+                </span>
+                <span
+                  className={`min-w-0 truncate text-xs ${
+                    t.unread ? "font-medium text-zinc-700" : "text-zinc-400"
+                  }`}
+                  title={t.lastMessagePreview ?? undefined}
+                >
+                  {t.lastMessagePreview ?? "—"}
+                </span>
               </span>
             </span>
             {t.unread ? (
@@ -159,10 +167,14 @@ export function MessagesPopover() {
       </PopoverButton>
 
       <PopoverPanel
-        anchor="bottom end"
-        // B16: panel viewport'a sığar (--anchor-max-height); liste iç scroll,
-        // başlık/footer sabit — son öğe kesilmez, footer üstüne binmez.
-        className="z-50 mt-2 flex w-[22rem] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem] max-h-[min(var(--anchor-max-height),30rem)]"
+        anchor={POPOVER_ANCHOR}
+        // B16: panel viewport'a sığar; liste iç scroll, başlık/footer sabit —
+        // son öğe kesilmez, footer üstüne binmez. Mobil denetim g04: boşluk ve
+        // ekran payı Headless'ın hesabında (`popover-anchor.ts`; panel sol
+        // kenara yapışıyordu); 30rem tavanı değişkenle (Headless'ın satır içi
+        // `max-height`i onu okur; yatay telefonda ana ekran çizgisi payı da
+        // düşülür — `POPOVER_MAX_HEIGHT_CLASS`); telefonda ekran eni − 2×8 px.
+        className={`z-50 flex w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 ${POPOVER_MAX_HEIGHT_CLASS} sm:w-[22rem]`}
       >
         {({ close }) => (
           <>
@@ -172,11 +184,14 @@ export function MessagesPopover() {
               </span>
             </div>
             <RecentThreads close={close} />
-            <div className="shrink-0 border-t border-zinc-100 px-4 py-2.5 text-center">
+            {/* Bağlantı satırın TAMAMI — 44 px, eski satır yüksekliğiyle aynı
+                (py-2.5 + gövde satır kutusu); zildeki "Tüm bildirimleri gör"
+                gibi tüm satır dokunma alanı. */}
+            <div className="shrink-0 border-t border-zinc-100 text-center">
               <Link
                 href="/company/mesajlar"
                 onClick={() => close()}
-                className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+                className="flex min-h-11 items-center justify-center px-4 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
               >
                 {t("tumMesajlariGor")}
               </Link>

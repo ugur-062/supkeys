@@ -388,8 +388,13 @@ export function CompanyLoginForm({
 
       {/* Dokunma alanları en az 32 px yüksek (arayüz testi 2026-10 login-10):
           etiket ve bağlantı dolguyla 16 → 32 px olur; `-mt-3 mb-3` satırın
-          eski yerini korur (form uzamaz). */}
-      <div className="-mt-3 mb-3 flex items-center justify-between gap-3">
+          eski yerini korur (form uzamaz).
+          İkisi tek satıra sığmazsa bağlantı ALT SATIRA, sağa iner (mobil
+          denetim 2026-10 g03-auth-ru-login-row): Rusça 360 px'te 6 px eksik
+          kalıyor, iki öğe de küçülüp ikişer satıra sarılıyor, aralarında boşluk
+          kalıyordu. `flex-wrap` + bağlantıda `ml-auto whitespace-nowrap`:
+          sığınca eskisi gibi iki uçta, sığmayınca etiket tam, bağlantı altta. */}
+      <div className="-mt-3 mb-3 flex flex-wrap items-center justify-between gap-x-3">
         <label className="flex min-h-8 cursor-pointer items-center gap-2 py-2 text-xs font-medium text-zinc-600 select-none">
           <input
             type="checkbox"
@@ -401,7 +406,7 @@ export function CompanyLoginForm({
         </label>
         <Link
           href="/company/sifremi-unuttum"
-          className="inline-flex min-h-8 items-center py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900"
+          className="ml-auto inline-flex min-h-8 items-center py-2 text-xs font-medium whitespace-nowrap text-zinc-500 hover:text-zinc-900"
         >
           {t("forgot")}
         </Link>

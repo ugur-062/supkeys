@@ -62,6 +62,13 @@ import { toast } from "sonner";
  *    "Talebim" rozeti (çip var), ayrı durum/tür seçicileri.
  */
 
+/**
+ * Tek başına duran metin düğmesinin (detay aç/kapa, "Adımlar" özeti, "Onaylara
+ * dön") dokunma alanı — mobil denetim g04: 20 px yüksekti. Görünüm ve yerleşim
+ * aynı kalır; görünmez `after` katmanı alanı dikeyde 44 px'e büyütür.
+ */
+const TAP_AREA = "relative after:absolute after:-inset-x-1 after:-inset-y-3";
+
 // Tür ve durum etiketleri katalogda (`type.<KOD>`, `typeLower.<KOD>`,
 // `status.<KOD>`); burada yalnız rozet rengi.
 const REQ_STATUS_COLOR: Record<ApprovalHistoryItem["status"], "amber" | "green" | "rose" | "zinc"> = {
@@ -178,17 +185,21 @@ function CardTitle({
   canOpenListing: boolean;
   right: React.ReactNode;
 }) {
+  // Telefonda talep adı kırpılmaz, en çok iki satıra sarar — onaycı kararını
+  // bu adla verir ve talep sayfasını açma izni olmayabilir.
   return (
     <div className="flex flex-wrap items-start justify-between gap-2">
       {canOpenListing ? (
         <Link
           href={`/company/ilan/${listing.id}`}
-          className="min-w-0 truncate text-[15px] font-semibold text-zinc-950 hover:text-blue-600 hover:underline"
+          className="min-w-0 text-[15px] font-semibold text-zinc-950 hover:text-blue-600 hover:underline max-sm:line-clamp-2 max-sm:break-words sm:truncate"
         >
           {listing.title}
         </Link>
       ) : (
-        <p className="min-w-0 truncate text-[15px] font-semibold text-zinc-950">{listing.title}</p>
+        <p className="min-w-0 text-[15px] font-semibold text-zinc-950 max-sm:line-clamp-2 max-sm:break-words sm:truncate">
+          {listing.title}
+        </p>
       )}
       <div className="shrink-0">{right}</div>
     </div>
@@ -260,13 +271,16 @@ function DecideCard({
         ]}
       />
       <InitiatorNote note={p.initiatorNote} />
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 pt-3">
+      {/* Dokunma alanı (mobil denetim g04): 20 px'lik metin düğmeleri görünümü
+          değiştirmeden 44 px'e büyür (`TAP_AREA`); sarılınca satırlar arası
+          pay, büyütülmüş alan alttaki düğmelere taşmasın diye 12 px. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-3 border-t border-zinc-950/5 pt-3">
         <button
           type="button"
           aria-expanded={detailOpen}
           aria-controls={`onay-detay-${p.id}`}
           onClick={onToggleDetail}
-          className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950"
+          className={cn("inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950", TAP_AREA)}
         >
           <ChevronDown aria-hidden className={cn("size-4 transition", detailOpen && "rotate-180")} />
           {detailOpen ? t("detayiGizle") : t("detayKazananRekabetKalemler")}
@@ -334,7 +348,12 @@ function RequestCard({
       <InitiatorNote note={h.initiatorNote} />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 pt-3">
         <details className="group min-w-0 flex-1">
-          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950">
+          <summary
+            className={cn(
+              "inline-flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950",
+              TAP_AREA,
+            )}
+          >
             <ChevronDown aria-hidden className="size-4 transition group-open:rotate-180" />
             {t("adimlar", { decidedSteps: h.decidedSteps, totalSteps: h.totalSteps })}
           </summary>
@@ -485,7 +504,7 @@ export default function OnaylarPage() {
           <button
             type="button"
             onClick={() => setView(defaultView)}
-            className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+            className={cn("mb-3 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900", TAP_AREA)}
           >
             <ArrowLeft aria-hidden className="size-4" />
             {tr("onaylaraDon")}

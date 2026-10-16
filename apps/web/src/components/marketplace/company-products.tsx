@@ -71,7 +71,9 @@ export async function CompanyProducts({
             (`/en/companies/<slug>`); ön eksiz Türkçe yol EN/RU ziyaretçiyi
             Türkçe sayfaya atıyordu (derin denetim Y-17). Bölüm çapası GET
             gönderiminde korunur — sonuç portföy bölümünde açılır. */}
-        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#${productsAnchor}`} className="flex items-center gap-2">
+        {/* Telefonda form satırın tamamını alır (mobil denetim g02-11): kutu
+            sabit 208 px'ti ve satırın sağı boş kalıyordu; `sm`den sonra eski ölçü. */}
+        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#${productsAnchor}`} className="flex w-full items-center gap-2 sm:w-auto">
           <label htmlFor="firma-urun-ara" className="sr-only">
             {t("searchLabel")}
           </label>
@@ -81,7 +83,7 @@ export async function CompanyProducts({
             name="urun"
             defaultValue={query ?? ""}
             placeholder={t("searchPlaceholder")}
-            className="h-11 w-52 rounded-full border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-72"
+            className="h-11 min-w-0 flex-1 rounded-full border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-72 sm:flex-none"
           />
           <button
             type="submit"

@@ -31,6 +31,8 @@ const TENANT_SESSION_PREFIXES = [
   // Profilim "Hakkında" kutusunun kaydedilmemiş taslağı — AI tanıtım önerisi
   // dahil (lib/company/profile-about-draft.ts).
   "rothern:profile-about-draft",
+  // Teklif formunun kaydedilmemiş taslağı — fiyatlar dahil (components/bids/bid-form-draft.ts).
+  "rothern:bid-form-draft",
 ];
 const TENANT_LOCAL_KEYS = ["rothern.panel.recent-searches"];
 const OWNER_KEY = "rothern.session-owner";

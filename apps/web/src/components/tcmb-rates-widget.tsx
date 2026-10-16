@@ -58,7 +58,10 @@ function FlagGB() {
 
 /**
  * Pano başlığı için kompakt kur çipi — gövdedeki büyük kartın yerini aldı.
- * Tam bilgi (kaynak + kurun ait olduğu gün) hover/odak title'ında.
+ * Tam bilgi (kaynak + kurun ait olduğu gün) masaüstünde hover title'ında;
+ * dokunmatikte ve dar ekranda title okunamaz (mobil denetim g10-12,
+ * 2026-10-15: telefonda üç çıplak sayı kalıyordu) → aynı metin çipin altında
+ * küçük bir satır olarak GÖRÜNÜR yazılır.
  */
 export function TcmbRatesChip() {
   const t = useTranslations("web.panel.shell.tcmbRatesWidget");
@@ -93,24 +96,36 @@ export function TcmbRatesChip() {
 
   return (
     <div
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200/70 bg-gradient-to-r from-emerald-50/80 to-white px-2 py-1 shadow-sm"
+      role="group"
+      className="inline-flex flex-col rounded-lg border border-emerald-200/70 bg-gradient-to-r from-emerald-50/80 to-white px-2 py-1 shadow-sm"
       title={label}
       aria-label={t("dovizKurlari", { label: label })}
     >
-      {rates.map((r, i) => (
-        <span key={r.symbol} className="inline-flex items-center gap-1">
-          {i > 0 ? (
-            <span className="mx-0.5 h-3.5 w-px bg-emerald-200/80" aria-hidden />
-          ) : null}
-          {r.flag}
-          <span className="text-xs font-semibold tabular-nums text-slate-900">
-            <span className="mr-px text-[10px] font-medium text-emerald-700">
-              {r.symbol}
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+        {rates.map((r, i) => (
+          <span key={r.symbol} className="inline-flex items-center gap-1">
+            {i > 0 ? (
+              <span className="mx-0.5 h-3.5 w-px bg-emerald-200/80" aria-hidden />
+            ) : null}
+            {r.flag}
+            <span className="text-xs font-semibold tabular-nums text-slate-900">
+              <span className="mr-px text-[10px] font-medium text-emerald-700">
+                {r.symbol}
+              </span>
+              {fmt(r.value)}
             </span>
-            {fmt(r.value)}
           </span>
-        </span>
-      ))}
+        ))}
+      </span>
+      {/* Kaynak + kur günü: dokunmatikte / dar ekranda görünür satır;
+          masaüstünde (ince işaretçi, sm+) title yeter, çip tek satır kalır. */}
+      <span
+        data-testid="tcmb-rates-source"
+        className="hidden text-[10px] leading-4 text-zinc-500 max-sm:block pointer-coarse:block"
+        aria-hidden
+      >
+        {label}
+      </span>
     </div>
   );
 }

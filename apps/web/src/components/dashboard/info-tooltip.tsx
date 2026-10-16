@@ -114,9 +114,11 @@ export function InfoTooltip({ content, size = "sm" }: Props) {
         setFocused(false);
       }}
     >
+      {/* Simge 14 px; dokunma alanı görünmez katmanla 44 px (mobil denetim
+          g10-09, 2026-10-15) — simge yerinden oynamaz, yerleşim değişmez. */}
       <button
         type="button"
-        className="text-zinc-400 hover:text-zinc-700 focus:outline-none focus-visible:text-zinc-700"
+        className="relative text-zinc-400 after:absolute pointer-coarse:after:-inset-[15px] hover:text-zinc-700 focus:outline-none focus-visible:text-zinc-700"
         aria-label={t("bilgi")}
         aria-describedby={id}
       >

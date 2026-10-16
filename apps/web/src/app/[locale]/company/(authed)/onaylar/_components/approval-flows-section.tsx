@@ -328,7 +328,7 @@ function FlowList({
           {flows.map((f) => (
             <div
               key={f.id}
-              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -369,7 +369,11 @@ function FlowList({
                     </span>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                {/* Mobil denetim g04: eylem grubu sarılmıyordu (`shrink-0`, 370 px)
+                    — 360 px'te sayfa yana 407 px'e taşıyor, Sil ekran dışında
+                    kalıyordu. Telefonda grup kendi satırının tamamını alır ve
+                    sarılır; sm+ eskisi gibi sağda, büzülmez. */}
+                <div className="flex w-full flex-wrap items-center gap-1 sm:w-auto sm:shrink-0">
                   <Button
                     plain
                     onClick={() => handleToggle(f)}

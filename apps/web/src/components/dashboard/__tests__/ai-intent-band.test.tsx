@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useLayoutEffect, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiSearchIntentResult } from "@rothern/shared";
 
 const h = vi.hoisted(() => ({ search: "", replace: vi.fn(), push: vi.fn() }));
@@ -93,5 +94,84 @@ describe("AiIntentBand", () => {
     expect(h.replace).toHaveBeenLastCalledWith("/company/satinalma?q=pano", { scroll: false });
     render(<AiIntentBand intent={{ ...intent, category: null, city: null, cityName: null, relaxed: ["city", "country"] }} onDismiss={() => {}} />);
     expect(screen.getByText("Sonuç vermediği için kaldırıldı: şehir, ülke.")).toBeInTheDocument();
+  });
+});
+
+/**
+ * KAYDIRMA KORUMASI (mobil denetim 2026-10, dördüncü tur): çip kaldırmak
+ * `router.replace(…, { scroll: false })`; Next 15.5.25 takma adlı ön-getirme
+ * yolunda bunu yok sayıp işleme anında sayfayı en başa atıyor (süzgeç
+ * kabuğuyla aynı açık). Bant süzgeç kabuğunun kancasını (`useScrollKeep`)
+ * kullanır: konum tık anında yakalanır, hedef işlenince geri konur.
+ */
+describe("AiIntentBand — çip kaldırınca sayfa konumu korunur", () => {
+  let y = 0;
+  const yDesc = Object.getOwnPropertyDescriptor(window, "scrollY");
+  const xDesc = Object.getOwnPropertyDescriptor(window, "scrollX");
+  const realRaf = window.requestAnimationFrame;
+  /** Next'in sayfa kesimi kaydırıcısı: işleme anında, çocukların yerleşim efektlerinden SONRA başa atar. */
+  const nextScroll = { jump: false };
+  function NextScrollHandler({ children }: { children: ReactNode }) {
+    useLayoutEffect(() => {
+      if (nextScroll.jump) y = 0;
+    });
+    return <>{children}</>;
+  }
+  const band = () => (
+    <NextScrollHandler>
+      <AiIntentBand intent={intent} onDismiss={() => {}} />
+    </NextScrollHandler>
+  );
+  /** Next hedefi işledi: geçmiş kaydı yeniden yazılır, sorgu güncellenir, (isteğe bağlı) sayfa başa atılır. */
+  async function commit(view: ReturnType<typeof render>, url: string, jump: boolean) {
+    window.history.replaceState({ __NA: true, url }, "", url);
+    h.search = url.split("?")[1] ?? "";
+    nextScroll.jump = jump;
+    await act(async () => view.rerender(band()));
+    nextScroll.jump = false;
+  }
+
+  beforeEach(() => {
+    y = 640;
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => y });
+    Object.defineProperty(window, "scrollX", { configurable: true, get: () => 0 });
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) =>
+      setTimeout(() => cb(performance.now()), 0) as unknown as number) as typeof window.requestAnimationFrame;
+    window.history.replaceState({ __NA: true, url: "start" }, "", `/company/satinalma?${h.search}`);
+  });
+  afterEach(() => {
+    if (yDesc) Object.defineProperty(window, "scrollY", yDesc);
+    else delete (window as unknown as { scrollY?: unknown }).scrollY;
+    if (xDesc) Object.defineProperty(window, "scrollX", xDesc);
+    else delete (window as unknown as { scrollX?: unknown }).scrollX;
+    window.requestAnimationFrame = realRaf;
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("Next işleme anında sayfayı başa atsa da konum hedef işlenince geri konur", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(((a: number | ScrollToOptions, b?: number) => {
+      y = typeof a === "number" ? (b ?? 0) : (a.top ?? y);
+    }) as typeof window.scrollTo);
+    const user = userEvent.setup();
+    const view = render(band());
+    await user.click(screen.getByRole("button", { name: /Kategori: Kompanzasyon panoları/ }));
+    expect(h.replace).toHaveBeenLastCalledWith("/company/satinalma?q=kompanzasyon+panosu&sehir=istanbul", { scroll: false });
+    await commit(view, "/company/satinalma?q=kompanzasyon+panosu&sehir=istanbul", true);
+    expect(scrollTo).toHaveBeenCalledWith(0, 640);
+    expect(y).toBe(640);
+    // Kaldırılan çip gitti (liste yeni adresi okuyor).
+    expect(screen.queryByRole("button", { name: /Kategori:/ })).toBeNull();
+  });
+
+  it("Next başa atmadıysa (konum yerinde) kaydırma yazılmaz; hedef işlenmeden önceki çizim dokunmaz", async () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const view = render(band());
+    await user.click(screen.getByRole("button", { name: /Şehir: İstanbul/ }));
+    // Adres henüz eski: yeniden çizim konuma dokunmaz.
+    await act(async () => view.rerender(band()));
+    expect(scrollTo).not.toHaveBeenCalled();
+    await commit(view, "/company/satinalma?q=kompanzasyon+panosu&kategori=39121500&nitelik=a%3Ab", false);
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });

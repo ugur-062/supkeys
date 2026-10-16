@@ -106,4 +106,53 @@ describe("CatalogPickerDialog", () => {
       expect(picked[0]?.quantity).toBe(expected);
     },
   );
+
+  // Mobil denetim g06 (sessiz düzeltme): düzensiz ayraçlı miktar ("1,2,3") NaN
+  // olur; alandan çıkınca 1'e ÇEVRİLMEZ ve geçerli miktar yazılana dek ekleme kapalı.
+  it("düzensiz miktar girişi sessizce 1 olmaz: alan değeri kalır, Ekle kapalı; düzeltilince açılır", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<CatalogPickerDialog open onClose={() => undefined} onPick={onPick} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Katalogda ara" }), { target: { value: "vida" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Vida M6 seç" }));
+    const q = screen.getByRole("textbox", { name: "Vida M6 miktarı" });
+    await user.clear(q);
+    await user.keyboard("1,2,3");
+    fireEvent.blur(q);
+    expect(q).toHaveValue("1,2,3");
+    const add = screen.getByRole("button", { name: "1 kalemi ekle" });
+    expect(add).toBeDisabled();
+    await user.clear(q);
+    await user.keyboard("4");
+    expect(add).toBeEnabled();
+    fireEvent.click(add);
+    expect((onPick.mock.calls[0][0] as { quantity: number }[])[0]?.quantity).toBe(4);
+  });
+
+  it("mobil denetim g06: satırın adına dokunmak kalemi seçer; kutu ve miktar kutusu çift işlenmez", () => {
+    const onPick = vi.fn();
+    render(<CatalogPickerDialog open onClose={() => undefined} onPick={onPick} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Katalogda ara" }), { target: { value: "vida" } });
+    fireEvent.click(screen.getByText("Vida M6"));
+    expect(screen.getByRole("checkbox", { name: "Vida M6 seç" })).toBeChecked();
+    // Miktar kutusuna dokunmak seçimi kaldırmaz.
+    fireEvent.click(screen.getByRole("textbox", { name: "Vida M6 miktarı" }));
+    expect(screen.getByRole("checkbox", { name: "Vida M6 seç" })).toBeChecked();
+    // Kutunun kendi tıkı tek kez işlenir (satıra kabarıp geri almaz).
+    fireEvent.click(screen.getByRole("checkbox", { name: "Vida M8 seç" }));
+    expect(screen.getByRole("checkbox", { name: "Vida M8 seç" })).toBeChecked();
+    // Ada ikinci dokunuş seçimi kaldırır.
+    fireEvent.click(screen.getByText("Vida M6"));
+    expect(screen.getByRole("checkbox", { name: "Vida M6 seç" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "1 kalemi ekle" }));
+    expect((onPick.mock.calls[0][0] as { catalogId: string }[]).map((p) => p.catalogId)).toEqual(["v2"]);
+  });
+
+  it("mobil denetim g06: arama simgesi InputGroup'ta — dolgu iç girişte, sarmalayıcıda değil", () => {
+    render(<CatalogPickerDialog open onClose={() => undefined} onPick={vi.fn()} />);
+    const search = screen.getByRole("textbox", { name: "Katalogda ara" });
+    const group = search.closest('[data-slot="control"]')?.parentElement;
+    expect(group?.querySelector(':scope > [data-slot="icon"]')).not.toBeNull();
+    expect(search.closest('[data-slot="control"]')?.className ?? "").not.toMatch(/\bpl-9\b/);
+  });
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { AuctionLiveCard } from "../auction-live-card";
@@ -12,6 +12,17 @@ const render = (ui: React.ReactElement) =>
   rtlRender(
     <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
   );
+
+/**
+ * Fiyatlandırılan kalemler iki yerde çizilir (mobil denetim g08): telefon kart
+ * listesi (`sm:hidden`) ve sm+ tablo (`hidden sm:block`). İkisi aynı içerik.
+ */
+function itemViews() {
+  const table = screen.getByRole("table");
+  const list = table.closest(".hidden")!.previousElementSibling as HTMLElement;
+  expect(list.tagName).toBe("UL");
+  return { table, list };
+}
 
 function detail(over: Partial<ListingDetail> = {}): ListingDetail {
   return {
@@ -601,10 +612,14 @@ describe("BidSummaryCard", () => {
     expect(screen.getByText("Gönderildi")).toBeInTheDocument();
     // v1 gizli (yalnız v2+ gösterilir).
     expect(screen.queryByText("v1")).not.toBeInTheDocument();
-    // "1.500 ₺" üst Toplam + kalem satır toplamı (10×150) + tablo dipnotu
-    // Toplam satırında geçer.
-    expect(screen.getAllByText("1.500,00 ₺")).toHaveLength(3);
-    expect(screen.getByText(/Çelik Boru/)).toBeInTheDocument();
+    // "1.500 ₺" üst Toplam + kalem satır toplamı (10×150) + Toplam satırı;
+    // kalem görünümü telefon kartı ve tabloda ikişer kez.
+    expect(screen.getAllByText("1.500,00 ₺")).toHaveLength(5);
+    const { table, list } = itemViews();
+    expect(within(table).getAllByText("1.500,00 ₺")).toHaveLength(2);
+    expect(within(list).getAllByText("1.500,00 ₺")).toHaveLength(2);
+    expect(within(table).getByText(/Çelik Boru/)).toBeInTheDocument();
+    expect(within(list).getByText(/Çelik Boru/)).toBeInTheDocument();
     expect(screen.getByText("Fiyatlandırılan Kalemler (1)")).toBeInTheDocument();
     expect(screen.getByText("Hızlı teslimat yapılır")).toBeInTheDocument();
   });
@@ -625,15 +640,17 @@ describe("BidSummaryCard", () => {
       />,
     );
     // Eskiden "5.000 €" / "50.000 €" basılıyordu.
-    expect(screen.getByText("5.000,00 ₺")).toBeInTheDocument();
-    expect(screen.getByText("50.000,00 ₺")).toBeInTheDocument();
+    for (const view of Object.values(itemViews())) {
+      expect(within(view).getByText("5.000,00 ₺")).toBeInTheDocument();
+      expect(within(view).getByText("50.000,00 ₺")).toBeInTheDocument();
+      expect(
+        within(view).getByText(
+          "Kalem fiyatları teklifin ana birimine (EUR) çevrilerek toplandı.",
+        ),
+      ).toBeInTheDocument();
+    }
     expect(screen.queryByText("5.000 €")).not.toBeInTheDocument();
     expect(screen.queryByText("50.000 €")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Kalem fiyatları teklifin ana birimine (EUR) çevrilerek toplandı.",
-      ),
-    ).toBeInTheDocument();
   });
 
   it("statü teklif + talep durumundan: elenen 'Elendi', kazandırmada kaybeden 'Kaybettiniz', iptalde 'İptal edildi' (arayüz testi D-102/D-117)", () => {
@@ -720,12 +737,16 @@ describe("BidSummaryCard", () => {
     );
     // Kalemde teslim yok → genel süreye düşer; ayrıca genel satırı.
     expect(screen.getByText("Genel teslim süresi")).toBeInTheDocument();
-    expect(screen.getAllByText("1-2 hafta")).toHaveLength(2);
+    // Genel satır + kalem teslimi (telefon kartı + tablo).
+    expect(screen.getAllByText("1-2 hafta")).toHaveLength(3);
     expect(screen.queryByText("—")).not.toBeInTheDocument();
-    expect(screen.getByText("Muadil")).toBeInTheDocument();
-    expect(screen.getByText(/Kardemir/)).toBeInTheDocument();
-    expect(screen.getByText(/Sertifika var mı\?/)).toBeInTheDocument();
-    expect(screen.getByText("Türkiye")).toBeInTheDocument();
+    for (const view of Object.values(itemViews())) {
+      expect(within(view).getByText("1-2 hafta")).toBeInTheDocument();
+      expect(within(view).getByText("Muadil")).toBeInTheDocument();
+      expect(within(view).getByText(/Kardemir/)).toBeInTheDocument();
+      expect(within(view).getByText(/Sertifika var mı\?/)).toBeInTheDocument();
+      expect(within(view).getByText("Türkiye")).toBeInTheDocument();
+    }
   });
 
   it("tek birimli teklifte çevrim notu görünmez", () => {
@@ -744,5 +765,66 @@ describe("BidSummaryCard", () => {
       />,
     );
     expect(screen.queryByText(/ana birimine/)).not.toBeInTheDocument();
+  });
+});
+
+describe("BidSummaryCard — mobil denetim (g08)", () => {
+  it("telefonda fiyatlandırılan kalemler kart listesi: birim fiyat, satır toplamı ve Toplam görünür; tablo yalnız sm'den", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          myBid: {
+            amount: "1500",
+            status: "SUBMITTED",
+            version: 1,
+            note: null,
+            currency: "TRY",
+            items: [{ itemId: "i1", unitPrice: "150" }],
+          },
+        })}
+      />,
+    );
+    const { table, list } = itemViews();
+    expect(list.className).toMatch(/(^|\s)sm:hidden(\s|$)/);
+    expect(table.closest(".hidden")!.className).toMatch(/(^|\s)sm:block(\s|$)/);
+    const [card, totalRow] = within(list).getAllByRole("listitem");
+    expect(within(card).getByText("Çelik Boru")).toBeInTheDocument();
+    expect(within(card).getByText("Birim Fiyat")).toBeInTheDocument();
+    expect(within(card).getByText("150,00 ₺")).toBeInTheDocument();
+    expect(within(card).getByText("Satır Toplamı")).toBeInTheDocument();
+    expect(within(card).getByText("1.500,00 ₺")).toBeInTheDocument();
+    expect(within(totalRow).getByText("Toplam")).toBeInTheDocument();
+    expect(within(totalRow).getByText("1.500,00 ₺")).toBeInTheDocument();
+  });
+
+  it("TABLET (mobil denetim 2026-10): sm+ tablo xl altında dar iç pay ve kademeli Kalem tabanı; başlıklar yalnız md altında sarar; xl'de eski ölçü", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          myBid: {
+            amount: "1500",
+            status: "SUBMITTED",
+            version: 1,
+            note: null,
+            currency: "TRY",
+            items: [{ itemId: "i1", unitPrice: "150", deliveryTime: "W1_2" }],
+          },
+        })}
+      />,
+    );
+    const { table } = itemViews();
+    const cls = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
+    const heads = within(table).getAllByRole("columnheader");
+    expect(heads.length).toBeGreaterThanOrEqual(4);
+    for (const th of heads) {
+      // xl altı dar iç pay; başlık yalnız md altında sarar (sm-xl tek satır, kabın taşmaz).
+      expect(cls(th)).toEqual(expect.arrayContaining(["max-xl:px-2", "max-md:whitespace-normal"]));
+      expect(cls(th)).not.toContain("whitespace-normal");
+    }
+    // Kalem sütunu: xl'de 12rem taban (eski), altında 10 / 8rem.
+    expect(cls(heads[0]!)).toEqual(expect.arrayContaining(["min-w-48", "max-xl:min-w-40", "max-md:min-w-32"]));
+    const firstCell = within(table).getByText("Çelik Boru").closest("td")!;
+    expect(cls(firstCell)).toEqual(expect.arrayContaining(["min-w-48", "max-xl:min-w-40", "max-md:min-w-32", "max-xl:px-2"]));
+    for (const td of table.querySelectorAll("tbody td")) expect(cls(td)).toContain("max-xl:px-2");
   });
 });

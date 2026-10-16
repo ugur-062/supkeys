@@ -61,7 +61,14 @@ const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 function NewTabHint() {
   const t = useTranslations("web.marketplace.productCard");
-  return <span className="sr-only"> {t("newTab")}</span>;
+  // `data-new-tab-hint`: mobil kabukta bağlantı aynı ekranda açılır, ipucu
+  // gizlenir (globals.css, `NativeShellBridge`).
+  return (
+    <span className="sr-only" data-new-tab-hint="">
+      {" "}
+      {t("newTab")}
+    </span>
+  );
 }
 
 export type ProductCardProduct = Pick<
@@ -467,26 +474,44 @@ export function ProductCard({
              satırda tam okunuyor. `compact` da aynı bloğu kullanır: benzer
              ürün şeritlerindeki kartlar da ~200 px, aynı sıkışma orada da
              vardı. */
-          <div className="mt-2 flex min-w-0 items-center gap-1.5">
-            <Avatar name={firm.name} src={firm.logoUrl} size={24} />
+          /* `compact` ŞERİT KARTI (mobil denetim g05, 2026-10): 160 px'lik
+             kartta avatar + bayrak + rozet aynı satırda ada 62 px bırakıyor,
+             "Ege Tek…", "MX-DO…" okunuyordu. Kompakt kartta telefonda avatar
+             yok, bayrak şehir satırına iner, ad İKİ satıra sarar (tam ad
+             `title`da); `sm`den sonra avatar geri gelir. Tile/wide aynı. */
+          <div className={cn("mt-2 flex min-w-0 gap-1.5", compact ? "items-start" : "items-center")}>
+            <Avatar name={firm.name} src={firm.logoUrl} size={24} className={compact ? "max-sm:hidden" : undefined} />
             <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 items-center gap-1">
+              <span className={cn("flex min-w-0 gap-1", compact ? "items-start" : "items-center")}>
                 {/* ÜLKE BAYRAĞI (2026-09-07, Europages kalıbı): firma adının
                     önünde, adı okumadan menşei ayırt edilsin diye. 2026-10-04:
                     emoji yerine SVG (`CountryFlag`; Windows emojiyi "TR" diye
                     basıyordu). Erişilebilir ad ülke adı (`alt` + `title`). */}
-                <CountryFlag code={firm.country} />
-                <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
+                {compact ? null : <CountryFlag code={firm.country} />}
+                <span
+                  title={firm.name}
+                  className={cn(
+                    "text-xs font-medium text-zinc-700",
+                    compact ? "line-clamp-2 min-w-0 break-words" : "truncate",
+                  )}
+                >
+                  {firm.name}
+                </span>
                 {firm.verified ? (
-                  <Badge tone="verified" size="sm" className="shrink-0 px-1">
+                  <Badge tone="verified" size="sm" className={cn("shrink-0 px-1", compact && "mt-px")}>
                     <span className="sr-only">{t("verifiedCompany")}</span>
                   </Badge>
                 ) : null}
               </span>
-              {firm.city ? (
-                <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">
-                  <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
-                  <span className="truncate">{cityLabel(firm.city)}</span>
+              {firm.city || (compact && firm.country) ? (
+                <span className="mt-0.5 flex min-w-0 items-center gap-0.5 text-[11px] text-zinc-500">
+                  {compact ? <CountryFlag code={firm.country} className="mr-0.5" /> : null}
+                  {firm.city ? (
+                    <>
+                      <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
+                      <span className="truncate">{cityLabel(firm.city)}</span>
+                    </>
+                  ) : null}
                 </span>
               ) : null}
             </span>

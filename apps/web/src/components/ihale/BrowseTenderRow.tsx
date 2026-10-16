@@ -244,7 +244,8 @@ export function BrowseTenderRow({
         <span title={categories.map((c) => c.name).join(", ")}>
           <span
             className={cn(
-              "block truncate font-medium",
+              // Telefonda iki satır (uzun RU adları okunur), sm'den tek satır.
+              "block font-medium max-sm:line-clamp-2 sm:truncate",
               t.categoryMatch ? "text-blue-700" : "text-slate-700",
             )}
           >
@@ -318,10 +319,19 @@ export function BrowseTenderRow({
       ? {
           label: tr("teklifim"),
           value: (
+            // Dokunma alanı (mobil denetim 2026-10 g08-seller-requests-tap-targets):
+            // 61×14 px'ti. Kart metriği `truncate` (overflow: hidden) bir
+            // kapta çizer: dışa taşan görünmez çerçeve kırpılır, tıklanmaz.
+            // Bağlantı SATIR İÇİ kalır (inline-block olsaydı dar RU satırında
+            // üç nokta onu bütünüyle gizlerdi, "Отозв…" yerine "…"): satır
+            // yüksekliği (`leading`) kabı büyütür, dikey dolgu da tıklanan
+            // alanı o yüksekliğe çıkarır. Telefonda ~30 px; geniş ekranda 24 px
+            // — yanındaki "Detayları göster" düğmesiyle aynı boy, satır
+            // yüksekliği değişmez.
             <Link
               href={detailHref}
               onClick={stop}
-              className={cn("text-blue-600 hover:underline", ROW_FOCUS)}
+              className={cn("py-2 leading-8 text-blue-600 hover:underline sm:py-[5px] sm:leading-6", ROW_FOCUS)}
             >
               {my}
             </Link>
@@ -404,10 +414,12 @@ export function BrowseTenderRow({
                 detailHref={detailHref}
                 initialCount={t.itemCount}
               />
+              {/* Telefonda 44 px dokunma satırı (mobil denetim 2026-10: 146×18
+                  px'ti); yazı yerinde, sm'den itibaren eski satır içi bağlantı. */}
               <Link
                 href={detailHref}
                 className={cn(
-                  "mt-2 inline-block rounded text-[12px] font-medium text-blue-600 hover:underline",
+                  "-mx-1 mt-0.5 inline-flex min-h-11 items-center rounded px-1 text-[12px] font-medium text-blue-600 hover:underline sm:mx-0 sm:mt-2 sm:inline-block sm:min-h-0 sm:px-0",
                   ROW_FOCUS,
                 )}
               >

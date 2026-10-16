@@ -112,6 +112,16 @@ describe("InfoTooltip — sınıf sözleşmesi ve davranış", () => {
     expect(classes()).toEqual(expect.arrayContaining(["absolute", "bottom-full", "left-1/2", "-translate-x-1/2", "w-max"]));
   });
 
+  // Mobil denetim g10-09: 14 px simge dokunmatikte vurulamıyordu. Dokunma alanı
+  // görünmez katmanla 44 px (14 + 2×15); yalnız kaba işaretçide — masaüstünde
+  // simgenin çevresinden geçen fare balonu açmasın. Simge yerinden oynamaz.
+  it("dokunma alanı kaba işaretçide 44 px; simge ve yerleşim aynı", () => {
+    render(<InfoTooltip content={TEXT} />);
+    const cls = trigger().className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["relative", "after:absolute", "pointer-coarse:after:-inset-[15px]"]));
+    expect(cls.some((c) => /^-?m[xy]?-|^p[xy]?-/.test(c))).toBe(false);
+  });
+
   it("ekran okuyucu: düğme balonla `aria-describedby` üzerinden bağlı (gizliyken de okunur)", () => {
     render(<InfoTooltip content={TEXT} />);
     const id = tip().getAttribute("id");

@@ -89,4 +89,18 @@ describe("DeleteAccountSection", () => {
     await user.click(screen.getByRole("button", { name: "Hesabımı sil" }));
     expect(screen.getByLabelText("Onaylamak için şifreniz")).toHaveValue("");
   });
+
+  // Mobil denetim 2026-10 g11: "Vazgeç" tek başına kalıp silme düğmesi alta kırılıyordu.
+  it("telefonda iki düğme tam genişlik alt alta, silme üstte; sm ve üstünde sağda yan yana", async () => {
+    await openForm();
+    const del = screen.getByRole("button", { name: "Hesabımı kalıcı olarak sil" });
+    const cancel = screen.getByRole("button", { name: "Vazgeç" });
+    const row = del.parentElement!;
+    expect(cancel.parentElement).toBe(row);
+    expect(row.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["flex-col-reverse", "*:w-full", "sm:flex-row", "sm:justify-end", "sm:*:w-auto"]),
+    );
+    // DOM: Vazgeç önce → col-reverse ile silme üstte görünür.
+    expect(cancel.compareDocumentPosition(del) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

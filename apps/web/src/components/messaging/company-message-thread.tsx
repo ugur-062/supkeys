@@ -21,11 +21,14 @@ import { Loader2, Lock, Send } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { enterSendsMessage, useCoarsePointer } from "@/components/messaging/use-coarse-pointer";
+import { useToastBottomClearance } from "@/components/providers/app-toaster";
 
 /**
  * Mesaj zamanı — bugün "HH:mm", dün "Dün HH:mm", eskisi tarih + saat okuyucunun
@@ -45,6 +48,27 @@ function useFormatTimestamp(): (date: Date) => string {
 export const MESSAGE_MAX_LENGTH = 5000;
 /** Sayaç bu uzunluktan sonra görünür (kısa mesajda gürültü olmasın). */
 const COUNTER_FROM = 4000;
+
+/**
+ * Yazma kutusu İÇERİĞİNE göre büyür (mobil denetim g04): dokunmatikte Enter
+ * yeni satır açtığı için çok satırlı mesaj olağan; kutu tek satırda kalınca
+ * önceki satırlar yukarı kayıyor, kullanıcı göndermeden önce mesajını
+ * okuyamıyordu. Tavan sınıftaki `max-h-32`; üstünde kutu kendi içinde kayar.
+ * Gönderimden sonra (içerik boş) tek satıra iner. Ölçülemeyen kutuya (gizli /
+ * jsdom: scrollHeight 0) dokunulmaz. `field-sizing: content` iOS WebView'da
+ * yok — ölçüm her yerde aynı çalışır.
+ */
+export function fitComposer(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  const content = el.scrollHeight;
+  if (content <= 0) {
+    el.style.height = "";
+    return;
+  }
+  // scrollHeight kenarlığı saymaz; kutu `border-box`.
+  el.style.height = `${content + (el.offsetHeight - el.clientHeight)}px`;
+}
 
 interface Props {
   portal: MessagePortal;
@@ -93,6 +117,8 @@ export function CompanyMessageThread({
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const messages = data?.messages ?? [];
 
   useEffect(() => {
@@ -114,19 +140,38 @@ export function CompanyMessageThread({
       }
     });
 
+  useLayoutEffect(() => {
+    fitComposer(inputRef.current);
+  }, [content, canSend]);
+  // Genişlik değişince (telefonu yan çevirme, pencere boyutu) satırlar
+  // yeniden sarar → yükseklik yeniden ölçülür.
+  useEffect(() => {
+    const refit = () => fitComposer(inputRef.current);
+    window.addEventListener("resize", refit);
+    return () => window.removeEventListener("resize", refit);
+  }, []);
+
+  // Toast'lar yazma kutusunun üstünde çıkar (gönderim hatası Gönder'i
+  // örtmesin — mobil denetim g04, masaüstü).
+  useToastBottomClearance(composerRef, canSend && !isPending);
+
+  // Dokunmatik cihazda (telefon, tablet) Enter yeni satır açar; gönderim
+  // yalnız Gönder düğmesiyle (mobil denetim g04, kullanıcı kararı). Masaüstü
+  // değişmedi: Enter gönderir, Shift+Enter yeni satır; IME bileşimindeki
+  // Enter göndermez (arayüz testi D-356) — kural `enterSendsMessage`te.
+  const coarsePointer = useCoarsePointer();
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // IME bileşimi (Japonca/Çince vb. aday seçimi) Enter'ı onaylamak için
-    // kullanır — o Enter mesajı GÖNDERMEZ (arayüz testi D-356).
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
+    if (!enterSendsMessage(e)) return;
+    e.preventDefault();
+    void handleSend();
   };
 
+  // `dvh` (vh değil): iOS tarayıcı araç çubuğu açıkken yazma kutusu
+  // ekranın altında kalmasın (mobil denetim g04). Güvenli alanın üst/alt payı
+  // (mobil kabuk) da düşülür; pay 0 iken aynı.
   const wrapperCls = bare
     ? "flex flex-col h-full min-h-0 bg-white overflow-hidden"
-    : "flex flex-col h-[calc(100vh-200px)] max-h-[700px] min-h-[400px] bg-white ring-1 ring-zinc-950/5 rounded-2xl overflow-hidden";
+    : "flex flex-col h-[calc(100dvh-200px-var(--safe-top)-var(--safe-bottom))] max-h-[700px] min-h-[400px] bg-white ring-1 ring-zinc-950/5 rounded-2xl overflow-hidden";
 
   if (isPending) {
     return (
@@ -139,10 +184,12 @@ export function CompanyMessageThread({
   return (
     <div className={wrapperCls}>
       {/* Chat header */}
-      <div className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3">
+      {/* Telefonda ad kırpılmaz, iki satıra sarar; başlık daha ince (mesaj
+          listesine yer kalsın — mobil denetim g04). */}
+      <div className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3 max-sm:py-2">
         <AvatarInitials name={otherPartyName} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-zinc-950">
+          <p className="text-sm font-semibold text-zinc-950 max-sm:line-clamp-2 max-sm:break-words sm:truncate">
             {otherPartyName}
           </p>
         </div>
@@ -183,10 +230,11 @@ export function CompanyMessageThread({
           {t("mesajGondermekRoluGerektirir", { role: roleLabel(portal === "satis" ? "SATISCI" : "SATIN_ALMACI") })}
         </div>
       ) : (
-      <div className="border-t border-zinc-200 bg-white px-3 py-3">
+      <div ref={composerRef} className="border-t border-zinc-200 bg-white px-3 py-3">
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <textarea
+              ref={inputRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={onKey}
@@ -194,16 +242,24 @@ export function CompanyMessageThread({
               // Kısa yer tutucu (D-008): uzun "Enter/Shift+Enter" metni 390 px'te
               // iki satıra bölünüp kesiliyordu; klavye ipucu yalnız geniş ekranda alt satırda.
               placeholder={t("mesajYaz")}
-              aria-describedby="company-message-enter-hint"
+              // Ekran klavyesinin dönüş tuşu: dokunmatikte "yeni satır", masaüstünde "gönder".
+              enterKeyHint={coarsePointer ? "enter" : "send"}
+              aria-describedby={coarsePointer ? undefined : "company-message-enter-hint"}
               rows={1}
               className="max-h-32 w-full resize-none rounded-lg border border-surface-border bg-white px-3.5 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
           </div>
+          {/* Telefonda gönderimin TEK yolu bu düğme → 44 px dokunma alanı.
+              Basış odağı kutudan ALMAZ (`mousedown` varsayılanı): ekran
+              klavyesi açık kalır, sonraki mesaj hemen yazılır ve klavye
+              kapanırken düzen kayıp dokunuş boşa düşmez. Klavyeyle (Tab)
+              odaklanıp basma etkilenmez. */}
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => void handleSend()}
             disabled={sendMutation.isPending || sendLock.locked || !content.trim()}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+            className="inline-flex h-11 min-w-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 sm:h-9 sm:min-w-0"
             aria-label={t("gonder")}
           >
             {sendMutation.isPending || sendLock.locked ? (
@@ -214,9 +270,13 @@ export function CompanyMessageThread({
           </button>
         </div>
         <div className="mt-1 flex items-center justify-between gap-2 px-0.5">
-          <p id="company-message-enter-hint" className="hidden text-xs text-zinc-500 sm:block">
-            {t("enterIpucu")}
-          </p>
+          {/* Klavye kısayolu ipucu yalnız fiziksel klavyeli (ince işaretçili)
+              cihazda — dokunmatikte Enter yeni satırdır. */}
+          {coarsePointer ? null : (
+            <p id="company-message-enter-hint" className="hidden text-xs text-zinc-500 sm:block">
+              {t("enterIpucu")}
+            </p>
+          )}
           {content.length >= COUNTER_FROM ? (
             <span
               className={`ml-auto text-xs tabular-nums ${

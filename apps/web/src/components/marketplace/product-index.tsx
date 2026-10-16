@@ -3,6 +3,7 @@ import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./f
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
 import { OpenRequestLink } from "./member-cta";
+import { FloatingRequestDock } from "./floating-request-dock";
 import { ActiveFilterChips, ProductFilters, SortControl, ViewPreferenceSync, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
@@ -31,6 +32,9 @@ import {
 import { pastEndLastPage } from "@/lib/public/filter-param-utils";
 import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
+
+/** Kırıntı bağlantısı — görünüm aynı, dokunma alanı görünmez katmanla büyür (bkz. kırıntı). */
+const CRUMB_LINK = "relative hover:text-zinc-900 after:absolute after:-inset-x-1 after:-inset-y-3";
 
 /**
  * ÜRÜN DİZİNİ — süzgeç v3 (2026-09-04).
@@ -138,8 +142,15 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   // Telefonda KÜÇÜK ve köşeye yakın (arayüz testi D-071): 390 px'te tam boy
   // hap kart görselini ve "Bilgi iste"yi örtüyordu. Listenin sonuna düğme
   // boyu kadar boşluk konur (aşağıda) — son satır hiçbir zaman altında kalmaz.
+  // Güvenli alan: köşe payına ana ekran çizgisi / yatay çentik payı eklenir
+  // (`mb`/`mr` — sabit konumlu öğeyi o kadar içeri iter; pay 0 iken aynı).
+  // Konum köşe kabında (`FloatingRequestDock`, 2. tur g02): telefonda yazarken
+  // ve köşe arama satırının üstüne düştüğünde (klavye açık, yatay telefon)
+  // düğme çekilir — yoksa "Ara"nın üstüne binip dokunuşu kayda götürüyordu.
+  const floatDockCls =
+    "fixed right-3 bottom-3 mr-(--safe-right) mb-(--safe-bottom) z-30 flex sm:right-5 sm:bottom-5";
   const floatCls =
-    "fixed right-3 bottom-3 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:right-5 sm:bottom-5 sm:px-5 sm:py-3 sm:text-sm";
+    "inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:px-5 sm:py-3 sm:text-sm";
 
   /* ITEMLIST (2026-09-09, Parça 2): liste sayfası onsuz motorlar için
      "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
@@ -197,15 +208,19 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         image={image}
         breadcrumb={
           crumbs.length ? (
+            // Kırıntı bağlantıları 48×17 px'ti (mobil denetim g02-08): görünüm
+            // aynı, dokunma alanı dikeyde 12'şer px (üstte boş başlık dolgusu,
+            // altta `mb-3` + başlık), yatayda 4'er px büyür — "/" ayracının
+            // iki yanındaki 8'er px'te iki bağlantının alanı çakışmaz.
             <nav aria-label={t("breadcrumb")} className="mb-3 text-sm text-zinc-500">
-              <Link href={basePath} className="hover:text-zinc-900">{tl("products")}</Link>
+              <Link href={basePath} className={CRUMB_LINK}>{tl("products")}</Link>
               {crumbs.map((c, i) => (
                 <span key={c.path}>
                   <span aria-hidden className="mx-2">/</span>
                   {i === crumbs.length - 1 ? (
                     <span className="text-zinc-900">{c.name}</span>
                   ) : (
-                    <Link href={c.path} className="hover:text-zinc-900">{c.name}</Link>
+                    <Link href={c.path} className={CRUMB_LINK}>{c.name}</Link>
                   )}
                 </span>
               ))}
@@ -217,6 +232,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           defaultValue: state.q,
           hiddenList: productSearchCarry(state),
           placeholder: tt("productsPlaceholder"),
+          shortPlaceholder: tt("productsPlaceholderShort"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -267,25 +283,31 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
             </ResultGrid>
           )}
         </FilterResults>
-        <Pagination
-          page={page.page}
-          // Herkese açık uç 200. sayfadan ötesini kabul etmez: daha fazla
-          // sayfa gösterilirse 201. bağlantı 200. sayfayı açardı.
-          total={Math.min(page.total, PAGE_LIMIT * page.pageSize)}
-          pageSize={page.pageSize}
-          className="mt-10 border-t border-zinc-950/5 pt-6"
-          // Açılış sayfasında (kategori/şehir/ülke) KANONİK yol korunur, sorgu
-          // yoldaki süzgeci taşımaz (`landingQuery`); 7 yuva, gerçek bağlantılar
-          // (bot izler, rel=prev/next). Kategoride eskiden çıplak kod
-          // (`/urunler/kategori/<kod>`) yazılıyordu → sayfa kanoniğe 308'leyip
-          // `?sayfa=` düşürüyordu (2. sayfa 1. sayfayı açıyordu).
-          hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
-        />
+        {/* `data-filter-nav`: süzgeç kabuğunun gezinme bekçisi bu bağlantıları
+            izler — Next geçişi takılırsa tam gezinmeye düşer (mobil denetim g02-01). */}
+        <div data-filter-nav>
+          <Pagination
+            page={page.page}
+            // Herkese açık uç 200. sayfadan ötesini kabul etmez: daha fazla
+            // sayfa gösterilirse 201. bağlantı 200. sayfayı açardı.
+            total={Math.min(page.total, PAGE_LIMIT * page.pageSize)}
+            pageSize={page.pageSize}
+            className="mt-10 border-t border-zinc-950/5 pt-6"
+            // Açılış sayfasında (kategori/şehir/ülke) KANONİK yol korunur, sorgu
+            // yoldaki süzgeci taşımaz (`landingQuery`); 7 yuva, gerçek bağlantılar
+            // (bot izler, rel=prev/next). Kategoride eskiden çıplak kod
+            // (`/urunler/kategori/<kod>`) yazılıyordu → sayfa kanoniğe 308'leyip
+            // `?sayfa=` düşürüyordu (2. sayfa 1. sayfayı açıyordu).
+            hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
+          />
+        </div>
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil.
             Öndeki boşluk düğmenin yüksekliği kadar: listenin son kartı ve
             sayfalama kaydırınca düğmenin altından çıkar (D-071). */}
         <div aria-hidden className="h-14 sm:h-20" />
-        <OpenRequestLink label={t("openRequest")} prefill={state.q} className={floatCls} />
+        <FloatingRequestDock className={floatDockCls}>
+          <OpenRequestLink label={t("openRequest")} prefill={state.q} className={floatCls} />
+        </FloatingRequestDock>
       </PublicListPage>
     </FilterShell>
     {/* Şehir şeridi VARSAYILAN (2026-09-09, Parça 3): şehir sayfalarına iç

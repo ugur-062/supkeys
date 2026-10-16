@@ -227,8 +227,10 @@ describe("Talep detayı (sahip) — meta şeridi Kapanış (G1)", () => {
   it("iki satırlı Kapanış değeri truncate/nowrap ile kırpılmaz", () => {
     h.detail = detail({ status: "OPEN", closesAt: "2026-08-28T15:00:00.000Z" } as Partial<ListingDetail>);
     renderPage();
-    const label = screen.getByText("Kapanış", { selector: "p" });
+    // Kutucuk `dt` + `dd` (axe definition-list): etiket dt'si, değer hemen ardındaki dd.
+    const label = screen.getByText("Kapanış", { selector: "dt" });
     const value = label.nextElementSibling as HTMLElement;
+    expect(value.tagName).toBe("DD");
     // Blok çocuklarda ellipsis oluşmaz → truncate tarihi uyarısız keserdi.
     expect(value.querySelectorAll("span.block")).toHaveLength(2);
     expect(value.className).not.toMatch(/\btruncate\b/);

@@ -27,4 +27,22 @@ describe("AuthShell", () => {
     const lang = screen.getByRole("button", { name: /Dil|Language/ });
     expect(lang).toHaveAttribute("aria-haspopup", "menu");
   });
+
+  /* 2. tur safe-area: kabuk `body`nin yatay güvenli alan payının içinde akar;
+     seçici sağ payı ikinci kez eklerse yatay iPhone'da kenardan 110 px içeride
+     duruyordu (beklenen 16 + 47). Üst pay ise kabuğun kendisinde. */
+  it("dil seçicisi yatay güvenli alan payını iki kez saymaz, üst payı taşır", () => {
+    render(
+      <AuthShell title="Giriş" subtitle="Hesabınıza girin" footer={null}>
+        <span />
+      </AuthShell>,
+    );
+    const lang = screen.getByRole("button", { name: /Dil|Language/ });
+    const corner = lang.closest("div.absolute") as HTMLElement;
+    expect(corner).not.toBeNull();
+    const cls = corner.className.split(/\s+/);
+    expect(cls).toContain("right-4");
+    expect(corner.className).not.toMatch(/safe-right/);
+    expect(cls).toContain("top-[calc(1rem+var(--safe-top))]");
+  });
 });

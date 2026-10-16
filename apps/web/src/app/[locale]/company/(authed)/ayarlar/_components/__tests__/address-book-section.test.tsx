@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   addresses: [] as unknown[],
@@ -231,5 +231,70 @@ describe("AddressBookSection", () => {
     render(<AddressBookSection canManage />);
     expect(screen.getByRole("button", { name: "Adres Ekle" })).toBeEnabled();
     expect(screen.queryByText(/en fazla 200 adres/)).not.toBeInTheDocument();
+  });
+
+  // Mobil denetim 2026-10 g11: telefonda "Başlık zorunlu" ekranın üstünde
+  // kalıyordu, Ekle'ye dokunuş hiçbir şey yapmamış gibi görünüyordu.
+  describe("mobil", () => {
+    const scrollSpy = vi.fn();
+    beforeEach(() => {
+      scrollSpy.mockReset();
+      Element.prototype.scrollIntoView = scrollSpy;
+    });
+    afterEach(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+
+    it("Ekle'de ilk hatalı alana (Başlık) odaklanır ve görünür alana kaydırılır; kayıt yok", async () => {
+      const user = userEvent.setup();
+      render(<AddressBookSection canManage />);
+      await user.click(screen.getByRole("button", { name: "Adres Ekle" }));
+      await screen.findByText("Yeni Adres");
+      await user.type(screen.getByLabelText("Açık adres"), "MOBIL-QA test sokak 1");
+      await user.click(screen.getByRole("button", { name: "Ekle" }));
+      expect(await screen.findByText("Başlık zorunlu")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByLabelText("Başlık")).toHaveFocus());
+      expect(scrollSpy).toHaveBeenCalled();
+      expect(h.save).not.toHaveBeenCalled();
+    });
+
+    it("telefonda pencere ekrana sığar: panel ve form sütun, gövde kayar, Ekle / Vazgeç altta sabit", async () => {
+      const user = userEvent.setup();
+      render(<AddressBookSection canManage />);
+      await user.click(screen.getByRole("button", { name: "Adres Ekle" }));
+      await screen.findByText("Yeni Adres");
+      const dialog = screen.getByRole("dialog");
+      const panel = dialog.querySelector<HTMLElement>('[class*="100dvh"]');
+      expect(panel!.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-sm:flex", "max-sm:flex-col"]));
+      const form = dialog.querySelector("form")!;
+      expect(form.className.split(/\s+/)).toEqual(
+        expect.arrayContaining(["max-sm:flex", "max-sm:min-h-0", "max-sm:flex-col"]),
+      );
+      const body = screen.getByLabelText("Başlık").closest<HTMLElement>('[class*="max-sm:overflow-y-auto"]');
+      expect(body).not.toBeNull();
+      const actions = screen.getByRole("button", { name: "Ekle" }).parentElement!;
+      expect(actions.className.split(/\s+/)).toContain("max-sm:shrink-0");
+      expect(body!.contains(actions)).toBe(false);
+    });
+  });
+
+  it("'Adres Ekle' etiketi tek satır kalır, açıklama yanında sarar (mobil denetim 2026-10 g11)", () => {
+    render(<AddressBookSection canManage />);
+    const add = screen.getByRole("button", { name: "Adres Ekle" });
+    expect(add.className.split(/\s+/)).toEqual(expect.arrayContaining(["shrink-0", "whitespace-nowrap"]));
+    const row = add.parentElement!;
+    expect(row.className.split(/\s+/)).toContain("gap-3");
+    expect(screen.getByText("Kayıtlı adresler").parentElement!.className.split(/\s+/)).toContain("min-w-0");
+  });
+
+  // Doğrulama turu (RU 360 px): nowrap düğmenin yanında açıklama 107 px'lik
+  // sütunda 9 satıra bölünüyordu. Satır sarar; metin en az 12rem ister, yoksa
+  // düğme alt satıra iner. sm ve üstünde tek satır.
+  it("başlık satırı telefonda sarar: metin 12rem tabanlı, düğme sığmazsa alt satıra iner", () => {
+    render(<AddressBookSection canManage />);
+    const row = screen.getByRole("button", { name: "Adres Ekle" }).parentElement!;
+    expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["flex", "flex-wrap", "sm:flex-nowrap"]));
+    const text = screen.getByText("Kayıtlı adresler").parentElement!;
+    expect(text.className.split(/\s+/)).toEqual(expect.arrayContaining(["min-w-0", "flex-[1_1_12rem]"]));
   });
 });

@@ -205,7 +205,9 @@ export function IhaleListRow({
           }}
           aria-label={favorite ? tr("favorilerdenCikar") : tr("favorilereEkle")}
           aria-pressed={favorite}
-          className={cn("rounded", ROW_FOCUS)}
+          // Dokunma alanı 32 px (p-2 + -m-2; yıldız yerinde) — mobil denetim
+          // 2026-10 g06: çıplak 16 px simgeydi, yanına dokunan karta gidiyordu.
+          className={cn("-m-2 rounded-md p-2", ROW_FOCUS)}
         >
           <Star
             className={cn(
@@ -294,7 +296,7 @@ export function IhaleListRow({
         value:
           categories.length > 0 ? (
             <span title={categories.map((c) => c.name).join(", ")}>
-              <span className="block truncate font-medium text-slate-700">
+              <span className="block font-medium text-slate-700 max-sm:line-clamp-2 sm:truncate">
                 {categories[0]!.name}
               </span>
               {categories.length + extraCount > 1 ? (

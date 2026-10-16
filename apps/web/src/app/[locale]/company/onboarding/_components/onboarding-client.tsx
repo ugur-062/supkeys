@@ -1366,11 +1366,16 @@ export function OnboardingClient() {
                   ) : null}
                   <FieldError message={fieldError("taxNumber", !!f.taxNumber.trim())} />
                   {isEuVat ? (
+                    // Dokunma hedefi 44 px (mobil denetim 2026-10 g03-auth-vies-btn;
+                    // eskiden 16 px). Blok düzeyi (`flex w-fit`) + eksi kenar
+                    // boşluğu: metin ipucunun 4 px altında kalır, kutu üstteki
+                    // ipucu satırına ve alttaki alan aralığına taşar (ikisi de
+                    // etkileşimsiz).
                     <button
                       type="button"
                       disabled={f.taxNumber.trim().length < 4 || vies.isPending || viesLock.locked}
                       onClick={() => void checkVies()}
-                      className="mt-1 text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
+                      className="-my-2.5 flex min-h-11 w-fit items-center text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
                     >
                       {vies.isPending ? t("viesChecking") : t("viesCheck")}
                     </button>
@@ -1863,7 +1868,8 @@ function OnboardingShell({
   const t = useTranslations("web.auth.onboarding");
   const logout = useCompanyLogout();
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+    // Güvenli alan (mobil kabuk): başlık durum çubuğunun altında kalmaz.
+    <div className="mx-auto max-w-2xl px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))] sm:pt-[calc(2rem+var(--safe-top))] sm:pb-[calc(2rem+var(--safe-bottom))]">
       <header className="mb-6 flex items-center justify-between gap-3">
         {/* Telefonda yalnız ikon: dil seçici + çıkış düğmesiyle tek satıra sığsın. */}
         <RothernLogo variant="icon" size="sm" className="sm:hidden" />

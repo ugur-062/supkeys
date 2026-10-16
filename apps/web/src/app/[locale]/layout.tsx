@@ -11,7 +11,7 @@ import { notFound } from "next/navigation";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AppToaster } from "@/components/providers/app-toaster";
 import { OG_LOCALE, SITE_NAME, absoluteUrl, siteVerification } from "@/lib/seo/meta";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import "../globals.css";
 
@@ -37,6 +37,21 @@ const geistMono = Geist_Mono({
 //   · /reset-password → app/reset-password/page.tsx
 // Hangi rotanın hangi tarafta olduğunun tek kaynağı: lib/public-routes.ts
 // (bkz. src/middleware.ts, public-routes.test.ts).
+
+/**
+ * GÖRÜNÜM ALANI (mobil kabuk 2026-10). `viewportFit: "cover"`: iPhone'da sayfa
+ * çentiğin / Dinamik Ada'nın ve ana ekran çizgisinin altına da çizilir; payı
+ * sayfa `globals.css` `--safe-*` belirteçleriyle bırakır (üst çubuk, alt
+ * çubuklar, çekmeceler). Payı olmayan cihazda değerler 0 → görünüm aynı.
+ * Tema rengi arayüzle aynı beyaz (üst çubuk beyaz). `interactiveWidget`
+ * bilinçli YOK: klavyenin düzeni küçültmesi her sayfayı etkiler (kullanıcı kararı).
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
 
 /* Dil bilen kök meta (i18n Faz 1): açıklama ve og:locale sayfanın diline
    göre; başlık şablonu ve ikonlar ortak. Sayfalar kendi metasını yazdığında

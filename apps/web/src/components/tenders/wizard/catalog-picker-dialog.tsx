@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import { Input } from "@/components/ui/input";
+import { InputGroup } from "@/components/catalyst/input";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { MoneyInputNumber } from "@/components/ui/money-input";
 import { QUANTITY_DECIMALS } from "@rothern/shared";
@@ -76,10 +77,17 @@ export function CatalogPickerDialog({
   >({});
 
   const items = list.data?.items ?? [];
+  // Dokunmatik ekranda açılışta klavye AÇILMAZ (mobil denetim 2026-10): klavye
+  // pencerenin listesini ve "Ekle" düğmesini örtüyordu; masaüstünde odak aramada.
+  const [autoFocusSearch] = useState(
+    () => typeof window === "undefined" || !window.matchMedia?.("(pointer: coarse)")?.matches,
+  );
   const selectedCount = useMemo(
     () => Object.keys(selected).length,
     [selected],
   );
+  // Düzensiz miktar girişi (NaN) varken ekleme kapalı — kalem sessizce 1 olmaz.
+  const hasInvalidQty = Object.values(selected).some((s) => s.qty != null && Number.isNaN(s.qty));
 
   const toggle = (it: CatalogItem) =>
     setSelected((prev) => {
@@ -116,20 +124,19 @@ export function CatalogPickerDialog({
     <Dialog open={open} onClose={onClose} size="2xl">
       <DialogTitle>{t("katalogdanKalemEkle")}</DialogTitle>
       <DialogBody className="space-y-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
-            aria-hidden
-          />
+        {/* Catalyst `InputGroup`: simge + iç girişin sol dolgusu (mobil denetim
+            2026-10 g06). Eskiden `pl-9` sarmalayıcı span'e gidiyor, girişin
+            solunda boş 36 px kutu kalıyor, beyaz zemin büyüteci örtüyordu. */}
+        <InputGroup>
+          <Search data-slot="icon" aria-hidden />
           <Input
-            autoFocus
-            className="pl-9"
+            autoFocus={autoFocusSearch}
             placeholder={t("kalemAdiStokKoduMarka")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             aria-label={t("katalogdaAra")}
           />
-        </div>
+        </InputGroup>
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center">
@@ -146,17 +153,28 @@ export function CatalogPickerDialog({
               {items.map((it) => {
                 const isOn = selected[it.id] != null;
                 return (
-                  <li key={it.id} className="flex items-center gap-3 px-3 py-2.5">
+                  // SATIRIN TAMAMI seçer (mobil denetim 2026-10 g06): eskiden
+                  // yalnız 18 px onay kutusu seçiyordu, ada dokunmak boşa
+                  // gidiyordu. Kutunun ve miktar kutusunun kendi tıkı satıra
+                  // iki kez işlenmez.
+                  <li
+                    key={it.id}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('[role="checkbox"], input')) return;
+                      toggle(it);
+                    }}
+                    className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-zinc-50"
+                  >
                     <Checkbox
                       checked={isOn}
                       onChange={() => toggle(it)}
                       aria-label={t("sec", { name: it.name })}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">
+                      <p className="break-words text-sm font-medium text-zinc-900">
                         {it.name}
                       </p>
-                      <p className="truncate text-xs text-zinc-500">
+                      <p className="break-words text-xs text-zinc-500">
                         {[
                           it.code,
                           it.brand,
@@ -174,6 +192,7 @@ export function CatalogPickerDialog({
                         className="!w-28"
                         aria-label={t("miktari", { name: it.name })}
                         value={selected[it.id]?.qty}
+                        hasError={Number.isNaN(selected[it.id]?.qty)}
                         onChange={(v) =>
                           setSelected((prev) => ({
                             ...prev,
@@ -183,7 +202,9 @@ export function CatalogPickerDialog({
                         onBlur={() =>
                           setSelected((prev) => {
                             const cur = prev[it.id];
-                            if (!cur || (cur.qty != null && cur.qty > 0)) return prev;
+                            // Düzensiz giriş ("1,2,3" → NaN) 1'e ÇEVRİLMEZ: alan
+                            // kırmızı kalır, ekleme düğmesi kapalı (sessiz düzeltme yok).
+                            if (!cur || Number.isNaN(cur.qty) || (cur.qty != null && cur.qty > 0)) return prev;
                             return { ...prev, [it.id]: { ...cur, qty: 1 } };
                           })
                         }
@@ -206,7 +227,7 @@ export function CatalogPickerDialog({
         <Button variant="secondary" onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={apply} disabled={selectedCount === 0}>
+        <Button onClick={apply} disabled={selectedCount === 0 || hasInvalidQty}>
           {selectedCount > 0 ? t("kalemiEkle", { n: selectedCount }) : t("ekle")}
         </Button>
       </DialogActions>

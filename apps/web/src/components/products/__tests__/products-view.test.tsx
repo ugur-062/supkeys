@@ -262,6 +262,27 @@ describe("ProductsView", () => {
     expect(screen.queryByTestId("preview")).toBeNull();
   });
 
+  // Mobil denetim g09: telefonda yalnız Ürün sütunu görünür; ad ve alt satır
+  // 176 px'te tek satıra kırpılınca benzer ürünler ayırt edilemiyordu, düzeltme
+  // gerekçesi kırpılan alt satırın SONUNA eklendiği için hiç okunmuyordu.
+  it("telefon satırı: ad ve alt satır iki satıra kadar sarar (sm'den tek satır), düzeltme gerekçesi KENDİ satırında", async () => {
+    wrap(<ProductsView />);
+    const nameSpan = await screen.findByText("Priz grubu");
+    expect(nameSpan.className).toMatch(/max-sm:line-clamp-2/);
+    const nameButton = nameSpan.closest("button")!;
+    expect(nameButton).toHaveAttribute("title", "Priz grubu");
+    expect(nameButton.className).toMatch(/sm:truncate/);
+    expect(nameButton.className).not.toMatch(/max-w-\[11rem\]/);
+
+    const reason = screen.getByText("Düzeltme: Görseller ürüne ait değil");
+    expect(reason.className).toMatch(/line-clamp-2/);
+    // Alt satır (kategori · fiyat modu · birim) gerekçeyi TAŞIMAZ.
+    const subline = reason.previousElementSibling!;
+    expect(subline).toHaveTextContent(/Kategori seçilmedi ·/);
+    expect(subline.textContent).not.toMatch(/Düzeltme/);
+    expect(subline.className).toMatch(/max-sm:line-clamp-2/);
+  });
+
   it("tablo yatay kaydırmaz: kapsayıcıda overflow-x-auto / min-w yok, dar sütunlar kesme noktasıyla gizli", async () => {
     wrap(<ProductsView />);
     await screen.findByText("Dağıtım panosu");
@@ -269,9 +290,119 @@ describe("ProductsView", () => {
     expect(table.className).not.toMatch(/min-w-/);
     expect(table.parentElement?.className).not.toMatch(/overflow-x-auto/);
     const heads = screen.getAllByRole("columnheader").map((h) => [h.textContent, h.className] as const);
-    expect(heads.find(([t]) => t === "Eklenme")?.[1]).toMatch(/hidden 2xl:table-cell/);
-    expect(heads.find(([t]) => t === "Görüntülenme")?.[1]).toMatch(/hidden xl:table-cell/);
     expect(heads.find(([t]) => t === "Ürün")?.[1]).not.toMatch(/hidden/);
+  });
+
+  // Mobil denetim 2026-10, beşinci tur: 1280'de sabit kenar çubuğuyla kart 944 px,
+  // 1536'da 1200 px; ekran kırılımıyla açılan geniş sütunlar RU'da (gerçek veriyle
+  // 6 / 29 px, "Опубликован · на проверке" rozetiyle 93 px) tabloyu kartın dışına
+  // itiyor, Действия sütunu kesiliyor, ⋮ AI düğmesinin sütununa düşüyordu. Geniş
+  // sütunlar artık KARTIN kendi genişliğine göre açılır; th ve td aynı eşiği taşır.
+  it("geniş sütunlar tablo kartının genişliğine göre (@container) açılır, ekran kırılımına göre değil", async () => {
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    const table = screen.getByRole("table");
+    expect(table.parentElement!.className.split(/\s+/)).toContain("@container");
+    const heads = screen.getAllByRole("columnheader");
+    const row = screen.getByRole("button", { name: "Dağıtım panosu — işlemler" }).closest("tr")!;
+    const cells = [...row.children] as HTMLElement[];
+    const tiers: [string, string][] = [
+      ["Min. sipariş", "@[58rem]:table-cell"],
+      ["Görüntülenme", "@[64rem]:table-cell"],
+      ["Eklenme", "@[72rem]:table-cell"],
+      ["Kategori", "@[77rem]:table-cell"],
+    ];
+    for (const [label, tier] of tiers) {
+      const head = heads.find((h) => h.textContent === label)!;
+      const cell = cells[heads.indexOf(head)]!;
+      for (const el of [head, cell]) {
+        const cls = el.className.split(/\s+/);
+        expect(cls).toEqual(expect.arrayContaining(["hidden", tier]));
+        expect(cls.some((c) => /^(?:sm|md|lg|xl|2xl):table-cell$/.test(c))).toBe(false);
+      }
+    }
+  });
+
+  // Mobil denetim 2026-10 (640-767 px): Ürün + Durum + Fiyat + ⋮ (AI düğmesi
+  // payıyla) içeriğe sığmıyordu — tablo TR 626 / RU 687 px, alan 592 px; ⋮
+  // kesiliyor ve AI düğmesinin sütununa düşüyordu. Fiyat md'den; durum ve
+  // fiyat her genişlikte sözcük (fiyatta parça) arasında sarabilir.
+  it("640-767 px: Fiyat sütunu md'den görünür; durum rozeti ve fiyat sözcük arasında sarabilir (tablo içeriğe sığar)", async () => {
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    const heads = screen.getAllByRole("columnheader");
+    const priceHead = heads.find((h) => h.textContent === "Fiyat")!;
+    const priceHeadCls = priceHead.className.split(/\s+/);
+    expect(priceHeadCls).toEqual(expect.arrayContaining(["hidden", "md:table-cell"]));
+    expect(priceHeadCls).not.toContain("sm:table-cell");
+    const statusHead = heads.find((h) => h.textContent === "Durum")!;
+    expect(statusHead.className.split(/\s+/)).toEqual(expect.arrayContaining(["hidden", "sm:table-cell"]));
+
+    const row = screen.getByRole("button", { name: "Dağıtım panosu — işlemler" }).closest("tr")!;
+    const cells = [...row.children] as HTMLElement[];
+    const priceIdx = heads.indexOf(priceHead);
+    const statusIdx = heads.indexOf(statusHead);
+    const priceCell = cells[priceIdx]!.className.split(/\s+/);
+    expect(priceCell).toEqual(expect.arrayContaining(["hidden", "md:table-cell"]));
+    expect(priceCell).not.toContain("sm:table-cell");
+    // Beşinci tur: fiyat ve durum hiçbir genişlikte tek satıra ZORLANMAZ (xl'deki
+    // `whitespace-nowrap` 1280'de Действия sütununu kartın dışına itiyordu).
+    expect(priceCell.some((c) => /whitespace-nowrap$/.test(c))).toBe(false);
+    const statusCell = cells[statusIdx]!.className.split(/\s+/);
+    expect(statusCell).toEqual(expect.arrayContaining(["hidden", "sm:table-cell"]));
+    expect(statusCell.some((c) => /whitespace-nowrap$/.test(c))).toBe(false);
+  });
+
+  it("fiyat yalnız parçalar arasında sarar: tutar ve birim bölünmez, eğik çizgi birime bağlı", async () => {
+    const tiered = {
+      ...ITEMS[0]!,
+      id: "p9",
+      name: "Uzun fiyatlı pano",
+      priceAmount: "1250000",
+      priceCurrency: "TRY",
+      unit: "metre kare",
+    };
+    const base = h.get.getMockImplementation()!;
+    h.get.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) =>
+      url.includes("/categories/by-ids") || /\/showcase$/.test(url)
+        ? base(url, config)
+        : Promise.resolve({
+            data: { items: [tiered], total: 1, truncated: false, counts: { published: 1, draft: 0, pending: 0, rejected: 0, publishedInReview: 0 } },
+          }),
+    );
+    wrap(<ProductsView />);
+    await screen.findByText("Uzun fiyatlı pano");
+    const heads = screen.getAllByRole("columnheader");
+    const row = screen.getByRole("button", { name: "Uzun fiyatlı pano — işlemler" }).closest("tr")!;
+    const text = (row.children[heads.findIndex((h) => h.textContent === "Fiyat")] as HTMLElement).textContent!;
+    // Düz boşluk yalnız tutar ile "/" arasında ve kademeli ekinden önce kalır.
+    expect(text.split(" ")).toEqual([
+      "1.250.000\u00a0₺",
+      "/\u00a0metrekare",
+      "(kademeli)",
+    ]);
+  });
+
+  it("⋮ sütunu sm'den itibaren AI Asistan düğmesinin solunda (sağ pay); telefonda ⋮ durum satırında, düğmenin sütununun solunda (mobil denetim 2026-10)", async () => {
+    wrap(<ProductsView />);
+    const kebab = await screen.findByRole("button", { name: "Dağıtım panosu — işlemler" });
+    const cell = kebab.closest("td")!;
+    const classes = (cell.getAttribute("class") ?? "").split(/\s+/);
+    expect(classes).toEqual(expect.arrayContaining(["px-3", "py-3", "text-right", "sm:pr-18", "lg:pr-16", "xl:pr-14"]));
+    // Kırılımsız ek sağ pay yok (sm+ yerleşimi aynı).
+    expect(classes.filter((c) => /^(?:pr|pe)-/.test(c))).toEqual([]);
+    // TELEFON (dördüncü tur): sütun sıfır genişlikte ve `relative`; ⋮ ondan
+    // sağdan 48 px içeride, durum rozetinin satırında (tek düğüm).
+    expect(classes).toEqual(expect.arrayContaining(["max-sm:relative", "max-sm:w-0", "max-sm:px-0", "max-sm:py-0"]));
+    const anchor = (cell.querySelector("span") ?? cell).getAttribute("class")?.split(/\s+/) ?? [];
+    expect(anchor).toEqual(expect.arrayContaining(["max-sm:absolute", "max-sm:right-12", "max-sm:bottom-0.5"]));
+    expect(cell.querySelectorAll("button")).toHaveLength(1);
+    // Ad düğmesi düğmenin sütununa girmez; rozet satırı ⋮'nin yerini bırakır.
+    const row = cell.closest("tr")!;
+    const name = within(row).getByRole("button", { name: "Dağıtım panosu" });
+    expect(name.className).toMatch(/(?:^|\s)max-sm:mr-9(?:\s|$)/);
+    const badgeLine = [...row.querySelectorAll("td:first-child div")].find((d) => /(?:^|\s)sm:hidden(?:\s|$)/.test(d.className))!;
+    expect(badgeLine.className).toMatch(/(?:^|\s)max-sm:pr-22(?:\s|$)/);
   });
 
   it("yayındaki ürün kaydedilince sunucu incelemeye aldıysa ekran HEMEN önizlemeye geçer (yenileme gerekmez)", async () => {

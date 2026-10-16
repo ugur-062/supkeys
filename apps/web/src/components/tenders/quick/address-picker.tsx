@@ -61,8 +61,11 @@ export function AddressPicker({
     }
   };
 
+  // `@container`: iki sütun VİEWPORT'a değil seçicinin genişliğine bağlı —
+  // masaüstü 1024–1100 px'te kenar menü + sağ ray formu ~300 px'e indiriyor,
+  // `sm:` iki sütunu kartları ~140 px'e eziyordu (mobil denetim smoke-buyer#new1).
   return (
-    <div className="space-y-2">
+    <div className="@container space-y-2">
       {many && expanded ? (
         <input
           type="search"
@@ -73,7 +76,7 @@ export function AddressPicker({
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
         />
       ) : null}
-      <div className={cn("grid grid-cols-1 gap-2 sm:grid-cols-2", many && expanded && "max-h-96 overflow-y-auto p-0.5")}>
+      <div className={cn("grid grid-cols-1 gap-2 @md:grid-cols-2", many && expanded && "max-h-96 overflow-y-auto p-0.5")}>
         {shown.map((a) => {
           const on = value === a.id;
           return (
@@ -111,7 +114,9 @@ export function AddressPicker({
             setQ("");
           }}
           aria-expanded={expanded}
-          className="text-sm font-medium text-blue-700 hover:underline"
+          // Dokunma alanı 36 px (dolgu + eksi kenar boşluğu; yazı yerinde) — mobil
+          // denetim 2026-10 g06: 20 px yüksekti; üstteki kartlarla çakışmaz (space-y-2).
+          className="-mx-1 -my-2 rounded-md px-1 py-2 text-sm font-medium text-blue-700 hover:underline"
         >
           {expanded ? t("dahaAzGoster") : t("tumAdresler", { n: list.length })}
         </button>

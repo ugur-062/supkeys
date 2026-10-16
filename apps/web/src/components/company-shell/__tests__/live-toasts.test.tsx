@@ -164,6 +164,20 @@ describe("LiveToasts", () => {
     expect(screen.queryByRole("button", { name: /web\.panel/ })).not.toBeInTheDocument();
   });
 
+  it("kart sonner satırını doldurur (360 px'te taşmaz), kapat 32 px + 44 px dokunma alanı (mobil denetim g04)", async () => {
+    await renderSeeded();
+    h.notifs = [notif("m1")];
+    h.handlers["notification.new"]();
+    await waitFor(() => expect(h.toastCustom).toHaveBeenCalledTimes(1));
+    const renderCard = h.toastCustom.mock.calls[0][0] as (id: string) => ReactElement;
+    render(renderCard("t1"));
+    const close = screen.getByRole("button", { name: "Kapat" });
+    const card = close.parentElement!;
+    expect(card).toHaveClass("w-full", "max-w-[22rem]");
+    expect(card).not.toHaveClass("w-[22rem]");
+    expect(close).toHaveClass("size-8", "relative", "after:absolute", "after:-inset-1.5");
+  });
+
   it("izinler /me ile tazelenmeden hiçbir uç çağrılmaz (arayüz testi D-299)", async () => {
     h.synced = false;
     const { rerender } = render(<LiveToasts />);

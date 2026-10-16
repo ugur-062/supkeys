@@ -263,10 +263,9 @@ function Inner({
       {banner}
       {/* Kayıtlı ızgara/liste tercihini URL'e taşır (çizim üretmez). */}
       <ViewPreferenceSync />
-      {facets.data ? <ActiveFilterChips facets={facets.data} /> : null}
-
       <MarketListLayout
         rail={<PanelProductFilters idPrefix="d" />}
+        chips={facets.data ? <ActiveFilterChips facets={facets.data} /> : null}
         toolbarStart={
           /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
              bölge ve "Güncelleniyor…" kalır (`quiet`). */

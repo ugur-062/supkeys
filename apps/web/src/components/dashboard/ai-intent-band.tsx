@@ -8,6 +8,8 @@ import type { AiSearchIntentResult, AiSearchRelaxed } from "@rothern/shared";
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
+import { useScrollKeep } from "@/components/marketplace/use-scroll-keep";
 
 /**
  * "AI şöyle anladı" bandı — AI aramasının yorumu + uygulanan süzgeç çipleri.
@@ -61,6 +63,7 @@ export function AiIntentBand({
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const scrollKeep = useScrollKeep();
   const params = sp ?? new URLSearchParams();
   const chips = intentChips(intent, params, {
     t: (key, values) => t(key as never, values as never),
@@ -72,13 +75,21 @@ export function AiIntentBand({
     categoryLabel,
   });
 
+  /**
+   * Çip kaldırmak aynı sayfada kalır (`scroll: false`), ama Next 15.5.25 takma
+   * adlı ön-getirme yolunda bunu yok sayıp sayfayı en başa atıyor (süzgeç
+   * kabuğuyla aynı açık, `filter-shell-nav.ts` 3. iş) → konum aynı kancayla
+   * korunur (`useScrollKeep`; hedef DIŞ adresiyle).
+   */
   const remove = (param: string) => {
     const next = new URLSearchParams(params.toString());
     next.delete(param);
     if (param === "kategori") next.delete("nitelik");
     next.delete("sayfa");
     const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    const href = qs ? `${pathname}?${qs}` : pathname;
+    scrollKeep.capture(localizePath(href, locale));
+    router.replace(href, { scroll: false });
   };
   const openDraft = () => {
     if (!intent.draft) return;

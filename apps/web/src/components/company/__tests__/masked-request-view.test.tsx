@@ -106,6 +106,29 @@ describe("MaskedRequestView (doğrulanmamış firmanın alıcı gizli talep gör
     expect(hrefs.some((x) => x.includes("/company/premium"))).toBe(false);
   });
 
+  it("mobil (g09): uzun kalem adı kırpılmaz, sarar; miktar tek satırda kalır", async () => {
+    const long = "Kaçak akım rölesi 4 kutuplu 40 A 30 mA AC tip ray montajlı";
+    h.get.mockResolvedValue({ data: { ...DETAIL, items: [{ lineNo: 1, name: long, quantity: "12", unit: "adet" }] } });
+    render(<MaskedRequestView number="ROT-000042" />);
+    const name = await screen.findByText(long);
+    expect(name.className).not.toMatch(/(^|\s)truncate(\s|$)/);
+    expect(name.className).toMatch(/(^|\s)break-words(\s|$)/);
+    const row = name.parentElement as HTMLElement;
+    expect(row.className).toMatch(/(^|\s)items-start(\s|$)/);
+    expect((row.lastElementChild as HTMLElement).className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+  });
+
+  // s4-misc#v4new0: numara `tabular-nums tracking-wide` taşıyordu; Inter'in tabular
+  // tiresi rakam genişliğinde kutuda sağa yaslanıp "ROT -000042" okutuyordu.
+  it("talep numarası kimlik belirteci: tabular rakam ve harf aralığı yok, bölünmez", async () => {
+    render(<MaskedRequestView number="ROT-000042" />);
+    await screen.findByText(DETAIL.title);
+    const ref = screen.getAllByText("ROT-000042").find((el) => el.closest("header")) as HTMLElement;
+    const cls = ref.className.split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["normal-nums", "tracking-normal", "whitespace-nowrap"]));
+    expect(cls.some((c) => /^(tabular-nums|tnum|tracking-wide)$/.test(c))).toBe(false);
+  });
+
   // 2026-10-09 (sahip kararı; arayüz denetimi W-08): gizli segmentteki kategori
   // maskeli görünümde de çip olmaz; hiç görünür kategori kalmadıysa çip satırı
   // açılmaz (boş liste de kalmaz).

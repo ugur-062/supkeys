@@ -67,7 +67,8 @@ export function ProductStrip({
           </h2>
           <p className="mt-1 text-sm text-zinc-500">{lead}</p>
         </div>
-        <Link href={href} className={`inline-flex items-center gap-1 text-sm font-semibold ${link}`}>
+        {/* Dokunma alanı 44 px, görünüm yerinde (`py-3` + `-my-3`; mobil denetim g01). */}
+        <Link href={href} className={`-my-3 inline-flex items-center gap-1 py-3 text-sm font-semibold ${link}`}>
           {hrefLabel ?? t("seeAll")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>

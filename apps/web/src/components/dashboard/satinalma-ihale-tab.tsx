@@ -1,5 +1,6 @@
 "use client";
 
+import { ID_TOKEN_CLASS } from "@/lib/id-token";
 import { useLocale, useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
@@ -37,7 +38,7 @@ import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatDate } from "@/lib/format-date";
 import { calendarDaysBetween } from "@/lib/time-zone";
 import { BUYER_ORDER_HREF } from "@/lib/dashboard/strings";
@@ -336,7 +337,65 @@ export function SatinalmaIhaleTab({
             </p>
           </div>
         ) : (
-          <div className="px-3 [--gutter:--spacing(5)]">
+          <>
+          {/* Telefonda tablo yerine kart listesi (mobil denetim g10-07,
+              kullanıcı kararı: satır satır okunan tablolar sm altında kart).
+              892 px'lik tabloda yalnız numara + kırpılmış başlık görünüyor,
+              Kapanış / Gelen Teklif / Davetli Ekle kaydırmadan bulunmuyordu.
+              Sıralama başlıktaki düğmelerin yerine çiplerle. */}
+          <div className="sm:hidden">
+            <OpenRequestsSortChips sort={sort} onSort={toggleSort} />
+            <ul className="divide-y divide-zinc-950/5">
+              {rows.map((r) => (
+                <li key={r.id} className="px-5 py-3.5">
+                  <span className={cn(ID_TOKEN_CLASS, "rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600")}>
+                    {r.tenderNumber}
+                  </span>
+                  <Link
+                    href={`/company/ilan/${r.id}`}
+                    className="mt-1.5 line-clamp-2 text-sm font-semibold text-zinc-900 wrap-break-word hover:text-blue-700"
+                  >
+                    {r.title}
+                  </Link>
+                  <dl className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <dt className="text-zinc-500">{t("kapanis")}</dt>
+                      <dd className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold tabular-nums text-zinc-900">
+                          {formatDate(r.closesAt, "short", locale)}
+                        </span>
+                        <DaysLeftBadge closesAt={r.closesAt} />
+                      </dd>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <dt className="text-zinc-500">{t("gelenTeklif")}</dt>
+                      <dd
+                        className={cn(
+                          "font-semibold tabular-nums",
+                          (r.bidCount ?? 0) > 0 ? "text-blue-700" : "text-zinc-500",
+                        )}
+                      >
+                        {r.bidCount ?? 0}
+                      </dd>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <dt className="text-zinc-500">{t("acilisTarihi")}</dt>
+                      <dd className="tabular-nums text-zinc-600">
+                        {formatDate(r.openedAt, "short", locale)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-2">
+                    <CompetitionCell row={r} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* sm+: tablo. Sarmalayıcının içerik kutusunda kalır (eskiden
+              --gutter 5 / px-3: tablo kartın iki yanından 8 px taşıyordu;
+              `--gutter` artık yalnız `bleed` tablolarda okunur). */}
+          <div className="hidden px-3 [--gutter:--spacing(3)] sm:block">
             <Table dense>
               <TableHead>
                 <TableRow>
@@ -366,7 +425,7 @@ export function SatinalmaIhaleTab({
                     className="group transition-colors hover:bg-slate-50/70"
                   >
                     <TableCell>
-                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] tabular-nums text-zinc-600">
+                      <span className={cn(ID_TOKEN_CLASS, "rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600")}>
                         {r.tenderNumber}
                       </span>
                     </TableCell>
@@ -410,6 +469,7 @@ export function SatinalmaIhaleTab({
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </section>
     </div>
@@ -417,6 +477,67 @@ export function SatinalmaIhaleTab({
 }
 
 type SortKey = "number" | "opened" | "closes" | "bids";
+
+/** Telefon kart listesinin sıralama çipleri — tablo başlığıyla AYNI durum
+ *  ve davranış (aynı anahtara ikinci dokunuş yönü çevirir). */
+function OpenRequestsSortChips({
+  sort,
+  onSort,
+}: {
+  sort: { key: SortKey; dir: 1 | -1 };
+  onSort: (k: SortKey) => void;
+}) {
+  const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  const labelId = useId();
+  const options: [SortKey, string][] = [
+    ["closes", t("kapanis")],
+    ["bids", t("gelenTeklif")],
+    ["opened", t("acilisTarihi")],
+    ["number", t("satinAlmaTalebiNo")],
+  ];
+  return (
+    <div
+      role="group"
+      aria-labelledby={labelId}
+      className="flex flex-wrap items-center gap-x-2 gap-y-3 border-b border-zinc-950/5 px-5 py-3"
+    >
+      <span id={labelId} className="text-xs font-medium text-zinc-500">
+        {t("sirala")}
+      </span>
+      {options.map(([key, label]) => {
+        const active = sort.key === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onSort(key)}
+            // 32 px çip; görünmez katman dokunma alanını 44 px'e çıkarır
+            // (satırlar arası 12 px — komşu satırın çipiyle çakışmaz).
+            className={cn(
+              "relative inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-semibold ring-1 transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5",
+              active
+                ? "bg-blue-50 text-blue-700 ring-blue-200"
+                : "bg-white text-zinc-600 ring-zinc-950/10 hover:text-zinc-900",
+            )}
+          >
+            {label}
+            {active ? (
+              <>
+                <span aria-hidden className="text-[9px]">
+                  {sort.dir === 1 ? "▲" : "▼"}
+                </span>
+                <span className="sr-only">
+                  {sort.dir === 1 ? t("siraArtan") : t("siraAzalan")}
+                </span>
+              </>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function compareRows(
   a: { tenderNumber: string; openedAt: string; closesAt: string; bidCount?: number },
@@ -455,11 +576,14 @@ function SortableHeader({
       className={className}
       aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
     >
+      {/* Görünen düğme 13 px; görünmez katman dokunma alanını başlık
+          hücresinin yüksekliğine (~37 px) çıkarır (mobil denetim g10-07).
+          Komşu başlıklar arası 32 px — yatay 8 px taşma çakışmaz. */}
       <button
         type="button"
         onClick={() => onSort(k)}
         className={cn(
-          "inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+          "relative inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide transition-colors after:absolute after:-inset-x-2 after:-inset-y-3",
           active ? "text-blue-700" : "text-zinc-400 hover:text-zinc-700",
         )}
       >
@@ -494,9 +618,11 @@ function CompetitionCell({
       <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
         {t("teklifSayisi", { n: bids })}
       </span>
+      {/* Görünen bağlantı 16 px; görünmez katman 44 px yükseklik (mobil
+          denetim g10-07) — tablo satırı ve telefon kartı bu alanı taşır. */}
       <Link
         href={`/company/ilan/${row.id}`}
-        className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
+        className="relative text-xs font-semibold text-zinc-700 underline after:absolute after:-inset-x-2 after:-inset-y-3.5 hover:text-zinc-950"
       >
         {t("davetliEkle")}
       </Link>

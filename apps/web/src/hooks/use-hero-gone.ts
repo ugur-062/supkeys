@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "@/i18n/navigation";
+import { cssLengthPx } from "@/lib/safe-area";
 import { useEffect, useState } from "react";
 
 /**
@@ -30,8 +31,11 @@ export function useHeroGone(): boolean {
 
     const watch = (el: Element) => {
       setGone(false);
+      // Üst pay = herkese açık üst çubuk (64 px) + güvenli alanın üst payı
+      // (mobil kabukta çubuk o kadar uzar; payı olmayan cihazda 64).
+      const headerPx = Math.round(cssLengthPx("calc(4rem + var(--safe-top, 0px))", 64));
       io = new IntersectionObserver(([e]) => setGone(!e.isIntersecting), {
-        rootMargin: "-64px 0px 0px 0px",
+        rootMargin: `-${headerPx}px 0px 0px 0px`,
       });
       io.observe(el);
     };

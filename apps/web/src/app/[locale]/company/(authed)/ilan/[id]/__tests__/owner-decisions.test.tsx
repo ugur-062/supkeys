@@ -430,3 +430,150 @@ describe("reddedilen sipariş (O-028)", () => {
     expect(screen.getAllByTestId("order-strip").map((el) => el.textContent?.includes("ORD-2026-000"))).toEqual([true, true]);
   });
 });
+
+describe("mobil denetim (g07 / g08)", () => {
+  const twoBids = () =>
+    detail({
+      items: [{ id: "i1", name: "Rulman", quantity: "10", unit: "adet" }],
+      bids: [
+        bid("b1", "S46 AI Tedarik 44ES Ltd. Şti.", { i1: "48.5" }),
+        bid("b2", "Diğer Tedarikçi", { i1: "50" }),
+      ],
+      invitations: [
+        { rothernId: "AAAA-1111", companyName: "A" },
+        { rothernId: "BBBB-2222", companyName: "B" },
+      ],
+    } as unknown as Partial<ListingDetail>);
+
+  it("kalem bazlı kazandırmada seçici fiyatı ÖNDE gösterir, telefonda tam genişlik ve 44 px", async () => {
+    h.detail = twoBids();
+    renderPage();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Kalem-bazlı Kazandır" }));
+    const select = screen.getByRole("button", { name: "Rulman için kazanan teklif" });
+    // Ön-seçili en iyi teklif: fiyat firma adından önce (uzun ad fiyatı kesmesin).
+    expect(select.textContent).toMatch(/^48,50 ₺ · S46 AI Tedarik/);
+    const wrapper = select.parentElement!;
+    const cls = wrapper.className.split(/\s+/);
+    expect(cls).toContain("w-full");
+    expect(cls).toContain("[&>button]:min-h-11");
+    // Miktar + seçici telefonda alt alta, sm'den yan yana.
+    expect(wrapper.parentElement!.className).toMatch(/flex-col.*sm:flex-row/);
+    // Onay düğmesi tek satır kalır, satır sarabilir.
+    const confirm = screen.getByRole("button", { name: "Onayla & Kazandır" });
+    expect(confirm.className).toContain("whitespace-nowrap");
+    expect(confirm.parentElement!.className.split(/\s+/)).toContain("flex-wrap");
+  });
+
+  it("teklif süzgeç hapları bölünmez, kap sarar", () => {
+    h.detail = twoBids();
+    renderPage();
+    const pill = screen.getByRole("button", { name: /^Tümü/ });
+    expect(pill.className.split(/\s+/)).toEqual(expect.arrayContaining(["whitespace-nowrap", "shrink-0"]));
+    expect(pill.parentElement!.className.split(/\s+/)).toContain("flex-wrap");
+  });
+
+  it("teklif satırında Mesaj bağlantısı telefonda 44 px dokunma alanı taşır", () => {
+    h.detail = twoBids();
+    renderPage();
+    const msg = screen.getAllByRole("link", { name: "Mesaj" })[0];
+    expect(msg.className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-flex", "min-h-11", "sm:min-h-0"]));
+  });
+
+  it("meta şeridinde Davetli değeri telefonda kırpılmaz (sarar)", () => {
+    h.detail = twoBids();
+    renderPage();
+    const value = screen.getByText("2 tedarikçi");
+    const cls = value.className.split(/\s+/);
+    expect(cls).not.toContain("truncate");
+    expect(cls).not.toContain("sm:@[9.25rem]:truncate");
+    expect(cls).toContain("break-words");
+  });
+
+  it("meta şeridi: beş sütun yalnız şerit ≥ 54.5rem iken; tek satırlık değer yalnız yan yana düzende kırpılır", () => {
+    h.detail = twoBids();
+    renderPage();
+    const cls = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
+    const davetli = screen.getByText("2 tedarikçi");
+    const dl = davetli.closest("dl")!;
+    expect(cls(dl)).toEqual(expect.arrayContaining(["grid-cols-2", "lg:grid-cols-3", "lg:@[54.5rem]:grid-cols-5"]));
+    expect(cls(dl)).not.toContain("lg:grid-cols-5");
+    expect(cls(dl.parentElement)).toContain("@container");
+    // Teklif kutucuğu 2 ve 3 sütunda iki sütun kaplar, beşte bir.
+    const teklif = screen.getByText("Teklif", { selector: "dl dt" }).closest('[data-slot="meta-item"]')!;
+    expect(teklif.parentElement).toBe(dl);
+    expect(cls(teklif)).toEqual(expect.arrayContaining(["@container", "col-span-2", "lg:@[54.5rem]:col-span-1"]));
+    // Kalem sayısı: telefonda sarar, yan yana düzende (kutucuk ≥ 10.75rem =
+    // içerik ≥ 9.25rem) tek satır + kırpma.
+    const kalem = screen.getByText("1 kalem", { selector: "dl dd" });
+    expect(cls(kalem)).toContain("sm:@[9.25rem]:truncate");
+    expect(cls(kalem)).not.toContain("truncate");
+    // Etiket hiçbir düzende kırpılmaz.
+    expect(cls(screen.getByText("Davetli", { selector: "dl dt" }))).not.toContain("truncate");
+    // axe `definition-list`: kutucukların çocukları YALNIZ dt / dd.
+    for (const tile of dl.children) {
+      expect(tile.tagName).toBe("DIV");
+      expect([...tile.children].map((c) => c.tagName)).toEqual(["DT", "DT", "DD"]);
+    }
+  });
+
+  // Mobil denetim fix3 r5-requests#new0: "Teklif Toplamı" etiket hücresi
+  // sarmalayıcının nowrap'ini miras alıp yapışkan kalem sütununu RU 360'ta
+  // 201 px'e zorluyordu; fiyatların başı kaydırınca bile sütunun altında
+  // kalıyordu ("1 250,00 ₺" → "250,00 ₺"). Başlık, gövde ve toplam hücresi
+  // aynı sınırı taşır: telefonda ≤ 10rem ve sarar, sm'den sınırsız.
+  it("karşılaştırmada yapışkan kalem sütununun başlık / gövde / toplam hücreleri telefonda ≤ 10rem ve sarar", () => {
+    h.detail = twoBids();
+    renderPage();
+    const cls = (el: Element | null) => (el?.getAttribute("class") ?? "").split(/\s+/);
+    const total = screen.getByText("Teklif Toplamı").closest("td")!;
+    const table = total.closest("table")!;
+    const head = table.querySelector("thead th")!;
+    const body = within(table).getByText("Rulman").closest("td")!;
+    for (const cell of [head, body, total]) {
+      expect(cls(cell)).toEqual(
+        expect.arrayContaining(["sticky", "left-0", "max-w-[10rem]", "whitespace-normal", "break-words", "sm:max-w-none"]),
+      );
+      expect(cls(cell)).not.toContain("whitespace-nowrap");
+    }
+  });
+
+  // Mobil denetim v-requests-products#new0: kalem sütununun yapışkan başlık /
+  // toplam hücresi (z-20) aynı z'deki yapışkan eylem şeridinin üstüne
+  // boyanıyordu (tablo DOM'da sonra gelir). Kart kendi yığın bağlamını kurar
+  // (`isolate`): hücrelerin z'si yalnız kartın içinde sıralanır, kart şeridin
+  // (z-20) altında kalır.
+  it("karşılaştırma kartı yapışkan hücrelerin z'sini kendi içinde tutar (isolate) — eylem şeridini örtmez", () => {
+    h.detail = twoBids();
+    renderPage();
+    const total = screen.getByText("Teklif Toplamı").closest("td")!;
+    const card = total.closest(".card") as HTMLElement;
+    expect(card.className.split(/\s+/)).toContain("isolate");
+    // Kartın içindeki en yüksek z (kalem sütunu z-20) şeritten yüksek değil.
+    const anchor = document.querySelector("[data-sticky-action-bar]") as HTMLElement;
+    expect(anchor.className.split(/\s+/)).toContain("z-20");
+    expect(card.contains(anchor)).toBe(false);
+  });
+
+  it("sahip görünümünde de yapışkan eylem şeridi akış dışında (h-0 çapa + absolute şerit)", () => {
+    h.detail = twoBids();
+    renderPage();
+    const anchor = document.querySelector("[data-sticky-action-bar]") as HTMLElement;
+    expect(anchor.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "top-(--topbar-h)", "h-0", "flow-root"]));
+    const bar = anchor.firstElementChild as HTMLElement;
+    expect(bar.className.split(/\s+/)).toEqual(expect.arrayContaining(["absolute", "inset-x-0", "top-0"]));
+    expect(bar.className.split(/\s+/)).not.toContain("h-0");
+  });
+
+  it("tablo kartında gutter telefonda kart dolgusuna eşit (taşma yok)", () => {
+    h.detail = twoBids();
+    renderPage();
+    const tables = screen.getAllByRole("table");
+    for (const table of tables) {
+      const card = table.closest(".card")!;
+      const cls = card.className.split(/\s+/);
+      expect(cls).toContain("[--gutter:--spacing(2)]");
+      expect(cls).toContain("sm:[--gutter:--spacing(4)]");
+      expect(cls).toContain("overflow-hidden");
+    }
+  });
+});
