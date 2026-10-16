@@ -89,6 +89,23 @@ cd android && ./gradlew --no-daemon assembleDebug && ~/android-sdk/platform-tool
   kurulmalı.
 - Bildirimleri görmek: `~/android-sdk/platform-tools/adb shell dumpsys notification --noredact | grep -A3 com.rothern.app`.
 
+### WSL'de KVM yoksa: öykünücü Windows tarafında (2026-10-16)
+
+Windows'ta VBS (Sanallaştırma Tabanlı Güvenlik) açıkken AMD işlemcide WSL'e iç içe sanallaştırma gelmez
+(`dmesg`: `Hyper-V: Nested features: 0x0`, `/dev/kvm` yok). O zaman öykünücü doğrudan Windows'ta, Windows
+Hypervisor Platform (WHPX) ile çalışır; güvenlik ayarı kapatılmaz:
+
+- Windows SDK `C:\Users\<kullanıcı>\AppData\Local\Android\Sdk`: `emulator` ve `platform-tools` Windows paketleri
+  (`dl.google.com/android/repository`), sistem görüntüsü WSL'dekinin kopyası; AVD `%USERPROFILE%\.android\avd`.
+  Kontrol: `emulator.exe -accel-check` → "WHPX … is installed and usable".
+- adb: Windows'taki `adb.exe` (WSL'den de çağrılır). `adb reverse` Windows'ta `127.0.0.1`'e bağlanır; WSL'in yerel
+  yönlendirmesi bir portu yalnız `::1` (IPv6) üzerinde açıyorsa (ör. `next start` 3000) Windows'ta küçük bir
+  127.0.0.1→::1 aktarıcı gerekir (Node `net` ile birkaç satır).
+- WebView hata ayıklama: `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>`; bu port Windows'ta açılır,
+  CDP istemcisini Windows'taki Node ile çalıştır.
+- Bu görüntünün WebView'i eski (Chrome 124): `container-type` taşıyan `<main>` sabit öğelerin kapsayıcısı olur — yeni
+  tarayıcıda görünmeyen bu tür hatalar tam burada yakalanır (bkz. CLAUDE.md `ViewportLayer`).
+
 ## Mağaza paketi
 
 - **Önce Firebase dosyaları:** `mobile/android/app/google-services.json` yoksa Android paketi DERLENMEZ
