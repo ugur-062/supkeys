@@ -1121,7 +1121,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   hepsi "şifre"; kod içi değişken adları (`password`) değişmez.
 - **MONO FONT YOK (2026-09-10, kullanıcı kararı):** talep/sipariş numarası, IBAN,
   kod, Rothern ID dahil hiçbir yerde `font-mono` kullanma ("robotik" görünüm);
-  rakam hizası gerekiyorsa `tabular-nums`. Tema `--font-mono` Inter'e eşli
+  rakam hizası gerekiyorsa `tabular-nums` — AMA tireli kimlik (talep/sipariş numarası, Rothern ID) `tabular-nums`
+  ALMAZ: Inter'in tabular tiresi boşluk bırakır ("ROT -000846"); bunlar `lib/id-token.ts` `ID_TOKEN_CLASS` ile çizilir
+  (kilit `lib/__tests__/id-token.test.ts`). Tema `--font-mono` Inter'e eşli
   (web + admin) → `<code>`/`<kbd>` de Inter basar.
 - Küçük metinde `text-zinc-400` KULLANMA (beyazda 2,6:1) — en az zinc-500.
 - Gri zeminde `bg-zinc-50` yasak (brand-50 = sayfa zemini); tint min zinc-100.
@@ -2917,6 +2919,34 @@ Sözleşme: `panel-hero-search.test` "arka plan".
   aracının kapısı `toolDefsForUser`'a. Araç sonuçları `localizeToolCodes`'tan geçer (yeni durum alanı
   `STATUS_KIND_BY_KEY`). Sağ-alttaki düğme görünür alt çubuğun (`fixed inset-x-0 bottom-0` ya da `data-sticky-cta`)
   üstüne kalkar; ekranı dolduran paneller alt kenarı düğmenin üstünde bırakır.
+  **Düğmenin çekilme kuralı (`fab-suppression.ts`, mobil denetim 2026-10):** her genişlikte kaydırma durunca düğme bir
+  etkileşimli kontrolün üstünde duruyorsa çekilir (opacity-0 + pointer-events-none, klavyeyle hâlâ odaklanır). Tür
+  `controlKind` (birim = düğmenin o anki kenarı: telefonda ve kaydırınca küçülen masaüstü düğmesinde 44, tam boy 56 px;
+  ölçü tıklama alanı `hitBox` — konumlu `::before`/`::after` yalnız sınıfında Tailwind `after:`/`before:` olan öğede
+  eklenir, karta yayılan bağlantı kartın tamamıdır): KÜÇÜK (iki boyutu ≤ 3 birim: ⋮, ×, "Tümünü gör") ve DÜĞME (≤ 88 px
+  yüksek form alanı ya da kendi zemini / ≥ 3 kenar çerçevesi / halkası olan ≤ 88 px kontrol — 4 birimden genişse yalnız
+  ≤ 1,25 birim yüksekken; zeminsiz ama ≤ 1,25 birim yüksek, bağlantı/etiket olmayan kontrol de: düz düğme, `<summary>`,
+  sekme) HER örtüşmede; YÜZEY (geri kalan: liste satırı düğmesi, kart, uzun metin bağlantısı) ancak GÖRÜNEN alanının
+  (görünüm alanı + kırpan atalar) %25'inden fazlası örtülünce — görünen kısmı bir yönde 24 px'ten dar yüzey (şeridin
+  kenarından taşan kart) sayılmaz; karta yayılan `::after` katmanını yalnız KAPSAYAN BLOĞU ve onun ataları kırpar,
+  aradaki `line-clamp` başlık kırpmaz (`HitPart`).
+  Telefonda/dokunmatikte metnin üstünde de çekilir ama YALNIZ sayfanın ilk kaydırmasından önce (ilk görünüm; "kaydırıldı"
+  rota değişince sıfırlanır, iç kaydırma kapları ve başa dönüş sayılmaz — `isPageScrollEvent`); telefonda/dokunmatikte
+  yazarken ve açık diyalog/çekmece/menü varken gizli. Karşılama balonu düğmeyle AYNI kuralla (`greetingCoversControl`)
+  açılmaz: küçük kontrol ve düğme her örtüşmede, yüzey (kart, kategori kutusu, satır) görünen alanının %25'inden fazlası
+  örtülecekse engel (kartlarla dolu satınalma anasayfasında 1024–1600'de balon bekler, sonraki sayfada açılır). Balon
+  önce sayfanın balonun yerinde OTURMASINI bekler (`greeting-settle.ts` `watchPageSettle`: 600 ms bölgeye değen DOM
+  değişikliği yok, bölgede `animate-pulse`/`animate-spin`/`aria-busy` yok, React Query isteği sürmüyor; en geç 31 sn),
+  sonra yoklanır; yer doluysa 1 sn arayla yeniden dener, rota değişince yeniden; "görüldü" (oturumda bir kez) balon 2 sn
+  kesintisiz görününce yazılır (X ve paneli açmak hemen); açık balon içerik/boyut değişiminde bir sonraki karede
+  (`flushSync`, boyanmadan), kaydırmada kaydırma durunca ve düğme çekilip geri gelince yeniden yoklanır, 6 sn sonra
+  kapanır. Asistanın kendi düğümleri `data-assistant-launcher` taşır (sayfa değişikliği sayılmaz). Telefon ilk görünüm
+  METİN kuralı da yüzeyle aynı 24 px şerit payını uygular (`textAt`: satır kırpan atalarıyla kırpılır). Bir kontrolün altına düşeceği köşeye pay (`fab-clearance.ts`; geometri `fab-clearance.test.ts`):
+  `FAB_CLEARANCE_CLASS` (telefon dahil); yalnız sm+ `FAB_CLEARANCE_SM_CLASS` (içerik kenarına dayanan öğe),
+  `FAB_CLEARANCE_SM_IN_PX5_CLASS` / `FAB_CLEARANCE_SM_IN_PX3_CLASS` (`px-5` / `px-3` kartın içindeki satır; kartın payı +
+  bu = SM payı: Ticari şartlar satırı, talep satırının alt çizgisi — herkese açık `ListingTeaserRow` `fabClearance={false}`),
+  `FAB_CLEARANCE_SM_RIGHT_CLASS` (`right-*` ile konumlanan kontrol). Telefonda düğmenin sütunu ekranın sağından 56 px:
+  satırın sağ ucundaki kontrol ya o sütunun dışına alınır (Ürünlerim ⋮ durum rozetinin satırında, `right-12`) ya da pay alır.
 - **Kabuk (webA-08):** `permissionsSynced` kalıcı değil (setAuth/setMe ve /me hatası true); izne bağlı istek atan
   kabuk yüzeyleri `useCompanyPermissionsSynced()` bekler. Canlı toast kartında `useTranslations('web.panel…')` YASAK
   (kök Toaster), etiket prop. Hata sınırında Tekrar dene = `startTransition(router.refresh + reset)`, önce
@@ -2934,6 +2964,26 @@ Sözleşme: `panel-hero-search.test` "arka plan".
   fieldset `aria-labelledby` ile adlanır (`<legend>` yok), `min-w-0` + sarmalı başlık; testler
   `getByRole('group', { name })`. Facet'ten düşebilen seçili değer `labelFor` ile kalır; son sayfanın ötesi
   `pastEndLastPage`, 'bulunamadı' yalnız total===0; panel Firmalar sekmesi süzgeçleri `companyFiltersOf`'tan.
+  **Gezinme bekçisi (mobil denetim 2026-10 g02-01):** kök neden Next 15.5.25'in gömülü React 19.2 kanaryasında KAYIP
+  UYANDIRMA — önbellekte olmayan süzgeç birleşiminin RSC yanıtı parça parça akınca geçiş askıda kalıyor, veri hazır olsa
+  da React yeniden çizmiyor (herhangi bir güncelleme ya da aynı gezinmenin yeniden gönderilmesi anında işletiyor).
+  `FilterShellCore` hedefin `_rsc` yanıtının bitişini gözler (`observeRscEnd`) ve ağ 250 ms sustuğunda, JS/CSS
+  inmiyorken ve işlemci 250 ms boştayken (`createIdleProbe`: `requestIdleCallback`; yoksa — WebKit: Safari, iOS kabuğu —
+  `TICK_PROBE` yoklaması: 50 ms'de bir zamanlayıcı + sıra numaralı `MessageChannel` mesajı, zamanlayıcı ≤ 15 ms gecikti
+  ve mesaj ≤ 4 ms bekledi = boşta, geç dönen eski mesaj hüküm vermez; hiçbiri kurulamazsa süre: `quietMs` /
+  `retryQuietMs`) adres hâlâ eskiyse sırasıyla: boş yaprağı dürtür (`RenderNudge`), aynı gezinmeyi yeniden gönderir,
+  1,2 sn daha boşta kalırsa tam gezinir (sayfa/çekmece konumu işaretle geri yüklenir); React çizerken müdahale yok, en
+  geç 15 sn. **Kaydırma koruması:** Next 15.5.25 takma adlı ön-getirme yolunda (`handleAliasedPrefetchEntry`
+  `shouldScroll` yazmaz) `router.replace/push(…, { scroll: false })`u yok sayıp işleme anında `scrollTop = 0` yazar.
+  Aynı yolda `scroll: false` ile gezinen bileşen TEK kancayı kullanır: `components/marketplace/use-scroll-keep.ts`
+  `useScrollKeep` — gezinmeden hemen önce `capture(dış adres)` (`captureScroll`), hedef işlenince yerleşim efekti +
+  mikro görevle boyamadan önce geri koyar (`takeCommittedKeep` → `restoreScrollAfterCommit`; beklerken kaydırılırsa son
+  konum, kullanıcı girişi varsa dokunulmaz). Süzgeç kabuğu ve AI arama bandının çipleri bağlı; kancayı çağıran bileşen
+  adres değişince yeniden çizilmeli. Rota değiştiren süzgeç ve sayfalama bağlantısı korunmaz. Çekmecede klavye açıkken
+  yazı alanı odaktaysa altlık gizlenir, alan gövdenin üstüne kaydırılır. Takılmayı yeniden üretmek için önbelleği soğuk başlat
+  (`/urunler?fiyatMax=<rastgele>`). İzlenecek sonuç alanı bağlantıları `[data-filter-nav]`
+  içinde durur. Rota değiştiren süzgeç mobil çekmeceyi sessionStorage `rothern.filters.reopenDrawer` ile açık tutar;
+  `FilterChipBar` yalnız `lg`de yapışkan.
 - **Şirketim KPI ve bekleyen işler (webC-04):** bağlantı sayımla AYNI kümeye süzülmüş listeyi açar: durum
   `?status=` (virgüllü), türetilmiş kümeler `?due=overdue`, `?closing=nobids|soon`, `?bids=1`; tanımlar
   `lib/dashboard/derived-filters.ts`, `ActionCenterService` ile birebir (teklifli = `OWNER_VISIBLE_BID_STATUSES`).
@@ -3330,8 +3380,10 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme · Eklenme · ⋮),
   üstteki durum kutuları KALKTI → arama yanında sayılı hap süzgeçleri.
   **Yatay kaydırma YOK** ("scroll bar olmasın, tabloyu oturt"):
-  `overflow-x-auto`/`min-w` yok, sütunlar kesme noktasıyla gizlenir (Eklenme +
-  Kategori yalnız 2xl, Min. sipariş + Görüntülenme xl, Fiyat sm); kategori ad
+  `overflow-x-auto`/`min-w` yok, sütunlar gizlenir (Fiyat
+  md, Durum sm; geniş sütunlar kartın KENDİ genişliğine bağlı — `@container`, `products-view.tsx` `WIDE_COLUMN`:
+  Min. sipariş @[58rem], Görüntülenme @[64rem], Eklenme @[72rem], Kategori @[77rem]; durum rozeti ve fiyat — yalnız tutar,
+  "/ birim" ve kademe eki arasında — sarabilir); kategori ad
   altındaki satırda zaten okunur. Sözleşme: `products-view.test` "yatay kaydırmaz".
 - **ÜRÜN AÇILIŞI: YAYINDAYSA ÖNCE ÖNİZLEME, "DÜZENLE" FORMA (2026-09-19,
   kullanıcı kararı; 18'indeki "önizleme üstte" ve "yan yana Kart|Sayfa paneli"
@@ -4906,6 +4958,32 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
 - **Devredilen bağlantı** kök düzendeki `NativeShellBridge` ile açılır: yalnız aynı köken, tam adresle
   `location.assign` (dış / dil ön ekli adres istemci yönlendiricisine verilmez); açılış bağlantısı WebView
   oturumu başına bir kez.
+- **YENİ SEKME BAĞLANTISI KABUKTA AYNI PENCEREDE (2026-10-15, mobil denetim g05):** iOS kabuğu `target="_blank"`ı
+  Safari'de açar (oturum yok → giriş sayfası), Android baştan yükler. `NativeShellBridge` kabukta (`isNativeShell`:
+  `window.Capacitor` ya da `RothernApp/` eki) tıklamayı PENCERE düzeyinde YAKALAMA aşamasında alır (kart içi
+  `stopPropagation` kesemez); kural tek yerde `lib/native-shell.ts` `shellLinkAction`: aynı kökendeki SAYFA bağlantısı
+  `next/navigation` yönlendiricisine HAM yol + sorgu + çapa ile verilir (dil ön eki zaten içinde; `@/i18n/navigation`
+  KULLANILMAZ), önce `lib/leave-guard.ts` `confirmAppLeave` (kaydedilmemiş değişiklik koruması kayıt olur). Dış köken,
+  `/api` · `/_next` · dosya adresi, indirme, değiştirici tuş, başkasının işlediği tıklama dokunulmaz. Yarım formun
+  üstünde okunacak belge bağlantısı `data-shell-browser` taşır → uygulama içi tarayıcı (`Browser` eklentisi; yoksa
+  varsayılan). Kabukta `<html data-native-shell>` + `[data-new-tab-hint]` ("yeni sekmede açılır") gizli — yeni not bu
+  işareti taşır (`new-tab-hint-marker.test`). Uygulama kodu `window.open` ile aynı köken sayfası AÇMAZ (bugün tek
+  kullanım sipariş yazdırma `about:blank` penceresi; kabukta açılamaz → toast; tek istisna köprünün `Browser.open`
+  düşünce kullandığı yedek).
+- **GÜVENLİ ALAN (2026-10-15):** kök düzen `viewport` `viewportFit: "cover"` (+ `global-error` meta); sayfa çentiğin ve
+  ana ekran çizgisinin altına çizilir, payı `globals.css` `:root` belirteçleri bırakır: `--safe-top/right/bottom/left`
+  (önce Capacitor Android'in `<html>`e yazdığı `--safe-area-inset-*`, yoksa `env()`; payı olmayan yerde 0 → görünüm
+  BİREBİR aynı) ve `--topbar-h` (56 px + üst pay). Kural: sabit / yapışkan her kenar öğesi payını kendi taşır — panel
+  üst çubuğu `h-(--topbar-h) pt-(--safe-top)`, ona bağlı her ofset `top-(--topbar-h)` / `calc(Xrem+var(--safe-top))`
+  (`top-14`/`pt-14` YAZILMAZ), alt çubuk `pb-[calc(0.75rem+var(--safe-bottom))]` (`fixed inset-x-0 bottom-0` sınıfları
+  kalır — AI düğmesi onlarla bulur), köşe düğmeleri `mb-(--safe-bottom) mr-(--safe-right)`, çekmece / pencere kabı
+  üst-alt pay, `dvh` tavanları payı düşer. Akıştaki içeriğe yatay pay `body`de; herkese açık sayfaların üst payı
+  `PublicLayout` `<main>`de, panelinki kabuğun `main`inde. Kök `scroll-padding-top: var(--safe-top)` `scroll-mt-*`
+  çapalarına üst payı ekler; üst çubuğu ÖLÇEREK kaydıran yardımcı onu `lib/safe-area.ts` `rootScrollPaddingTopFor`
+  ile düşer, piksel gereken yer `topbarHeightPx`. `mobile/capacitor.config.ts` `contentInset` varsayılan kalır.
+  `interactiveWidget` bilinçli YOK (klavyenin düzeni küçültmesi her sayfayı etkiler; kullanıcı kararı bekliyor).
+  Kabuğun `<html>` `style`ına yazdığı `--safe-area-inset-*` değerlerini React'in kök öznitelik değişimi (bulunamadı
+  kabuğu) silmesin diye `NativeShellBridge` son değerleri `lib/native-shell.ts` `keepSafeAreaInsets` ile korur.
 - **Hesap silme (iki mağaza da uygulama içinden ister):** `POST company-auth/delete-account { password }` →
   `AccountDeletionService` (bypass istemcisi, firma + kullanıcı satırları `FOR UPDATE`); arayüz Ayarlar › Hesap
   Bilgileri `DeleteAccountSection`. Kural: şifre doğrulanır; ÜYE hemen anonimleşir (e-posta
