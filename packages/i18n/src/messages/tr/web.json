@@ -2724,6 +2724,11 @@
       "nativePush": {
         "channelName": "Bildirimler"
       },
+      "fileExport": {
+        "uygulamaSurumundeYok": "Bu işlem uygulamanın bu sürümünde yok — rothern.com'dan yapabilirsiniz.",
+        "dosyaKaydedilemedi": "Dosya kaydedilemedi. Lütfen tekrar deneyin.",
+        "yazdirilamadi": "Yazdırma başlatılamadı. Lütfen tekrar deneyin."
+      },
       "verificationGate": {
         "pageTitle": "Bu sayfa firma doğrulaması gerektirir",
         "managerNote": "Doğrulama başvurusunu firma yöneticiniz yapabilir; kendisine iletin.",

@@ -76,7 +76,7 @@ describe("buildOrderPrintHtml — stored XSS escape", () => {
     expect(html).toContain("Test Firma");
     expect(html).toContain("ORD-2026-0001");
     // CSP: üretilen HTML'de HİÇBİR inline <script> yok — yazdırmayı ebeveyn
-    // tetikler (bkz. page.tsx handlePrint). strict script-src'i kırmaz.
+    // tetikler (bkz. lib/save-file.ts printHtml). strict script-src'i kırmaz.
     expect(html).not.toContain("<script");
   });
 });

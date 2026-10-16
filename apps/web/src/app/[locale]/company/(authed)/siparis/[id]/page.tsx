@@ -35,6 +35,7 @@ import {
   type CompanyOrderDetail,
 } from "@/hooks/use-company-orders";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useSaveFile } from "@/hooks/use-save-file";
 import { formatDate } from "@/lib/format-date";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
@@ -113,6 +114,7 @@ export default function OrderDetailPage() {
   const cancel = useCancelOrder(id);
   const requestCancel = useRequestCancel(id);
   const raiseDefect = useRaiseDefectNotice(id);
+  const { printHtml } = useSaveFile();
   const [modal, setModal] = useState<
     | "accept"
     | "reject"
@@ -362,40 +364,32 @@ export default function OrderDetailPage() {
 
   const handlePrint = () => {
     if (!o) return;
-    const w = window.open("", "_blank", "width=800,height=900");
-    // D-111: açılır pencere engellendiyse sessizce bitmesin — kullanıcıya söyle.
-    if (!w) {
-      toast.error(t("yazdirmaPenceresiAcilamadi"));
-      return;
-    }
     const addr = o.deliveryAddress;
     const addrPlace = addr ? placeLabel(addr) : "";
     // GÜVENLİK: HTML string'i saf builder üretir + karşı-taraf alanlarını
     // escapeHtml'den geçirir (stored XSS kapandı). Bkz. order-print.ts.
-    w.document.write(
-      buildOrderPrintHtml(o, {
-        isSeller,
-        currency: o.currency ?? "TRY",
-        statusLabel,
-        labels: printLabels,
-        locale,
-        deliveryTimeLabel,
-        quantityLabel: (n, u) => quantity(n, u),
-        // D-111: iki taraf, teslim adresi ve ödeme şartı çıktıda da.
-        ownCompanyName: company?.name ?? null,
-        deliveryAddress: addr
-          ? `${addr.title} — ${addr.addressLine}${addrPlace ? `, ${addrPlace}` : ""}`
-          : null,
-        paymentTerms: formatPlan(o),
-      }),
-    );
-    w.document.close();
-    // Yazdırmayı EBEVEYN tetikler — üretilen HTML'de inline <script> yok (strict
-    // CSP script-src'i about:blank popup'ta miras alınan nonce'suz inline'ı
-    // bloklardı). Harici kaynak yok (sistem fontu, resim yok) → close sonrası
-    // içerik hazır; focus+print güvenilir çalışır.
-    w.focus();
-    w.print();
+    const html = buildOrderPrintHtml(o, {
+      isSeller,
+      currency: o.currency ?? "TRY",
+      statusLabel,
+      labels: printLabels,
+      locale,
+      deliveryTimeLabel,
+      quantityLabel: (n, u) => quantity(n, u),
+      // D-111: iki taraf, teslim adresi ve ödeme şartı çıktıda da.
+      ownCompanyName: company?.name ?? null,
+      deliveryAddress: addr
+        ? `${addr.title} — ${addr.addressLine}${addrPlace ? `, ${addrPlace}` : ""}`
+        : null,
+      paymentTerms: formatPlan(o),
+    });
+    // Tarayıcıda yazdırma penceresi (tıklama içinde, eşzamanlı açılır), mobil
+    // kabukta sistem yazdırma penceresi — `lib/save-file.ts` `printHtml`. İş
+    // adı belgenin başlığıyla aynı (PDF olarak kaydedilince dosya adı).
+    void printHtml(html, o.number ?? printLabels.order).then((outcome) => {
+      // D-111: açılır pencere engellendiyse sessizce bitmesin — kullanıcıya söyle.
+      if (outcome === "blocked") toast.error(t("yazdirmaPenceresiAcilamadi"));
+    });
   };
 
   // P2 (denetim §5): durum makinesinin AÇIKLAMA metni — birincil aksiyonun

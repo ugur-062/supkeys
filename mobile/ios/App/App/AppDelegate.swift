@@ -86,3 +86,86 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return config
     }
 }
+
+// MARK: - Uygulamanın yerel eklentileri (RothernPrint)
+//
+// Bu sınıflar AYRI bir .swift dosyasında DEĞİL: yeni bir dosya App hedefine ancak Xcode'da
+// (project.pbxproj) eklenir ve kabuk Mac'siz düzenleniyor. Bu yüzden App hedefinde zaten derlenen
+// bu dosyanın sonuna kondular. Mac'te istenirse ayrı dosyaya taşınabilir (App hedefine ekleyerek).
+//
+// `MainViewController` köprüyü kurar kurmaz (`capacitorDidLoad`) yerel eklentiyi kaydeder; kök
+// denetleyici olarak hem `Main.storyboard` (customClass, module App) hem `SceneDelegate` bunu kullanır.
+// Uygulamanın kendi eklentileri npm paketi olmadığı için `capacitor.config.json` `packageClassList`ine
+// girmez; örnek olarak kaydedilmeleri gerekir.
+
+class MainViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(PrintPlugin())
+    }
+}
+
+/// Yerel yazdırma köprüsü: web `window.Capacitor.Plugins.RothernPrint.print({ html, name })` çağırır.
+///
+/// Kabukta `window.open` + `print()` çalışmaz (yeni pencere açılmaz). HTML belge sistemin yazdırma
+/// penceresinde (`UIPrintInteractionController`) açılır; pencere "PDF olarak kaydet / Dosyalar'a kaydet"
+/// seçeneğini de sunar. Çağrı pencere açıldığında çözülür. Eski uygulama sürümünde bu eklenti yoktur;
+/// web onu tanır ve siteden yazdırmayı söyler.
+class PrintPlugin: CAPPlugin, CAPBridgedPlugin {
+    let identifier = "PrintPlugin"
+    let jsName = "RothernPrint"
+    let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise)
+    ]
+
+    private static let defaultName = "Rothern"
+    private static let maxNameLength = 120
+
+    @objc func print(_ call: CAPPluginCall) {
+        guard let html = call.getString("html"),
+              !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            call.reject("RothernPrint.print: \"html\" is required")
+            return
+        }
+        let jobName = PrintPlugin.safeJobName(call.getString("name"))
+
+        DispatchQueue.main.async {
+            guard UIPrintInteractionController.isPrintingAvailable else {
+                call.reject("RothernPrint.print: printing is not available on this device")
+                return
+            }
+            let printInfo = UIPrintInfo(dictionary: nil)
+            printInfo.jobName = jobName
+            printInfo.outputType = .general
+
+            let controller = UIPrintInteractionController.shared
+            controller.printInfo = printInfo
+            controller.printFormatter = UIMarkupTextPrintFormatter(markupText: html)
+
+            let presented = controller.present(animated: true) { printController, _, error in
+                // Pencere kapandı (yazdırıldı, kaydedildi ya da vazgeçildi): belgeyi bellekte tutma.
+                printController.printFormatter = nil
+                if let error = error {
+                    CAPLog.print("RothernPrint: print dialog finished with an error: \(error.localizedDescription)")
+                }
+            }
+            if presented {
+                call.resolve()
+            } else {
+                call.reject("RothernPrint.print: could not open the print dialog")
+            }
+        }
+    }
+
+    /// İş adı kaydedilen PDF'in önerilen dosya adı olur: yol / denetim karakteri taşımaz.
+    static func safeJobName(_ raw: String?) -> String {
+        guard let raw = raw else { return defaultName }
+        let forbidden = CharacterSet(charactersIn: "\\/:*?\"<>|").union(.controlCharacters)
+        let cleaned = raw.components(separatedBy: forbidden).joined(separator: " ")
+            .components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+        if cleaned.isEmpty { return defaultName }
+        if cleaned.count > maxNameLength {
+            return String(cleaned.prefix(maxNameLength)).trimmingCharacters(in: .whitespaces)
+        }
+        return cleaned
+    }
+}

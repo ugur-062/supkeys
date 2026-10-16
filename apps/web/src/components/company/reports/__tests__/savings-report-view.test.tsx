@@ -314,7 +314,7 @@ describe("SavingsReportView", () => {
 
   it("Excel indir başarılı → indirme mutasyonu + başarı toast'ı", async () => {
     const user = userEvent.setup();
-    h.downloadMutate.mockResolvedValue({ filename: "tasarruf.xlsx" });
+    h.downloadMutate.mockResolvedValue({ filename: "tasarruf.xlsx", outcome: "downloaded" });
     const { container } = render(<SavingsReportView {...base} />);
 
     const dates = container.querySelectorAll('input[type="date"]');
@@ -324,6 +324,20 @@ describe("SavingsReportView", () => {
 
     expect(h.downloadMutate).toHaveBeenCalledTimes(1);
     expect(h.toast.success).toHaveBeenCalledWith("tasarruf.xlsx indiriliyor");
+  });
+
+  it("mobil kabukta paylaşım sayfasıyla verilen dosya için 'indiriliyor' denmez", async () => {
+    const user = userEvent.setup();
+    h.downloadMutate.mockResolvedValue({ filename: "tasarruf.xlsx", outcome: "shared" });
+    const { container } = render(<SavingsReportView {...base} />);
+
+    const dates = container.querySelectorAll('input[type="date"]');
+    await user.type(dates[0] as HTMLElement, "2026-01-01");
+    await user.type(dates[1] as HTMLElement, "2026-06-30");
+    await user.click(screen.getByRole("button", { name: /Excel İndir/ }));
+
+    expect(h.downloadMutate).toHaveBeenCalledTimes(1);
+    expect(h.toast.success).not.toHaveBeenCalled();
   });
 
 });

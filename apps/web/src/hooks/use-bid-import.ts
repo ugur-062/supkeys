@@ -1,5 +1,6 @@
 "use client";
 
+import { useSaveFile } from "@/hooks/use-save-file";
 import { companyApi } from "@/lib/company-auth/api";
 import type { BidImportResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ function fileToBase64(file: File, readError: string): Promise<string> {
 }
 
 export function useDownloadBidTemplate(listingId: string) {
+  const { saveFile } = useSaveFile();
   return useMutation({
     mutationFn: async () => {
       const res = await companyApi.get(`/company/listings/${listingId}/bid-import/template`, {
@@ -40,13 +42,8 @@ export function useDownloadBidTemplate(listingId: string) {
           filename = match[1];
         }
       }
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      return { filename };
+      const outcome = await saveFile(res.data as Blob, filename);
+      return { filename, outcome };
     },
   });
 }

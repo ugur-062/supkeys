@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 
 const h = vi.hoisted(() => ({
@@ -96,6 +96,89 @@ describe("TwoFactorSection", () => {
     const input = screen.getByLabelText("Doğrulama kodu veya kurtarma kodu");
     expect(input.getAttribute("placeholder")).toBe("6 haneli kod ya da XXXX-XXXX");
     expect(input.outerHTML).not.toContain("max-w-[240px]");
+  });
+});
+
+/**
+ * KURTARMA KODLARI .txt (mobil kabuk 2026-10-16): dosya `lib/save-file.ts`
+ * ile verilir — tarayıcıda bugünkü `<a download>`, mobil kabukta Filesystem +
+ * Share, eklentisiz eski uygulama sürümünde "siteden yapın" bilgisi.
+ */
+describe("TwoFactorSection — kurtarma kodlarını .txt indir", () => {
+  type ShellWindow = Window & { Capacitor?: unknown };
+  let clicked: HTMLAnchorElement[];
+
+  beforeEach(() => {
+    clicked = [];
+    // Bırakma zamanlayıcısı test bittikten sonra da ateşlenebilir — saplama kalır.
+    URL.createObjectURL = vi.fn(() => "blob:codes") as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL;
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push(this);
+    });
+    h.user = { email: "ada@test.local", twoFactorEnabled: false, twoFactorMethod: null };
+    h.sendCode.mockResolvedValue({ sent: true });
+    h.enableEmail.mockResolvedValue({ ok: true, recoveryCodes: ["AAAA-BBBB", "CCCC-DDDD"] });
+  });
+
+  afterEach(() => {
+    delete (window as ShellWindow).Capacitor;
+    vi.restoreAllMocks();
+  });
+
+  async function showCodes() {
+    const user = userEvent.setup();
+    render(<TwoFactorSection />);
+    await user.click(screen.getByRole("button", { name: "E-posta ile Kur" }));
+    await user.type(screen.getByLabelText("Doğrulama kodu"), "123456");
+    await user.click(screen.getByRole("button", { name: "Doğrula & Aç" }));
+    return user;
+  }
+
+  it("tarayıcıda dosya adıyla indirir (bugünkü davranış)", async () => {
+    const user = await showCodes();
+    await user.click(screen.getByRole("button", { name: ".txt İndir" }));
+    expect(clicked).toHaveLength(1);
+    expect(clicked[0]!.download).toBe("rothern-2fa-kurtarma-kodlari.txt");
+    const blob = (URL.createObjectURL as unknown as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Blob;
+    expect(await blob.text()).toContain("AAAA-BBBB\nCCCC-DDDD");
+  });
+
+  it("mobil kabukta önbelleğe yazar ve paylaşım sayfasını açar", async () => {
+    const writeFile = vi.fn<(o: { path: string; data: string; directory: string }) => Promise<{ uri: string }>>(
+      async () => ({ uri: "file:///cache/rothern-2fa-kurtarma-kodlari.txt" }),
+    );
+    const share = vi.fn(async () => ({}));
+    (window as ShellWindow).Capacitor = {
+      isNativePlatform: () => true,
+      Plugins: { Filesystem: { writeFile }, Share: { share } },
+    };
+    const user = await showCodes();
+    await user.click(screen.getByRole("button", { name: ".txt İndir" }));
+
+    await vi.waitFor(() => expect(share).toHaveBeenCalled());
+    const args = writeFile.mock.calls[0]![0];
+    expect(args.path).toBe("rothern-2fa-kurtarma-kodlari.txt");
+    expect(args.directory).toBe("CACHE");
+    const text = new TextDecoder().decode(Uint8Array.from(atob(args.data), (c) => c.charCodeAt(0)));
+    expect(text).toContain("AAAA-BBBB\nCCCC-DDDD");
+    expect(text).toContain("ada@test.local");
+    expect(share).toHaveBeenCalledWith(
+      expect.objectContaining({ files: ["file:///cache/rothern-2fa-kurtarma-kodlari.txt"] }),
+    );
+    expect(clicked).toHaveLength(0);
+  });
+
+  it("eklentisiz eski uygulama sürümünde 'siteden yapın' bilgisi; indirme yok", async () => {
+    (window as ShellWindow).Capacitor = { isNativePlatform: () => true, Plugins: { App: {} } };
+    const user = await showCodes();
+    await user.click(screen.getByRole("button", { name: ".txt İndir" }));
+    await vi.waitFor(() =>
+      expect(h.toast.info).toHaveBeenCalledWith(
+        "Bu işlem uygulamanın bu sürümünde yok — rothern.com'dan yapabilirsiniz.",
+      ),
+    );
+    expect(clicked).toHaveLength(0);
   });
 });
 

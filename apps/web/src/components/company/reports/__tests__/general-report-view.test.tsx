@@ -240,7 +240,7 @@ describe("GeneralReportView", () => {
 
   it("Excel indir başarılı → indirme mutasyonu + başarı toast'ı", async () => {
     const user = userEvent.setup();
-    h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx" });
+    h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx", outcome: "downloaded" });
     render(<GeneralReportView {...base} />);
 
     await user.click(screen.getAllByRole("radio")[0]); // SINGLE
@@ -255,6 +255,26 @@ describe("GeneralReportView", () => {
     });
     expect(h.toast.success).toHaveBeenCalledWith("rapor.xlsx indiriliyor");
   });
+
+  // Mobil kabuk: dosya paylaşım sayfasıyla verildi (ya da kullanıcı kapattı,
+  // ya da eski sürüm "siteden yapın" dedi) — "indiriliyor" denmez.
+  it.each(["shared", "cancelled", "unsupported", "failed"] as const)(
+    "indirme sonucu %s → 'indiriliyor' toast'ı yok",
+    async (outcome) => {
+      const user = userEvent.setup();
+      h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx", outcome });
+      render(<GeneralReportView {...base} />);
+
+      await user.click(screen.getAllByRole("radio")[0]); // SINGLE
+      const select = await screen.findByRole("combobox");
+      await user.selectOptions(select, "t1");
+
+      await user.click(screen.getByRole("button", { name: /Excel İndir/ }));
+      expect(h.downloadMutate).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).not.toHaveBeenCalled();
+      expect(h.toast.error).not.toHaveBeenCalled();
+    },
+  );
 
   it("rapor mutasyonu hata verirse hata toast'ı gösterir", async () => {
     const user = userEvent.setup();

@@ -3,10 +3,10 @@ import type {
   CompanyOrderDetail,
   CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "sonner";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   order: undefined as CompanyOrderDetail | undefined,
@@ -27,7 +27,7 @@ const authRoles = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "o1" }),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }));
 vi.mock("@/lib/realtime", () => ({
   subscribeRealtime: () => () => {},
 }));
@@ -702,10 +702,58 @@ describe("OrderDetailPage — arayüz testi webB-08", () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     render(<OrderDetailPage />);
     await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
-    expect(toast.error).toHaveBeenCalledWith(
-      expect.stringMatching(/Yazdırma penceresi açılamadı/),
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringMatching(/Yazdırma penceresi açılamadı/),
+      ),
     );
     open.mockRestore();
+  });
+
+  // Mobil kabuk (2026-10-16): `window.open` WebView'de pencere açmaz — çıktı
+  // kabuğun `RothernPrint` eklentisine gider (sistem yazdırma penceresi,
+  // "PDF olarak kaydet"); eklentisiz eski sürümde "siteden yapın" bilgisi.
+  describe("mobil kabukta yazdırma", () => {
+    type ShellWindow = Window & { Capacitor?: unknown };
+    afterEach(() => {
+      delete (window as ShellWindow).Capacitor;
+    });
+
+    it("RothernPrint'e tam belge + sipariş numarası iş adıyla gider, pencere açılmaz", async () => {
+      h.order = order("COMPLETED", "buyer");
+      const print = vi.fn<(o: { html: string; name: string }) => Promise<void>>(async () => undefined);
+      (window as ShellWindow).Capacitor = { isNativePlatform: () => true, Plugins: { RothernPrint: { print } } };
+      const open = vi.spyOn(window, "open");
+      render(<OrderDetailPage />);
+      await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+
+      await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+      const { html, name } = print.mock.calls[0]![0];
+      expect(name).toBe("ORD-2026-0001");
+      expect(html).toMatch(/^<!doctype html>/i);
+      expect(html).toContain("ORD-2026-0001");
+      expect(html).not.toContain("<script");
+      expect(open).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+      open.mockRestore();
+    });
+
+    it("eklentisiz eski uygulama sürümü → 'siteden yapın' bilgisi; pencere hatası denmez", async () => {
+      h.order = order("COMPLETED", "buyer");
+      (window as ShellWindow).Capacitor = { isNativePlatform: () => true, Plugins: { App: {} } };
+      const open = vi.spyOn(window, "open");
+      render(<OrderDetailPage />);
+      await userEvent.click(screen.getByRole("button", { name: "Yazdır / PDF" }));
+
+      await waitFor(() =>
+        expect(toast.info).toHaveBeenCalledWith(
+          "Bu işlem uygulamanın bu sürümünde yok — rothern.com'dan yapabilirsiniz.",
+        ),
+      );
+      expect(open).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+      open.mockRestore();
+    });
   });
 
   it("D-255: iptal onayı 500 alınca pencere AÇIK kalır, bileşen ikinci toast basmaz", async () => {

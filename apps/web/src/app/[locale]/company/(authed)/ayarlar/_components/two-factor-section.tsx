@@ -7,6 +7,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useSaveFile } from "@/hooks/use-save-file";
 import {
   useDisable2fa,
   useEnable2fa,
@@ -27,6 +28,7 @@ export function TwoFactorSection() {
   const disable = useDisable2fa();
   const sendEmailCode = useSendEmail2faCode();
   const enableEmail = useEnableEmail2fa();
+  const { saveFile } = useSaveFile();
 
   const enabled = !!user?.twoFactorEnabled;
   // Açık 2FA'nın yöntemi (`/me`). Bilinmiyorsa (eski anlık görüntü) genel
@@ -124,12 +126,7 @@ export function TwoFactorSection() {
       ],
       { type: "text/plain;charset=utf-8" },
     );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "rothern-2fa-kurtarma-kodlari.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+    void saveFile(blob, "rothern-2fa-kurtarma-kodlari.txt");
   };
 
   const confirmDisable = async () => {

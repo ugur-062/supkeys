@@ -4,7 +4,10 @@ import {
   isNativeShell,
   nativeAppPlugin,
   nativeBrowserPlugin,
+  nativeFilesystemPlugin,
   nativeListener,
+  nativePrintPlugin,
+  nativeSharePlugin,
   shellLinkAction,
 } from "./native-shell";
 
@@ -125,6 +128,33 @@ describe("isNativeShell — kabuğu tanıma", () => {
     expect(nativeBrowserPlugin({ Capacitor: { isNativePlatform: () => false, Plugins: { Browser } } })).toBeNull();
     expect(nativeBrowserPlugin({ Capacitor: { isNativePlatform: () => true, Plugins: {} } })).toBeNull();
     expect(nativeBrowserPlugin(undefined)).toBeNull();
+  });
+
+  it("Filesystem / Share / RothernPrint yalnız kabukta ve yöntemleri varsa döner (eski sürümde null)", () => {
+    const Filesystem = { writeFile: async () => ({ uri: "file:///x" }) };
+    const Share = { share: async () => ({}) };
+    const RothernPrint = { print: async () => undefined };
+    const shell = { Capacitor: { isNativePlatform: () => true, Plugins: { Filesystem, Share, RothernPrint } } };
+    expect(nativeFilesystemPlugin(shell)).toBe(Filesystem);
+    expect(nativeSharePlugin(shell)).toBe(Share);
+    expect(nativePrintPlugin(shell)).toBe(RothernPrint);
+
+    const browser = { Capacitor: { isNativePlatform: () => false, Plugins: { Filesystem, Share, RothernPrint } } };
+    expect(nativeFilesystemPlugin(browser)).toBeNull();
+    expect(nativeSharePlugin(browser)).toBeNull();
+    expect(nativePrintPlugin(browser)).toBeNull();
+
+    const oldBuild = { Capacitor: { isNativePlatform: () => true, Plugins: { App: {}, Browser: { open() {} } } } };
+    expect(nativeFilesystemPlugin(oldBuild)).toBeNull();
+    expect(nativeSharePlugin(oldBuild)).toBeNull();
+    expect(nativePrintPlugin(oldBuild)).toBeNull();
+
+    // Adı var ama yöntemi yok (ya da işlev değil) → yok sayılır.
+    const broken = { Capacitor: { isNativePlatform: () => true, Plugins: { Filesystem: {}, Share: { share: 1 }, RothernPrint: null } } };
+    expect(nativeFilesystemPlugin(broken)).toBeNull();
+    expect(nativeSharePlugin(broken)).toBeNull();
+    expect(nativePrintPlugin(broken)).toBeNull();
+    expect(nativePrintPlugin(undefined)).toBeNull();
   });
 });
 

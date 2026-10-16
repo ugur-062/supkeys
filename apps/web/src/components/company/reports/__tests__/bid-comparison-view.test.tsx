@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ reportData: undefined as unknown, reportMutate: vi.fn() }));
+const h = vi.hoisted(() => ({
+  reportData: undefined as unknown,
+  reportMutate: vi.fn(),
+  downloadMutate: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
@@ -18,13 +24,15 @@ vi.mock("@/hooks/use-company-reports", () => ({
     isPending: false,
     data: h.reportData,
   }),
-  useDownloadBidComparisonReport: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDownloadBidComparisonReport: () => ({ mutateAsync: h.downloadMutate, isPending: false }),
 }));
 
 import { BidComparisonView } from "../bid-comparison-view";
 
 beforeEach(() => {
+  vi.clearAllMocks();
   h.reportMutate.mockReset();
+  h.downloadMutate.mockReset();
   h.reportData = undefined;
   window.history.replaceState(null, "", "/");
 });
@@ -139,6 +147,32 @@ describe("BidComparisonView — kriterler adreste", () => {
       showBidCurrencies: false,
       includeRoundHistory: false,
     });
+  });
+});
+
+/**
+ * Mobil kabuk (2026-10-16): dosya `saveFile` ile verilir; "indiriliyor" yalnız
+ * tarayıcı indirmesinde — kabukta paylaşım sayfası / eski sürüm bilgisi kendi
+ * sonucunu söyler.
+ */
+describe("BidComparisonView — Excel indir sonucu", () => {
+  it.each([
+    ["downloaded", true],
+    ["shared", false],
+    ["cancelled", false],
+    ["unsupported", false],
+    ["failed", false],
+  ] as const)("indirme sonucu %s → 'indiriliyor' toast'ı: %s", async (outcome, toasted) => {
+    window.history.replaceState(null, "", "/raporlar/teklif-karsilastirma?listing=l9");
+    h.downloadMutate.mockResolvedValue({ filename: "karsilastirma.xlsx", outcome });
+    render(<BidComparisonView type="ALIM" basePath="/company/raporlar" />);
+
+    await userEvent.click(screen.getByRole("button", { name: /Excel İndir/ }));
+
+    expect(h.downloadMutate).toHaveBeenCalledWith(expect.objectContaining({ listingId: "l9" }));
+    if (toasted) expect(toast.success).toHaveBeenCalledWith("karsilastirma.xlsx indiriliyor");
+    else expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
 

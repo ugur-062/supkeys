@@ -8,7 +8,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+        // Uygulamanın yerel eklentilerini (RothernPrint) kaydeden alt sınıf — AppDelegate.swift sonu.
+        // Main.storyboard da aynı sınıfı kullanır; ikisi ayrışırsa eklenti görünmeyen denetleyiciye kaydolur.
+        window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)

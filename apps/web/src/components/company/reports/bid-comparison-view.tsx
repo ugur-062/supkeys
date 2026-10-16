@@ -159,8 +159,9 @@ export function BidComparisonView({
   }, []);
   const runDownload = async () => {
     try {
-      const { filename } = await download.mutateAsync(payload());
-      toast.success(tr("indiriliyor", { file: filename }));
+      const { filename, outcome } = await download.mutateAsync(payload());
+      // Kabukta paylaşım sayfası / eski sürüm bilgisi kendi sonucunu söyler.
+      if (outcome === "downloaded") toast.success(tr("indiriliyor", { file: filename }));
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("indirmeBasarisiz")));
     }

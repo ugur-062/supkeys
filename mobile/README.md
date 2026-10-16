@@ -149,6 +149,26 @@ değişken girilir ve web yeniden dağıtılır:
 Doğrulama: `https://www.rothern.com/.well-known/assetlinks.json` ve
 `https://www.rothern.com/.well-known/apple-app-site-association` 200 dönmeli (değişken yokken 404).
 
+## Dosya paylaşma ve yazdırma
+
+Uygulamada tarayıcının indirme ve `window.print()` yolu çalışmaz; web bunun yerine üç yerel eklenti kullanır
+(`apps/web/src/lib/native-shell.ts`):
+
+| Eklenti | Ne yapar |
+|---|---|
+| `@capacitor/filesystem` | İndirilecek dosyayı (Excel, PDF…) uygulamanın önbellek klasörüne yazar |
+| `@capacitor/share` | O dosyayla sistemin paylaşım menüsünü açar (Dosyalar'a / Drive'a kaydet, e-posta, WhatsApp…); menüyü kapatmak hata değildir |
+| `RothernPrint` (uygulamanın kendi eklentisi) | Web'in verdiği HTML belgeyle sistemin yazdırma penceresini açar; pencere "PDF olarak kaydet"i de sunar |
+
+- `RothernPrint` npm paketi değildir: Android'de `android/app/src/main/java/com/rothern/app/PrintPlugin.java`
+  (`MainActivity` kaydeder), iOS'ta `ios/App/App/AppDelegate.swift`in sonundaki `PrintPlugin` +
+  `MainViewController` (`Main.storyboard` ve `SceneDelegate` bu denetleyiciyi kullanır). Swift sınıfları ayrı
+  dosyada değil, çünkü yeni dosya App hedefine yalnız Xcode'da eklenebilir; Mac'te istenirse taşınabilir.
+- Bunlar yerel koddur: web'e çıkan değişiklik gibi kendiliğinden gelmez, **yeni mağaza paketi** gerekir
+  (`npx cap sync` → Android `versionCode` +1, iOS build numarası +1 → gönderim).
+- Eklentisi olmayan eski uygulama sürümü bozulmaz: web eklentinin yokluğunu tanır ve "siteden (rothern.com)
+  indirin / yazdırın" uyarısı gösterir.
+
 ## Değişmeyenler
 
 - `appId` `com.rothern.app` — mağaza kaydından sonra değiştirilemez; web tarafındaki eşi
@@ -158,3 +178,5 @@ Doğrulama: `https://www.rothern.com/.well-known/assetlinks.json` ve
 - Uygulama yalnız iPhone hedefler (iPad desteği sonradan eklenebilir, eklendikten sonra kaldırılamaz).
 - `npm test` (bu klasörde; Gradle / Xcode gerekmez) bildirim değişmezlerini sınar: öndeki bildirimde sistem
   bandı / ses yok, `google-services.json`'suz Android sürüm derlemesi durur, iOS ham APNs belirtecini kaydetmez.
+  Dosya paylaşma / yazdırma için de: iki eklenti tam sürümle bağımlı ve eşitlenmiş, `RothernPrint` iki
+  platformda bu adla kayıtlı, iOS kök denetleyicisi (storyboard + `SceneDelegate`) `MainViewController`.

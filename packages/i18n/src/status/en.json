@@ -33809,6 +33809,21 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.fileExport.dosyaKaydedilemedi": {
+    "hash": "7300e1062c",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.panel.shell.fileExport.uygulamaSurumundeYok": {
+    "hash": "9a99474287",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
+  "web.panel.shell.fileExport.yazdirilamadi": {
+    "hash": "f0bc63d046",
+    "status": "reviewed",
+    "at": "2026-10-16"
+  },
   "web.panel.shell.filterBar.filtreAktif": {
     "hash": "d0135e803c",
     "status": "reviewed",

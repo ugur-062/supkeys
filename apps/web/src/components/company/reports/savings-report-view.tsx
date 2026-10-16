@@ -138,8 +138,9 @@ export function SavingsReportView({
     const p = payload();
     if (!p) return;
     try {
-      const { filename } = await download.mutateAsync(p);
-      toast.success(t("indiriliyor", { file: filename }));
+      const { filename, outcome } = await download.mutateAsync(p);
+      // Kabukta paylaşım sayfası / eski sürüm bilgisi kendi sonucunu söyler.
+      if (outcome === "downloaded") toast.success(t("indiriliyor", { file: filename }));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("indirmeBasarisiz")));
     }

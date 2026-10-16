@@ -227,8 +227,9 @@ export function GeneralReportView({
     const p = payload();
     if (!p) return;
     try {
-      const { filename } = await download.mutateAsync(p);
-      toast.success(tr("indiriliyor", { file: filename }));
+      const { filename, outcome } = await download.mutateAsync(p);
+      // Kabukta paylaşım sayfası / eski sürüm bilgisi kendi sonucunu söyler.
+      if (outcome === "downloaded") toast.success(tr("indiriliyor", { file: filename }));
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("indirmeBasarisiz")));
     }

@@ -27,7 +27,7 @@ export interface NativeAppPlugin {
 
 interface NativeBridge {
   isNativePlatform?: () => boolean;
-  Plugins?: { App?: NativeAppPlugin };
+  Plugins?: { App?: NativeAppPlugin } & Record<string, unknown>;
 }
 
 /** Sayfa kabuğun içindeyse `App` eklentisi, değilse null. */
@@ -126,17 +126,67 @@ export interface NativeBrowserPlugin {
   open(options: { url: string }): Promise<void> | void;
 }
 
-/** Sayfa kabuğun içindeyse ve kabuk `Browser` eklentisini taşıyorsa eklenti, değilse null. */
-export function nativeBrowserPlugin(win: object | undefined): NativeBrowserPlugin | null {
+/**
+ * Kabuk içindeyse ve kabuk `name` eklentisini `method` yöntemiyle taşıyorsa
+ * eklenti, değilse null. Eklentiyi taşımayan ESKİ uygulama sürümünde
+ * `Plugins.<name>` yoktur — çağıran bunu "bu sürümde yok" diye ele alır.
+ */
+function shellPlugin<T>(win: object | undefined, name: string, method: string): T | null {
   try {
-    const bridge = (win as { Capacitor?: NativeBridge & { Plugins?: { Browser?: NativeBrowserPlugin } } } | undefined)
-      ?.Capacitor;
+    const bridge = (win as { Capacitor?: NativeBridge } | undefined)?.Capacitor;
     if (!bridge?.isNativePlatform?.()) return null;
-    const browser = bridge.Plugins?.Browser;
-    return browser && typeof browser.open === "function" ? browser : null;
+    const plugin = bridge.Plugins?.[name] as Record<string, unknown> | undefined;
+    return plugin && typeof plugin[method] === "function" ? (plugin as T) : null;
   } catch {
     return null;
   }
+}
+
+/** Sayfa kabuğun içindeyse ve kabuk `Browser` eklentisini taşıyorsa eklenti, değilse null. */
+export function nativeBrowserPlugin(win: object | undefined): NativeBrowserPlugin | null {
+  return shellPlugin<NativeBrowserPlugin>(win, "Browser", "open");
+}
+
+/**
+ * Kabuğun `Filesystem` eklentisinden (`@capacitor/filesystem` 8.1.4) kullandığımız
+ * kadarı: base64 veriyi (`data:` öneki YOK) önbellek klasörüne yazar, dosyanın
+ * yerel adresini döner (paylaşım sayfasına verilir).
+ */
+export interface NativeFilesystemPlugin {
+  writeFile(options: { path: string; data: string; directory: "CACHE" }): Promise<{ uri: string }>;
+}
+
+/**
+ * Kabuğun `Share` eklentisinden (`@capacitor/share` 8.0.3) kullandığımız kadarı.
+ * Kullanıcı sayfayı kapatırsa söz "canceled" / "cancelled" iletisiyle reddedilir.
+ */
+export interface NativeSharePlugin {
+  share(options: { title?: string; dialogTitle?: string; files?: string[] }): Promise<unknown>;
+}
+
+/**
+ * Kabuğun KENDİ yazdırma eklentisi (`RothernPrint`): tam HTML belgesini sistem
+ * yazdırma penceresine verir (Android `PrintManager`, iOS
+ * `UIPrintInteractionController`); pencere "PDF olarak kaydet"i de sunar.
+ * Söz pencere gösterilince çözülür. `name` iş / dosya adıdır (uzantısız).
+ */
+export interface NativePrintPlugin {
+  print(options: { html: string; name: string }): Promise<unknown>;
+}
+
+/** Kabuktaysa ve kabuk `Filesystem` eklentisini taşıyorsa eklenti, değilse null. */
+export function nativeFilesystemPlugin(win: object | undefined): NativeFilesystemPlugin | null {
+  return shellPlugin<NativeFilesystemPlugin>(win, "Filesystem", "writeFile");
+}
+
+/** Kabuktaysa ve kabuk `Share` eklentisini taşıyorsa eklenti, değilse null. */
+export function nativeSharePlugin(win: object | undefined): NativeSharePlugin | null {
+  return shellPlugin<NativeSharePlugin>(win, "Share", "share");
+}
+
+/** Kabuktaysa ve kabuk `RothernPrint` eklentisini taşıyorsa eklenti, değilse null. */
+export function nativePrintPlugin(win: object | undefined): NativePrintPlugin | null {
+  return shellPlugin<NativePrintPlugin>(win, "RothernPrint", "print");
 }
 
 /**

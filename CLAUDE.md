@@ -4967,9 +4967,28 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   `/api` · `/_next` · dosya adresi, indirme, değiştirici tuş, başkasının işlediği tıklama dokunulmaz. Yarım formun
   üstünde okunacak belge bağlantısı `data-shell-browser` taşır → uygulama içi tarayıcı (`Browser` eklentisi; yoksa
   varsayılan). Kabukta `<html data-native-shell>` + `[data-new-tab-hint]` ("yeni sekmede açılır") gizli — yeni not bu
-  işareti taşır (`new-tab-hint-marker.test`). Uygulama kodu `window.open` ile aynı köken sayfası AÇMAZ (bugün tek
-  kullanım sipariş yazdırma `about:blank` penceresi; kabukta açılamaz → toast; tek istisna köprünün `Browser.open`
-  düşünce kullandığı yedek).
+  işareti taşır (`new-tab-hint-marker.test`). Uygulama kodu `window.open` ile aynı köken sayfası AÇMAZ (tek `about:blank`
+  penceresi TARAYICIDAKİ yazdırmanındır, `lib/save-file.ts` `printHtml`; kabukta pencere açılmaz, yazdırma kabuğun
+  `RothernPrint` eklentisine gider — aşağıdaki madde; tek istisna köprünün `Browser.open` düşünce kullandığı yedek).
+- **DOSYA İNDİRME VE YAZDIRMA KABUKTA (2026-10-16):** WebView `blob:` indirmesini yok sayar, `window.open` pencere açmaz
+  → uygulamada indirme ve yazdırma TEK yoldan: `lib/save-file.ts` `saveFile(blob, ad, { title? })` / `printHtml(html, ad)`;
+  panelde çağıran `hooks/use-save-file.ts` `useSaveFile()` sarmalayıcısını kullanır (eski sürüm bilgisi ve çevrilmiş hata
+  toast'ı orada, `web.panel.shell.fileExport.*`; yerel hata `failed` olur, fırlatmaz). Tarayıcıda davranış BİREBİR aynı
+  (`<a download>` + `URL.createObjectURL`, adres hemen değil `REVOKE_DELAY_MS` sonra bırakılır; yazdırma `about:blank`
+  penceresi, ilk `await`ten önce açılır, engellenirse `blocked` → çağıran kendi metnini söyler). Kabukta dosya →
+  `Filesystem.writeFile` (base64, `CACHE`, `safeFileName`: yol karakteri atılır, uzantı ve Türkçe harf kalır) +
+  `Share.share({ title, dialogTitle, files: [uri] })` (kullanıcı kapatırsa `cancelled`, sessiz); yazdırma → kabuğun KENDİ
+  `RothernPrint.print({ html, name })` eklentisi (Android `PrintManager`, iOS `UIPrintInteractionController`; "PDF olarak
+  kaydet" sistem penceresinde). Eklentiler `lib/native-shell.ts` `nativeFilesystemPlugin` / `nativeSharePlugin` /
+  `nativePrintPlugin` (köprüde yoksa ya da yöntemi işlev değilse null; çağrı `UNIMPLEMENTED` dönerse de eksik sayılır).
+  **ESKİ UYGULAMA SÜRÜMÜ** (eklentisiz kabuk) `unsupported` alır ve "bu sürümde yok — rothern.com'dan yapabilirsiniz"
+  bilgisini görür. Kural: `URL.createObjectURL` + `<a download>` ya da `window.print` / yazdırma penceresi DOĞRUDAN
+  çağrılmaz. Bağlı yerler: üç rapor xlsx'i (`use-company-reports` `downloadXlsx`; "indiriliyor" toast'ı yalnız
+  `outcome === "downloaded"`), kalem ve teklif şablonu, 2FA kurtarma kodları .txt, sipariş yazdırma. R2 belge bağlantıları
+  (`target="_blank"`, dış köken) bu yola girmez — işletim sisteminin tarayıcısında açılır. Eklentiler
+  `@capacitor/filesystem` 8.1.4, `@capacitor/share` 8.0.3 (kullanıcı onayı 2026-10-16). Sözleşme web `save-file.test`,
+  `use-save-file.test`, `file-download-hooks.test`, `siparis-detail.test` "mobil kabukta yazdırma",
+  `two-factor-section.test` ".txt indir", `bid-comparison-view.test` "Excel indir sonucu".
 - **GÜVENLİ ALAN (2026-10-15):** kök düzen `viewport` `viewportFit: "cover"` (+ `global-error` meta); sayfa çentiğin ve
   ana ekran çizgisinin altına çizilir, payı `globals.css` `:root` belirteçleri bırakır: `--safe-top/right/bottom/left`
   (önce Capacitor Android'in `<html>`e yazdığı `--safe-area-inset-*`, yoksa `env()`; payı olmayan yerde 0 → görünüm

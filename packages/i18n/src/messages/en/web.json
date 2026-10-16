@@ -2724,6 +2724,11 @@
       "nativePush": {
         "channelName": "Notifications"
       },
+      "fileExport": {
+        "uygulamaSurumundeYok": "This isn’t available in this version of the app — you can do it on rothern.com.",
+        "dosyaKaydedilemedi": "The file couldn’t be saved. Please try again.",
+        "yazdirilamadi": "Printing couldn’t be started. Please try again."
+      },
       "verificationGate": {
         "pageTitle": "This page requires company verification",
         "managerNote": "Your company administrator can apply for verification; please let them know.",

@@ -1,6 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import { useSaveFile, type SaveFileFn, type SaveFileResult } from "@/hooks/use-save-file";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 
 export type ReportType = "ALIM";
@@ -291,42 +292,50 @@ export function useBidComparisonReport() {
   });
 }
 
-/** xlsx indirir (blob) — dosya adı Content-Disposition'dan. */
-async function downloadXlsx(path: string, payload: unknown, fallback: string) {
+/**
+ * xlsx indirir (blob) — dosya adı Content-Disposition'dan. Dosyayı kullanıcıya
+ * `saveFile` verir (tarayıcıda indirme, mobil kabukta paylaşım sayfası);
+ * `outcome` yalnız `downloaded` iken "indiriliyor" denir.
+ */
+async function downloadXlsx(
+  path: string,
+  payload: unknown,
+  fallback: string,
+  save: SaveFileFn,
+): Promise<{ filename: string; outcome: SaveFileResult }> {
   const res = await companyApi.post(path, payload, { responseType: "blob" });
   const dispo = String(res.headers["content-disposition"] ?? "");
   const match = /filename="?([^";]+)"?/.exec(dispo);
   const filename = match?.[1] ?? fallback;
-  const url = URL.createObjectURL(res.data as Blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  return { filename };
+  const outcome = await save(res.data as Blob, filename);
+  return { filename, outcome };
 }
 
 export function useDownloadGeneralReport() {
+  const { saveFile } = useSaveFile();
   return useMutation({
     mutationFn: (payload: GeneralPayload) =>
-      downloadXlsx("/company/reports/general/download", payload, "rapor.xlsx"),
+      downloadXlsx("/company/reports/general/download", payload, "rapor.xlsx", saveFile),
   });
 }
 
 export function useDownloadSavingsReport() {
+  const { saveFile } = useSaveFile();
   return useMutation({
     mutationFn: (payload: SavingsPayload) =>
-      downloadXlsx("/company/reports/savings/download", payload, "rapor.xlsx"),
+      downloadXlsx("/company/reports/savings/download", payload, "rapor.xlsx", saveFile),
   });
 }
 
 export function useDownloadBidComparisonReport() {
+  const { saveFile } = useSaveFile();
   return useMutation({
     mutationFn: (payload: BidComparisonPayload) =>
       downloadXlsx(
         "/company/reports/bid-comparison/download",
         payload,
         "rapor.xlsx",
+        saveFile,
       ),
   });
 }

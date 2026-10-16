@@ -1,6 +1,7 @@
 "use client";
 
 import { tRuntime } from "@/i18n/runtime";
+import { useSaveFile } from "@/hooks/use-save-file";
 import { companyApi } from "@/lib/company-auth/api";
 import type { ItemImportResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import { useMutation } from "@tanstack/react-query";
 const IMPORT_SCOPE = { listingType: "ALIM" } as const;
 
 export function useDownloadItemTemplate() {
+  const { saveFile } = useSaveFile();
   return useMutation({
     mutationFn: async () => {
       const res = await companyApi.get("/company/listing-item-import/template", {
@@ -25,13 +27,8 @@ export function useDownloadItemTemplate() {
       const dispo = String(res.headers["content-disposition"] ?? "");
       const match = /filename="?([^";]+)"?/.exec(dispo);
       const filename = match?.[1] ?? "kalem-sablonu.xlsx";
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      return { filename };
+      const outcome = await saveFile(res.data as Blob, filename);
+      return { filename, outcome };
     },
   });
 }
