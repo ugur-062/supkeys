@@ -66,6 +66,14 @@ vi.mock("@/hooks/use-supplier-templates", () => ({
   fetchSupplierTemplate: vi.fn(),
 }));
 vi.mock("@/hooks/use-listing-templates", () => ({ useSaveTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
+// Kalem soru penceresi kapalıyken de soru şablonlarını okur: taklitsiz istek
+// sunucusuz CI'da "Sunucuya ulaşılamadı" toast'ı basıp toast sayan testleri
+// bozuyordu (yerelde çalışan API'ye gidip geçiyordu).
+vi.mock("@/hooks/use-templates", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/use-templates")>()),
+  useQuestionTemplates: () => ({ data: [], isPending: false, isError: false, refetch: vi.fn() }),
+  useQuestionTemplate: () => ({ data: undefined, isLoading: false }),
+}));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
 vi.mock("@/hooks/use-supplier-discovery", () => ({
