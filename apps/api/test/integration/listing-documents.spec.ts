@@ -8,6 +8,7 @@ import { prisma, truncateAll } from "./test-db";
 import {
   connect,
   invite,
+  makeBid,
   makeCompanyWithUser,
   makeListing,
 } from "./factories";
@@ -243,6 +244,28 @@ describe("list — görünürlük bazlı indirme yetkisi", () => {
     const guest = await makeCompanyWithUser(prisma, { country: "TR" });
     await invite(prisma, listing.id, guest.company.id, owner.user.id);
     await expect(service.list(guest.auth, listing.id)).resolves.toHaveLength(1);
+  });
+
+  it("PUBLIC: bağsız STANDART göremez; o talepte teklifi varsa görür (getOne hasBid istisnası)", async () => {
+    const { service } = makeDocsService();
+    const { owner, listing } = await ownerListing({
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    await seedDoc(listing.id, owner.company.id);
+    const free = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    await expect(service.list(free.auth, listing.id)).rejects.toThrow();
+
+    // Bağlıyken teklif vermiş, sonra bağlantısı düşmüş ücretsiz firma: getOne
+    // talebi açıyor → şartname dosyaları da açılmalı (derin denetim S027).
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: free.company.id,
+      createdById: free.user.id,
+      amount: 100,
+      status: "SUBMITTED",
+    });
+    await expect(service.list(free.auth, listing.id)).resolves.toHaveLength(1);
   });
 
   it("yalnız sahibin ülkesine açık talep ([TR]): yabancı firma belgeleri göremez (404)", async () => {

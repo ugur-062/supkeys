@@ -34,11 +34,18 @@ const ENDPOINTS = companyGetEndpoints().filter((e) => e.path !== "company-auth/m
  * varsayılan "buy" ve yalnız satış izni olan kullanıcı 403 alır. Web istemcisi
  * parametreyi HER ZAMAN gönderir (`use-company-dashboard.ts`), yani kullanıcıya
  * yansıyan bir kapı değil; sonda da doğru tarafı sormalı.
+ *
+ * Alım tarafı ayrıca handler İÇİNDE Gold ister (D-026) — dekoratörde olmadığı
+ * için `role-endpoints.ts` onu göremez. Web alım tarafını yalnız Gold'da sorar;
+ * sonda da Gold altı satış izinli kullanıcıda satış tarafını sorar, satış izni
+ * olmadan alım tarafı sorulursa beklenti GOLD'a yükseltilir (sahte YANLIŞ KİLİT
+ * yerine gerçek kapı ölçülür).
  */
-function probeQuery(path: string, perms: string[]): string {
-  if (path === "company/dashboard/action-center" && !perms.includes("buy:view") && perms.includes("sell:view"))
-    return "?portal=satis";
-  return "";
+function probe(path: string, perms: string[], tier: string, epTier: string | null): { query: string; tier: string | null } {
+  if (path !== "company/dashboard/action-center") return { query: "", tier: epTier };
+  const buyOk = perms.includes("buy:view") && tierOk(tier, "GOLD");
+  if (!buyOk && perms.includes("sell:view")) return { query: "?portal=satis", tier: epTier };
+  return { query: "", tier: perms.includes("buy:view") ? "GOLD" : epTier };
 }
 type Row = { user: string; tier: string; perms: string[]; results: Record<string, { status: number; ok: boolean }> };
 const rows: Row[] = [];
@@ -62,15 +69,16 @@ for (const u of USERS) {
       const chunk = ENDPOINTS.slice(i, i + 6);
       await Promise.all(
         chunk.map(async (ep) => {
-          const res = await apiGet(s, "/" + ep.path + probeQuery(ep.path, perms));
+          const pr = probe(ep.path, perms, tier, ep.tier);
+          const res = await apiGet(s, "/" + ep.path + pr.query);
           // Sahip izinleri örtük: billing:manage vb. /me listesinde yok.
           const ownerImplicit = isOwner && ep.permissions.some((p) => p.startsWith("billing:") || p === "company:delete" || p === "ownership:transfer");
           const hasPerm = ep.permissions.length === 0 || ep.permissions.some((p) => perms.includes(p)) || ownerImplicit;
-          const allowed = hasPerm && tierOk(tier, ep.tier);
+          const allowed = hasPerm && tierOk(tier, pr.tier);
           const forbidden = res.status === 403;
           results[ep.path] = { status: res.status, ok: allowed !== forbidden };
-          if (allowed && forbidden) problems.push(`YANLIŞ KİLİT ${ep.path} → 403 (izin: ${ep.permissions.join("|") || "-"}, paket: ${ep.tier ?? "-"})`);
-          if (!allowed && !forbidden) problems.push(`AÇIK KAPI ${ep.path} → ${res.status} (gereken izin: ${ep.permissions.join("|") || "-"}, paket: ${ep.tier ?? "-"})`);
+          if (allowed && forbidden) problems.push(`YANLIŞ KİLİT ${ep.path} → 403 (izin: ${ep.permissions.join("|") || "-"}, paket: ${pr.tier ?? "-"})`);
+          if (!allowed && !forbidden) problems.push(`AÇIK KAPI ${ep.path} → ${res.status} (gereken izin: ${ep.permissions.join("|") || "-"}, paket: ${pr.tier ?? "-"})`);
         }),
       );
     }

@@ -1,6 +1,7 @@
 "use client";
 
 
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -20,15 +21,17 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FileSpreadsheet } from "lucide-react";
 import { ExcelImportDialog } from "@/components/tenders/excel-import/excel-import-dialog";
-import type { ItemImportItem } from "@rothern/shared";
+import { QUANTITY_DECIMALS, type ItemImportItem } from "@rothern/shared";
+import { MoneyInputNumber, numberFromInputText } from "@/components/ui/money-input";
 import {
+  Controller,
   useFieldArray,
   useFormContext,
   useWatch,
 } from "react-hook-form";
 import { ItemDetailModal } from "./item-detail-modal";
 import { ItemQuestionModal } from "./item-question-modal";
-import { UnitSelect } from "@/components/ui/unit-select";
+import { UnitNotInCatalogHint, UnitSelect, isUnitNotInCatalog } from "@/components/ui/unit-select";
 import {
   CatalogPickerDialog,
   type PickedCatalogItem,
@@ -36,6 +39,7 @@ import {
 import { Textarea } from "@/components/catalyst/textarea";
 
 export function Step2Items() {
+  const t = useTranslations("web.panel.requests.step2Items");
   const {
     control,
     getValues,
@@ -70,6 +74,11 @@ export function Step2Items() {
       materialCode: it.materialCode ?? "",
       requiredByDate: it.requiredByDate ?? "",
       targetUnitPrice: it.targetUnitPrice ?? undefined,
+      // Muadil varsayılanı AÇIK (ilk satır, map-detail-to-form ve backend
+      // `?? true` ile aynı). Alan yazılmazsa RHF kapalı <details> içindeki
+      // işaretsiz checkbox'tan `false` okur → kalem sessizce "yalnız
+      // belirtilen marka" olurdu (derin denetim Y-16).
+      alternativeAllowed: true,
       customQuestion: "",
       questions: [],
     }));
@@ -82,9 +91,9 @@ export function Step2Items() {
     replace(next as TenderFormData["items"]);
     const dropped = keep.length + mapped.length - next.length;
     if (dropped > 0) {
-      toast.warning(`${dropped} kalem tavan nedeniyle eklenmedi (en fazla ${MAX_LISTING_ITEMS})`);
+      toast.warning(t("kalemTavanNedeniyleEklenmediEn", { dropped: dropped, MAXLISTINGITEMS: MAX_LISTING_ITEMS }));
     } else {
-      toast.success(`${mapped.length} kalem aktarıldı`);
+      toast.success(t("kalemAktarildi", { length: mapped.length }));
     }
   };
 
@@ -113,6 +122,9 @@ export function Step2Items() {
     );
   };
 
+  // Yeni satıra odak VERİLMEZ (arayüz testi D-245): ad alanı odak alıp ikinci
+  // tıkta bulanıklaşınca "kalem adı gerekli" hatası çıkıyor, düğme aşağı
+  // kayıyor ve art arda ikinci "Yeni Kalem Ekle" tıkı boşa gidiyordu.
   const handleAdd = () => {
     if (fields.length >= MAX_LISTING_ITEMS) return;
     append({
@@ -124,9 +136,11 @@ export function Step2Items() {
       materialCode: "",
       requiredByDate: "",
       targetUnitPrice: undefined,
+      // Bkz. applyImported: muadil varsayılanı açık (derin denetim Y-16).
+      alternativeAllowed: true,
       customQuestion: "",
       questions: [],
-    });
+    }, { shouldFocus: false });
   };
 
   return (
@@ -147,7 +161,7 @@ export function Step2Items() {
           disabled={fields.length >= MAX_LISTING_ITEMS}
         >
           <PackageSearch className="w-4 h-4" />
-          Katalogdan Ekle
+          {t("katalogdanEkle")}
         </Button>
         <Button
           type="button"
@@ -157,11 +171,16 @@ export function Step2Items() {
           disabled={fields.length >= MAX_LISTING_ITEMS}
         >
           <FileSpreadsheet className="w-4 h-4" />
-          Excel ile İçe Aktar
+          {t("excelIleIceAktar")}
         </Button>
       </div>
 
-      <div className="space-y-3">
+      {/* `@container`: kalem satırı VİEWPORT'a değil formun sütun genişliğine
+          göre dizilir (mobil denetim smoke-buyer#new1). Masaüstünde 1024–1200
+          px'te kenar menü + sağ ray formu ~300–470 px'e indiriyor; viewport
+          `md:` kırılımı satırı yine tek sıraya dizip Miktar kutusunu 24 px'e,
+          "Miktar" / "Birim" etiketlerini üst üste eziyordu. */}
+      <div className="@container space-y-3">
         {fields.map((field, idx) => (
           <ItemRow
             key={field.id}
@@ -174,8 +193,7 @@ export function Step2Items() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
-          Toplam <strong>{fields.length}</strong> kalem · Maksimum{" "}
-          {MAX_LISTING_ITEMS}
+          {t.rich("toplamKalemMaksimum", { n: fields.length, max: MAX_LISTING_ITEMS, strong: (c) => <strong>{c}</strong> })}
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -186,7 +204,7 @@ export function Step2Items() {
             disabled={fields.length >= MAX_LISTING_ITEMS}
           >
             <Plus className="w-4 h-4" />
-            Yeni Kalem Ekle
+            {t("yeniKalemEkle")}
           </Button>
         </div>
       </div>
@@ -213,10 +231,13 @@ interface ItemRowProps {
 }
 
 function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
+  const t = useTranslations("web.panel.requests.step2Items");
+  const locale = useLocale();
   const {
     register,
     control,
     setValue,
+    trigger,
     formState: { errors },
   } = useFormContext<TenderFormData>();
   // Faz 1: birim seçici kontrollü — `useWatch` ile okunur (P10 perf notu:
@@ -268,50 +289,69 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border bg-white p-4",
+        "rounded-xl border bg-white p-3 @lg:p-4",
         rowHasError ? "border-danger-300" : "border-slate-200",
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-xs font-semibold text-brand-700">
+      {/* Dar sütunda numara rozeti + sil düğmesi ÜST SATIRDA, alanlar tam
+          genişlik (mobil denetim 2026-10 g06: rozet + sil sütunu 360 px'te
+          alanları 162 px'e sıkıştırıyordu, satırın %40'ı boş sütundu).
+          Kırılımlar VİEWPORT'un değil kalem listesinin genişliğine bağlı
+          (`Step2Items` `@container`; mobil denetim smoke-buyer#new1 —
+          masaüstü 1024–1200 px'te sütun ~300–470 px):
+          - < 32rem: alanlar iki sütun (ad · miktar|birim · stok kodu).
+          - ≥ 32rem: rozet · alanlar · sil tek satırda; ad tam genişlik, altında
+            miktar | birim | stok kodu.
+          - ≥ 40rem: dört alan tek satırda; miktar ve birim en az 6.5rem (RU
+            "Количество *" 95 px — eski 12'lik ızgarada 81 px'e sığmayıp
+            "Единица"nın üstüne biniyordu).
+          Izgara yerleşimi DOM sırasını (alanlar → sil; sekme sırası) değiştirmez. */}
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+        <div className="col-start-1 row-start-1 flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-xs font-semibold text-brand-700 @max-lg:self-center">
           {index + 1}
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
-          <Field error={itemErrors?.name?.message} className="md:col-span-5">
+        <div className="col-span-3 row-start-2 grid min-w-0 grid-cols-2 gap-3 @lg:col-span-1 @lg:col-start-2 @lg:row-start-1 @lg:grid-cols-3 @[40rem]:grid-cols-[minmax(0,5fr)_minmax(6.5rem,2fr)_minmax(6.5rem,2fr)_minmax(0,3fr)]">
+          <Field error={itemErrors?.name?.message} className="col-span-2 @lg:col-span-3 @[40rem]:col-span-1">
             <Label htmlFor={`items.${index}.name`} required>
-              Kalem Adı
+              {t("kalemAdi")}
             </Label>
             <Input
               id={`items.${index}.name`}
-              placeholder="Örn. A4 fotokopi kağıdı"
+              placeholder={t("ornA4FotokopiKagidi")}
               hasError={!!itemErrors?.name}
               {...register(`items.${index}.name`)}
             />
           </Field>
 
-          <Field
-            error={itemErrors?.quantity?.message}
-            className="md:col-span-2"
-          >
+          <Field error={itemErrors?.quantity?.message}>
             <Label htmlFor={`items.${index}.quantity`} required>
-              Miktar
+              {t("miktar")}
             </Label>
-            <Input
-              id={`items.${index}.quantity`}
-              type="number"
-              min={0.0001}
-              step="any"
-              hasError={!!itemErrors?.quantity}
-              {...register(`items.${index}.quantity`, {
-                valueAsNumber: true,
-              })}
+            {/* Dilin ondalık biçimi: `type="number"` Türkçe tarayıcıda
+                "1.500"ü 1,5 · "1.250,5"i 1,2505 okuyordu (arayüz testi son tur
+                S-BUY). Boş/yarım değer NaN → şemanın "miktar gerekli" iletisi. */}
+            <Controller
+              control={control}
+              name={`items.${index}.quantity`}
+              render={({ field }) => (
+                <MoneyInputNumber
+                  id={`items.${index}.quantity`}
+                  name={field.name}
+                  ref={field.ref}
+                  maxDecimals={QUANTITY_DECIMALS}
+                  hasError={!!itemErrors?.quantity}
+                  value={field.value}
+                  onChange={(v) => field.onChange(v ?? Number.NaN)}
+                  onBlur={field.onBlur}
+                />
+              )}
             />
           </Field>
 
-          <Field error={itemErrors?.unit?.message} className="md:col-span-2">
+          <Field error={itemErrors?.unit?.message}>
             <Label htmlFor={`items.${index}.unit`} required>
-              Birim
+              {t("birim")}
             </Label>
             {/* Faz 1: serbest metin yerine SEÇİM. `unit` (okunur metin) ve
                 `unitCode` (kanonik) birlikte yazılır; "listede yok" seçilirse
@@ -321,81 +361,89 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               value={unitValue ?? ""}
               unitCode={unitCodeValue ?? null}
               hasError={!!itemErrors?.unit}
+              showHint={false}
               onChange={(next) => {
                 setValue(`items.${index}.unit`, next.unit, {
                   shouldDirty: true,
-                  shouldValidate: true,
+                  // "Diğer…" seçilince değer boş gelir — hemen doğrulamak boş
+                  // kutuya yazmadan "Birim zorunlu" basıyordu (webB-03 yeniden
+                  // doğrulama). Boş değer yalnız hata zaten görünüyorsa
+                  // doğrulanır; boş çıkış `onFreeTextBlur`'da, kalanı kayıtta.
+                  shouldValidate: next.unit.trim() !== "" || !!itemErrors?.unit,
                 });
                 setValue(`items.${index}.unitCode`, next.unitCode, {
                   shouldDirty: true,
                 });
               }}
+              onFreeTextBlur={() => void trigger(`items.${index}.unit`)}
             />
           </Field>
 
           <Field
             error={itemErrors?.materialCode?.message}
-            className="md:col-span-3"
+            className="col-span-2 @lg:col-span-1"
           >
-            <Label htmlFor={`items.${index}.materialCode`}>Stok Kodu</Label>
+            <Label htmlFor={`items.${index}.materialCode`}>{t("stokKodu")}</Label>
             <Input
               id={`items.${index}.materialCode`}
-              placeholder="örn. STK-00123"
+              placeholder={t("ornStk00123")}
               hasError={!!itemErrors?.materialCode}
               {...register(`items.${index}.materialCode`)}
             />
           </Field>
         </div>
 
-
         <button
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          aria-label="Kalemi sil"
-          title={canRemove ? "Bu kalemi sil" : "En az 1 kalem olmalı"}
+          className="col-start-3 row-start-1 flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label={t("kalemiSil")}
+          title={canRemove ? t("buKalemiSil") : t("enAz1KalemOlmali")}
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+      {/* "Katalogda yok" notu dar birim sütununda değil, satırın altında tam
+          genişlikte (arayüz testi D-096). */}
+      {isUnitNotInCatalog(unitValue, unitCodeValue) ? <UnitNotInCatalogHint className="mt-2 @lg:ml-11" /> : null}
 
       {/* Faz 3 — kalem detayları. Panel satırın ALTINDA tam genişlikte
           açılır (v2 7a): eskiden flex satırının içindeydi ve açılınca Kalem
           Adı / Miktar / Birim / Stok Kodu sütunlarını sıkıştırıyordu. KATLANIR: varsayılan görünüm bugünkü kadar
           sade kalsın diye altı yeni alan buraya alındı. Kullanıcı ihtiyaç
           duyduğunda açar; çoğu kalemde hiç açılmayacak. */}
-      <details className="group mt-3 ml-11 rounded-lg border border-zinc-950/10 bg-zinc-50/50">
+      <details className="group mt-3 rounded-lg border border-zinc-950/10 bg-zinc-50/50 @lg:ml-11">
         <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-zinc-700 hover:text-zinc-900">
           <span className="inline-flex items-center gap-1.5">
             <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
-            Detaylar
+            {t("detaylar")}
             <span className="text-xs font-normal text-zinc-500">
-              (marka, muadil, şartname, garanti)
+              {t("markaMuadilSartnameGaranti")}
             </span>
           </span>
         </summary>
-        <div className="grid grid-cols-1 gap-3 border-t border-zinc-950/5 px-3 py-3 md:grid-cols-6">
-          <Field error={itemErrors?.brand?.message} className="md:col-span-3">
-            <Label htmlFor={`items.${index}.brand`}>Marka</Label>
+        <div className="grid grid-cols-1 gap-3 border-t border-zinc-950/5 px-3 py-3 @lg:grid-cols-6">
+          <Field error={itemErrors?.brand?.message} className="@lg:col-span-3">
+            <Label htmlFor={`items.${index}.brand`}>{t("marka")}</Label>
             <Input
               id={`items.${index}.brand`}
-              placeholder="örn. SKF"
+              placeholder={t("ornSkf")}
               hasError={!!itemErrors?.brand}
               {...register(`items.${index}.brand`)}
             />
           </Field>
-          <Field error={itemErrors?.mpn?.message} className="md:col-span-3">
-            <Label htmlFor={`items.${index}.mpn`}>Üretici Parça No</Label>
+          <Field error={itemErrors?.mpn?.message} className="@lg:col-span-3">
+            <Label htmlFor={`items.${index}.mpn`}>{t("ureticiParcaNo")}</Label>
             <Input
               id={`items.${index}.mpn`}
-              placeholder="örn. 6204-2RS"
+              placeholder={t("orn62042rs")}
               hasError={!!itemErrors?.mpn}
               {...register(`items.${index}.mpn`)}
             />
           </Field>
 
-          <Field className="md:col-span-6">
+          <Field className="@lg:col-span-6">
             <label className="flex items-start gap-2.5">
               <input
                 type="checkbox"
@@ -404,12 +452,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               />
               <span className="text-sm">
                 <span className="font-medium text-zinc-800">
-                  Muadil (eşdeğer) ürün teklif edilebilir
+                  {t("muadilEsdegerUrunTeklifEdilebilir")}
                 </span>
                 <span className="block text-xs text-zinc-500">
-                  Kapatırsanız tedarikçiler yalnız belirttiğiniz markayı
-                  teklif edebilir. Açıkken teklif verirken hangi markayı
-                  önerdiklerini belirtirler.
+                  {t("kapatirsanizTedarikcilerYalnizBelirttiginizM")}
                 </span>
               </span>
             </label>
@@ -417,36 +463,38 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
 
           <Field
             error={itemErrors?.specification?.message}
-            className="md:col-span-6"
+            className="@lg:col-span-6"
           >
             <Label htmlFor={`items.${index}.specification`}>
-              Teknik Şartname
+              {t("teknikSartname")}
             </Label>
             <Textarea
               id={`items.${index}.specification`}
               rows={3}
-              placeholder="Standart, tolerans, malzeme kalitesi…"
+              placeholder={t("standartToleransMalzemeKalitesi")}
               {...register(`items.${index}.specification`)}
             />
           </Field>
 
           <Field
             error={itemErrors?.warrantyMonths?.message}
-            className="md:col-span-3"
+            className="@lg:col-span-3"
           >
             <Label htmlFor={`items.${index}.warrantyMonths`}>
-              Garanti (ay)
+              {t("garantiAy")}
             </Label>
+            {/* Yerel tam sayı (arayüz testi kapanış NUM): `type="number"`
+                Türkçe tarayıcıda "0,5"i 05 = 5 ay okuyup taslağa sessizce
+                yazıyordu; geçersiz giriş artık NaN → alan hatası. */}
             <Input
               id={`items.${index}.warrantyMonths`}
-              type="number"
-              min={0}
-              max={600}
-              placeholder="örn. 24"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={t("orn24")}
               hasError={!!itemErrors?.warrantyMonths}
               {...register(`items.${index}.warrantyMonths`, {
-                setValueAs: (v: string) =>
-                  v === "" ? undefined : Number(v),
+                setValueAs: (v: unknown) => numberFromInputText(v, locale),
               })}
             />
           </Field>
@@ -456,12 +504,12 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           {isInternational ? (
             <Field
               error={itemErrors?.hsCode?.message}
-              className="md:col-span-3"
+              className="@lg:col-span-3"
             >
-              <Label htmlFor={`items.${index}.hsCode`}>GTİP / HS Kodu</Label>
+              <Label htmlFor={`items.${index}.hsCode`}>{t("gtipHsKodu")}</Label>
               <Input
                 id={`items.${index}.hsCode`}
-                placeholder="örn. 8482.10"
+                placeholder={t("orn848210")}
                 hasError={!!itemErrors?.hsCode}
                 {...register(`items.${index}.hsCode`)}
               />
@@ -471,9 +519,12 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
       </details>
 
       {/* 2 ayrı buton + chip özeti */}
-      <div className="mt-3 pt-3 border-t border-slate-100 pl-11 flex items-center gap-2 flex-wrap">
+      <div className="mt-3 pt-3 border-t border-slate-100 @lg:pl-11 flex items-center gap-2 flex-wrap">
+        {/* `data-reveal-invalid`: hata yalnız pencerede çizilen alandaysa (açıklama,
+            tarih, hedef fiyat, soru) "yayınla / taslak" kapısı bu düğmeye gider. */}
         <button
           type="button"
+          data-reveal-invalid={detailHasError ? "true" : undefined}
           onClick={() => setDetailOpen(true)}
           className={cn(
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
@@ -484,7 +535,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           )}
         >
           <FileText className="w-3.5 h-3.5" />
-          {hasDetails ? "Detayı Düzenle" : "Detay Ekle"}
+          {hasDetails ? t("detayiDuzenle") : t("detayEkle")}
           {hasDetails ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
           ) : null}
@@ -492,6 +543,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
 
         <button
           type="button"
+          data-reveal-invalid={questionHasError ? "true" : undefined}
           onClick={() => setQuestionOpen(true)}
           className={cn(
             "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
@@ -502,7 +554,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           )}
         >
           <HelpCircle className="w-3.5 h-3.5" />
-          {hasQuestion ? `Sorular (${questionCount})` : "Soru Ekle"}
+          {hasQuestion ? t("sorular", { questionCount: questionCount }) : t("soruEkle")}
           {hasQuestion ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
           ) : null}

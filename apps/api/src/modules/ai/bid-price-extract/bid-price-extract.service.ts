@@ -1,10 +1,13 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
-import type { BidImportResult } from "@rothern/shared";
+import { isCurrencyCode, type BidImportResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { BidImportService } from "../../company-listings/import/bid-import.service";
 import type { DocRow } from "../../company-listings/import/bid-matching";
 import { StorageService } from "../../storage/storage.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
+import { parseSeparatedNumber } from "../ai-text";
 import { AiService, type AiCallResult } from "../ai.service";
 import { routeExtractInput, type RoutedInput } from "../tender-extract/ai-extract-router";
 import { isOwnAiExtractKey } from "../tender-extract/ai-extract-keys";
@@ -24,7 +27,6 @@ import {
  */
 
 const MAX_DOC_ROWS = 300;
-const CURRENCIES = new Set(["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"]);
 
 @Injectable()
 export class BidPriceExtractService {
@@ -44,12 +46,12 @@ export class BidPriceExtractService {
     this.ai.assertAiAccess(user);
     for (const key of dto.fileKeys) {
       if (!isOwnAiExtractKey(key, user.companyId)) {
-        throw new BadRequestException("Geçersiz dosya anahtarı");
+        throw new BadRequestException(i18nMessage("api.ai.gecersizDosyaAnahtari"));
       }
     }
-    if (dto.fileKeys.length === 0) throw new BadRequestException("En az bir dosya seçin");
+    if (dto.fileKeys.length === 0) throw new BadRequestException(i18nMessage("api.ai.enAzBirDosyaSecin"));
     if (dto.fileKeys.length > this.config.maxPages) {
-      throw new BadRequestException(`Belge çok uzun (en fazla ${this.config.maxPages} dosya)`);
+      throw new BadRequestException(i18nMessage("api.ai.belgeCokUzunEnFazlaDosya", { maxPages: this.config.maxPages }));
     }
 
     // Kalemler+yetki (getOne) ile R2 indirme bağımsız → paralel (uzak DB/R2
@@ -88,7 +90,7 @@ export class BidPriceExtractService {
       // TAMAMLANMIŞ satırları kurtar; premium retry'a (10+ sn, 4× maliyet) gitme.
       const rows = salvageRows(result.text);
       if (rows.length > 0) {
-        parsed = { rows };
+        parsed = { ...salvageHeader(result.text), rows };
         salvaged = rows.length;
         this.logger.warn(
           `bid_price_extract: MAX_TOKENS — kesik çıktıdan ${rows.length} satır kurtarıldı (outTok=${result.outputTokens ?? "?"})`,
@@ -107,19 +109,32 @@ export class BidPriceExtractService {
       parsed = tryParse(result.text);
     }
 
-    const rows = sanitizeRows(parsed?.rows);
+    const rows = sanitizeRows(
+      parsed?.rows,
+      typeof parsed?.docLanguage === "string" ? parsed.docLanguage : null,
+    );
     const out = await this.bidImport.fromDocRows(listing, rows, {
       pricesIncludeVat: typeof parsed?.pricesIncludeVat === "boolean" ? parsed.pricesIncludeVat : null,
       docCurrency: typeof parsed?.docCurrency === "string" ? parsed.docCurrency : null,
+      crossLanguage: declaredCrossLanguage(parsed?.docLanguage, parsed?.itemsLanguage),
     });
-    if (salvaged > 0) {
-      out.notices.unshift(
-        `AI çıktısı uzunluk tavanına çarptı — ${salvaged} satır kurtarıldı; belgenin devamı okunmamış olabilir (belgeyi bölerek yeniden deneyin)`,
-      );
-    }
-    if (parsed == null) out.notices.unshift("Belge okunamadı — AI geçerli sonuç döndürmedi; şablonu deneyin");
+    // Uyarılar istek dilinde (önizleme bandında olduğu gibi basılır).
+    if (salvaged > 0) out.notices.unshift(tApi("api.ai.bidPriceSalvaged", { n: salvaged }));
+    if (parsed == null) out.notices.unshift(tApi("api.ai.bidPriceUnreadable"));
     return { ...out, route: routed.route, downgraded: result.downgraded, warned: result.warned };
   }
+}
+
+/**
+ * Model belge ile kalem listesinin dilini ayrı söyler; ikisi de geçerli ve
+ * farklıysa diller arası (ipucu eşiği gevşer — `bid-matching`). Birinin
+ * eksikliği "aynı dil" sayılır; yazı farkını eşleştirme motoru ayrıca yakalar.
+ */
+export function declaredCrossLanguage(doc: unknown, items: unknown): boolean {
+  const code = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase().slice(0, 2) : "");
+  const a = code(doc);
+  const b = code(items);
+  return /^[a-z]{2}$/.test(a) && /^[a-z]{2}$/.test(b) && a !== b;
 }
 
 function tryParse(text: string): Record<string, unknown> | null {
@@ -129,6 +144,26 @@ function tryParse(text: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Kesik (MAX_TOKENS) JSON'dan belge ustbilgisini (docLanguage, docCurrency,
+ * itemsLanguage, pricesIncludeVat) okur. Sema bunlari rows'tan once yazdirir;
+ * yalniz `rows` dizisinden ONCEKI kisma bakilir (satir metnine gomulu bir
+ * "docLanguage" dizgisi ustbilgi sayilmaz). docLanguage olmadan EN "1,500"
+ * binlik okunamiyordu (derin denetim MU-08).
+ */
+export function salvageHeader(text: string): Record<string, unknown> {
+  const rowsAt = text.search(/"rows"\s*:\s*\[/);
+  const head = rowsAt === -1 ? text : text.slice(0, rowsAt);
+  const out: Record<string, unknown> = {};
+  for (const key of ["docLanguage", "docCurrency", "itemsLanguage"]) {
+    const m = new RegExp(`"${key}"\\s*:\\s*"([^"\\\\]{1,16})"`).exec(head);
+    if (m) out[key] = m[1];
+  }
+  const vat = /"pricesIncludeVat"\s*:\s*(true|false)/.exec(head);
+  if (vat) out.pricesIncludeVat = vat[1] === "true";
+  return out;
 }
 
 /**
@@ -179,43 +214,34 @@ export function salvageRows(text: string): Record<string, unknown>[] {
  * MODEL çıktısındaki sayıyı okur (Excel/CSV hücresi DEĞİL).
  *
  * Sözleşme: binlik ayracı yok, ondalık NOKTA. Bu yüzden "1.875" = 1,875 —
- * `parseLocaleNumber`'ın TR sezgisiyle 1875 DEĞİL. Sözleşme dışına çıkan bir
- * model çıktısı için tek tolerans: yalnız virgül içeren değer (TR ondalık)
- * noktaya çevrilir; her iki ayraç birlikte gelirse (ör. "1.234,56") TR biçimi
- * kabul edilir.
+ * `parseLocaleNumber`'ın TR sezgisiyle 1875 DEĞİL. Sözleşme dışı çıktı
+ * (model belgedekini aynen kopyalar) `parseSeparatedNumber` ile okunur: iki
+ * ayraç birlikte gelirse SONDAKİ ondalıktır ("1.234,56" TR, "1,500.50" EN —
+ * eskiden hep TR sayılıp 1.5005 okunuyordu, 1000x düşük fiyat); tekrarlı
+ * gruplar binliktir ("1,500,000"). Tek virgül + tam 3 hane ("1,500") yalnız
+ * belge dili virgülü binlik kullanan bir dilse (EN/CJK…) binlik okunur,
+ * aksi hâlde sözleşmedeki TR ondalık ("1500,50" gibi) sayılır.
  */
-export function parseModelNumber(raw: string): number | null {
-  // Para sembolü/birim/boşluk gibi süsler atılır; rakam, ayraç ve işaret kalır
-  // ("185,50 ₺" → "185,50").
-  const s = raw.trim().replace(/[^\d.,-]/g, "");
-  if (!s) return null;
-  const hasDot = s.includes(".");
-  const hasComma = s.includes(",");
-  let normalized = s;
-  if (hasDot && hasComma) {
-    // "1.234,56" → TR: nokta binlik, virgül ondalık.
-    normalized = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    normalized = s.replace(",", ".");
-  }
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
+const COMMA_THOUSANDS_LANGS = new Set(["en", "zh", "ja", "ko", "th", "he", "hi"]);
+
+export function parseModelNumber(raw: string, docLanguage?: string | null): number | null {
+  const lang = typeof docLanguage === "string" ? docLanguage.trim().toLowerCase().slice(0, 2) : "";
+  return parseSeparatedNumber(raw, { commaThousands: COMMA_THOUSANDS_LANGS.has(lang) });
 }
 
-export function sanitizeRows(raw: unknown): DocRow[] {
+export function sanitizeRows(raw: unknown, docLanguage?: string | null): DocRow[] {
   if (!Array.isArray(raw)) return [];
   const num = (v: unknown): number | null => {
     // MODEL ÇIKTISI sözleşmesi (bid-price-extract.prompts.ts): binlik ayracı
     // YASAK, ondalık ayırıcı NOKTA, 3 ondalığa kadar. Excel/CSV hücreleri için
     // yazılmış TR sezgisi (`parseLocaleNumber`: "tam 3 hane = binlik") buraya
     // uygulanınca "1.875" → 1875 oluyordu, yani 1000× fiyat (denetim 2026-08-24
-    // Parça 6). Model çıktısı sade `Number()` ile okunur; TR biçimli bir değer
-    // gelirse (sözleşme dışı) yalnız virgül-ondalık toleransı uygulanır.
+    // Parça 6). Sözleşme dışı ayraçlar `parseModelNumber` kuralıyla okunur.
     const n =
       typeof v === "number"
         ? v
         : typeof v === "string"
-          ? parseModelNumber(v.slice(0, 40))
+          ? parseModelNumber(v.slice(0, 40), docLanguage)
           : null;
     return n != null && Number.isFinite(n) && n >= 0 && n < 1e15 ? n : null;
   };
@@ -236,7 +262,7 @@ export function sanitizeRows(raw: unknown): DocRow[] {
         quantity: num(r.quantity),
         unit: str(r.unit, 20),
         // Sembol/TL gibi değerler normalizeCurrency'de çözülür; burada ham bırak.
-        currency: cur && (CURRENCIES.has(cur) || cur.length <= 3) ? cur : curRaw,
+        currency: cur && (isCurrencyCode(cur) || cur.length <= 3) ? cur : curRaw,
         deliveryText: str(r.deliveryText, 80),
         hintLineNo:
           typeof r.hintLineNo === "number" && Number.isInteger(r.hintLineNo) && r.hintLineNo > 0

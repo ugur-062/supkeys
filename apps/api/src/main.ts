@@ -15,26 +15,31 @@ import type { ValidationError } from "class-validator";
 import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
-import { isCorsOriginAllowed } from "./common/cors-origin";
+import { CORS_EXPOSED_HEADERS, isCorsOriginAllowed } from "./common/cors-origin";
+import { configureBodyParser, HTTP_BODY_APP_OPTIONS } from "./common/http/body-parser";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
-import { assertProdEmailSender } from "./common/config/email-sender";
+import { assertAdmin2faConfig } from "./common/config/admin-2fa";
+import { assertProdEmailSender, assertProdStreamSenders } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
+import { reportBootstrapFailure } from "./common/bootstrap-failure";
 import { translateValidatorMessage } from "./common/error-messages";
+import { tApi } from "./common/i18n/i18n.service";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Pino logger devralınana kadar bootstrap loglarını tamponla.
     bufferLogs: true,
-    bodyParser: false,
-    /**
-     * V2-1 — Resend webhook svix signature verification için raw body gerekir.
-     * `rawBody: true` ile Nest, body parser tarafından buffer'ı `request.rawBody`'de
-     * saklar. Aşağıda webhook endpoint'i için raw verifier eklenir.
-     */
-    rawBody: true,
+    // Modül kurulumu düşerse Nest KENDİSİ `process.exit(1)` çağırmasın (tampon
+    // boşalmadan, sebep yazılmadan çıkardı): hata aşağıdaki `.catch`e fırlar,
+    // sebep orada stderr'e yazılır (bkz. common/bootstrap-failure.ts).
+    abortOnError: false,
+    // Gövde ayrıştırıcıyı biz kurarız (aşağıda `configureBodyParser`); Resend
+    // webhook'unun ham gövdesi YALNIZ o uç için saklanır. `rawBody: true`
+    // VERİLMEZ — Nest özel `verify`ı ezer (bkz. common/http/body-parser.ts).
+    ...HTTP_BODY_APP_OPTIONS,
   });
   // Structured logger (Pino) — tüm Nest loglarını JSON + redaction ile üstlenir.
   app.useLogger(app.get(PinoLogger));
@@ -89,12 +94,21 @@ async function bootstrap() {
   // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
   assertProdConfigSanity(config);
 
+  // Admin 2FA zorunlulugu (derin denetim MU-01): ADMIN_2FA_REQUIRED_ROLES
+  // gecersizse THROW; prod'da bilincli kapatildiysa gurultulu uyari.
+  const admin2faWarning = assertAdmin2faConfig(config);
+  if (admin2faWarning) {
+    new Logger("Bootstrap").warn(admin2faWarning);
+    reportToSentry(admin2faWarning, "warning");
+  }
+
   // Gönderen adresi (fail-closed): canlı posta YALNIZ rothern.com alan adından
   // çıkabilir. 2026-09-13'te canlı `onboarding@resend.dev` kullanıyordu —
   // müşteriye giden her e-posta sağlayıcının TEST alan adından gidiyordu ve
   // hata sessizdi (gönderim başarılı, günlük temiz, testler yeşil). Artık
   // yanlış adresle boot edilmez (bkz. common/config/email-sender.ts).
   assertProdEmailSender(config);
+  assertProdStreamSenders(config);
 
   // Faz AI-0 — AI anahtar sağlığı: placeholder/bozuk anahtar prod'da BOOT
   // ETMEZ (bozuk anahtarla "AI açık" sanılıp runtime'da her çağrının 502
@@ -125,23 +139,9 @@ async function bootstrap() {
   // düşürüldü). Vergi levhası ve doc upload'ları için 5MB makul — TR
   // vergi levhası taramaları 3-4MB'a çıkabiliyor. V2.5'te R2 presigned'a
   // geçince 1MB'a düşürülecek. Auth ve diğer route'larda zaten ufak body.
-  app.useBodyParser("json", {
-    limit: "5mb",
-    /**
-     * Sadece `/api/webhooks/resend` için raw body sakla (svix verify gerekli).
-     * Diğer endpoint'ler için memory'i tutmuyoruz.
-     */
-    verify: (
-      req: { rawBody?: Buffer; url?: string },
-      _res: unknown,
-      buf: Buffer,
-    ) => {
-      const url = req.url ?? "";
-      if (url === "/api/webhooks/resend" || url.startsWith("/webhooks/resend")) {
-        req.rawBody = buf;
-      }
-    },
-  });
+  // Kablolama tek kaynak: common/http/body-parser.ts (uçtan uca test aynı
+  // fonksiyonu koşar — test/integration/resend-webhook-e2e.spec.ts).
+  configureBodyParser(app);
   // NOT: urlencoded body parser KALDIRILDI (güvenlik) — hiçbir endpoint form/
   // urlencoded gövde beklemiyordu (zero consumers, grep-verified); JSON-only API.
   // Parser'ı tutmak, form-urlencoded'ın *simple request* olması nedeniyle
@@ -176,9 +176,10 @@ async function bootstrap() {
       transform: true,
       forbidNonWhitelisted: true,
       /**
-       * Polish-3 — class-validator sonuçlarını TR mesajlarla
-       * `{ message, errors: { field: msg } }` shape'ine çevir.
-       * Frontend `extractFieldErrors` ile inline gösterir.
+       * Polish-3 — class-validator sonuçlarını `{ message, errors: { field:
+       * msg } }` shape'ine çevir; metinler İSTEK DİLİNDE (i18n Faz 0, ALS
+       * bağlamı LocaleMiddleware'den). Frontend `extractFieldErrors` ile
+       * inline gösterir.
        */
       exceptionFactory: (errors: ValidationError[]) => {
         const fieldErrors: Record<string, string> = {};
@@ -194,7 +195,9 @@ async function bootstrap() {
               const PRIORITY = ["isDefined", "isNotEmpty", "isString", "isNumber", "isInt", "isBoolean", "isEnum", "isIn", "isArray", "isEmail", "isIso8601", "isUrl"];
               const keys = Object.keys(err.constraints);
               const pick = PRIORITY.find((k) => keys.includes(k)) ?? keys[0];
-              const firstMsg = missing ? "Bu alan zorunlu" : (pick ? err.constraints[pick] : undefined) ?? "Geçersiz değer";
+              const firstMsg = missing
+                ? tApi("api.validation.required")
+                : ((pick ? err.constraints[pick] : undefined) ?? tApi("api.validation.invalid"));
               fieldErrors[path] = translateValidatorMessage(firstMsg);
             }
             if (err.children && err.children.length > 0) {
@@ -207,7 +210,7 @@ async function bootstrap() {
         return new BadRequestException({
           statusCode: 400,
           error: "Bad Request",
-          message: "Doğrulama hatası",
+          message: tApi("api.validation.failed"),
           errors: fieldErrors,
         });
       },
@@ -228,9 +231,9 @@ async function bootstrap() {
     origin: (origin, cb) =>
       cb(null, isCorsOriginAllowed(origin, { corsOrigins, allowVercel })),
     credentials: true,
-    // Correlation-id: api ve app AYRI origin'de → tarayıcı istemci response
-    // header'ını ancak expose edilirse okuyabilir (destek ekibine iletmek için).
-    exposedHeaders: ["x-request-id"],
+    // api ve app AYRI origin'de → tarayıcı response header'ını ancak expose
+    // edilirse okuyabilir (x-request-id + indirme dosya adı; bkz. cors-origin.ts).
+    exposedHeaders: CORS_EXPOSED_HEADERS,
   });
 
   // Graceful shutdown — Nest lifecycle hooks tetiklenir (Prisma bağlantısı
@@ -276,9 +279,10 @@ async function bootstrap() {
  * patlasın" garantisi sessizce kırılmıştı. Bu `.catch` onu geri veriyor.
  */
 bootstrap().catch((err: unknown) => {
-  new Logger("Bootstrap").error(
-    `Uygulama başlatılamadı: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-  );
+  // `bufferLogs: true` yüzünden Logger satırı tamponda kalıp `process.exit`
+  // ile kayboluyordu (deploy kırmızı, günlükte sebep yok) — sebep ÖNCE
+  // eşzamanlı olarak stderr'e yazılır, sonra tampon boşaltılır.
+  reportBootstrapFailure(err);
   reportToSentry("bootstrap-failed", "error", {
     extra: { reason: err instanceof Error ? err.message : String(err) },
   });

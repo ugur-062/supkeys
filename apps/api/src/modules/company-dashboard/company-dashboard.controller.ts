@@ -1,3 +1,5 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   Controller,
   ForbiddenException,
@@ -5,13 +7,17 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { hasReadContext } from "../../common/company/full-read-context";
+import { appDayStart, appNextDayStart } from "../../common/time/app-calendar";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyDashboardService } from "./company-dashboard.service";
 import {
@@ -29,7 +35,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Dönem paramı çözümü (Faz 3): month|quarter|year veya custom+from&to.
  * Geçersiz/yarım custom sessizce year'a düşer (yarım aralıkla hesap yok).
- * `to` gün SONU dahil olsun diye +1 gün HARİÇ üst sınıra çevrilir.
+ * `to` gün SONU dahil olsun diye ertesi günün 00:00'ı (İstanbul) HARİÇ üst
+ * sınır olur.
  */
 function resolvePeriod(
   period?: string,
@@ -43,14 +50,11 @@ function resolvePeriod(
     DATE_RE.test(from) && DATE_RE.test(to) &&
     from <= to
   ) {
-    const f = new Date(`${from}T00:00:00`);
-    const t = new Date(`${to}T00:00:00`);
-    if (!Number.isNaN(+f) && !Number.isNaN(+t)) {
-      return {
-        p: "year",
-        range: { from: f, to: new Date(t.getTime() + 86_400_000) },
-      };
-    }
+    // Gün sınırları İstanbul duvar saatiyle (sunucu UTC; eskiden seçilen ilk
+    // günün ilk 3 saati dışarıda kalıyordu — derin denetim LU-07).
+    const f = appDayStart(from);
+    const t = appNextDayStart(to);
+    if (f && t) return { p: "year", range: { from: f, to: t } };
   }
   return { p: "year" };
 }
@@ -59,7 +63,17 @@ function resolvePeriod(
  * Pano uçları — yetki tablosu 2026-09-05: satınalma panosu `buy:view`, satış
  * panosu `sell:view` (görüntüleme izni; koltuk gerekmez). Onaylayıcı-only ve
  * portalı olmayan üye 403 alır — eskiden yalnız giriş yetiyordu.
+ *
+ * PAKET (arayüz testi D-026, kullanıcı kararı T-01 2026-10-01): satınalma
+ * panosu uçları satınalma panelinin geri kalanı gibi GOLD ister
+ * (handler düzeyinde @RequireTier("GOLD") + CompanyPaidTierGuard; `user.tier`
+ * efektif kademedir → süresi dolan Gold STANDART sayılır). Satış uçları
+ * kademesiz kalır (sınıf düzeyinde tier guard YOK — varsayılan SILVER eşiği
+ * ücretsiz satış panosunu kapatırdı). Aksiyon merkezi iki tarafa ortak →
+ * alım tarafının kapısı handler içinde. Dekoratörler bilerek açık yazılır:
+ * web e2e `role-endpoints.ts` kaynağı metin olarak okur.
  */
+
 @Controller("company/dashboard")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyDashboardController {
@@ -79,7 +93,11 @@ export class CompanyDashboardController {
   ) {
     const side = portal === "satis" ? "sell" : "buy";
     if (!hasReadContext(user, side)) {
-      throw new ForbiddenException("Bu panoyu görüntüleme yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyDashboard.buPanoyuGoruntulemeYetkinizYok"));
+    }
+    // Rol kapısının İÇİNDE paket kapısı: alım tarafı Gold (D-026).
+    if (side === "buy" && !tierAtLeast(user.tier, BUYING_TIER)) {
+      throw entitlementForbidden(user.companyVerificationStatus);
     }
     return side === "sell"
       ? this.actionCenter.satis(user.companyId)
@@ -89,6 +107,8 @@ export class CompanyDashboardController {
   /** Pano analitiği — panel başına TEK toplu yanıt (grafik/aksiyon serileri). */
   @Get("satinalma/analytics")
   @RequireCompanyPermission("buy:view")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   satinalmaAnalytics(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
@@ -115,6 +135,8 @@ export class CompanyDashboardController {
   /** Zaman Tasarrufu — panel şeridi + Zaman alt bölümü için TEK toplu yanıt. */
   @Get("time-savings")
   @RequireCompanyPermission("buy:view")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   timeSavingsSummary(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("period") period?: string,
@@ -127,6 +149,8 @@ export class CompanyDashboardController {
 
   @Get("satinalma")
   @RequireCompanyPermission("buy:view")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   satinalma(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalma(user);
   }
@@ -149,12 +173,16 @@ export class CompanyDashboardController {
 
   @Get("satinalma/tasarruf")
   @RequireCompanyPermission("buy:view")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   satinalmaTasarruf(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalmaTasarruf(user);
   }
 
   @Get("satinalma/tedarikci")
   @RequireCompanyPermission("buy:view")
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   satinalmaTedarikci(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satinalmaTedarikci(user);
   }

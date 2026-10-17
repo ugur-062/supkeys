@@ -1,6 +1,7 @@
 "use client";
 
-import { formatDate } from "@/lib/format-date";
+import { useNavLabel, useRelativeTime } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationsRead,
@@ -15,26 +16,16 @@ import {
   PopoverPanel,
 } from "@headlessui/react";
 import { Bell } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { notificationHref } from "@/i18n/href";
+import { POPOVER_ANCHOR, POPOVER_MAX_HEIGHT_CLASS } from "./popover-anchor";
 
-function timeAgo(iso: string): string {
-  const d = new Date(iso).getTime();
-  const diff = Date.now() - d;
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return "az önce";
-  if (min < 60) return `${min} dk önce`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr} sa önce`;
-  const day = Math.floor(hr / 24);
-  if (day < 7) return `${day} gün önce`;
-  return formatDate(iso, "short");
-}
 
 /** Panel rozeti — birleşik kutuda bildirim hangi şapkayla ilgili? */
 const PORTAL_CHIP: Record<NotificationPortal, { label: string; cls: string }> = {
-  satinalma: { label: "Satınalma", cls: "bg-blue-50 text-blue-700" },
-  satis: { label: "Satış", cls: "bg-emerald-50 text-emerald-700" },
+  satinalma: { label: "portal.satinalma", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "portal.satis", cls: "bg-emerald-50 text-emerald-700" },
 };
 
 /** Panel içeriği ayrı bileşen — liste sorgusu yalnızca popover AÇILINCA atılır
@@ -47,9 +38,15 @@ function BellPanelContent({
   unread: number;
   close: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.notificationBell");
+  const tn = useNavLabel();
+  const ago = useRelativeTime("ago");
   // TEK kutu (kullanıcı isteği): portal filtresi yok — iki panelin
   // bildirimleri birlikte, satır başına panel rozetiyle.
-  const { data: items = [], isLoading } = useNotifications();
+  // `isPending`: çevrimdışı duraklayan sorguda `isLoading` false kalır ve
+  // "Henüz bildiriminiz yok" çizilirdi (LİSTE DURUMLARI).
+  const { data, isPending, isError, refetch } = useNotifications();
+  const items = data ?? [];
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
@@ -59,8 +56,7 @@ function BellPanelContent({
   const onItemClick = (n: AppNotification) => {
     if (!n.readAt) markRead.mutate([n.id]);
     if (n.ctaUrl) {
-      const path = n.ctaUrl.replace(/^https?:\/\/[^/]+/, "");
-      router.push(path || "/company");
+      router.push(notificationHref(n.ctaUrl, "/company"));
     }
   };
 
@@ -68,27 +64,42 @@ function BellPanelContent({
     <>
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-4 py-3">
         <span className="text-sm font-semibold text-zinc-900">
-          Bildirimler
+          {t("bildirimler")}
         </span>
         {unread > 0 ? (
+          // Mobil denetim g04: 16 px yüksekliğinde dokunma alanıydı → 44 px;
+          // negatif pay başlığın yüksekliğini ve yazının yerini korur.
           <button
             type="button"
             onClick={() => markAll.mutate(undefined)}
-            className="text-xs font-medium text-blue-600 hover:underline"
+            className="-mx-2 -my-3 inline-flex min-h-11 items-center px-2 text-xs font-medium text-blue-600 hover:underline"
           >
-            Tümünü okundu işaretle
+            {t("tumunuOkunduIsaretle")}
           </button>
         ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {isLoading ? (
+        {isPending ? (
           <p className="px-4 py-6 text-center text-sm text-zinc-400">
-            Yükleniyor…
+            {t("yukleniyor")}
           </p>
+        ) : isError && !data ? (
+          // Kesinti ≠ boş kutu (arayüz testi D-070): 5xx'te "Henüz
+          // bildiriminiz yok" yanıltıyordu.
+          <div role="alert" className="px-4 py-8 text-center">
+            <p className="text-sm text-zinc-600">{t("yuklenemedi")}</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="mt-2 text-xs font-semibold text-blue-600 hover:underline"
+            >
+              {t("tekrarDene")}
+            </button>
+          </div>
         ) : recent.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-400">
-            Henüz bildiriminiz yok.
+            {t("henuzBildiriminizYok")}
           </p>
         ) : (
           <ul className="divide-y divide-zinc-50">
@@ -118,7 +129,7 @@ function BellPanelContent({
                       <span
                         className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
                       >
-                        {PORTAL_CHIP[n.portal].label}
+                        {tn(PORTAL_CHIP[n.portal].label)}
                       </span>
                     ) : null}
                   </div>
@@ -126,7 +137,7 @@ function BellPanelContent({
                     {n.body}
                   </span>
                   <span className="text-xs text-zinc-400">
-                    {timeAgo(n.createdAt)}
+                    {ago(n.createdAt)}
                   </span>
                 </button>
               </li>
@@ -135,13 +146,16 @@ function BellPanelContent({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-zinc-100 px-4 py-2 text-center">
+      {/* Mobil denetim g04: bağlantı satırın TAMAMI (telefonda 44 px); sm ve
+          üstünde eski satır yüksekliği (40 px: py-2 + gövde satır kutusu —
+          yalnız py-2 verilse satır 32 px'e inerdi). */}
+      <div className="shrink-0 border-t border-zinc-100 text-center">
         <Link
           href="/company/bildirimler"
           onClick={() => close()}
-          className="text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+          className="flex min-h-11 items-center justify-center px-4 text-xs font-semibold text-zinc-600 hover:text-zinc-900 sm:min-h-10"
         >
-          Tüm bildirimleri gör
+          {t("tumBildirimleriGor")}
         </Link>
       </div>
     </>
@@ -149,6 +163,7 @@ function BellPanelContent({
 }
 
 export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
+  const t = useTranslations("web.panel.shell.notificationBell");
   const { data: unread = 0 } = useUnreadCount();
 
   return (
@@ -157,7 +172,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
           kalktı; düğme kendini ARKA PLANIYLA belli eder — dolgulu daire,
           ikon rengi komşularıyla aynı kalır. Erişilebilir ad aria-label'da. */}
       <PopoverButton
-        aria-label={`Bildirimler${unread > 0 ? ` (${unread} okunmamış)` : ""}`}
+        aria-label={unread > 0 ? t("bildirimlerOkunmamis", { n: unread }) : t("bildirimler")}
         className={`flex size-10 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
           onDark
             ? "bg-white/10 text-zinc-300 hover:bg-white/20 hover:text-white"
@@ -175,10 +190,15 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
       </PopoverButton>
 
       <PopoverPanel
-        anchor="bottom end"
-        // B16: panel viewport'a sığar (--anchor-max-height); liste iç scroll,
-        // başlık/footer sabit — son öğe kesilmez, footer üstüne binmez.
-        className="z-50 mt-2 flex w-[22rem] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 [--anchor-gap:0.25rem] max-h-[min(var(--anchor-max-height),30rem)]"
+        anchor={POPOVER_ANCHOR}
+        // B16: panel viewport'a sığar; liste iç scroll, başlık/footer sabit —
+        // son öğe kesilmez, footer üstüne binmez. Mobil denetim g04: boşluk ve
+        // ekran payı Headless'ın hesabında (eski `mt-2` hesabın DIŞINDAYDI,
+        // panel ekranın altından 8 px taşıyordu); 30rem tavanı değişkenle
+        // (Headless satır içi `max-height`i `--anchor-max-height`i okur, sınıf
+        // ezilirdi; yatay telefonda ana ekran çizgisi payı da düşülür —
+        // `POPOVER_MAX_HEIGHT_CLASS`); telefonda ekran eni − 2×8 px.
+        className={`z-50 flex w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg ring-1 ring-zinc-950/5 ${POPOVER_MAX_HEIGHT_CLASS} sm:w-[22rem]`}
       >
         {({ close }) => <BellPanelContent unread={unread} close={close} />}
       </PopoverPanel>

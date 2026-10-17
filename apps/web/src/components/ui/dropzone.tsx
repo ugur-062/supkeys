@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
 interface DropzoneProps {
@@ -23,10 +24,13 @@ export function Dropzone({
   multiple = false,
   disabled = false,
   onFiles,
-  label = "Dosya seç",
+  label,
   hint,
   className,
 }: DropzoneProps) {
+  // Varsayılan etiket GÖVDEDE: parametre varsayılanı çevirmeni göremez.
+  const t = useTranslations("web.shared.dropzone");
+  const labelText = label ?? t("dosyaSec");
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
@@ -68,8 +72,8 @@ export function Dropzone({
     >
       <ArrowUpTrayIcon aria-hidden="true" className="size-8 text-zinc-300" />
       <div className="mt-3 text-sm text-zinc-600">
-        <span className="font-semibold text-zinc-900">{label}</span>
-        <span> veya sürükle-bırak</span>
+        <span className="font-semibold text-zinc-900">{labelText}</span>
+        <span> {t("veyaSurukleBirak")}</span>
       </div>
       {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
       <input

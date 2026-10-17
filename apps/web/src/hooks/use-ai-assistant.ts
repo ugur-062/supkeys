@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import type {
   AiActionResult,
@@ -38,6 +39,11 @@ export function useAssistantSession(sessionId: string | null) {
       return data;
     },
     enabled: !!sessionId,
+    // Geçmişten yükleme TEK SEFERLİK okumadır; mesaj gönderimi bu anahtarı
+    // tazelemediği için önbellekteki kopya son turları eksik gösteriyordu
+    // (derin denetim S071). Her açılışta sunucudan taze okunur.
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 
@@ -52,7 +58,7 @@ async function uploadTenderFile(file: File): Promise<string> {
     body: file,
     headers: { "Content-Type": file.type },
   });
-  if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+  if (!put.ok) throw new Error(tRuntime("common.errors.uploadFailed"));
   return presigned.key;
 }
 

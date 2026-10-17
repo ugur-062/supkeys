@@ -22,6 +22,7 @@ import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
+import { AccountDeletionService } from "../company-auth/services/account-deletion.service";
 import { AdminCompanyUsersService } from "./admin-company-users.service";
 
 class SetActiveDto {
@@ -62,7 +63,10 @@ class AddUserDto {
 @Controller("admin/companies/:companyId/users")
 @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class AdminCompanyUsersController {
-  constructor(private readonly service: AdminCompanyUsersService) {}
+  constructor(
+    private readonly service: AdminCompanyUsersService,
+    private readonly accountDeletion: AccountDeletionService,
+  ) {}
 
   // Okuma + zararsız kurtarma bilinçli olarak SUPPORT dahil tüm rollere açık.
   @Get()
@@ -121,6 +125,31 @@ export class AdminCompanyUsersController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
     return this.service.changeEmail(companyId, userId, dto.email, admin.id);
+  }
+
+  /**
+   * KVKK silme talebi (2026-10-16): giriş yapamayan kişinin (pasif, ekipten
+   * çıkarılmış, askıdaki firma) `kvkk@` talebi. Kişinin kendi silmesiyle AYNI
+   * kurallar ve aynı silme, şifresiz (talebi operatör kayıtlı adrese yazıp
+   * doğrular); ekipten çıkarılmış hesapta kalan ad / telefon da gider. Giriş
+   * yapabilen hesap ve askıdaki firmayı kapatacak silme 409
+   * (`adminErasureBlocker`). Geri alınamaz → yalnız SUPER_ADMIN (firma KVKK
+   * silmesi `DELETE companies/:id` ile aynı kapı).
+   */
+  @Get(":userId/erase-preview")
+  @RequireAdminRole("SUPER_ADMIN")
+  erasePreview(@Param("companyId") companyId: string, @Param("userId") userId: string) {
+    return this.accountDeletion.adminErasurePreview(companyId, userId);
+  }
+
+  @Post(":userId/erase")
+  @RequireAdminRole("SUPER_ADMIN")
+  erase(
+    @Param("companyId") companyId: string,
+    @Param("userId") userId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.accountDeletion.eraseByAdmin(companyId, userId, admin.id);
   }
 
   @Post()

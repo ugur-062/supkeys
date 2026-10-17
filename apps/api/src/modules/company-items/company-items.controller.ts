@@ -1,3 +1,4 @@
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   Body,
   Controller,
@@ -24,17 +25,26 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { MAX_MONEY, UNITS, PRODUCT_MEDIA_TIER } from "@rothern/shared";
+import {
+  MAX_MONEY,
+  MAX_PRODUCT_IMAGES,
+  MIN_MONEY,
+  UNITS,
+  PRODUCT_MEDIA_TIER,
+  BUYING_TIER,
+  tierAtLeast,
+} from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
-import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { CompanyPaidTierGuard, tierRequiredError } from "../company-auth/guards/company-paid-tier.guard";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
-import { CompanyItemsService } from "./company-items.service";
+import { CompanyItemsService, SHOWCASE_LIST_STATUSES, type ShowcaseListStatus } from "./company-items.service";
 
 const UNIT_CODES = UNITS.map((u) => u.code);
 // Para birimi TEK KAYNAK: Prisma `Currency` enum'ı. Elle liste yazmak
@@ -47,7 +57,7 @@ class CatalogItemDto {
   @IsOptional() @Trim() @IsString() @MaxLength(2000) description?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(5000) specification?: string;
   @Trim() @IsString() @MinLength(1) @MaxLength(20) unit!: string;
-  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: () => tApi("api.dto.companyItems.gecersizOlcuBirimi") })
   unitCode?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(20) categoryId?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(100) brand?: string;
@@ -60,7 +70,11 @@ class CatalogItemDto {
 /** Kademeli fiyat satırı — miktar arttıkça birim fiyat düşer. */
 class PriceTierDto {
   @IsNumber() @Min(1) @Max(1_000_000_000) minQty!: number;
-  @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY) unitPrice!: number;
+  // 0 fiyat YOK (derin denetim LU-08): "0 ₺ / adet" başlığı ve JSON-LD
+  // Offer price=0 üretiyordu; fiyat vermek istemeyen ON_REQUEST seçer.
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(MIN_MONEY, { message: () => tApi("api.dto.companyItems.fiyatSifirdanBuyukOlmali") })
+  @Max(MAX_MONEY) unitPrice!: number;
 }
 
 class ProductDocDto {
@@ -89,14 +103,21 @@ class ShowcaseDto {
    * fiyat/MOQ satırı bu birimle okunur, kullanıcı onu formda görmeli.
    */
   @IsOptional() @Trim() @IsString() @MaxLength(20) unit?: string;
-  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: () => tApi("api.dto.companyItems.gecersizOlcuBirimi") })
   unitCode?: string;
 
-  /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */
-  @IsOptional() @IsArray() @ArrayMaxSize(8)
+  /** İLKİ KAPAK. Tavan `MAX_PRODUCT_IMAGES` (8) — galeri de aynı sabiti okur (O-100). */
+  @IsOptional() @IsArray() @ArrayMaxSize(MAX_PRODUCT_IMAGES)
   @IsString({ each: true }) @MaxLength(500, { each: true })
   images?: string[];
 
+  /**
+   * Video İZİNLİ LİSTESİ (YouTube/Vimeo) ve dış bağlantının https kuralı
+   * SERVİSTE, yalnız DEĞİŞEN değerde (`assertShowcaseLinks`, Y-11 gözden
+   * geçirme): DTO'da kalsaydı kural öncesinden kalmış eski değer (http://,
+   * şemasız, Dailymotion) her kaydı 400'e düşürürdü — paketi düşmüş satıcı
+   * gizli video alanını düzeltemediği için ürününü hiç kaydedemezdi.
+   */
   @IsOptional() @Trim() @IsString() @MaxLength(500) videoUrl?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(500) externalUrl?: string;
 
@@ -118,7 +139,10 @@ class ShowcaseDto {
   @IsOptional() @IsIn(["FIXED", "TIERED", "ON_REQUEST"])
   priceMode?: "FIXED" | "TIERED" | "ON_REQUEST";
 
-  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY)
+  /** 0 kabul edilmez — PriceTierDto.unitPrice ile aynı gerekçe. */
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(MIN_MONEY, { message: () => tApi("api.dto.companyItems.fiyatSifirdanBuyukOlmali") })
+  @Max(MAX_MONEY)
   priceAmount?: number;
 
   @IsOptional() @IsArray() @ArrayMaxSize(10)
@@ -127,7 +151,8 @@ class ShowcaseDto {
 
   @IsOptional() @IsIn(CURRENCY_CODES) priceCurrency?: string;
 
-  @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
+  /** Tavan minQty/`moqMax` ile aynı — Decimal(18,3) taşması 500 veriyordu (LU-08). */
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) @Max(1_000_000_000) moq?: number;
 }
 
 /** Yeni ürün — vitrin alanları (birim ShowcaseDto'da). */
@@ -154,15 +179,35 @@ class MarkUsedDto {
 }
 
 /**
+ * Kalem YAZMA yalnız `templates:manage` ile geliyorsa (satış ürün izni yok)
+ * bu Şablonlar › Kalem Kataloğu yoludur → Şablonlar'ın paket kuralı (GOLD,
+ * `listing-templates`/`supplier-templates`/`question-templates` ile aynı).
+ * Satış yolu (`sell:product:manage`) her pakette açık kalır. Eskiden Gold
+ * altında şablon yetkilisi API'den kalem ekleyip arşivleyebiliyordu, UI Gold
+ * duvarı çizerken (arayüz testi T3).
+ */
+function assertCatalogWriteTier(user: AuthenticatedCompanyUser): void {
+  if (hasCompanyPermission(user, "sell:product:manage")) return;
+  if (!tierAtLeast(user.tier, BUYING_TIER)) {
+    throw tierRequiredError(BUYING_TIER, user.companyVerificationStatus);
+  }
+}
+
+/**
  * Kalem Kataloğu (Faz 2).
  *
- * `CompanyPaidTierGuard` KULLANILMIYOR — tedarikçi şablonları premium bir
- * özellik, ama kalem kataloğu ihale AÇMANIN temel ergonomisi. Paketsiz firma
- * zaten ihale açamıyor (tier kapısı orada); kataloğu ayrıca kapatmak yalnız
- * kullanıcıyı zorlaştırırdı.
+ * Sınıf düzeyinde `CompanyPaidTierGuard` YOK — okuma her pakette açık, satış
+ * ürünleri ücretsiz pakette de yönetilir. Yalnız şablon izniyle (satış izni
+ * olmadan) kalem yazmak Şablonlar'ın paket kuralına (GOLD) girer:
+ * `assertCatalogWriteTier`.
  *
- * Okuma her role açık, yazma `templates:manage` ister — şablon modülleriyle
- * aynı kural (kullanıcı için tek bir zihinsel model).
+ * Okuma her role açık. KALEM yazma (`POST /`, `PATCH :id`, arşivle/geri al)
+ * `sell:product:manage` VEYA `templates:manage` kabul eder — satınalmadaki
+ * Kalem Kataloğu şablon izniyle yönetilir (arayüz testi D-185, DN-12: yorum
+ * bunu vaat ederken uç yalnız satış iznini istiyor, şablon yetkilisi 403
+ * alıyordu). Vitrine dokunmuş ürünü (yayında/onayda/onaylı/reddedilmiş)
+ * değiştirmek servis katmanında AYRICA `sell:product:manage` ister. Vitrin
+ * uçları (`product`, `:id/showcase`, yayın, görsel/belge) yalnız satış izniyle.
  */
 @Controller("company/items")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
@@ -178,12 +223,16 @@ export class CompanyItemsController {
     @Query("take") take?: string,
     @Query("skip") skip?: string,
     @Query("archived") archived?: string,
+    @Query("status") status?: string,
+    @Query("sort") sort?: string,
   ) {
     return this.service.list(user.companyId, {
       q,
       categoryId,
       tier: user.tier,
       archived: archived === "1" || archived === "true",
+      status: SHOWCASE_LIST_STATUSES.includes(status as ShowcaseListStatus) ? (status as ShowcaseListStatus) : undefined,
+      sort: sort === "recent" ? "recent" : "usage",
       take: take ? Number.parseInt(take, 10) || undefined : undefined,
       skip: skip ? Number.parseInt(skip, 10) || undefined : undefined,
     });
@@ -240,6 +289,7 @@ export class CompanyItemsController {
     @Query("q") q?: string,
     @Query("category") category?: string,
     @Query("city") city?: string,
+    @Query("country") country?: string,
     @Query("activity") activity?: string,
     @Query("verified") verified?: string,
     @Query("price") price?: string,
@@ -256,6 +306,7 @@ export class CompanyItemsController {
     @Query("radius") radius?: string,
     @Query("fastReply") fastReply?: string,
     @Query("pageSize") pageSize?: string,
+    @Query("currency") currency?: string,
   ) {
     const n = Number(page);
     const ps = Number(pageSize);
@@ -267,9 +318,13 @@ export class CompanyItemsController {
       q: q?.slice(0, 120),
       category: category && /^\d{8}$/.test(category) ? category : undefined,
       city: city?.slice(0, 400) || undefined,
+      country: country?.slice(0, 200) || undefined,
       activity: activity?.slice(0, 200) || undefined,
       verified: verified === "1",
       price: price === "has" || price === "request" ? price : undefined,
+      // Fiyat süzgecinin para birimi — tanınmayan kod servis tarafında firma
+      // ülkesinin birimine düşer (`resolveCompanyCurrency`).
+      currency: currency?.slice(0, 3) || undefined,
       priceMin: num(priceMin),
       priceMax: num(priceMax),
       moqMax: num(moqMax),
@@ -294,6 +349,7 @@ export class CompanyItemsController {
     @Query("category") category?: string,
     @Query("q") q?: string,
     @Query("city") city?: string,
+    @Query("country") country?: string,
     @Query("activity") activity?: string,
     @Query("verified") verified?: string,
     @Query("price") price?: string,
@@ -302,6 +358,7 @@ export class CompanyItemsController {
     @Query("near") near?: string,
     @Query("radius") radius?: string,
     @Query("fastReply") fastReply?: string,
+    @Query("currency") currency?: string,
   ) {
     const num = (v?: string) => {
       const x = Number(v);
@@ -311,6 +368,7 @@ export class CompanyItemsController {
       category: category && /^\d{8}$/.test(category) ? category : undefined,
       q: q?.slice(0, 120),
       city: city?.slice(0, 400) || undefined,
+      country: country?.slice(0, 200) || undefined,
       activity: activity?.slice(0, 200) || undefined,
       verified: verified === "1",
       price: price === "has" || price === "request" ? price : undefined,
@@ -321,6 +379,7 @@ export class CompanyItemsController {
       near: near?.slice(0, 40) || undefined,
       radius: num(radius),
       fastReply: fastReply === "1",
+      currency: currency?.slice(0, 3) || undefined,
     });
   }
 
@@ -446,32 +505,39 @@ export class CompanyItemsController {
   }
 
   @Post()
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CatalogItemDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.create(user, dto);
   }
 
   @Patch(":id")
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Body() dto: CatalogItemDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.update(user, id, dto);
   }
 
-  /** Silme YOK — arşivle/geri al. */
+  /**
+   * Silme YOK — arşivle/geri al. Satinalma portalindaki Kalem Katalogu
+   * `templates:manage` ile yonetir; vitrin urunu icin servis ayrica
+   * `sell:product:manage` ister (derin denetim S066).
+   */
   @Patch(":id/active")
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   setActive(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Body() dto: SetActiveDto,
   ) {
+    assertCatalogWriteTier(user);
     return this.service.setActive(user, id, dto.isActive);
   }
 

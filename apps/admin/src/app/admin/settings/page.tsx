@@ -3,6 +3,10 @@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
+import {
+  PasswordChangeRequiredNotice,
+  TwoFactorSetupNotice,
+} from "@/components/layout/two-factor-setup-notice";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminMe } from "@/hooks/use-admin-auth";
@@ -10,6 +14,7 @@ import { useChangePassword, useTwoFactor } from "@/hooks/use-admin-staff";
 import { Copy, KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 function PasswordSection() {
   const change = useChangePassword();
@@ -60,18 +65,17 @@ function PasswordSection() {
           <Button
             size="sm"
             loading={change.isPending}
-            disabled={form.next.length < 12 || form.next !== form.confirm}
+            // Mevcut şifre boşken de kapalı (arayüz testi FX-00 D-223: alansız
+            // "Bu alan zorunlu" dönüyordu). Promise döner → admin Button iş
+            // bitene dek kilitli, çift tık ikinci istek atmaz.
+            disabled={!form.current || form.next.length < 12 || form.next !== form.confirm}
             onClick={() =>
-              change.mutate(
-                { current: form.current, next: form.next },
-                {
-                  onSuccess: () => {
-                    toast.success("Şifre değiştirildi");
-                    setForm({ current: "", next: "", confirm: "" });
-                  },
-                  onError: (e: unknown) =>
-                    toast.error(e instanceof Error ? e.message : "Hata"),
+              change.mutateAsync({ current: form.current, next: form.next }).then(
+                () => {
+                  toast.success("Şifre değiştirildi");
+                  setForm({ current: "", next: "", confirm: "" });
                 },
+                (e: unknown) => toastApiError(e),
               )
             }
           >
@@ -94,12 +98,15 @@ function TwoFactorSection() {
   const [pending, setPending] = useState<{
     secret: string;
     otpauthUrl: string;
+    qrDataUrl?: string;
   } | null>(null);
   const [code, setCode] = useState("");
+  // `/me` yüklenirken durum BİLİNMİYOR: "Kapalı" + "2FA Kur" çizilmez (2FA'sı
+  // açık hesapta kurulum "zaten etkin" hatasına düşüyordu — FX-00 D-223).
+  const known = me.data !== undefined;
   const enabled = me.data?.twoFactorEnabled ?? false;
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <section className="admin-card px-5 py-4">
@@ -107,12 +114,26 @@ function TwoFactorSection() {
         <h3 className="text-admin-text flex items-center gap-2 text-sm font-semibold">
           <ShieldCheck className="h-4 w-4" /> İki Adımlı Doğrulama (2FA)
         </h3>
-        <Badge color={enabled ? "green" : "zinc"}>
-          {enabled ? "Etkin" : "Kapalı"}
-        </Badge>
+        {known ? (
+          <Badge color={enabled ? "green" : "zinc"}>
+            {enabled ? "Etkin" : "Kapalı"}
+          </Badge>
+        ) : (
+          <span
+            aria-hidden
+            className="h-5 w-14 animate-pulse rounded-md bg-zinc-200"
+          />
+        )}
       </div>
 
-      {!enabled && !pending ? (
+      {!known ? (
+        <div
+          aria-busy="true"
+          className="mt-3 h-16 animate-pulse rounded-lg bg-zinc-100"
+        />
+      ) : null}
+
+      {known && !enabled && !pending ? (
         <div className="mt-3">
           <p className="text-admin-text-muted text-sm">
             Girişte şifreye ek olarak authenticator uygulaması kodu istenir —
@@ -123,13 +144,10 @@ function TwoFactorSection() {
             className="mt-2"
             loading={setup.isPending}
             onClick={() =>
-              setup.mutate(undefined, {
-                onSuccess: (d) => {
-                  setPending(d);
-                  setCode("");
-                },
-                onError: err,
-              })
+              setup.mutateAsync().then((d) => {
+                setPending(d);
+                setCode("");
+              }, err)
             }
           >
             2FA Kur
@@ -139,10 +157,25 @@ function TwoFactorSection() {
 
       {pending ? (
         <div className="mt-3 space-y-3">
-          <p className="text-admin-text text-sm">
-            1. Authenticator uygulamanıza (Google Authenticator, 1Password,
-            Authy...) aşağıdaki anahtarı <strong>manuel</strong> ekleyin:
-          </p>
+          {pending.qrDataUrl ? (
+            <>
+              <p className="text-admin-text text-sm">
+                1. Authenticator uygulamanızla (Google Authenticator, 1Password,
+                Authy...) QR kodu okutun ya da anahtarı elle ekleyin:
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pending.qrDataUrl}
+                alt="2FA QR kodu"
+                className="h-44 w-44 rounded-lg border border-zinc-200"
+              />
+            </>
+          ) : (
+            <p className="text-admin-text text-sm">
+              1. Authenticator uygulamanıza (Google Authenticator, 1Password,
+              Authy...) aşağıdaki anahtarı <strong>manuel</strong> ekleyin:
+            </p>
+          )}
           <div className="flex items-center gap-2">
             <code className="bg-admin-border/30 rounded px-2 py-1 font-mono text-sm break-all">
               {pending.secret}
@@ -162,32 +195,30 @@ function TwoFactorSection() {
           <p className="text-admin-text text-sm">
             2. Uygulamanın ürettiği 6 haneli kodu girin:
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              aria-label="2FA doğrulama kodu"
-              className="w-32"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Catalyst Input'un kendi w-full'u className genişliğini ezer →
+                sabit genişlik sarmalayıcıda; düğmeler daralıp metni kırmaz (D-169). */}
+            <div className="w-32 shrink-0">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                aria-label="2FA doğrulama kodu"
+              />
+            </div>
             <Button
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               loading={enable.isPending}
               disabled={code.trim().length !== 6}
               onClick={() =>
-                enable.mutate(
-                  { secret: pending.secret, code: code.trim() },
-                  {
-                    onSuccess: () => {
-                      toast.success("2FA etkinleştirildi");
-                      setPending(null);
-                      setCode("");
-                    },
-                    onError: err,
-                  },
-                )
+                enable.mutateAsync({ secret: pending.secret, code: code.trim() }).then(() => {
+                  toast.success("2FA etkinleştirildi");
+                  setPending(null);
+                  setCode("");
+                }, err)
               }
             >
               Etkinleştir
@@ -195,6 +226,7 @@ function TwoFactorSection() {
             <Button
               variant="ghost"
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               onClick={() => {
                 setPending(null);
                 setCode("");
@@ -206,37 +238,35 @@ function TwoFactorSection() {
         </div>
       ) : null}
 
-      {enabled ? (
+      {known && enabled ? (
         <div className="mt-3 space-y-2">
           <p className="text-admin-text-muted text-sm">
             Kapatmak için authenticator kodunuzu girin:
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              aria-label="2FA kapatma kodu"
-              className="w-32"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Catalyst Input'un kendi w-full'u className genişliğini ezer →
+                sabit genişlik sarmalayıcıda; düğmeler daralıp metni kırmaz (D-169). */}
+            <div className="w-32 shrink-0">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                aria-label="2FA kapatma kodu"
+              />
+            </div>
             <Button
               variant="danger"
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               loading={disable.isPending}
               disabled={code.trim().length !== 6}
               onClick={() =>
-                disable.mutate(
-                  { code: code.trim() },
-                  {
-                    onSuccess: () => {
-                      toast.success("2FA kapatıldı");
-                      setCode("");
-                    },
-                    onError: err,
-                  },
-                )
+                disable.mutateAsync({ code: code.trim() }).then(() => {
+                  toast.success("2FA kapatıldı");
+                  setCode("");
+                }, err)
               }
             >
               2FA'yı Kapat
@@ -256,6 +286,11 @@ export default function AdminSettingsPage() {
           title="Ayarlar"
           description="Hesap güvenliği — şifre ve iki adımlı doğrulama."
         />
+        {/* 2FA zorunluysa neden kilitli olduğunu anlatır; akışta, düğmeleri
+            örtmez (GB1). */}
+        <TwoFactorSetupNotice />
+        {/* Geçici parolayla girildiyse (D-025) panel şifre değişene dek kilitli. */}
+        <PasswordChangeRequiredNotice />
         <PasswordSection />
         <TwoFactorSection />
       </div>

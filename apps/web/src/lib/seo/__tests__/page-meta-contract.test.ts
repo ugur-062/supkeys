@@ -17,7 +17,7 @@ import { PUBLIC_ROUTE_PREFIXES } from "@/lib/public-routes";
  * (`%s · Rothern`) ekliyor. (Anasayfa istisna: `title.absolute`.)
  */
 
-const APP_DIR = path.resolve(__dirname, "../../../app");
+const APP_DIR = path.resolve(__dirname, "../../../app/[locale]");
 const TEMPLATE_RE = /\b(buildMetadata|productSeo|companySeo|listingSeo)\s*\(/;
 const HAND_BRAND_RE = /title:\s*[`"'][^`"'\n]*Rothern[^`"'\n]*[`"']/;
 

@@ -2,7 +2,7 @@
 
 import clsx from 'clsx'
 import type React from 'react'
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { Link } from './link'
 
 const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boolean; striped: boolean }>({
@@ -21,13 +21,28 @@ export function Table({
   children,
   ...props
 }: { bleed?: boolean; dense?: boolean; grid?: boolean; striped?: boolean } & React.ComponentPropsWithoutRef<'div'>) {
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  const overflowing = useHorizontalOverflow(scrollEl)
   return (
     <TableContext.Provider value={{ bleed, dense, grid, striped } as React.ContextType<typeof TableContext>}>
       {/* Rothern admin: --gutter varsayılanı gömülü — müşteri panelindeki
           `px-3 [--gutter:--spacing(5)]` sarmalayıcı reçetesi. Aksi halde
           ilk/son kolon kart kenarına 4px'e kadar yapışıyordu (sm:first:pl-1). */}
       <div className="flow-root px-3 [--gutter:--spacing(5)]">
-        <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
+        {/* Dar ekranda tablo kendi içinde yatay kayar; ipucusuz sağdaki
+            sütunlar (Durum, Çalışma sayısı…) ekran dışında kalıyordu. İpucu
+            yalnız içerik gerçekten taştığında çizilir (arayüz testi D-229,
+            webC-15 yeniden doğrulama — Personel'e özel ipucu genelleştirildi). */}
+        {overflowing ? (
+          <p data-table-scroll-hint className="text-admin-text-muted pt-2 text-xs">
+            Diğer sütunlar için tabloyu yana kaydırın →
+          </p>
+        ) : null}
+        <div
+          {...props}
+          ref={setScrollEl}
+          className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}
+        >
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
             <table className="min-w-full text-left text-sm/6 text-zinc-950 dark:text-white">{children}</table>
           </div>
@@ -35,6 +50,23 @@ export function Table({
       </div>
     </TableContext.Provider>
   )
+}
+
+/** Kaydırma kabı yatayda taşıyor mu — boyut ya da içerik değişince yeniden ölçülür. */
+function useHorizontalOverflow(el: HTMLElement | null): boolean {
+  const [overflowing, setOverflowing] = useState(false)
+  useEffect(() => {
+    if (!el) return
+    const update = () => setOverflowing(el.scrollWidth - el.clientWidth > 1)
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    // İç kap satırlar yüklenince genişler; kabın kendisi aynı kalabilir.
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => ro.disconnect()
+  }, [el])
+  return overflowing
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {

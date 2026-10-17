@@ -64,6 +64,11 @@ describe("CompanyProfileView — değerlendirme özeti (firma bazında gruplu)",
     expect(screen.getByText("Harika")).toBeInTheDocument();
     // İkinci yorum <details> içinde — özet etiketi var
     expect(screen.getByText("Diğer 1 yorum")).toBeInTheDocument();
+    // Mobil denetim g05: 16 px'lik özet satırının dokunma alanı görünmez katmanla büyür.
+    const summary = screen.getByText("Diğer 1 yorum");
+    expect(summary.tagName).toBe("SUMMARY");
+    expect(summary.className).toContain("after:absolute");
+    expect(summary.className).toContain("after:-inset-y-2.5");
   });
 
   it("değerlendirme yoksa bölüm hiç çizilmez", () => {

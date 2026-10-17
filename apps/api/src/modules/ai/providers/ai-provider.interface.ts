@@ -123,6 +123,12 @@ export class AiProviderError extends Error {
     message: string,
     readonly code: string,
     readonly usage?: AiTokenUsage,
+    /**
+     * Temizlenmiş kısa sebep kodu (HTTP durumu / Google hata durumu — bkz.
+     * `ai-provider-reason.ts`). Kullanım kaydına yazılır; serbest metin ve sır
+     * İÇERMEZ. `message` ise yalnız sunucu günlüğüne gider.
+     */
+    readonly reason?: string,
   ) {
     super(message);
     this.name = "AiProviderError";

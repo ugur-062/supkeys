@@ -200,6 +200,10 @@ describe("#5 — KVKK dökümü: audit izi + kimlik-doğrulama iç durumu kapsam
     expect(users[0]).not.toHaveProperty("twoFactorSecret");
     expect(users[0]).not.toHaveProperty("authId");
     expect(users[0]).not.toHaveProperty("tokenVersion");
+    // 2FA deneme freni sayaclari da hesap guvenligi ic durumu (derin denetim MU-16)
+    expect(users[0]).not.toHaveProperty("twoFactorFailedAttempts");
+    expect(users[0]).not.toHaveProperty("twoFactorWindowStartedAt");
+    expect(users[0]).not.toHaveProperty("twoFactorLastTotpStep");
     expect(out.company).not.toHaveProperty("adminNotes");
 
     let log: { action: string } | null = null;
@@ -244,6 +248,8 @@ describe("#6 — pano geliri siparişin KENDİ para biriminden çevrilir", () =>
     );
     const exchangeRate = {
       getRateOnDate: jest.fn().mockResolvedValue(40),
+      // Gelir kurları birim başına toplu (derin denetim LU-07).
+      getRatesOnDates: jest.fn(async (_c: string, ds: Date[]) => ds.map(() => 40)),
       getFreshRate: jest.fn().mockResolvedValue(40),
       getCurrentRate: jest.fn().mockResolvedValue(40),
     };
@@ -256,9 +262,9 @@ describe("#6 — pano geliri siparişin KENDİ para biriminden çevrilir", () =>
     };
     // 100 USD × 40 = 4000 ₺ (ilan TRY olduğu için eskiden 100 ₺ sayılıyordu).
     expect(res.revenue.total).toBe(4000);
-    expect(exchangeRate.getRateOnDate).toHaveBeenCalledWith(
+    expect(exchangeRate.getRatesOnDates).toHaveBeenCalledWith(
       "USD",
-      expect.any(Date),
+      [expect.any(Date)],
     );
   });
 });

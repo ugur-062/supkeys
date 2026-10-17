@@ -8,6 +8,7 @@ import { ActionCenterService } from "../../src/modules/company-dashboard/action-
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { makeService } from "./make-service";
 
 const DAY_MS = 86_400_000;
 
@@ -62,6 +63,32 @@ describe("ActionCenterService (DB)", () => {
     expect(byKey.awaitingDecision?.count).toBe(1);
     // Ayrık kümeler: teklifli ihale zeroBid satırında SAYILMAZ.
     expect(byKey.zeroBidClosingSoon?.count).not.toBe(2);
+  });
+
+  it("geri çekilen teklif 'teklifli' saymaz: talep zeroBidClosingSoon'a düşer (Taleplerim bidCount ile aynı küme, O-035)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+      closesAt: new Date(Date.now() + DAY_MS),
+    });
+    const item = await makeItem(prisma, listing.id);
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      status: "WITHDRAWN",
+      amount: 500,
+      submittedAt: new Date(),
+      items: [{ itemId: item.id, unitPrice: 50 }],
+    });
+
+    const { rows } = await service.satinalma(buyer.company.id);
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+    expect(byKey.zeroBidClosingSoon?.count).toBe(1);
+    expect(byKey.closingSoon).toBeUndefined();
   });
 
   it("satış: teklifsiz açık davet unansweredInvites'a düşer, son gün kritik olur", async () => {
@@ -145,6 +172,48 @@ describe("ActionCenterService (DB)", () => {
     expect(after.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(1);
   });
 
+  it("satış: engel ilişkisindeki kayıtlı alıcının talebi unansweredInquiries'e girmez; misafir talebi girer (LU-18)", async () => {
+    // Gelen kutusu engelli alıcının talebini gizliyor, yanıtı 404 dönüyor —
+    // pano aynı talebi "yanıt bekliyor" diye sonsuza dek göstermemeli.
+    const seller = await makeCompanyWithUser(prisma, {});
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "Pano",
+        unit: "adet",
+        slug: "pano-engel",
+      },
+    });
+    const mk = (tokenHash: string, claimedCompanyId: string | null) =>
+      prisma.publicInquiry.create({
+        data: {
+          companyId: seller.company.id,
+          productId: product.id,
+          claimedCompanyId,
+          name: "Ayşe",
+          email: `a-${tokenHash}@example.com`,
+          message: "Fiyat?",
+          tokenHash,
+          expiresAt: new Date(),
+          verifiedAt: new Date(Date.now() - 2 * DAY_MS),
+        },
+      });
+    await mk("b1", buyer.company.id);
+    await mk("g1", null);
+
+    const before = await service.satis(seller.company.id);
+    expect(before.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(2);
+
+    // Alıcı satıcıyı engelliyor (yön fark etmez).
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: buyer.company.id, blockedCompanyId: seller.company.id },
+    });
+    const after = await service.satis(seller.company.id);
+    expect(after.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(1);
+  });
+
   it("satış: geçerliliği 3 gün içinde dolan SUBMITTED teklif expiringBids üretir", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});
@@ -200,5 +269,89 @@ describe("ActionCenterService (DB)", () => {
     expect(rows[0]!.key).toBe("overdueDeliveries");
     expect(rows[0]!.severity).toBe("critical");
     expect(rows[0]!.overdueDays).toBe(3);
+  });
+
+  // Arayüz testi O-035 (son tur): ödeme satırları Siparişlerim
+  // `?payment=overdue|open` ile aynı kümeyi saymalı — vade `paymentDueDate`
+  // (vadeli kategori + teslim + gün), ödendi = tam Decimal (liste
+  // `paymentSettled`). Eskiden kategorisiz vade + completedAt yedeği sayılıyordu.
+  it("ödeme satırları liste kuralıyla: vadeli kategori + teslim + gün; tam ödenen ve vadesiz kategori gecikmiş sayılmaz", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const base = {
+      buyerCompanyId: buyer.company.id,
+      sellerCompanyId: seller.company.id,
+      amount: 1000,
+      currency: "TRY",
+      paymentTiming: "AFTER_DELIVERY",
+    } as const;
+    const ago = (d: number) => new Date(Date.now() - d * DAY_MS);
+    // 1) Vadesi geçmiş, ödenmemiş (DEFERRED, 10 gün önce teslim, 2 gün vade) → gecikmiş.
+    await prisma.companyOrder.create({
+      data: { ...base, status: "COMPLETED", paymentCategory: "DEFERRED", paymentDays: 2, deliveredAt: ago(10), completedAt: ago(10) } as never,
+    });
+    // 2) Vadesiz kategori (OPEN_ACCOUNT) ama paymentDays dolu → vade YOK → ödeme bekleniyor.
+    await prisma.companyOrder.create({
+      data: { ...base, status: "DELIVERED", paymentCategory: "OPEN_ACCOUNT", paymentDays: 2, deliveredAt: ago(10) } as never,
+    });
+    // 3) Vadesi geçmiş ama tam ödenmiş → hiçbir ödeme satırına girmez.
+    const paid = await prisma.companyOrder.create({
+      data: { ...base, status: "COMPLETED", paymentCategory: "DEFERRED", paymentDays: 2, deliveredAt: ago(10), completedAt: ago(10) } as never,
+    });
+    await prisma.companyOrderPayment.create({
+      data: { orderId: paid.id, amount: 1000, status: "CONFIRMED", recordedByCompanyId: buyer.company.id },
+    });
+    // 4) Vadesi gelecekte → ödeme bekleniyor.
+    await prisma.companyOrder.create({
+      data: { ...base, status: "DELIVERED", paymentCategory: "DEFERRED", paymentDays: 30, deliveredAt: ago(1) } as never,
+    });
+    // 5) completedAt var, deliveredAt yok → vade hesaplanamaz (liste gibi) → bekleniyor.
+    await prisma.companyOrder.create({
+      data: { ...base, status: "COMPLETED", paymentCategory: "DEFERRED", paymentDays: 1, completedAt: ago(10) } as never,
+    });
+
+    const { rows } = await service.satinalma(buyer.company.id);
+    expect(rows.find((r) => r.key === "overduePayments")?.count).toBe(1);
+    expect(rows.find((r) => r.key === "overduePayments")?.overdueDays).toBe(8);
+    expect(rows.find((r) => r.key === "paymentWindow")?.count).toBe(3);
+  });
+
+  it("AI önerisi satırı ile Taleplerim aiSuggestionsPending aynı talepleri işaretler (O-035)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const mk = () =>
+      makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        status: "OPEN",
+        closesAt: new Date(Date.now() + 10 * DAY_MS),
+      });
+    const withSuggestion = await mk();
+    const dismissed = await mk();
+    const allInvited = await mk();
+    await mk(); // keşif turu yok
+    const run = (listingId: string, extra: object, status: string) =>
+      prisma.supplierDiscoveryRun.create({
+        data: {
+          companyId: buyer.company.id,
+          listingId,
+          trigger: "PUBLISH",
+          state: "DONE",
+          finishedAt: new Date(),
+          ...extra,
+          candidates: { create: [{ name: "Aday A.Ş.", status }] },
+        },
+      });
+    await run(withSuggestion.id, {}, "SUGGESTED");
+    await run(dismissed.id, { dismissedAt: new Date() }, "SUGGESTED");
+    await run(allInvited.id, {}, "INVITED");
+
+    const { rows } = await service.satinalma(buyer.company.id);
+    expect(rows.find((r) => r.key === "aiSuggestions")?.count).toBe(1);
+
+    const listings = makeService().service;
+    const tenders = await listings.listTenders(buyer.company.id, "ALIM");
+    expect(tenders.filter((t) => t.aiSuggestionsPending).map((t) => t.id)).toEqual([
+      withSuggestion.id,
+    ]);
   });
 });

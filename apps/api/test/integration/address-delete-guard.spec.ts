@@ -10,6 +10,7 @@ import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeItem, makeBid } from "./factories";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 const svc = new CompanyAddressesService(
   prisma as never,
@@ -64,6 +65,30 @@ async function setup(bidStatus: string) {
   return { buyer, addr };
 }
 
+// Alıcının kendi talebinde teslimat adresi olarak kullanılan adres (cityId eşlenmemiş eski kayıt).
+async function listingAddress(status: string) {
+  const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+  const addr = await prisma.companyAddress.create({
+    data: {
+      companyId: owner.company.id,
+      type: "TESLIMAT",
+      title: "Depo",
+      addressLine: "Örnek mah. No:1",
+      city: "İstanbul",
+      country: "TR",
+    },
+  });
+  const listing = await makeListing(prisma, {
+    companyId: owner.company.id,
+    createdById: owner.user.id,
+    type: "ALIM",
+    status: status as never,
+    closesAt: FUTURE,
+  });
+  await prisma.listing.update({ where: { id: listing.id }, data: { deliveryAddressId: addr.id } });
+  return { owner, addr };
+}
+
 describe("B2 — adres silme guard'ı gönderilmiş teklifleri de sayar", () => {
   it("SUBMITTED teklif adresi kullanıyorsa silme REDDEDİLİR (400) → adres kalır", async () => {
     const { buyer, addr } = await setup("SUBMITTED");
@@ -113,6 +138,56 @@ describe("adres CRUD — audit izi (INV-AUDIT-1)", () => {
     await prisma.auditLog.findFirstOrThrow({
       where: { action: "company.address.deleted", entityId: addr.id },
     });
+  });
+
+  it("moderasyonla kapatılmış (CLOSED) ilanın adresi SİLİNEMEZ — admin yeniden açınca ilan adressiz kalmasın (derin denetim S021)", async () => {
+    const { owner, addr } = await listingAddress("CLOSED");
+    // Sahip CLOSED ilanda adresi değiştiremez → "önce ilandaki adresi
+    // değiştirin" değil, desteğe yönlendiren ayrı metin (LU-05 gözden geçirme).
+    await expect(svc.remove(owner.auth, addr.id)).rejects.toThrow(/yönetici tarafından kapatılmış 1 talepte.*destek/i);
+    expect(await prisma.companyAddress.count({ where: { id: addr.id } })).toBe(1);
+  });
+
+  it("CLOSED ilandaki adresin YERİ de değiştirilemez; aktif ilan metni değil destek metni döner", async () => {
+    const { owner, addr } = await listingAddress("CLOSED");
+    await expect(
+      svc.update(owner.auth, addr.id, {
+        type: "TESLIMAT",
+        title: "Depo",
+        addressLine: "Örnek mah. No:1",
+        city: "Ankara",
+      } as never),
+    ).rejects.toThrow(/yönetici tarafından kapatılmış.*adres bilgileri değiştirilemez.*destek/i);
+    const row = await prisma.companyAddress.findUniqueOrThrow({ where: { id: addr.id } });
+    expect(row.city).toBe("İstanbul");
+  });
+
+  it("şehir kilidi cityId ile ATLATILAMAZ: eski şehir metni + başka şehrin id'si REDDEDİLİR (derin denetim S021)", async () => {
+    const { owner, addr } = await listingAddress("OPEN");
+    const ankara = resolveCityId("TR", "Ankara");
+    expect(ankara).not.toBeNull();
+    await expect(
+      svc.update(owner.auth, addr.id, {
+        type: "TESLIMAT",
+        title: "Depo",
+        addressLine: "Örnek mah. No:1",
+        city: "İstanbul",
+        cityId: ankara,
+      } as never),
+    ).rejects.toThrow(/aktif talepte/i);
+    const row = await prisma.companyAddress.findUniqueOrThrow({ where: { id: addr.id } });
+    expect(row.city).toBe("İstanbul");
+  });
+
+  it("kullanımdaki adreste yalnız iletişim alanı değişince (şehir aynı, id sonradan eşlense de) güncelleme SERBEST", async () => {
+    const { owner, addr } = await listingAddress("OPEN");
+    const u = await svc.update(owner.auth, addr.id, {
+      type: "TESLIMAT",
+      title: "Ana depo",
+      addressLine: "Örnek mah. No:1",
+      city: "istanbul",
+    } as never);
+    expect(u.title).toBe("Ana depo");
   });
 
   it("silme-kilidi reddi audit BIRAKMAZ (yalnız başarılı mutasyon loglanır)", async () => {

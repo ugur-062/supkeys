@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { appMonth, appQuarterStart, appYearStart } from "../../common/time/app-calendar";
 
 /**
  * Zaman Tasarrufu hesap motoru — UI'dan bağımsız, saf hesap.
@@ -153,13 +154,11 @@ export function computeSavings(
   return { estimated, system, saved, breakdown };
 }
 
+/** Dönem başlangıcı — İstanbul takvimiyle (sunucu UTC; bkz. `app-calendar`). */
 export function periodStart(period: SavingsPeriod, now: Date): Date {
-  if (period === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (period === "quarter") {
-    const q = Math.floor(now.getMonth() / 3) * 3;
-    return new Date(now.getFullYear(), q, 1);
-  }
-  return new Date(now.getFullYear(), 0, 1);
+  if (period === "month") return appMonth(now).start;
+  if (period === "quarter") return appQuarterStart(now);
+  return appYearStart(now);
 }
 
 interface CacheEntry {
@@ -219,7 +218,7 @@ export class TimeSavingsService {
     const start = range?.from ?? periodStart(period, now);
     const end = range?.to ?? null;
     // Sparkline her zaman son 6 ay (dönemden bağımsız trend).
-    const sparkStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const sparkStart = appMonth(now, -5).start;
     const from = start < sparkStart ? start : sparkStart;
 
     // Tek turda ham kayıtlar — sayaçlar + aylık kırılım JS'te.
@@ -257,7 +256,7 @@ export class TimeSavingsService {
           createdAt: true,
           submittedAt: true,
           round: true,
-          version: true,
+          submitCount: true,
           _count: { select: { items: true } },
         },
       }),
@@ -285,10 +284,11 @@ export class TimeSavingsService {
     const pOrders = inPeriod(orders);
 
     // Revizyon turu sinyali: pazarlık turu (round>1) + teklif revizyonu
-    // (version>1) — mevcut alanlardan; ayrı log yok, uydurmuyoruz.
+    // (submitCount>1; `version` taslak kayıtlarında da arttığı için revizyon
+    // sayılmaz — arayüz testi O-036) — mevcut alanlardan; uydurmuyoruz.
     const revisionRounds = pBids.reduce(
       (a, b) =>
-        a + Math.max(0, b.round - 1) + Math.max(0, (b.version ?? 1) - 1),
+        a + Math.max(0, b.round - 1) + Math.max(0, (b.submitCount ?? 1) - 1),
       0,
     );
     const itemCounts = pBids.map((b) => b._count.items).filter((n) => n > 0);
@@ -345,9 +345,7 @@ export class TimeSavingsService {
     // Aylık sparkline: ay bazında sayaçlar → aynı formülle dakika.
     const months: { key: string; minutes: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const { start: d, end: next, key: mk } = appMonth(now, -i);
       const inM = <T extends { createdAt: Date }>(rows: T[]) =>
         rows.filter((r) => r.createdAt >= d && r.createdAt < next);
       const mBids = inM(bids);
@@ -358,7 +356,7 @@ export class TimeSavingsService {
         avgItemsPerBid: counters.avgItemsPerBid,
         revisionRounds: mBids.reduce(
           (a, b) =>
-            a + Math.max(0, b.round - 1) + Math.max(0, (b.version ?? 1) - 1),
+            a + Math.max(0, b.round - 1) + Math.max(0, (b.submitCount ?? 1) - 1),
           0,
         ),
         approvals: inM(approvals).length,

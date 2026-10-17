@@ -6,20 +6,6 @@
 
 export type BadgeColor = "green" | "amber" | "red" | "zinc" | "blue";
 
-// ── Üyelik (tier) — Faz T: 4 kademe (STANDART paketsiz-pasif) ──
-export const TIER_LABEL: Record<string, string> = {
-  STANDART: "Standart",
-  SILVER: "Silver",
-  GOLD: "Gold",
-};
-export const TIER_COLOR: Record<string, "zinc" | "orange" | "sky" | "amber"> = {
-  STANDART: "zinc",
-  SILVER: "sky",
-  GOLD: "amber",
-};
-/** Paralı kademeler — grant menüsü/rozet mantığı için. */
-export const PAID_TIER_OPTIONS = ["SILVER", "GOLD"] as const;
-
 // ── Firma doğrulama durumu (KYC iç terimdir; ekranda "Doğrulama") ──
 export const VERIFY_META: Record<
   string,
@@ -45,6 +31,38 @@ export const COMPANY_ROLE_LABEL: Record<string, string> = {
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
   ONAYLAYICI: "Onaylayıcı",
+};
+
+// ── Firma içi izinler ──
+/**
+ * `@rothern/shared` `COMPANY_PERMISSION_CATALOG` + `OWNER_ONLY_PERMISSIONS`
+ * etiket AYNASI (admin paylaşılan pakete bağlı değil). Denetim kaydında izin
+ * listeleri ham kod ("buy:view, sell:bid:submit") basıyordu (arayüz testi son
+ * tur webC-4). Nöbetçi test katalogla birebirliği denetler.
+ */
+export const COMPANY_PERMISSION_LABEL: Record<string, string> = {
+  "buy:view": "Satınalma görüntüleme",
+  "buy:listing:manage": "Talep açma ve yönetme",
+  "buy:award": "Kazandırma",
+  "buy:order:manage": "Alım siparişi işlemleri",
+  "buy:inquiry:send": "Bilgi talebi gönderme",
+  "buy:reports:view": "Satınalma raporları",
+  "sell:view": "Satış görüntüleme",
+  "sell:bid:submit": "Teklif verme",
+  "sell:order:manage": "Satış siparişi işlemleri",
+  "sell:product:manage": "Ürün ve vitrin yönetimi",
+  "sell:inquiry:reply": "Bilgi taleplerini yanıtlama",
+  "approval:act": "Onaylama",
+  "approvals:manage": "Onay akışı tanımlama",
+  "company:manage": "Firma profili ve ayarlar",
+  "users:manage": "Kullanıcı ve yetki",
+  "connections:manage": "Bağlantılar, engelleme ve şikayet",
+  "templates:manage": "Şablonlar",
+  "addresses:manage": "Adres defteri",
+  "insights:view": "Ziyaret edenler ve iş analizi",
+  "billing:manage": "Faturalama (Kurucu)",
+  "company:delete": "Firmayı silme (Kurucu)",
+  "ownership:transfer": "Kurucu devri (Kurucu)",
 };
 
 // ── Belge inceleme durumu ──
@@ -88,17 +106,6 @@ export const REFERRAL_STATUS_META: Record<
   EXPIRED: { label: "Süresi Doldu", color: "zinc" },
 };
 
-// ── Üyelik geçmişi olayları ──
-export const MEMBERSHIP_ACTION_META: Record<
-  string,
-  { label: string; color: BadgeColor }
-> = {
-  GRANT: { label: "Tanımlandı", color: "green" },
-  EXTEND: { label: "Uzatıldı", color: "blue" },
-  REVOKE: { label: "Kaldırıldı", color: "red" },
-  EXPIRE: { label: "Süresi Doldu", color: "zinc" },
-};
-
 // ── Denetim kaydı varlık türleri (ham entityType ekrana çıkmasın) ──
 export const ENTITY_TYPE_LABEL: Record<string, string> = {
   company: "Firma",
@@ -113,6 +120,23 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   announcement: "Duyuru",
   email: "E-posta",
   system: "Sistem",
+  // Bugünkü yazım noktalarının tamamı — `__tests__/audit-actions.test.ts`
+  // API'deki `entityType: "…"` yazımlarını tarar (arayüz testi D-016).
+  company_order: "Sipariş",
+  company_order_payment: "Sipariş ödemesi",
+  company_user_invitation: "Kullanıcı daveti",
+  company_connection: "Bağlantı",
+  company_block: "Engelleme",
+  company_address: "Adres",
+  company_bank_account: "Banka hesabı",
+  company_item: "Katalog kalemi",
+  listing_bid: "Teklif",
+  listing_document: "İlan belgesi",
+  bid_document: "Teklif belgesi",
+  approval_flow: "Onay akışı",
+  approval_request: "Onay isteği",
+  audit_log: "Denetim kaydı",
+  email_log: "E-posta kaydı",
 };
 
 /** Haritada olmayan durum ham enum yerine tireli nötr etiket alır. */

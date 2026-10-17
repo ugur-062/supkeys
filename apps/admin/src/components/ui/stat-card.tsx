@@ -2,7 +2,7 @@
 
 /**
  * Ortak istatistik kartı — özet sayaçları için tek görünüm
- * (uyelik-raporu TotalCard + firma özeti StatCard tekleşti).
+ * (firma özeti StatCard ile ortak).
  */
 export function StatCard({
   label,

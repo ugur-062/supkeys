@@ -2,6 +2,39 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { reportToSentry } from "../../instrument";
+import { tApi } from "../../common/i18n/i18n.service";
+import { deletedAccountIdOf, deletedAccountTag } from "../company-auth/account-closure";
+
+/**
+ * The name a deleted account is shown under: the placeholder the deletion
+ * writes to the row (one fixed language, `AccountDeletionService`) and a
+ * short code from its id, so two deleted accounts stay apart in the log
+ * (whoever awarded, changed or approved something stays attributable to ONE
+ * account). No personal data: the code comes from the internal id.
+ */
+function placeholderName(): { first: string; last: string } {
+  return {
+    first: tApi("api.companyAuth.silinmisKullaniciAd", undefined, "tr"),
+    last: tApi("api.companyAuth.silinmisKullaniciSoyad", undefined, "tr"),
+  };
+}
+function deletedAccountLabel(userId: string): string {
+  const { first, last } = placeholderName();
+  return `${first} ${last} · ${deletedAccountTag(userId)}`;
+}
+/** A row's name in the log: the deletion placeholder gets its code; any other name as it is. */
+function personLabel(u: { id: string; firstName: string; lastName: string }): string {
+  const { first, last } = placeholderName();
+  if (u.firstName === first && u.lastName === last) return deletedAccountLabel(u.id);
+  return `${u.firstName} ${u.lastName}`.trim();
+}
+
+/**
+ * Greppable marker of a lost critical audit entry (server log and Sentry
+ * message). One constant: the imha record writer (`RetentionRecordService`)
+ * reports with the same marker.
+ */
+export const AUDIT_CRITICAL_LOSS_MARKER = "[AUDIT-KRİTİK-KAYIP]";
 
 export type AuditActorType =
   | "tenant"
@@ -31,6 +64,44 @@ export interface AuditEntry {
 }
 
 /**
+ * Firma aktivite logu modul filtresi -> action onekleri (derin denetim S017).
+ * Eskiden tek onek `company.<modul>.` idi; alt-tur eylemleri
+ * (`company.approval_flow.*`, `company.listing_document.*`,
+ * `company.bid_document.*`, `company.ownership.*`, `company.signup`,
+ * `company.profile_enriched`) "Tumu"nde gorunup modul filtresinde kayboluyordu.
+ * Listede olmayan modul varsayilan `company.<modul>.` onekini kullanir.
+ */
+const TENANT_ACTIVITY_MODULE_PREFIXES: Record<string, string[]> = {
+  listing: ["company.listing.", "company.listing_document."],
+  bid: ["company.bid.", "company.bid_document."],
+  approval: ["company.approval.", "company.approval_flow."],
+  user: ["company.user.", "company.ownership."],
+  // `company.profile_enrich` = the three AI description suggestion actions
+  // (`_attempt`, `_settled`, `company.profile_enriched`). Only the last one
+  // was listed here, so the attempt rows showed under "All" and vanished
+  // under the profile filter (same class as S017; live re-check PD-R5).
+  profile: ["company.profile.", "company.profile_enrich"],
+  signup: ["company.signup"],
+};
+
+/**
+ * THE COMPANY'S OWN PROFILE RECORDS in the admin company "Denetim" tab (live
+ * re-check 2026-10-09, PD-R5). The tab searches the audit log by company id.
+ * A company-actor row matched only through `entityId`, so "company profile
+ * updated" (written with the company as its entity) was listed while the AI
+ * description suggestion rows of the same minutes were not: they carry the
+ * company only in `tenantId` (`company.profile_enrich_attempt` and
+ * `company.profile_enriched` have no entity, `company.profile_enrich_settled`
+ * points at the attempt row). They are records about the company itself, like
+ * the profile update, so the tab lists them too.
+ *
+ * Deliberately narrow: only this action family. The rest of the company's own
+ * activity (requests, quotes, users...) still stays out of the tab - it would
+ * drown the admin interventions the tab is for.
+ */
+export const COMPANY_PROFILE_ACTION_PREFIX = "company.profile";
+
+/**
  * V2-7+ — Güvenlik denetim izi (OWASP A09). Append-only.
  * `log()` ASLA throw etmez — denetim yazımı başarısız olsa bile ana iş akışı
  * (login, kazandırma vb.) bozulmaz; sadece sunucu loguna hata düşer.
@@ -57,6 +128,19 @@ export class AuditService {
     }
   }
 
+  /** `CompanyUser.id` → e-posta; aynı fail-safe sözleşme. */
+  private async resolveCompanyUserEmail(userId: string): Promise<string | null> {
+    try {
+      const user = await this.prisma.companyUser.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      return user?.email ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async log(entry: AuditEntry): Promise<void> {
     try {
       // Dalga B (denetim 2026-08-26 Parça 9): admin aksiyonlarının izi yalnız
@@ -64,11 +148,16 @@ export class AuditService {
       // kararların sahibi geriye dönük olarak isimsizleşiyordu. Çağıranların
       // 17 ayrı noktada e-posta taşımasını beklemek yerine burada TEK yerde
       // çözülür (çağıran açıkça verirse ona dokunulmaz).
+      // Firma aktörü de aynı: e-postasız yazan noktalar (VIES sorgusu,
+      // onay akışıyla kazandırma, paket yükseltme) admin Denetim Kaydı'nda ham
+      // kullanıcı kimliği gösteriyordu (arayüz testi webC-14, yeniden doğrulama).
       const actorEmail =
         entry.actorEmail ??
         (entry.actorType === "admin" && entry.actorId
           ? await this.resolveAdminEmail(entry.actorId)
-          : null);
+          : entry.actorType === "company" && entry.actorId
+            ? await this.resolveCompanyUserEmail(entry.actorId)
+            : null);
       await this.prisma.auditLog.create({
         data: {
           action: entry.action,
@@ -89,7 +178,7 @@ export class AuditService {
       if (entry.critical) {
         // Sabit, greplenebilir marker — para/yetki izinin kaybı sessizce geçmesin.
         this.logger.error(
-          `[AUDIT-KRİTİK-KAYIP] action=${entry.action} actorId=${
+          `${AUDIT_CRITICAL_LOSS_MARKER} action=${entry.action} actorId=${
             entry.actorId ?? "-"
           } entityType=${entry.entityType ?? "-"} entityId=${
             entry.entityId ?? "-"
@@ -98,7 +187,7 @@ export class AuditService {
         // Log stdout'ta kalır; kritik audit kaybı alarm üretmeli → Sentry'e de
         // bildir. PII GÖNDERME: actorEmail/metadata/ip/userAgent hariç, yalnız
         // kimlik/eylem context'i. DSN yoksa reportToSentry sessiz no-op.
-        reportToSentry("[AUDIT-KRİTİK-KAYIP]", "error", {
+        reportToSentry(AUDIT_CRITICAL_LOSS_MARKER, "error", {
           tags: { audit: "critical-loss", action: entry.action },
           extra: {
             actorId: entry.actorId ?? null,
@@ -127,11 +216,12 @@ export class AuditService {
   ) {
     const page = Math.max(1, params.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
+    const prefixes = params.module
+      ? (TENANT_ACTIVITY_MODULE_PREFIXES[params.module] ?? [`company.${params.module}.`])
+      : ["company."];
     const where = {
       tenantId,
-      action: {
-        startsWith: params.module ? `company.${params.module}.` : "company.",
-      },
+      OR: prefixes.map((p) => ({ action: { startsWith: p } })),
     };
     const [total, rows] = await Promise.all([
       this.prisma.auditLog.count({ where }),
@@ -145,6 +235,9 @@ export class AuditService {
         select: {
           id: true,
           action: true,
+          // Read only to hide a deleted account's address (below); not in the response.
+          actorType: true,
+          actorId: true,
           actorEmail: true,
           entityType: true,
           entityId: true,
@@ -153,9 +246,87 @@ export class AuditService {
         },
       }),
     ]);
+    // SİLİNEN HESABIN E-POSTASI FİRMAYA GÖSTERİLMEZ (2026-10-16, mağaza / KVKK
+    // metinleri): satır yazım anındaki e-postayı tutar ve güvenlik kaydı olarak
+    // değişmeden kalır (admin Denetim Kaydı görür), ama firmanın Aktivite
+    // Logu'nda hesabı silinmiş ya da ekipten çıkarılmış kişi KAYITTAKİ adıyla
+    // görünür ("Silinmiş Kullanıcı · 4F2K" — kod hesabın kimliğinden, silinen
+    // hesaplar birbirinden ayrılsın; çıkarılan üye için yönetimin bildiği ad).
+    // Metinler "e-posta adresiniz hesap kaydından kaldırılır, kayıtlarda
+    // Silinmiş Kullanıcı olarak (Aktivite Logu'nda kısa bir kodla) görünürsünüz"
+    // der. Yalnız AYNI firmanın kişisi.
+    const actorIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.actorType === "company" && r.actorId)
+          .map((r) => r.actorId as string),
+      ),
+    ];
+    const goneActors = actorIds.length
+      ? await this.prisma.companyUser.findMany({
+          where: { id: { in: actorIds }, companyId: tenantId, deletedAt: { not: null } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const goneActorLabel = new Map(goneActors.map((u) => [u.id, personLabel(u) || deletedAccountLabel(u.id)]));
+    // Hedef kişi: kullanıcı yönetimi kayıtları (rol/izin/aktiflik) yalnız
+    // `entityId` taşır; Detay'da "kimin" değiştiği görünmüyordu (arayüz testi
+    // api2-01 yeniden doğrulama). Yalnız AYNI firmanın kullanıcıları çözülür —
+    // başka tenant'ın kişisi ad olarak sızmaz; silinmiş kişi null kalır.
+    const userIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.entityType === "company_user" && r.entityId)
+          .map((r) => r.entityId as string),
+      ),
+    ];
+    const people = userIds.length
+      ? await this.prisma.companyUser.findMany({
+          where: { id: { in: userIds }, companyId: tenantId },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const labelById = new Map(people.map((u) => [u.id, personLabel(u) || u.email]));
+    // Davet kayıtları (invited / invitation_cancelled) hedefi davet edilen
+    // ADRESTİR: e-posta (PII) audit metadata'sına yazılmaz, okuma anında yine
+    // AYNI firmanın davet satırından çözülür — Kullanıcı Yönetimi bu adresleri
+    // aynı kişilere zaten gösteriyor. "Üye daveti iptal edildi" satırının Detay
+    // hücresi boş kalıyordu (arayüz testi kalanlar api-2); davet satırı iptalde
+    // silinmediği için eski (metadata'sız) kayıtlar da adresini kazanır.
+    const invitationIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.entityType === "company_user_invitation" && r.entityId)
+          .map((r) => r.entityId as string),
+      ),
+    ];
+    const invitations = invitationIds.length
+      ? await this.prisma.companyUserInvitation.findMany({
+          where: { id: { in: invitationIds }, companyId: tenantId },
+          select: { id: true, email: true },
+        })
+      : [];
+    const inviteEmailById = new Map(invitations.map((i) => [i.id, i.email]));
+    const entityLabelOf = (r: { entityType: string | null; entityId: string | null }): string | null => {
+      if (!r.entityId) return null;
+      if (r.entityType === "company_user") return labelById.get(r.entityId) ?? null;
+      if (r.entityType === "company_user_invitation") {
+        const email = inviteEmailById.get(r.entityId) ?? null;
+        // Hesabını silen kişiye giden davetin adresi silmede yer tutucuya
+        // döndü; yer tutucu hesabın kimliğini taşır → aynı ad ve kod.
+        const deletedId = deletedAccountIdOf(email);
+        return deletedId ? deletedAccountLabel(deletedId) : email;
+      }
+      return null;
+    };
     return {
       // JsonValue tip-referansı dışa sızmasın (TS2742) — metadata unknown.
-      items: rows.map((r) => ({ ...r, metadata: r.metadata as unknown })),
+      items: rows.map(({ actorType: _actorType, actorId, ...r }) => ({
+        ...r,
+        actorEmail: (actorId ? goneActorLabel.get(actorId) : undefined) ?? r.actorEmail,
+        metadata: r.metadata as unknown,
+        entityLabel: entityLabelOf(r),
+      })),
       pagination: {
         page,
         pageSize,
@@ -185,6 +356,22 @@ export class AuditService {
         { actorEmail: { contains: term, mode: "insensitive" } },
         { action: { contains: term, mode: "insensitive" } },
         { entityId: { contains: term, mode: "insensitive" } },
+        // Firma detayı Denetim sekmesi firma id'siyle arar: firmaya bağlı
+        // varlıklara (kullanıcı, ilan, ürün) yapılan ADMIN işlemleri
+        // `tenantId`=firma ile yazılır (arayüz testi D-205). Yalnız admin
+        // aktörü — firmanın kendi etkinliği bu görünümü boğmasın.
+        { tenantId: term, actorType: "admin" },
+        // ...and the company's own PROFILE records (profile update, AI
+        // description suggestion): see `COMPANY_PROFILE_ACTION_PREFIX`.
+        { tenantId: term, action: { startsWith: COMPANY_PROFILE_ACTION_PREFIX } },
+        // Iki firmali admin mudahalesi (siparis iptali, baglanti daveti):
+        // ikinci taraf `metadata.counterpartyCompanyId` ile yazilir — o
+        // firmanin sekmesinde de gorunur (arayuz testi api2-02 yeniden
+        // dogrulama).
+        {
+          actorType: "admin",
+          metadata: { path: ["counterpartyCompanyId"], equals: term },
+        },
       ];
     }
 

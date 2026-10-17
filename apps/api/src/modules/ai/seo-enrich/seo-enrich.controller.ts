@@ -7,15 +7,23 @@ import { RequireCompanyPermission } from "../../company-auth/decorators/require-
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
-import { SEO_ENRICH_MAX_DESCRIPTION, SEO_ENRICH_MAX_FACTS, SeoEnrichService } from "./seo-enrich.service";
+import {
+  SEO_ENRICH_INPUT_ITEM_MAX_LEN,
+  SEO_ENRICH_INPUT_MAX_ITEMS,
+  SEO_ENRICH_MAX_DESCRIPTION,
+  SeoEnrichService,
+} from "./seo-enrich.service";
 
-class SeoEnrichDto {
+export class SeoEnrichDto {
   @IsIn(["product", "company", "listing"]) kind!: AiSeoEnrichKind;
   @IsString() @MaxLength(200) name!: string;
   @IsOptional() @IsString() @MaxLength(SEO_ENRICH_MAX_DESCRIPTION) description?: string | null;
   @IsOptional() @IsString() @MaxLength(200) categoryName?: string | null;
-  @IsOptional() @IsArray() @ArrayMaxSize(SEO_ENRICH_MAX_FACTS) @IsString({ each: true }) @MaxLength(200, { each: true }) facts?: string[];
-  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) keywords?: string[];
+  // facts/keywords: yalnız tür + cömert güvenlik tavanı — kırpma (öğe 200 kr,
+  // 40 olgu; etiket 50 kr) serviste. DTO servisten sıkıyken uzun açıklamalı
+  // kalem / 41+ kalemli talep / 45 kr'lik etiket 400 alıyordu (MU-08 X05).
+  @IsOptional() @IsArray() @ArrayMaxSize(SEO_ENRICH_INPUT_MAX_ITEMS) @IsString({ each: true }) @MaxLength(SEO_ENRICH_INPUT_ITEM_MAX_LEN, { each: true }) facts?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(SEO_ENRICH_INPUT_MAX_ITEMS) @IsString({ each: true }) @MaxLength(SEO_ENRICH_INPUT_ITEM_MAX_LEN, { each: true }) keywords?: string[];
   @IsOptional() @IsString() @MaxLength(100) brand?: string | null;
   @IsOptional() @IsString() @MaxLength(100) city?: string | null;
   @IsOptional() @IsString() @MaxLength(100) industry?: string | null;

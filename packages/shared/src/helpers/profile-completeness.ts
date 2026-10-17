@@ -15,6 +15,7 @@
  * ("" = boş), API profili null/number kullanır. İkisi de olduğu gibi verilir;
  * doluluk kararı burada tek yerde.
  */
+import { visibleCompanyCategorySelection } from "./company-category-selection";
 export interface ProfileCompletenessInput {
   logoUrl?: string | null;
   coverImageUrl?: string | null;
@@ -27,36 +28,79 @@ export interface ProfileCompletenessInput {
   city?: string | null;
   buyerCategoryIds?: string[] | null;
   sellerCategoryIds?: string[] | null;
+  /**
+   * Alt eksen (aile / sınıf / yaprak) — isteğe bağlı. Verilirse yalnız GİZLİ bir
+   * seçimin atası olarak saklanmış görünür segment "kategori var" sayılmaz
+   * (`visibleCompanyCategorySelection`); verilmezse ana eksen tek başına okunur.
+   */
+  buyerSubCategoryIds?: string[] | null;
+  sellerSubCategoryIds?: string[] | null;
+}
+
+/**
+ * Madde KODU (i18n Faz 3): paylaşılan paket metin değil kod taşır; metni
+ * tüketici çevirir (web `web.domain.profileItem.<kod>`). Türkçe ad geriye
+ * dönük olarak burada kalır — `missing` dizisi birebir aynı çıkar.
+ */
+export type ProfileCompletenessKey =
+  | "logo"
+  | "cover"
+  | "about"
+  | "services"
+  | "foundedYear"
+  | "employeeCount"
+  | "website"
+  | "industry"
+  | "city"
+  | "categories";
+
+export interface ProfileCompletenessItem {
+  key: ProfileCompletenessKey;
+  /** Türkçe ad (katalog yoksa yedek). */
+  label: string;
+  done: boolean;
 }
 
 export interface ProfileCompleteness {
   pct: number;
-  /** Eksik alan etiketleri — kullanıcıya gösterilen sırayla. */
+  /** Eksik alan etiketleri (Türkçe) — kullanıcıya gösterilen sırayla. */
   missing: string[];
+  /** Eksik alan KODLARI — `missing` ile aynı sırada; katalogdan çevrilir. */
+  missingKeys: ProfileCompletenessKey[];
+  /** Tüm maddeler (kod + Türkçe ad + doluluk) — sıra korunur. */
+  items: ProfileCompletenessItem[];
 }
 
 const filled = (v: string | number | null | undefined): boolean =>
   v != null && String(v).trim() !== "";
 
 export function profileCompleteness(p: ProfileCompletenessInput): ProfileCompleteness {
-  const items: [string, boolean][] = [
-    ["Logo", filled(p.logoUrl)],
-    ["Kapak", filled(p.coverImageUrl)],
-    ["Hakkında", filled(p.aboutText)],
-    ["Hizmetler", (p.services?.length ?? 0) > 0],
-    ["Kuruluş yılı", filled(p.foundedYear)],
-    ["Çalışan sayısı", filled(p.employeeCount)],
-    ["Web sitesi", filled(p.website)],
-    ["Sektör", filled(p.industry)],
-    ["Şehir", filled(p.city)],
-    [
-      "Faaliyet kategorileri",
-      (p.buyerCategoryIds?.length ?? 0) + (p.sellerCategoryIds?.length ?? 0) > 0,
-    ],
+  const items: ProfileCompletenessItem[] = [
+    { key: "logo", label: "Logo", done: filled(p.logoUrl) },
+    { key: "cover", label: "Kapak", done: filled(p.coverImageUrl) },
+    { key: "about", label: "Hakkında", done: filled(p.aboutText) },
+    { key: "services", label: "Hizmetler", done: (p.services?.length ?? 0) > 0 },
+    { key: "foundedYear", label: "Kuruluş yılı", done: filled(p.foundedYear) },
+    { key: "employeeCount", label: "Çalışan sayısı", done: filled(p.employeeCount) },
+    { key: "website", label: "Web sitesi", done: filled(p.website) },
+    { key: "industry", label: "Sektör", done: filled(p.industry) },
+    { key: "city", label: "Şehir", done: filled(p.city) },
+    {
+      key: "categories",
+      label: "Faaliyet kategorileri",
+      // Yalnız GÖRÜNÜR beyan sayılır (2026-10-09): tek beyanı gizli bir dalda
+      // olan firmanın hiçbir yüzeyde kategorisi görünmez → madde eksik sayılır.
+      done:
+        visibleCompanyCategorySelection(p.buyerCategoryIds, p.buyerSubCategoryIds).mainIds.length > 0 ||
+        visibleCompanyCategorySelection(p.sellerCategoryIds, p.sellerSubCategoryIds).mainIds.length > 0,
+    },
   ];
-  const done = items.filter(([, ok]) => ok).length;
+  const done = items.filter((i) => i.done).length;
+  const missingItems = items.filter((i) => !i.done);
   return {
     pct: Math.round((done / items.length) * 100),
-    missing: items.filter(([, ok]) => !ok).map(([l]) => l),
+    missing: missingItems.map((i) => i.label),
+    missingKeys: missingItems.map((i) => i.key),
+    items,
   };
 }

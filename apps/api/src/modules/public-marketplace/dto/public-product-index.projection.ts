@@ -1,6 +1,6 @@
 import { Prisma } from "@rothern/db";
-import { effectiveTier } from "../../../common/company/effective-tier";
-import type { TierName } from "@rothern/shared";
+import { effectiveTier, isFreePeriod } from "../../../common/company/effective-tier";
+import { visibleCategoryId, type TierName } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributesBatch } from "../../../common/company/category-attributes";
 
 /**
@@ -21,8 +21,15 @@ import { labelAttributes, resolveCategoryAttributesBatch } from "../../../common
  * Dışarıda kalanlar `public-product.projection.ts` ile aynı gerekçelerle:
  * `code` (envanter yapısı), `targetPrice` (ALIŞ hedefi = maliyet),
  * `completionScore` (iç kalite ölçütü), cuid `id`. Fiyat/MOQ AÇIK (v2).
+ *
+ * Gizli segmentin kodu karta YAZILMAZ (2026-10-09, `visibleCategoryId`):
+ * `categoryId` kartta yalnız gösterim içindir (ton, görsel, bağlantı). Satır
+ * seçimi ham kodu taşır — `attachProductFeatures` ve ilişkili ürün blokları
+ * satırdan okur, karttan değil.
  */
 export const PRODUCT_INDEX_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   slug: true,
   attributes: true,
   name: true,
@@ -90,7 +97,7 @@ export interface ProductIndexCard {
     /** KYC tamam — kartta "Doğrulanmış" tiki. */
     verified: boolean;
     /** Efektif GOLD — kartta "Gold Üye" rozeti (paketin görünür karşılığı). */
-    gold: boolean;
+    gold?: boolean;
   };
 }
 
@@ -102,7 +109,7 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
     excerpt: flat ? (flat.length <= 160 ? flat : `${flat.slice(0, 159)}…`) : null,
     images: r.images,
     unit: r.unit,
-    categoryId: r.categoryId,
+    categoryId: visibleCategoryId(r.categoryId),
     priceMode: r.priceMode,
     priceAmount: r.priceAmount?.toString() ?? null,
     priceTiers: r.priceTiers,
@@ -119,7 +126,10 @@ export function toProductIndexCard(r: ProductIndexRow): ProductIndexCard {
       activities: r.company.activities,
       logoUrl: r.company.logoUrl,
       verified: r.company.companyVerificationStatus === "VERIFIED",
-      gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt) === "GOLD",
+      // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+      ...(isFreePeriod()
+        ? {}
+        : { gold: effectiveTier(r.company.tier as TierName, r.company.membershipEndAt, r.company.companyVerificationStatus) === "GOLD" }),
     },
   };
 }

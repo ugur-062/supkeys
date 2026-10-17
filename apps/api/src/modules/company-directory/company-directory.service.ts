@@ -1,8 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
-import { tokenizeQuery } from "@rothern/shared";
+import { foldSearchText, hiddenPrefixesUnder, stemPrefix, tokenizeQuery, visibleCategoryId } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
+import { shownCompanyDeclaration } from "../../common/company/company-directory";
+import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
  * Firma dizini — kiracılar ARASI okuma (başka firmaları listeler), bu yüzden
@@ -14,7 +18,11 @@ import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
  */
 @Injectable()
 export class CompanyDirectoryService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** i18n Faz 1e: kart metni okuyucunun dilinde — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   /**
    * FİRMA DİZİNİ — YALNIZ GİRİŞ YAPMIŞ firmalara.
@@ -42,30 +50,66 @@ export class CompanyDirectoryService {
     const pageSize = 24;
     const page = Math.max(1, q.page ?? 1);
     const tokens = q.q ? tokenizeQuery(q.q) : [];
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): a hidden code in `?category=`
+    // behaves as if no category filter was given - the same rule as the shared
+    // directory builder (`common/company/company-directory.ts`). Without it the
+    // filter still worked and listed exactly the companies that had declared
+    // the hidden segment.
+    const category = visibleCategoryId(q.category);
+    const declaresCategory: Prisma.CompanyWhereInput | null = category
+      ? {
+          OR: [
+            { buyerCategoryIds: { has: category } },
+            { buyerSubCategoryIds: { has: category } },
+            { sellerCategoryIds: { has: category } },
+            { sellerSubCategoryIds: { has: category } },
+          ],
+        }
+      : null;
+    // HIDDEN BRANCH UNDER A VISIBLE CATEGORY (2026-10-10). A declaration
+    // stores the ancestor chain of every pick, so a company whose only pick
+    // under this category is a hidden one still holds the visible ancestor.
+    // It is not listed under it: the SHOWN declaration decides (single rule,
+    // `shownCompanyDeclaration`). Only a category that has a hidden branch
+    // below it needs this second pass; the page and the total then come from
+    // the narrowed id set.
+    const shownIds =
+      category && declaresCategory && hiddenPrefixesUnder(category).length > 0
+        ? (
+            await this.prisma.company.findMany({
+              where: { ...PUBLIC_PROFILE_WHERE, ...declaresCategory },
+              select: {
+                id: true,
+                buyerCategoryIds: true,
+                buyerSubCategoryIds: true,
+                sellerCategoryIds: true,
+                sellerSubCategoryIds: true,
+              },
+              take: 5000,
+            })
+          )
+            .filter((c) => shownCompanyDeclaration(c).all.includes(category))
+            .map((c) => c.id)
+        : null;
     const where: Prisma.CompanyWhereInput = {
       ...PUBLIC_PROFILE_WHERE,
+      ...(shownIds ? { id: { in: shownIds } } : {}),
       ...(q.city ? { city: q.city } : {}),
       ...(q.activity
         ? { activities: { has: q.activity as CompanyActivity } }
         : {}),
-      ...(q.category
-        ? {
-            OR: [
-              { buyerCategoryIds: { has: q.category } },
-              { buyerSubCategoryIds: { has: q.category } },
-              { sellerCategoryIds: { has: q.category } },
-              { sellerSubCategoryIds: { has: q.category } },
-            ],
-          }
-        : {}),
+      ...(declaresCategory ?? {}),
       ...(tokens.length
         ? {
+            // `likeLiteral`: `%` / `_` joker değil düz karakter (ortak dizin
+            // kurucusu `common/company/company-directory.ts` ile aynı kural).
             AND: tokens.map((t) => ({
               OR: [
-                { name: { contains: t, mode: "insensitive" as const } },
-                { industry: { contains: t, mode: "insensitive" as const } },
-                { aboutText: { contains: t, mode: "insensitive" as const } },
+                { name: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                { industry: { contains: likeLiteral(t), mode: "insensitive" as const } },
+                { aboutText: { contains: likeLiteral(t), mode: "insensitive" as const } },
                 { services: { has: t } },
+                { searchTextI18n: { contains: likeLiteral(stemPrefix(foldSearchText(t))) } },
               ],
             })),
           }
@@ -77,6 +121,7 @@ export class CompanyDirectoryService {
       this.prisma.company.findMany({
         where,
         select: {
+          id: true,
           name: true,
           slug: true,
           city: true,
@@ -95,8 +140,11 @@ export class CompanyDirectoryService {
       }),
     ]);
 
+    const localized = this.translations
+      ? await this.translations.localizeCompanies(rows, rows.map((r) => r.id), currentLocale())
+      : rows;
     return {
-      items: rows.map((c) => ({
+      items: localized.map(({ id: _companyId, ...c }) => ({
         ...c,
         // Kart özeti — tam metin profil sayfasında.
         aboutText: c.aboutText

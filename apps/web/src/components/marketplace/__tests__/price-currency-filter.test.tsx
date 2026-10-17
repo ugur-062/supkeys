@@ -1,0 +1,217 @@
+// @vitest-environment jsdom
+/**
+ * FİYAT SÜZGECİ PARA BİRİMİ (2026-09-27, "kurla çevir") — sözleşme:
+ * histogram/ön ayar/etiketler sunucunun çözdüğü birimde (facet `currency`)
+ * basılır, sabit "₺" YOK; birim seçilince aralık sıfırlanır ve `para` URL'e
+ * yazılır; aralık seçilince birim de AÇIKÇA yazılır (paylaşılan bağlantı
+ * başka dilde başka birimde okunmasın).
+ */
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const nav = vi.hoisted(() => ({ pathname: "/urunler", search: "", push: vi.fn(), replace: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: nav.push, replace: nav.replace }),
+  useSearchParams: () => new URLSearchParams(nav.search),
+  usePathname: () => nav.pathname,
+}));
+
+import { FilterShell } from "../filter-shell";
+import { ProductFilters, presetRanges } from "../product-filters";
+import type { ProductFacets } from "@/lib/public/marketplace-api";
+
+const facets = (over: Partial<ProductFacets> = {}): ProductFacets => ({
+  categories: [],
+  cities: [],
+  activities: [],
+  verified: 0,
+  price: { has: 3, request: 1 },
+  attributes: [],
+  truncated: false,
+  currency: "EUR",
+  priceHistogram: {
+    min: 10,
+    max: 450,
+    quantiles: { p33: 20, p66: 100 },
+    buckets: [
+      { from: 10, to: 50, count: 2 },
+      { from: 50, to: 450, count: 1 },
+    ],
+  },
+  ...over,
+});
+
+function lastUrl(): string {
+  const calls = [...nav.push.mock.calls, ...nav.replace.mock.calls];
+  return calls.at(-1)![0] as string;
+}
+
+beforeEach(() => {
+  nav.push.mockClear();
+  nav.replace.mockClear();
+  nav.search = "";
+});
+
+describe("fiyat süzgeci — para birimi", () => {
+  it("ön ayar etiketleri çağıranın biçimleyicisini kullanır (sabit ₺ yok)", () => {
+    const tr = presetRanges({ min: 10, max: 450, quantiles: { p33: 20, p66: 100 } }, (n) => `${n} €`);
+    expect(tr.map((x) => x.label)).toEqual(["≤ 20 €", "20 € – 100 €", "100 € +"]);
+    // İngilizcede sembol önde — biçimleyici dilin kuralını taşır.
+    const en = presetRanges({ min: 10, max: 450, quantiles: { p33: 20, p66: 100 } }, (n) => `€${n}`);
+    expect(en.map((x) => x.label)).toEqual(["≤ €20", "€20 – €100", "€100 +"]);
+  });
+
+  it("sunucunun birimiyle çizer; ön ayar seçimi birimi de URL'e yazar", () => {
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={facets()} idPrefix="t" />
+      </FilterShell>,
+    );
+    expect(screen.getByText("Min €")).toBeTruthy();
+    // Histogram uçları da sunucunun biriminde.
+    expect(screen.getByText("10 €")).toBeTruthy();
+    expect(screen.getByText("450 €")).toBeTruthy();
+    // Seçici sunucunun çözdüğü birimde açılır.
+    expect((screen.getByRole("combobox", { name: /Para birimi/ }) as HTMLSelectElement).value).toBe("EUR");
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "≤ 20 €" }));
+    });
+    const url = lastUrl();
+    expect(url).toContain("para=EUR");
+    expect(url).toContain("fiyatMax=20");
+  });
+
+  it("ilk ön ayar alt sınırsızdır: seçili görünür, debounce ikinci yönlendirme yapmaz, tekrar tıklamak kaldırır", () => {
+    vi.useFakeTimers();
+    try {
+      expect(presetRanges({ min: 10, max: 450, quantiles: { p33: 20, p66: 100 } }, String)[0]!.from).toBeUndefined();
+      nav.search = "para=EUR&fiyatMax=20";
+      render(
+        <FilterShell basePath="/urunler" total={0}>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      const chip = screen.getByRole("button", { name: "≤ 20 €" });
+      expect(chip.getAttribute("aria-pressed")).toBe("true");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+      act(() => {
+        fireEvent.click(chip);
+      });
+      expect(lastUrl()).not.toContain("fiyatMax");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gözden geçirme O-016: 1'in altında fiyatlı katalogda ilk çubuk tek gezinme yapar, fiyatMin=0 yazılmaz", () => {
+    vi.useFakeTimers();
+    try {
+      const hist = {
+        min: 0,
+        max: 450,
+        quantiles: { p33: 20, p66: 100 },
+        buckets: [
+          { from: 0, to: 50, count: 2 },
+          { from: 50, to: 450, count: 1 },
+        ],
+      };
+      render(
+        <FilterShell basePath="/urunler" total={0} pushFilters>
+          <ProductFilters facets={facets({ priceHistogram: hist })} idPrefix="t" />
+        </FilterShell>,
+      );
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: /^0 €–50 € aralığı/ }));
+      });
+      expect(nav.push).toHaveBeenCalledTimes(1);
+      expect(lastUrl()).toContain("fiyatMax=50");
+      expect(lastUrl()).not.toContain("fiyatMin");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).toHaveBeenCalledTimes(1);
+      expect(nav.replace).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gözden geçirme O-016: fiyatMin=0 adresi (Geri ile dönülen) debounce'la yeniden gezinme yapmaz", () => {
+    vi.useFakeTimers();
+    try {
+      nav.search = "para=EUR&fiyatMin=0&fiyatMax=50";
+      render(
+        <FilterShell basePath="/urunler" total={0} pushFilters>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      expect((screen.getByPlaceholderText("0") as HTMLInputElement).value).toBe("");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("birim değişince aralık sıfırlanır ve yeni birim URL'e yazılır", () => {
+    nav.search = "para=EUR&fiyatMin=100&fiyatMax=500";
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={facets()} idPrefix="t" />
+      </FilterShell>,
+    );
+    act(() => {
+      fireEvent.change(screen.getByRole("combobox", { name: /Para birimi/ }), { target: { value: "USD" } });
+    });
+    const url = lastUrl();
+    expect(url).toContain("para=USD");
+    expect(url).not.toContain("fiyatMin");
+    expect(url).not.toContain("fiyatMax");
+  });
+});
+
+/**
+ * Arayüz testi kapanış NUM: fiyat kutuları rakam dışını atıyordu → "2.5" 25,
+ * "12,50" 1250, EN "1,500.5" 15005 süzülüyordu. Artık yerel tam sayı.
+ */
+describe("fiyat süzgeci — yerel tam sayı (NUM)", () => {
+  function typeMin(value: string) {
+    const min = screen.getByPlaceholderText("0") as HTMLInputElement;
+    act(() => {
+      fireEvent.change(min, { target: { value } });
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    return min;
+  }
+
+  it("TR '1.500' fiyatMin=1500; '12,50' süzgece GİTMEZ, uyarı görünür", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <FilterShell basePath="/urunler" total={0}>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      typeMin("1.500");
+      expect(lastUrl()).toContain("fiyatMin=1500");
+      nav.push.mockClear();
+      nav.replace.mockClear();
+      const min = typeMin("12,50");
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+      expect(min).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("tam sayı");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

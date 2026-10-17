@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   Injectable,
   InternalServerErrorException,
@@ -24,6 +25,25 @@ const PUT_TTL_SECONDS = 15 * 60;
 // GET presigned URL ömrü kısa tutulur — hassas belge (KYC/teklif) URL'si loglara/
 // referer'a sızarsa tekrar-oynatma penceresi dar olsun. İndirme için 15 dk yeter.
 const GET_TTL_SECONDS = 15 * 60;
+
+/**
+ * RFC 6266 Content-Disposition — derin denetim LU-19: ad eskiden yalnız
+ * `filename="<yüzde-kodlu>"` olarak gidiyordu; düz `filename` parametresi
+ * yüzde-çözülmez, Firefox/Safari "Teknik%20%C5%9Eartname.pdf" diye kaydediyordu.
+ * Şimdi ASCII yedek `filename` (ASCII dışı / tırnak / ters bölü / kontrol
+ * karakteri → `_`) + UTF-8 `filename*` (RFC 5987) birlikte yazılır.
+ */
+export function contentDisposition(
+  type: "attachment" | "inline",
+  name: string,
+): string {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_") || "file";
+  const encoded = encodeURIComponent(name).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
 
 /**
  * İki-bucket ayrımı (R2). Public erişim R2'da BUCKET seviyesindedir → hassas
@@ -130,7 +150,9 @@ export class StorageService implements OnModuleInit {
         this.logger.error(
           `R2 bucket erişilemiyor (name=${e?.name ?? "?"}, code=${e?.Code ?? "?"}, status=${status ?? "?"}): ${msg}. Endpoint=${endpoint}, Bucket=${bucket}. API token'ın bu bucket'a yetkili olduğunu kontrol et.`,
         );
-        throw new InternalServerErrorException("R2 bucket erişilemiyor");
+        throw new InternalServerErrorException(
+          i18nMessage("api.storage.r2BucketErisilemiyor"),
+        );
       }
     }
   }
@@ -243,7 +265,23 @@ export class StorageService implements OnModuleInit {
       Key: key,
       ContentType: mimeType,
     });
-    return getSignedUrl(this.client, command, { expiresIn: PUT_TTL_SECONDS });
+    // PUBLIC kova: içerik tipi İMZAYA BAĞLANIR. SDK varsayılanı
+    // (`prepareRequest` → `unsignableHeaders.add("content-type")`) tipi
+    // imzalamaz; istemci allowlist'teki "image/png"yi beyan edip nesneyi
+    // `text/html`/`image/svg+xml` olarak PUT edebiliyordu. Public nesne PUT
+    // biter bitmez cdn.rothern.com'da yayında olduğundan, istemci resolve/commit
+    // çağırmazsa yükleme sonrası MIME kontrolü hiç çalışmıyordu → marka alan
+    // adında kalıcı HTML/XSS (derin denetim Y-01). `signableHeaders` bu
+    // varsayılanı ezer (X-Amz-SignedHeaders=content-type;host): başka bir
+    // Content-Type ile yapılan PUT imza hatasıyla reddedilir. Private kova
+    // değişmedi — oradaki nesneler yalnız sunucunun sabitlediği tiple
+    // (octet-stream/uzantı beyaz listesi) servis edilir.
+    return getSignedUrl(this.client, command, {
+      expiresIn: PUT_TTL_SECONDS,
+      ...(bucket === "public"
+        ? { signableHeaders: new Set(["content-type"]) }
+        : {}),
+    });
   }
 
   /** Sunucu tarafı upload — buffer'ı doğrudan R2'ya yazar. */
@@ -278,9 +316,10 @@ export class StorageService implements OnModuleInit {
     const command = new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+      ResponseContentDisposition: contentDisposition(
+        "attachment",
         originalFilename ?? key.split("/").pop() ?? "dosya",
-      )}"`,
+      ),
       ResponseContentType: "application/octet-stream",
     });
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
@@ -326,9 +365,10 @@ export class StorageService implements OnModuleInit {
     const command = new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: key,
-      ResponseContentDisposition: `inline; filename="${encodeURIComponent(
+      ResponseContentDisposition: contentDisposition(
+        "inline",
         originalFilename ?? key.split("/").pop() ?? "belge",
-      )}"`,
+      ),
       ResponseContentType: contentType,
     });
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
@@ -343,11 +383,12 @@ export class StorageService implements OnModuleInit {
       const result = await this.client.send(
         new HeadObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
       );
-      // contentType ZORUNLU: presigned PUT içerik tipini İMZALAMAZ (AWS SDK
-      // `prepareRequest` → `unsignableHeaders.add("content-type")`), yani
-      // istemci "image/png" beyan edip nesneyi text/html olarak yükleyebilir.
-      // Tek otoritatif kaynak, yüklemeden SONRA okunan bu HEAD değeridir
-      // (denetim 2026-08-24 Parça 5, HIGH).
+      // contentType ZORUNLU: private kovada presigned PUT içerik tipini
+      // İMZALAMAZ (AWS SDK `prepareRequest` → `unsignableHeaders.add(
+      // "content-type")`), yani istemci "image/png" beyan edip nesneyi
+      // text/html olarak yükleyebilir. Public kovada tip artık imzalı
+      // (generatePresignedPut, derin denetim Y-01) ama bu HEAD kontrolü ikinci
+      // savunma hattı olarak kalır (denetim 2026-08-24 Parça 5, HIGH).
       return {
         exists: true,
         size: result.ContentLength,
@@ -365,6 +406,28 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Nesnenin İLK `bytes` baytı (HTTP Range) — içerik imzası (magic bytes)
+   * denetimi için; tüm dosya indirilmez (arayüz testi D-014). Nesne
+   * `bytes`'tan kısaysa ne varsa o döner.
+   */
+  async readObjectPrefix(
+    bucket: BucketKind,
+    key: string,
+    bytes: number,
+  ): Promise<Buffer> {
+    this.assertKeyBucket(bucket, key);
+    const result = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucketName(bucket),
+        Key: key,
+        Range: `bytes=0-${Math.max(0, bytes - 1)}`,
+      }),
+    );
+    const data = await result.Body?.transformToByteArray();
+    return Buffer.from(data ?? new Uint8Array()).subarray(0, bytes);
+  }
+
+  /**
    * Sunucu-içi okuma (Faz AI-1) — nesne içeriğini Buffer olarak döner. AI
    * belge işleme gibi backend'in dosyayı KENDİSİNİN tüketmesi gereken akışlar
    * için; kullanıcıya indirme her zaman presigned GET ile.
@@ -376,7 +439,9 @@ export class StorageService implements OnModuleInit {
     );
     const bytes = await result.Body?.transformToByteArray();
     if (!bytes) {
-      throw new InternalServerErrorException("Dosya içeriği okunamadı");
+      throw new InternalServerErrorException(
+        i18nMessage("api.storage.dosyaIcerigiOkunamadi"),
+      );
     }
     return Buffer.from(bytes);
   }

@@ -27,11 +27,14 @@ vi.mock("@/hooks/use-company-reports", () => ({
     mutateAsync: h.downloadMutate,
     isPending: h.downloadPending,
   }),
-}));
-vi.mock("@/hooks/use-company-tenders", () => ({
-  useTenders: () => ({ data: h.tenders }),
+  // Seçici rapor izniyle açılan uçtan (arayüz testi T3).
+  // Yanıt sayfalı: en yeni N + toplam (arayüz testi webB-1:NEW-1).
+  useReportListingOptions: () => ({
+    data: { items: h.tenders, total: h.tenders.length, limit: 500 },
+  }),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { GeneralReportView } from "../general-report-view";
 
 function result(over: Record<string, unknown> = {}) {
@@ -84,6 +87,10 @@ function result(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useCompanyAuthStore.setState({
+    user: { permissions: ["buy:view", "buy:reports:view"], roles: [], isOwner: false },
+  } as never);
+  window.history.replaceState(null, "", "/");
   h.reportPending = false;
   h.reportData = undefined;
   h.downloadPending = false;
@@ -110,6 +117,14 @@ describe("GeneralReportView", () => {
     ).toBeInTheDocument();
     // Mod seçilmeden "Raporu Oluştur" pasif.
     expect(screen.getByRole("button", { name: /Raporu Oluştur/ })).toBeDisabled();
+  });
+
+  it("RANGE mod durum süzgecinde 'Değerlendirmede' (IN_AWARD) var (derin denetim LU-28)", async () => {
+    const user = userEvent.setup();
+    render(<GeneralReportView {...base} />);
+    await user.click(screen.getAllByRole("radio")[1]); // RANGE
+    const option = screen.getByRole("option", { name: "Değerlendirmede" });
+    expect(option).toHaveAttribute("value", "IN_AWARD");
   });
 
   it("SINGLE mod: satın alma talebi seçince Raporu Oluştur mutasyonu tetikler", async () => {
@@ -144,9 +159,88 @@ describe("GeneralReportView", () => {
     expect(screen.getByText("Demir Ltd.")).toBeInTheDocument();
   });
 
+  // Mobil denetim g10-01 / g10-06: yapışkan ilk sütun en uzun başlık kadar
+  // genişleyip (517 px) 344 px'lik kaydırıcının tamamını örtüyordu; kart da
+  // ikinci bir yatay kaydırıcıydı.
+  it("telefon: yapışkan ilk sütun dar ve sarar; kart ikinci kaydırıcı değil", () => {
+    h.reportData = result();
+    render(<GeneralReportView {...base} />);
+    const link = screen.getByRole("link", { name: "Çelik Alımı" });
+    const cell = link.closest("td")!;
+    expect(cell.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "left-0", "z-10", "bg-white"]));
+    const col = link.parentElement!;
+    // Alt sınır (doğrulama turu g10): tablo kaydırıcıdan genişken otomatik
+    // düzen saran sütunu en uzun sözcüğe (48 px) indiriyordu.
+    expect(col.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "min-w-[36vw]",
+        "max-w-[45vw]",
+        "whitespace-normal",
+        "sm:min-w-0",
+        "sm:max-w-none",
+        "sm:whitespace-nowrap",
+      ]),
+    );
+    // Talep numarası kendi içinde bölünmez ("ROT-" / "000745").
+    expect(within(col).getByText("IHL-2026-0001").className.split(/\s+/)).toContain("whitespace-nowrap");
+    const header = screen.getByRole("columnheader", { name: "Satın Alma Talebi" });
+    expect(header.className.split(/\s+/)).toEqual(expect.arrayContaining(["sticky", "max-sm:whitespace-normal"]));
+    const card = cell.closest(".card")!;
+    expect(card.className).not.toMatch(/overflow-x-auto/);
+    expect(card.className.split(/\s+/)).toEqual(expect.arrayContaining(["overflow-hidden", "px-2", "[--gutter:--spacing(2)]"]));
+  });
+
+  it("yalnız rapor yetkilisi (buy:view yok): talep adı bağlantı değil düz metin (arayüz testi T3)", () => {
+    useCompanyAuthStore.setState({
+      user: { permissions: ["buy:reports:view"], roles: [], isOwner: false },
+    } as never);
+    h.reportData = result();
+    render(<GeneralReportView {...base} />);
+    expect(screen.getByText("Çelik Alımı")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Çelik Alımı" })).toBeNull();
+  });
+
+  it("Türkçe özet şeridinde ondalık virgül: %77,3 ve 1,2 (arayüz testi O-033)", () => {
+    const r = result();
+    r.summary = { ...r.summary, overallResponseRate: 77.3, avgBidsPerListing: 1.2 };
+    h.reportData = r;
+    render(<GeneralReportView {...base} />);
+    expect(screen.getByText("%77,3")).toBeInTheDocument();
+    expect(screen.getByText("1,2")).toBeInTheDocument();
+    expect(screen.queryByText("%77.3")).not.toBeInTheDocument();
+  });
+
+  it("ters tarih aralığında satır içi hata ve oluştur pasif (arayüz testi D-113)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<GeneralReportView {...base} />);
+    await user.click(screen.getAllByRole("radio")[1]); // RANGE
+    const dates = container.querySelectorAll('input[type="date"]');
+    await user.type(dates[0] as HTMLElement, "2026-09-30");
+    await user.type(dates[1] as HTMLElement, "2026-09-01");
+    expect(screen.getByText("Bitiş tarihi başlangıçtan önce olamaz.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Raporu Oluştur/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Excel İndir/ })).toBeDisabled();
+  });
+
+  it("kriterler adrese yazılır; adresle açılış SINGLE raporu yeniden üretir (arayüz testi D-293)", async () => {
+    const user = userEvent.setup();
+    h.reportMutate.mockResolvedValue(result());
+    const first = render(<GeneralReportView {...base} />);
+    await user.click(screen.getAllByRole("radio")[0]); // SINGLE
+    await user.selectOptions(await screen.findByRole("combobox"), "t1");
+    await user.click(screen.getByRole("button", { name: /Raporu Oluştur/ }));
+    expect(window.location.search).toBe("?mode=SINGLE&listing=t1");
+    first.unmount();
+    h.reportMutate.mockClear();
+
+    render(<GeneralReportView {...base} />);
+    expect(h.reportMutate).toHaveBeenCalledWith({ type: "ALIM", mode: "SINGLE", listingId: "t1" });
+    expect(screen.getByRole("combobox")).toHaveValue("t1");
+  });
+
   it("Excel indir başarılı → indirme mutasyonu + başarı toast'ı", async () => {
     const user = userEvent.setup();
-    h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx" });
+    h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx", outcome: "downloaded" });
     render(<GeneralReportView {...base} />);
 
     await user.click(screen.getAllByRole("radio")[0]); // SINGLE
@@ -161,6 +255,26 @@ describe("GeneralReportView", () => {
     });
     expect(h.toast.success).toHaveBeenCalledWith("rapor.xlsx indiriliyor");
   });
+
+  // Mobil kabuk: dosya paylaşım sayfasıyla verildi (ya da kullanıcı kapattı,
+  // ya da eski sürüm "siteden yapın" dedi) — "indiriliyor" denmez.
+  it.each(["shared", "cancelled", "unsupported", "failed"] as const)(
+    "indirme sonucu %s → 'indiriliyor' toast'ı yok",
+    async (outcome) => {
+      const user = userEvent.setup();
+      h.downloadMutate.mockResolvedValue({ filename: "rapor.xlsx", outcome });
+      render(<GeneralReportView {...base} />);
+
+      await user.click(screen.getAllByRole("radio")[0]); // SINGLE
+      const select = await screen.findByRole("combobox");
+      await user.selectOptions(select, "t1");
+
+      await user.click(screen.getByRole("button", { name: /Excel İndir/ }));
+      expect(h.downloadMutate).toHaveBeenCalledTimes(1);
+      expect(h.toast.success).not.toHaveBeenCalled();
+      expect(h.toast.error).not.toHaveBeenCalled();
+    },
+  );
 
   it("rapor mutasyonu hata verirse hata toast'ı gösterir", async () => {
     const user = userEvent.setup();

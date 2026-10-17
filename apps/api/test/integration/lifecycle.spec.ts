@@ -419,6 +419,53 @@ describe("Değerlendirmeye Al (IN_AWARD)", () => {
       }),
     ).toBe(1);
   });
+
+  it("scheduler — evaluationValidityReminders: uygun olmayan ilanlar pencereyi doldurmaz, tüm adaylar taranır (derin denetim MU-14)", async () => {
+    const { service } = makeService();
+    const scheduler = new ListingScheduler(prisma as never, service as never);
+    // Sayfa boyu 1: eskiden sırasız ilk sayfa teklifsiz/sağlıklı ilanla dolup
+    // dolmak üzere teklifi olan ilana hiç sıra gelmiyordu.
+    (scheduler as unknown as { validityReminderPageSize: number }).validityReminderPageSize = 1;
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+    const inAward = () =>
+      makeListing(prisma, {
+        companyId: owner.company.id,
+        createdById: owner.user.id,
+        type: "ALIM",
+        status: "IN_AWARD",
+        closesAt: PAST,
+      });
+    // Teklifsiz (damgalanmaz) iki ilan + geçerliliği uzun teklifli bir ilan.
+    await inAward();
+    await inAward();
+    const healthy = await inAward();
+    await makeBid(prisma, {
+      listingId: healthy.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      validityDays: 365,
+    });
+    const expiring = await inAward();
+    await makeBid(prisma, {
+      listingId: expiring.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      submittedAt: new Date(Date.now() - 29 * 24 * 3600 * 1000),
+      validityDays: 30,
+    });
+    await scheduler.evaluationValidityReminders();
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: expiring.id } }))
+        .evaluationReminderSentAt,
+    ).not.toBeNull();
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: healthy.id } }))
+        .evaluationReminderSentAt,
+    ).toBeNull();
+  });
 });
 
 describe("scheduler — closeExpired", () => {
@@ -449,6 +496,46 @@ describe("scheduler — closeExpired", () => {
       (await prisma.listing.findUniqueOrThrow({ where: { id: live.id } }))
         .status,
     ).toBe("OPEN");
+  });
+
+  it("derin denetim X14/S029: aday seçildikten sonra kapanışı ileri alınan ilan KAPANMAZ", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const extended = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: PAST,
+    });
+    // Yarış: cron adayları okuduktan hemen sonra sahip/auto-extend kapanışı
+    // ileri alır; claim bu değişikliği görmeli.
+    const listingDelegate = prisma.listing;
+    const racyListing = new Proxy(listingDelegate, {
+      get(target, key) {
+        if (key === "findMany") {
+          return async (args: unknown) => {
+            const rows = await target.findMany(args as never);
+            await target.update({ where: { id: extended.id }, data: { closesAt: FUTURE } });
+            return rows;
+          };
+        }
+        const v = (target as unknown as Record<string | symbol, unknown>)[key];
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const racyPrisma = new Proxy(prisma, {
+      get(target, key) {
+        if (key === "listing") return racyListing;
+        const v = (target as unknown as Record<string | symbol, unknown>)[key];
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const scheduler = new ListingScheduler(racyPrisma as never, service as never);
+    await scheduler.closeExpired();
+    const after = await prisma.listing.findUniqueOrThrow({ where: { id: extended.id } });
+    expect(after.status).toBe("OPEN");
+    expect(after.closesAt?.getTime()).toBe(FUTURE.getTime());
   });
 
   it("A5: tam closesAt anında da kapatır (sınır DAHİL, lte)", async () => {

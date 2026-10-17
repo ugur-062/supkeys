@@ -28,12 +28,24 @@ const SIZE = {
   md: "h-6 px-2 text-xs gap-1 [&>svg]:size-3.5",
 } as const;
 
+/**
+ * SARILAN ROZET (`wrap`, gizli satır rozeti 2026-10-05): dar hücrede metin
+ * "…" ile kısalmak yerine BOŞLUKTA alt satıra iner — sabit yükseklik
+ * kalkar (en az tek satır boyu), hap köşesi iki satırda yumuşak dikdörtgene
+ * döner. Sözcük ortasından bölünmez (`break-normal`).
+ */
+const WRAP = {
+  sm: "h-auto min-h-5 py-0.5 rounded-lg leading-tight whitespace-normal break-normal hyphens-none text-left",
+  md: "h-auto min-h-6 py-0.5 rounded-lg leading-tight whitespace-normal break-normal hyphens-none text-left",
+} as const;
+
 const ICON: Partial<Record<BadgeTone, typeof BadgeCheck>> = { verified: BadgeCheck, gold: Crown };
 
 export function Badge({
   tone = "neutral",
   size = "md",
   icon = true,
+  wrap = false,
   className,
   children,
   ...rest
@@ -42,6 +54,8 @@ export function Badge({
   size?: keyof typeof SIZE;
   /** verified → BadgeCheck, gold → Crown; `false` ile ikonsuz. */
   icon?: boolean;
+  /** Dar hücrede kısalmak yerine boşlukta sarılır (bkz. `WRAP`). */
+  wrap?: boolean;
   className?: string;
   children: ReactNode;
 } & Omit<React.HTMLAttributes<HTMLSpanElement>, "children">) {
@@ -52,6 +66,7 @@ export function Badge({
         "inline-flex shrink-0 items-center rounded-full font-semibold whitespace-nowrap",
         TONE[tone],
         SIZE[size],
+        wrap && WRAP[size],
         className,
       )}
       {...rest}

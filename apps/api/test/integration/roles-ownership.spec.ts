@@ -112,7 +112,12 @@ describe("Sahiplik devri (updateRoles)", () => {
     const newOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: member.id },
     });
-    expect(newOwner.roles).toEqual([CompanyRole.SAHIP]); // tek başına
+    // Faz R'den beri Kurucu işlem iznini ÖRTÜK taşımaz: devralanın mevcut
+    // satış işlem izinleri korunur, etiket SAHIP + işlem rolü (derin denetim MU-13).
+    expect(newOwner.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATISCI]);
+    expect(newOwner.permissions).toEqual(
+      expect.arrayContaining(["sell:bid:submit", "sell:order:manage", "users:manage"]),
+    );
 
     const oldOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
@@ -213,6 +218,73 @@ describe("Sahiplik devri (updateRoles)", () => {
     expect(kept?.roles).toEqual(
       expect.arrayContaining(["SAHIP", "SATIN_ALMACI"]),
     );
+  });
+});
+
+/**
+ * ÜCRETSİZ DÖNEM (2026-10-07): SINIRLI firma = DOĞRULANMAMIŞ firma (saklı
+ * kademesi STANDART). Doğrulanmış firma saklı kademesinden bağımsız tam erişimlidir.
+ */
+const LIMITED = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as const;
+/** Kullanıcıya dönen ret metni paket adı anmaz. */
+const PACKAGE_WORDS = /silver|gold|paket/i;
+
+describe("Derin denetim MU-13 — devirde koltuk/paket kapısı ve işlem izni korunması", () => {
+  it("devralan Satın Almacı'nın işlem izinleri SİLİNMEZ (açık talebi/siparişi yönetmeye devam eder)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma); // GOLD
+    const buyer = await makeUser(prisma, owner.company.id, [CompanyRole.SATIN_ALMACI]);
+    await svc.updateUser(owner.auth, buyer.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI],
+    } as never);
+    const u = await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } });
+    expect(u.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI]);
+    for (const p of ["buy:listing:manage", "buy:award", "buy:order:manage"]) {
+      expect(hasCompanyPermission({ isOwner: true, permissions: u.permissions, roles: u.roles }, p)).toBe(true);
+    }
+  });
+
+  it("doğrulanmamış (sınırlı) firmada eski Kurucu kendine SATINALMA rolü seçemez; devir hiç olmamış gibi geri alınır", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma, { ...LIMITED, roles: [CompanyRole.SAHIP, CompanyRole.SATISCI] });
+    const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
+    const err = await svc
+      .updateUser(owner.auth, approver.id, {
+        roles: [CompanyRole.SAHIP],
+        previousOwnerRoles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI],
+      } as never)
+      .then(() => null, (e: Error) => e);
+    expect(err).toMatchObject({ status: 400 });
+    expect(err!.message).toMatch(/yalnız doğrulanmış firmada/i);
+    expect(err!.message).not.toMatch(PACKAGE_WORDS);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(owner.user.id);
+    const oldOwner = await prisma.companyUser.findUniqueOrThrow({ where: { id: owner.user.id } });
+    expect(oldOwner.roles).toContain(CompanyRole.SAHIP);
+  });
+
+  it("koltuk doluyken eski Kurucunun YENİ işlem rolü reddedilir (zincirle limit üstü koltuk açılamaz)", async () => {
+    const svc = makeUsersService();
+    // Doğrulanmamış firma (saklı kademe STANDART): 2 koltuk. Kurucu işlem izinsiz; iki satışçı koltukları dolduruyor.
+    const owner = await makeCompanyWithUser(prisma, { ...LIMITED, roles: [CompanyRole.SAHIP] });
+    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
+    await expect(
+      svc.updateRoles(owner.auth, approver.id, { roles: [CompanyRole.SAHIP] } as never).then(() => undefined),
+    ).resolves.toBeUndefined(); // koltuksuz devir (varsayılan Yönetici) serbest
+    const back = await prisma.companyUser.findUniqueOrThrow({ where: { id: approver.id } });
+    expect(back.roles).toContain(CompanyRole.SAHIP);
+    const newOwnerAuth = { ...owner.auth, userId: approver.id, email: approver.email, roles: back.roles, isOwner: true };
+    await expect(
+      svc.updateUser(newOwnerAuth as never, owner.user.id, {
+        roles: [CompanyRole.SAHIP],
+        previousOwnerRoles: [CompanyRole.SATISCI],
+      } as never),
+    ).rejects.toThrow(/[Kk]oltuk/);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(approver.id);
   });
 });
 
@@ -330,3 +402,60 @@ describe("Denetim 2026-08-23 LOW — setActive/remove'da yönetici-hedef korumas
   });
 });
 
+
+describe("Kuruculuk devri bildirimi (arayüz testi D-189)", () => {
+  it("devirde iki tarafa kendi dilinde e-posta + in-app bildirim gider; devir etiketi denetim kaydında", async () => {
+    const { NotificationService } = await import(
+      "../../src/modules/notifications/notification.service"
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const svc = new CompanyUsersService(
+      prisma as never,
+      { createUser: jest.fn(), deleteUser: jest.fn() } as never,
+      { createSession: jest.fn() } as never,
+      email as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      new AuditService(prisma as never),
+      new NotificationService(prisma as never),
+    );
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    await prisma.companyUser.update({ where: { id: member.id }, data: { locale: "en" } });
+
+    await svc.updateUser(owner.auth, member.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI],
+    });
+
+    const sends = email.send.mock.calls.map((c) => c[0] as {
+      to: { email: string };
+      locale: string;
+      context: { type: string };
+      templateData: { data: { subject: string } };
+    });
+    const transfer = sends.filter((s) => s.context.type === "company_ownership_transferred");
+    expect(transfer.map((s) => s.to.email).sort()).toEqual(
+      [owner.user.email, member.email].sort(),
+    );
+    const toNew = transfer.find((s) => s.to.email === member.email)!;
+    expect(toNew.locale).toBe("en");
+    expect(toNew.templateData.data.subject).toMatch(/transferred to you/);
+    const toPrev = transfer.find((s) => s.to.email === owner.user.email)!;
+    expect(toPrev.templateData.data.subject).toMatch(/kuruculuğunu devrettiniz/);
+
+    // Eski Kurucu da in-app bildirim alır (menüsü değişti → /me yenilenir).
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: owner.user.id, type: "permissions_changed" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { companyUserId: member.id, type: "permissions_changed" },
+      }),
+    ).toBe(1);
+    await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.ownership.transferred", entityId: owner.company.id },
+    });
+  });
+});

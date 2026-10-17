@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { LayoutGrid, Table2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -41,16 +42,17 @@ export function ViewToggle({
   onChange: (v: ListView) => void;
   className?: string;
 }) {
+  const t = useTranslations("web.panel.shell.viewToggle");
   return (
     <div
       role="group"
-      aria-label="Görünüm"
+      aria-label={t("gorunum")}
       className={cn("flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5", className)}
     >
       {(
         [
-          ["cards", "Kart görünümü", LayoutGrid],
-          ["table", "Tablo görünümü", Table2],
+          ["cards", t("kartGorunumu"), LayoutGrid],
+          ["table", t("tabloGorunumu"), Table2],
         ] as const
       ).map(([key, label, Icon]) => (
         <button

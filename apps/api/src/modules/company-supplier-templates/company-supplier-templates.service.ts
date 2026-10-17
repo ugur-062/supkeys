@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tierAtLeast } from "@rothern/shared";
 import {
   ForbiddenException,
@@ -5,7 +6,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import { effectiveTier } from "../../common/company/effective-tier";
+import {
+  EFFECTIVE_TIER_SELECT,
+  effectiveTier,
+  effectiveTierOf,
+} from "../../common/company/effective-tier";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 /**
@@ -28,7 +33,7 @@ export class CompanySupplierTemplatesService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true, membershipEndAt: true } },
+        inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
       },
     });
     const set = new Set<string>();
@@ -39,7 +44,7 @@ export class CompanySupplierTemplatesService {
       const valid =
         r.origin === "ADMIN" ||
         tierAtLeast(
-          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
+          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt, r.inviter.companyVerificationStatus),
           "SILVER",
         );
       if (!valid) continue;
@@ -58,7 +63,7 @@ export class CompanySupplierTemplatesService {
     const missing = [...new Set(ids)].filter((id) => !connected.has(id));
     if (missing.length > 0) {
       throw new NotFoundException(
-        `Bağlantınız olmayan firma: ${missing.length} kayıt`,
+        i18nMessage("api.companySupplierTemplates.baglantinizOlmayanFirmaKayit", { length: missing.length }),
       );
     }
   }
@@ -111,16 +116,38 @@ export class CompanySupplierTemplatesService {
         OR: [{ isPublic: true }, { createdById: userId }],
       },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
-    const members = await this.prisma.company.findMany({
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
+    const rows = await this.prisma.company.findMany({
       where: { id: { in: tpl.memberCompanyIds } },
-      select: { id: true, name: true, rothernId: true, tier: true },
+      select: { id: true, name: true, rothernId: true, ...EFFECTIVE_TIER_SELECT },
     });
+    // `tier` alanı EFEKTİF değeri taşır (INV-TIER-1; ham kademe yanıta çıkmaz).
+    const members = rows.map((m) => ({
+      id: m.id,
+      name: m.name,
+      rothernId: m.rothernId,
+      tier: effectiveTierOf(m),
+    }));
     return {
       id: tpl.id,
       name: tpl.name,
       isPublic: tpl.isPublic,
       members,
+    };
+  }
+
+  /**
+   * Gizli şablon yazma yollarında da yalnız oluşturanına açılır (list/findOne
+   * ile AYNI kural). Eskiden update/remove yalnız `companyId` süzüyordu →
+   * id'yi önceden (şablon herkese açıkken) görmüş başka bir üye gizlenmiş
+   * şablonu değiştirebiliyor, açabiliyor ya da silebiliyordu (derin denetim
+   * LU-17). Başkası için 404.
+   */
+  private visibleWhere(user: AuthenticatedCompanyUser, id: string) {
+    return {
+      id,
+      companyId: user.companyId,
+      OR: [{ isPublic: true }, { createdById: user.userId }],
     };
   }
 
@@ -147,10 +174,10 @@ export class CompanySupplierTemplatesService {
     dto: { name?: string; isPublic?: boolean; memberCompanyIds?: string[] },
   ) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
-      where: { id, companyId: user.companyId },
+      where: this.visibleWhere(user, id),
       select: { id: true },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
     if (dto.memberCompanyIds) {
       await this.assertMembersConnected(user.companyId, dto.memberCompanyIds);
     }
@@ -169,10 +196,10 @@ export class CompanySupplierTemplatesService {
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
-      where: { id, companyId: user.companyId },
+      where: this.visibleWhere(user, id),
       select: { id: true },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
     await this.prisma.supplierTemplate.delete({ where: { id } });
     return { id };
   }

@@ -1,5 +1,6 @@
 import { JwtService } from "@nestjs/jwt";
 import { CompanyAuthService } from "../../src/modules/company-auth/services/company-auth.service";
+import { UnverifiedSignupCleanupService } from "../../src/modules/company-auth/services/unverified-signup-cleanup.service";
 import { prisma } from "./test-db";
 
 let authSeq = 0;
@@ -17,12 +18,20 @@ export function makeAuthService(env: Record<string, string> = {}) {
       return { authId };
     }),
     deleteUser: jest.fn(async () => undefined),
+    // Reports its result (removal of an expired unverified sign-up).
+    deleteUserStrict: jest.fn(async (authId: string) => {
+      for (const [e, id] of byEmail) if (id === authId) byEmail.delete(e);
+    }),
     verifyPassword: jest.fn(async (email: string) => {
       const authId = byEmail.get(email.toLowerCase().trim());
       if (!authId) throw new Error("bad credentials");
       return { authId };
     }),
     updatePassword: jest.fn(async () => undefined),
+    updateEmail: jest.fn(async (authId: string, newEmail: string) => {
+      for (const [e, id] of byEmail) if (id === authId) byEmail.delete(e);
+      byEmail.set(newEmail.toLowerCase().trim(), authId);
+    }),
   };
   const audit = { log: jest.fn(async () => undefined) };
   const email = { send: jest.fn(async () => ({ emailLogId: "x", sent: true })) };
@@ -42,6 +51,21 @@ export function makeAuthService(env: Record<string, string> = {}) {
     }),
   };
 
+  // Real service, like in the module (the parameter is @Optional only for
+  // older hand-built rigs): sign-up for an address held by an expired
+  // unverified sign-up removes that sign-up first. The removal is switched on
+  // here as it is on the deployed services (NODE_ENV=production); under jest
+  // (NODE_ENV=test) it would be off. A spec that needs it off passes
+  // `{ UNVERIFIED_SIGNUP_PURGE_ENABLED: "false" }`.
+  const unverifiedSignups = new UnverifiedSignupCleanupService(
+    prisma as never,
+    supabaseAuth as never,
+    audit as never,
+    {
+      get: (key: string) =>
+        key === "UNVERIFIED_SIGNUP_PURGE_ENABLED" ? (env[key] ?? "true") : lookup(key),
+    } as never,
+  );
   const service = new CompanyAuthService(
     prisma as never,
     jwt,
@@ -50,17 +74,24 @@ export function makeAuthService(env: Record<string, string> = {}) {
     email as never,
     config as never,
     prisma as never, // bypass client — testte owner test-db prisma (RLS yok)
+    unverifiedSignups,
   );
-  return { service, supabaseAuth, audit, email, jwt };
+  return { service, supabaseAuth, audit, email, jwt, unverifiedSignups };
 }
 
-/** signup sonrası e-posta mock'undan 6 haneli kodu ayıkla. */
+/**
+ * signup sonrası e-posta mock'undan 6 haneli kodu ayıkla. Kod 2026-10-04'ten
+ * beri paragrafta değil ayrı `code` alanında (şablon kod bloğunda basar);
+ * eski yük biçimi için paragraflara da bakılır.
+ */
 export function extractCode(email: {
   send: jest.Mock;
 }): string {
   const call = email.send.mock.calls.at(-1)?.[0] as {
-    templateData: { data: { paragraphs: string[] } };
+    templateData: { data: { paragraphs: string[]; code?: { value: string } } };
   };
+  const direct = call.templateData.data.code?.value;
+  if (direct && /^\d{6}$/.test(direct)) return direct;
   const joined = call.templateData.data.paragraphs.join(" ");
   const m = joined.match(/\b(\d{6})\b/);
   if (!m) throw new Error("Kod bulunamadı");

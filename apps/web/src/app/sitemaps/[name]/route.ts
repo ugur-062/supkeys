@@ -10,7 +10,7 @@ export const revalidate = 3600;
 
 /** Temel parçalar önceden üretilir (ISR); `products-1` gibi ek sayfalar ilk istekte. */
 export function generateStaticParams() {
-  return ["pages", "categories", "cities", "products", "companies", "listings"].map((k) => ({ name: `${k}.xml` }));
+  return ["pages", "categories", "cities", "countries", "products", "companies", "listings"].map((k) => ({ name: `${k}.xml` }));
 }
 
 export async function GET(_req: Request, ctx: { params: Promise<{ name: string }> }): Promise<Response> {

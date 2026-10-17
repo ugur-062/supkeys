@@ -17,21 +17,16 @@ import {
 } from "class-validator";
 import {
   BID_DELIVERY_TIMES,
+  CURRENCY_ENUM,
   type BidDeliveryTime,
+  type CurrencyCode,
 } from "@rothern/shared";
 import { MAX_MONEY } from "../../../common/constants/money";
+import { tApi } from "../../../common/i18n/i18n.service";
 
-export enum BidCurrencyDto {
-  TRY = "TRY",
-  USD = "USD",
-  EUR = "EUR",
-  GBP = "GBP",
-  CHF = "CHF",
-  JPY = "JPY",
-  AED = "AED",
-  CNY = "CNY",
-  RUB = "RUB",
-}
+/** Para birimi — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (talep DTO'suyla aynı liste). */
+export const BidCurrencyDto = CURRENCY_ENUM;
+export type BidCurrencyDto = CurrencyCode;
 
 export class PlaceBidAnswerDto {
   @IsString()
@@ -48,12 +43,14 @@ export class PlaceBidItemDto {
 
   @IsNumber(
     { maxDecimalPlaces: 2 },
-    { message: "Geçerli bir birim fiyat girin" },
+    { message: () => tApi("api.dto.placeBid.gecerliBirBirimFiyatGirin") },
   )
   @Min(0)
   // Tekil birim fiyat tavanı — çarpım (× miktar) taşması AYRICA serviste
   // subtotal ≤ MAX_MONEY ile denetlenir (asıl koruma orada).
-  @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
+  @Max(MAX_MONEY, {
+    message: () => tApi("api.dto.placeBid.birimFiyatCokBuyuk"),
+  })
   unitPrice!: number;
 
   // ── Faz 3: MUADİL teklif beyanı ────────────────────────────────────────
@@ -67,20 +64,25 @@ export class PlaceBidItemDto {
 
   // Kalem-özel teslim tarihi — LEGACY (yeni teklifler süre gönderir).
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz kalem teslim tarihi" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.placeBid.gecersizKalemTeslimTarihi") },
+  )
   deliveryDate?: string;
 
   // Kalem-özel teslim SÜRESİ (2026-08-02; boşsa genel süre geçerli).
   @IsOptional()
   @IsIn(BID_DELIVERY_TIMES as readonly string[], {
-    message: "Geçersiz kalem teslim süresi",
+    message: () => tApi("api.dto.placeBid.gecersizKalemTeslimSuresi"),
   })
   deliveryTime?: BidDeliveryTime;
 
   // Kalem para birimi (madde 9; boşsa teklifin ana birimi). İlanın izin verdiği
   // birimlerden; yalnız kapalı zarf ALIM ihalesinde — servis doğrular.
   @IsOptional()
-  @IsEnum(BidCurrencyDto, { message: "Geçersiz kalem para birimi" })
+  @IsEnum(BidCurrencyDto, {
+    message: () => tApi("api.dto.placeBid.gecersizKalemParaBirimi"),
+  })
   currency?: BidCurrencyDto;
 
   // Kalemin sorularına cevaplar (gönderimde zorunlu sorular denetlenir).
@@ -95,9 +97,12 @@ export class PlaceBidItemDto {
 export class PlaceBidDto {
   // Tek-tutar teklif (kalemsiz ihale/ilan). Kalem-bazlı ihalede `items` kullanılır.
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: "Geçerli bir tutar girin" })
-  @Min(0.01, { message: "Tutar 0'dan büyük olmalı" })
-  @Max(MAX_MONEY, { message: "Tutar çok büyük" })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: () => tApi("api.dto.placeBid.gecerliBirTutarGirin") },
+  )
+  @Min(0.01, { message: () => tApi("api.dto.placeBid.tutar0danBuyukOlmali") })
+  @Max(MAX_MONEY, { message: () => tApi("api.dto.placeBid.tutarCokBuyuk") })
   amount?: number;
 
   // Kalem-bazlı teklif: her kaleme birim fiyat. Tavan ilan kalem tavanıyla
@@ -121,14 +126,17 @@ export class PlaceBidDto {
 
   // Teslim tarihi — LEGACY (yeni teklifler süre gönderir; API geriye-uyumlu).
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.placeBid.gecersizTeslimTarihi") },
+  )
   deliveryDate?: string;
 
   // Gönderimde zorunlu: teslim SÜRESİ (satıcının taahhüdü) — kalemlerin
   // tamamı kendi süresini taşımıyorsa.
   @IsOptional()
   @IsIn(BID_DELIVERY_TIMES as readonly string[], {
-    message: "Geçersiz teslim süresi",
+    message: () => tApi("api.dto.placeBid.gecersizTeslimSuresi"),
   })
   deliveryTime?: BidDeliveryTime;
 

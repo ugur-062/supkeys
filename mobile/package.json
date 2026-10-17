@@ -1,0 +1,28 @@
+{
+  "name": "rothern-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rothern Android + iOS kabuğu (Capacitor). pnpm çalışma alanının DIŞINDA; npm ile kurulur.",
+  "scripts": {
+    "sync": "cap sync",
+    "android": "cap open android",
+    "ios": "cap open ios",
+    "sync:staging": "ROTHERN_APP_URL=https://staging.supkeys.com cap sync",
+    "test": "node --test scripts/shell-config.test.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/push-notifications": "8.1.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3",
+    "typescript": "^5.7.2"
+  }
+}

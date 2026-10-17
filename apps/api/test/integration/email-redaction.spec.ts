@@ -24,6 +24,9 @@ function makeService() {
       }),
       update: jest.fn().mockResolvedValue({}),
     },
+    // Tek tık çıkış kapısı (2026-09-27) — işlem dışı akışta okunur.
+    emailOptOut: { findFirst: jest.fn().mockResolvedValue(null) },
+    referralOptOut: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   const svc = new EmailService(
     { get: jest.fn(), getOrThrow: jest.fn() } as never,

@@ -1,5 +1,18 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug } from "../../common/company/category-name";
+import {
+  foldSearchText,
+  PAID_TIER,
+  segmentCodeOf,
+  stemPrefix,
+  tierAtLeast,
+  tokenizeQuery,
+  visibleCategoryId,
+  visibleCategoryIds,
+  visibleCompanyCategorySelection,
+} from "@rothern/shared";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -17,15 +30,39 @@ import {
 } from "../../common/company/category-attributes";
 import { looksLikeProse } from "../../common/company/public-text-quality";
 import { buildDirectory, directoryFacets, type DirectoryParams } from "../../common/company/company-directory";
-import { relatedProducts } from "../../common/company/related-products";
+import { productSubtreeClauses } from "../../common/company/product-index";
+import { relatedProducts, type RelatedViewerScope } from "../../common/company/related-products";
 import {
   REVIEW_SUMMARY_SELECT,
   REVIEW_SUMMARY_TAKE,
   buildReviewSummary,
 } from "../company-reviews/review-summary";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { likeLiteral } from "../../common/prisma/like-literal";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
+
+/**
+ * Firmanın GÖSTERİLEN ana kategorileri (segment), beyan sırasıyla: önce satış,
+ * sonra alım. Gizli dal kuralının ata zinciri saklayan kayıttaki hâli
+ * (`visibleCompanyCategorySelection`): gizli kod düşer, yalnız gizli bir
+ * seçimin atası olarak saklanmış görünür segment de düşer — `46101500`
+ * (gizli aile) seçmiş firma "İş Güvenliği ve Yangın Ekipmanları" beyan etmiş
+ * gibi görünmez. Alt eksen dizileri yalnız bu karar için okunur.
+ */
+function shownMainCategoryIds(c: {
+  sellerCategoryIds: string[];
+  sellerSubCategoryIds: string[];
+  buyerCategoryIds: string[];
+  buyerSubCategoryIds: string[];
+}): string[] {
+  return [
+    ...visibleCompanyCategorySelection(c.sellerCategoryIds, c.sellerSubCategoryIds).mainIds,
+    ...visibleCompanyCategorySelection(c.buyerCategoryIds, c.buyerSubCategoryIds).mainIds,
+  ];
+}
 
 /**
  * Herkese açık (auth gerektirmeyen) firma profili. SEO sayfası bunu kullanır.
@@ -33,7 +70,11 @@ import { effectiveTier } from "../../common/company/effective-tier";
  */
 @Injectable()
 export class PublicProfileService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e) — isteğe bağlı; yoksa özgün metin. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   /**
    * HERKESE AÇIK FİRMA PROFİLİ — v2 (2026-09-04, Europages kalıbı, kullanıcı
@@ -75,6 +116,9 @@ export class PublicProfileService {
         linkedinUrl: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
+        // Yalnız gösterim kuralı için okunur (`shownMainCategoryIds`); yanıta yazılmaz.
+        buyerSubCategoryIds: true,
+        sellerSubCategoryIds: true,
         publicEnabled: true,
         isActive: true,
         isBlocked: true,
@@ -87,10 +131,10 @@ export class PublicProfileService {
     // Kapı TEK KAYNAK (`common/company/public-profile-gate.ts`): sitemap ve
     // pazar yeri kartındaki ad bağlantısı AYNI kararı verir.
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     const [categories, reviewRows, productCount] = await Promise.all([
-      this.resolveCategoryNames([...c.sellerCategoryIds, ...c.buyerCategoryIds]),
+      this.resolveCategoryNames(shownMainCategoryIds(c)),
       this.prisma.companyReview.findMany({
         where: { targetCompanyId: c.id },
         select: REVIEW_SUMMARY_SELECT,
@@ -102,7 +146,7 @@ export class PublicProfileService {
       }),
     ]);
     const summary = buildReviewSummary(reviewRows, { revealNames: false });
-    return {
+    const profile = {
       name: c.name,
       slug: c.slug,
       industry: c.industry,
@@ -128,7 +172,7 @@ export class PublicProfileService {
       updatedAt: c.updatedAt,
       // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ).
       goldMember:
-        effectiveTier(c.tier as string, c.membershipEndAt as Date | null) ===
+        effectiveTier(c.tier as string, c.membershipEndAt as Date | null, c.companyVerificationStatus as string) ===
         "GOLD",
       // KYC tamam — "Doğrulanmış" rozeti. Yalnız admin `setVerification`.
       verified: c.companyVerificationStatus === "VERIFIED",
@@ -144,39 +188,126 @@ export class PublicProfileService {
         publicProductCount: productCount,
       }),
     };
+    // Dil durumu (i18n SEO, 2026-09-27): web hreflang'i yalnız HAZIR dillere
+    // yazar, kaynak metni gösterdiği dilde `lang={sourceLocale}` basar.
+    if (!this.translations) return { ...profile, readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE as string };
+    const locale = currentLocale();
+    const [[localized], state] = await Promise.all([
+      this.translations.localizeCompanies([profile], [c.id], locale),
+      this.translations.localeState("COMPANY", c.id),
+    ]);
+    const out = { ...(localized ?? profile), ...state };
+    // Tanıtım metni bu dilde henüz çevrilmediyse profil indekslenmez (i18n SEO).
+    if (out.indexable && !state.readyLocales.includes(locale)) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
   async publicDirectory(q: DirectoryParams) {
-    const res = await buildDirectory(this.prisma, q);
+    const locale = currentLocale();
+    const res = await buildDirectory(this.prisma, q, {
+      localizeProducts: this.translations ? (items, ids) => this.translations!.localizeProducts(items, ids, locale) : undefined,
+    });
     // Kimlik alanları public karttan DÜŞER (Rothern ID üyeye).
-    return { ...res, items: res.items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
+    const items = this.translations
+      ? await this.translations.localizeCompanies(res.items, res.items.map((i) => i.id), currentLocale())
+      : res.items;
+    return { ...res, items: items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
   }
 
   publicDirectoryFacets(q: DirectoryParams = {}) {
     return directoryFacets(this.prisma, {}, q);
   }
 
+  /**
+   * PANEL görüntüleyicisi için ilişkili bloklar (arayüz testi D-231): aynı
+   * fonksiyon, ama "diğer tedarikçiler" blokları görüntüleyenin kendi
+   * firmasını ve engel ilişkili firmaları dışlar. Kural
+   * `CompanyBlocksService.blockedCompanyIds` ile aynı (her iki yön).
+   */
+  async relatedForViewer(viewerCompanyId: string, companySlug: string, productSlug: string) {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: viewerCompanyId }, { blockedCompanyId: viewerCompanyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    const blockedCompanyIds = rows.map((r) => (r.blockerCompanyId === viewerCompanyId ? r.blockedCompanyId : r.blockerCompanyId));
+    return this.related(companySlug, productSlug, { viewerCompanyId, blockedCompanyIds });
+  }
+
+  /**
+   * ÜYENİN BELGE İNDİRMESİ (arayüz testi webA-03 yeniden doğrulama, T-18):
+   * görünürlük tablosu `documentDownload: "member"` — paket ya da izin değil,
+   * OTURUM ister. Herkese açık uç yalnız adı verir; panel ürün ucu
+   * (`discover/...`) `buy:view` istediği için satış koltuğu ve görüntüleyici
+   * hazır ayarı belgeyi hiçbir yerden indiremiyor, herkese açık sayfadaki
+   * "giriş yapın" bağlantısı oturumlu kullanıcıyı döngüye sokuyordu.
+   *
+   * Kapılar herkese açık ürünle AYNI (yayında ürün, açık profil, Silver+
+   * satıcı — `toPublicProduct` medya kapısı) + engel ilişkisi (iki yön) → 404.
+   */
+  async documentsForMember(viewerCompanyId: string, companySlug: string, productSlug: string) {
+    const company = await this.requirePublicCompany(companySlug);
+    const blocked = await this.prisma.companyBlock.findFirst({
+      where: {
+        OR: [
+          { blockerCompanyId: viewerCompanyId, blockedCompanyId: company.id },
+          { blockerCompanyId: company.id, blockedCompanyId: viewerCompanyId },
+        ],
+      },
+      select: { blockerCompanyId: true },
+    });
+    if (blocked) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
+    const row = await this.prisma.companyItem.findFirst({
+      where: { ...publicProductWhere(), companyId: company.id, slug: productSlug },
+      select: PUBLIC_PRODUCT_SELECT,
+    });
+    if (!row) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
+    const docs = toPublicProduct(row).documents;
+    const documents = Array.isArray(docs)
+      ? docs
+          .filter((d): d is { url?: unknown; title?: unknown } => !!d && typeof d === "object")
+          .filter((d) => typeof d.url === "string" && d.url.length > 0)
+          .map((d) => ({ url: d.url as string, title: typeof d.title === "string" ? d.title : "" }))
+      : [];
+    return { documents };
+  }
+
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
-  related(companySlug: string, productSlug: string) {
-    return relatedProducts(this.prisma, companySlug, productSlug);
+  async related(companySlug: string, productSlug: string, viewer: RelatedViewerScope = {}) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug, viewer);
+    if (!this.translations) return rest;
+    const locale = currentLocale();
+    const t = this.translations;
+    return {
+      fromCompany: { items: await t.localizeProducts(rest.fromCompany.items, ids.fromCompany, locale), total: rest.fromCompany.total },
+      similar: await t.localizeProducts(rest.similar, ids.similar, locale),
+      popular: await t.localizeProducts(rest.popular, ids.popular, locale),
+    };
   }
 
   /**
    * Kategori kodlarını L1 segment adına indirger (firma beyanı L1'de;
    * alt kategori beyanları ayrı alanda ve ziyaretçiye basılmaz).
+   *
+   * GİZLİ SEGMENT ÇÖZÜLMEZ (2026-10-09, sahip kuralı: "anasayfada olmayan
+   * kategori hiçbir yerde gösterilmez"): segment gizlenmeden önce beyan edilmiş
+   * kod firmada durur (eşleştirme okur) ama herkese açık profilde ad olarak
+   * çıkmaz. Süzgeç 12'lik kesmeden ÖNCE — gizli kod görünür bir kategorinin
+   * yerini de tüketmesin.
    */
   private async resolveCategoryNames(ids: string[]) {
-    const uniq = [...new Set(ids.filter((id) => /^\d{8}$/.test(id)))].slice(
+    const uniq = [...new Set(visibleCategoryIds(ids).filter((id) => /^\d{8}$/.test(id)))].slice(
       0,
       12,
     );
     if (uniq.length === 0) return [] as { id: string; name: string }[];
     const rows = await this.prisma.category.findMany({
       where: { id: { in: uniq } },
-      select: { id: true, nameTr: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT },
     });
-    const byId = new Map(rows.map((r) => [r.id, r.nameTr]));
+    const byId = new Map(rows.map((r) => [r.id, categoryName(r)]));
     return uniq
       .filter((id) => byId.has(id))
       .map((id) => ({ id, name: byId.get(id) as string }));
@@ -202,7 +333,12 @@ export class PublicProfileService {
       }),
       this.prisma.company.findMany({
         where: { isActive: true, isBlocked: false },
-        select: { sellerCategoryIds: true, buyerCategoryIds: true },
+        select: {
+          sellerCategoryIds: true,
+          buyerCategoryIds: true,
+          sellerSubCategoryIds: true,
+          buyerSubCategoryIds: true,
+        },
         take: 5000,
         orderBy: { updatedAt: "desc" },
       }),
@@ -210,7 +346,10 @@ export class PublicProfileService {
     const counts = new Map<string, number>();
     for (const r of rows) {
       const seen = new Set<string>();
-      for (const id of [...r.sellerCategoryIds, ...r.buyerCategoryIds]) {
+      // Gizli dal SAYILMAZ: ad da sayı da dönmez, ilk 8'den yer de tüketmez.
+      // Yalnız gizli bir seçimin atası olarak saklanmış görünür segment de
+      // sayılmaz (`shownMainCategoryIds`).
+      for (const id of shownMainCategoryIds(r)) {
         if (!/^\d{8}$/.test(id)) continue;
         const seg = `${id.slice(0, 2)}000000`;
         if (seen.has(seg)) continue;
@@ -256,17 +395,25 @@ export class PublicProfileService {
     const page = Math.max(1, q?.page ?? 1);
     const tokens = q?.q ? tokenizeQuery(q.q) : [];
 
+    // Gizli bir dalın kodu süzgeç değildir (2026-10-09; ürün dizini ve talep
+    // listesiyle aynı kural): `?categoryId=10000000` kategori seçilmemiş gibi.
+    const categoryId = visibleCategoryId(q?.categoryId);
     const where: Prisma.CompanyItemWhereInput = {
       ...publicProductWhere(),
       companyId: company.id,
-      ...(q?.categoryId && isCategoryCode(q.categoryId)
-        ? // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik"
-          // seçen ziyaretçi altındaki yaprakları da görür.
-          { categoryId: { startsWith: categoryPrefix(q.categoryId) as string } }
-        : {}),
-      ...(tokens.length
-        ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) }
-        : {}),
+      AND: [
+        // Firma içi kategori süzgeci ata zincirini kapsar: "Elektrik" seçen
+        // ziyaretçi altındaki yaprakları da görür. Görünür kodun gizli torunu
+        // listelenmez (`productSubtreeClauses`, ürün diziniyle aynı kural).
+        ...productSubtreeClauses(categoryId),
+        // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
+        // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural;
+        // `likeLiteral` dahil — `%` / `_` joker değil düz karakter).
+        ...tokens.map((t) => {
+          const needle = likeLiteral(stemPrefix(foldSearchText(t)));
+          return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
+        }),
+      ],
     };
 
     const [total, rows] = await Promise.all([
@@ -281,8 +428,9 @@ export class PublicProfileService {
       }),
     ]);
 
+    const cards = rows.map(toPublicProductCard);
     return {
-      items: rows.map(toPublicProductCard),
+      items: this.translations ? await this.translations.localizeProducts(cards, rows.map((r) => r.id), currentLocale()) : cards,
       total,
       page,
       pageSize,
@@ -300,27 +448,57 @@ export class PublicProfileService {
       },
       select: PUBLIC_PRODUCT_SELECT,
     });
-    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
     // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
     // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
     // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
-    const [attributeDefs, category] = await Promise.all([
+    // Segment (L1) — kırıntı ve JSON-LD kategori halkası segmentin İNİŞ
+    // sayfasına bağlanır (2026-09-27 SEO denetimi): L3/L4 kodun sayfası yok,
+    // süzgeçli dizin adresi (`/urunler?kategori=`) kanoniği `/urunler` olan
+    // bir varyanttı. Gizli segmentin sayfası 404 → halka yazılmaz.
+    // Gizli daldaki eski ürünün KENDİ kategorisi de çözülmez (2026-10-09):
+    // ad kırıntıda / hapta / JSON-LD'de çıkmaz; ürün yayında kalır. Nitelik
+    // tanımları ham koddan okunur (etiketler kategori adı taşımaz).
+    // Segment halkası ürünün GÖRÜNEN kodundan türer (2026-10-10): görünür
+    // segmentin gizli dalındaki ürün (`4610…`) o segmentin sayfasında
+    // listelenmez, kırıntısı da oraya bağlanmaz — kategorisiz ürün gibi çizilir.
+    const shownCategoryId = visibleCategoryId(row.categoryId);
+    const segmentId = segmentCodeOf(shownCategoryId);
+    const [attributeDefs, category, segment] = await Promise.all([
       resolveCategoryAttributes(this.prisma, row.categoryId),
-      row.categoryId
+      shownCategoryId
         ? this.prisma.category.findUnique({
-            where: { id: row.categoryId },
-            select: { id: true, nameTr: true },
+            where: { id: shownCategoryId },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
+          })
+        : null,
+      segmentId
+        ? this.prisma.category.findUnique({
+            where: { id: segmentId },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
     ]);
-    return {
-      product: {
-        ...toPublicProduct(row),
-        attributeList: labelAttributes(row.attributes, attributeDefs),
-        // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
-        category: category ? { id: category.id, name: category.nameTr } : null,
-      },
-      company: {
+    const product = {
+      // Anonim yüzey: belge indirme adresi üyeye (T-18 / D-331) — yalnız ad.
+      ...toPublicProduct(row, { anonymous: true }),
+      attributeList: labelAttributes(row.attributes, attributeDefs),
+      // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
+      category: category ? { id: category.id, name: categoryName(category) } : null,
+      // Adres parçası Türkçe addan (`categorySlug`, dilden bağımsız), ad okuyucunun dilinde.
+      segment: segment ? { id: segment.id, name: categoryName(segment), slug: categorySlug(segment.nameTr) } : null,
+    };
+    const locale = currentLocale();
+    const [[localizedProduct], state] = this.translations
+      ? await Promise.all([
+          this.translations.localizeProducts([product], [row.id], locale),
+          this.translations.localeState("PRODUCT", row.id),
+        ])
+      : [[product], { readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE as string }];
+    // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO);
+    // `readyLocales`/`sourceLocale` web hreflang'i ve `lang` özniteliği için.
+    const translationPending = !state.readyLocales.includes(locale);
+    const sellerCard = {
         name: company.name,
         slug: company.slug,
         city: company.city,
@@ -330,14 +508,28 @@ export class PublicProfileService {
         activities: company.activities,
         verified: company.companyVerificationStatus === "VERIFIED",
         // Ücretsiz satıcı: ziyaretçiye "yanıtlayamayabilir" notu (2026-09-06).
-        freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null), PAID_TIER),
+        freeMember: !tierAtLeast(effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string), PAID_TIER),
         /* Satıcı paneli (PROMPT 7) — kimlik değil NİTELİK: paket rozeti,
            kuruluş yılı, çalışan aralığı ve sertifikalar. İletişim YOK. */
-        gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null) === "GOLD",
+        // Ücretsiz dönemde paket alanı yanıta YAZILMAZ (sayfa kaynağında da paket adı olmasın, 2026-10-07).
+        ...(isFreePeriod()
+          ? {}
+          : { gold: effectiveTier(company.tier as string, company.membershipEndAt as Date | null, company.companyVerificationStatus as string) === "GOLD" }),
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),
-      },
+        /* Kapılı "web sitesi için giriş yapın" satırı YALNIZ satıcının sitesi
+           varsa (arayüz testi son tur webA-1): sitesi olmayan firmada giriş
+           yapan üye panelde boş alanla karşılaşıyordu — tutulmayan söz.
+           Adresin kendisi değil, yalnız varlığı. */
+        hasWebsite: Boolean(company.website?.trim()),
+    };
+    const [seller] = this.translations
+      ? await this.translations.localizeIndustry([sellerCard], [company.id], locale)
+      : [sellerCard];
+    return {
+      product: { ...(localizedProduct ?? product), translationPending, ...state },
+      company: seller,
     };
   }
 
@@ -392,10 +584,13 @@ export class PublicProfileService {
         foundedYear: true,
         employeeCount: true,
         certifications: true,
+        // Ürün sayfasının kapılı "web sitesi" satırı yalnız VARSA çizilir
+        // (`hasWebsite`); adresin kendisi ürün yanıtına yazılmaz.
+        website: true,
       },
     });
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     return c;
   }

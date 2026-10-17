@@ -1,7 +1,14 @@
 import { RothernLogo } from "@/components/brand/logo";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { LanguageSwitcher } from "@/components/marketing/language-switcher";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { useLocale, useTranslations } from "next-intl";
+import { categoriesHref } from "@/lib/public/anchors";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { SessionSwap } from "./member-cta";
+
+/** Alt satır bağlantısı: telefonda 44 px yüksek, sm ve üstünde satır içi (eski görünüm). */
+const BOTTOM_LINK = "inline-flex min-h-11 items-center hover:text-zinc-950 sm:inline sm:min-h-0";
 
 /**
  * Public sayfaların ortak alt bilgisi — SUNUCU bileşeni.
@@ -11,69 +18,85 @@ import Link from "next/link";
  * bağlantıları izler; onlarsız kategori/şehir kırılım sayfaları yalnız
  * sitemap üzerinden keşfedilir (daha yavaş, daha az güvenilir).
  */
-const COLUMNS = [
-  // Yayın anahtarı kapalıyken pazar yeri sütunu HİÇ basılmaz — rotalar 404.
-  ...(MARKETPLACE_LIVE
-    ? [
-        {
-          heading: "Pazar yeri",
-          links: [
-            { label: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-            { label: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
-            { label: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
-            { label: "Kategoriler", href: "/#kategoriler" },
-          ],
-        },
-      ]
-    : []),
-  {
-    heading: "Rothern",
-    links: [
-      { label: "Nasıl Çalışır", href: "/nasil-calisir" },
-      { label: "Sık Sorulan Sorular", href: "/sss" },
-      { label: "Fiyatlar", href: "/nasil-calisir#fiyatlar" },
-      { label: "Hakkımızda", href: "/hakkimizda" },
-      { label: "İletişim", href: "/iletisim" },
-    ],
-  },
-  {
-    heading: "Sözleşmeler",
-    links: [
-      { label: "Kullanıcı Sözleşmesi", href: "/sozlesmeler/kullanici" },
-      { label: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
-      { label: "Gizlilik", href: "/sozlesmeler/gizlilik" },
-      { label: "KVKK Aydınlatma", href: "/sozlesmeler/kvkk" },
-      // Ön bilgilendirme yükümlülüğü (2026-09-22, kullanıcı kararı): iki sayfa
-      // öksüzdü, yalnız sitemap'ten ulaşılıyordu.
-      { label: "Mesafeli Satış", href: "/sozlesmeler/mesafeli-satis" },
-      { label: "İptal ve İade", href: "/sozlesmeler/iade" },
-    ],
-  },
-] as const;
-
 export function MarketplaceFooter() {
+  const t = useTranslations("web.marketing.footer");
+  const tn = useTranslations("web.marketing.nav");
+  const tl = useTranslations("web.marketplace.labels");
+  const locale = useLocale();
+  // Yayın anahtarı kapalıyken pazar yeri sütunu HİÇ basılmaz — rotalar 404.
+  const COLUMNS = [
+    ...(MARKETPLACE_LIVE
+      ? [
+          {
+            heading: t("marketplace"),
+            links: [
+              { label: tl("demands"), href: MARKETPLACE_ROUTES.demands },
+              { label: tl("products"), href: MARKETPLACE_ROUTES.products },
+              { label: tl("companies"), href: MARKETPLACE_ROUTES.companies },
+              { label: t("categories"), href: categoriesHref(locale) },
+            ],
+          },
+        ]
+      : []),
+    {
+      heading: t("rothern"),
+      links: [
+        { label: tn("howItWorks"), href: "/nasil-calisir" },
+        { label: t("faq"), href: "/sss" },
+        { label: t("about"), href: "/hakkimizda" },
+        { label: t("contact"), href: "/iletisim" },
+      ],
+    },
+    {
+      heading: t("legal"),
+      links: [
+        { label: t("userAgreement"), href: "/sozlesmeler/kullanici" },
+        { label: t("mediation"), href: "/sozlesmeler/aracilik" },
+        { label: t("privacy"), href: "/sozlesmeler/gizlilik" },
+        { label: t("kvkk"), href: "/sozlesmeler/kvkk" },
+        // Kişisel Veri Saklama ve İmha Politikası (2026-10-16): süreler tablosu.
+        { label: t("retention"), href: "/sozlesmeler/saklama-imha" },
+        // Mağazaların istediği girişsiz hesap silme yolu (2026-10-16).
+        { label: t("accountDeletion"), href: "/hesap-silme" },
+        // Ön bilgilendirme yükümlülüğü (2026-09-22, kullanıcı kararı): iki sayfa
+        // öksüzdü, yalnız sitemap'ten ulaşılıyordu.
+        { label: t("distanceSales"), href: "/sozlesmeler/mesafeli-satis" },
+        { label: t("refund"), href: "/sozlesmeler/iade" },
+      ],
+    },
+  ];
   return (
-    <footer className="border-t border-zinc-200 bg-zinc-50">
+    // Alt pay: son satır ana ekran çizgisinin altında kalmaz (mobil kabuk).
+    <footer className="border-t border-zinc-200 bg-zinc-50 pb-(--safe-bottom)">
       <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div className="col-span-2 sm:col-span-1">
             <RothernLogo variant="full-light" size="sm" />
-            <p className="mt-4 max-w-xs text-sm/6 text-zinc-600">
-              Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret
-              platformu.
-            </p>
+            <p className="mt-4 max-w-xs text-sm/6 text-zinc-600">{t("tagline")}</p>
           </div>
           {COLUMNS.map((col) => (
             <div key={col.heading}>
               <h2 className="text-sm font-semibold text-zinc-950">
                 {col.heading}
               </h2>
-              <ul className="mt-4 space-y-2">
+              {/* Telefonda her bağlantı 44 px dokunma alanı (mobil denetim
+                  2026-10 g01): satır içi bağlantılar 17 px'ti. Boşluğu
+                  bağlantının kendi dolgusu verir; sm ve üstünde eski ritim. */}
+              <ul className="mt-1.5 sm:mt-4 sm:space-y-2">
                 {col.links.map((l) => (
                   <li key={l.href}>
+                    {/* Uzun sözcük sütundan taşmaz (son canlı kontrol 2026-10-10,
+                        NEW-03): 640 px'te dört sütun 124 px; Rusça
+                        "Конфиденциальность" 151 px tutuyor, son sütundan taşıp
+                        sayfayı 3 px yatay kaydırıyordu (640–648 px, her herkese
+                        açık sayfada). Sığmayan sözcük bölünür; Rusçada yalnız
+                        uzun sözcük (14+ harf) hece sınırından tire ile, tirenin
+                        iki yanında en az 4 harf (kapanış kontrolü CL-03:
+                        "Договор ди-станционной продажи" bölünmez) — kural
+                        kategori kartıyla aynı (`category-tile.tsx`). */}
                     <Link
                       href={l.href}
-                      className="text-sm/6 text-zinc-600 hover:text-zinc-950"
+                      className="block py-2.5 text-sm/6 break-words text-zinc-600 hover:text-zinc-950 sm:inline sm:py-0 [hyphenate-limit-chars:14_4_4] [&:lang(ru)]:hyphens-auto"
                     >
                       {l.label}
                     </Link>
@@ -84,14 +107,39 @@ export function MarketplaceFooter() {
           ))}
         </div>
         <div className="mt-12 flex flex-col gap-3 border-t border-zinc-200 pt-8 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Rothern</p>
+          <div className="flex flex-col gap-1">
+            <p>© {new Date().getFullYear()} Rothern</p>
+            {/* GeoNames CC BY 4.0 atfı — şehir sayfaları, süzgeçler ve "Yakınımda" bu veriden. */}
+            <p className="text-xs">
+              {t("geoAttributionPrefix")}{" "}
+              <a href="https://www.geonames.org/" target="_blank" rel="noopener" className="underline hover:text-zinc-950">
+                GeoNames
+              </a>{" "}
+              (
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener license" className="underline hover:text-zinc-950">
+                CC BY 4.0
+              </a>
+              )
+            </p>
+          </div>
+          <LanguageSwitcher variant="inline" />
           <div className="flex gap-4">
-            <Link href="/company/login" className="hover:text-zinc-950">
-              Giriş yap
-            </Link>
-            <Link href="/company/kayit" className="hover:text-zinc-950">
-              Ücretsiz kaydol
-            </Link>
+            {/* Oturumlu üyeye misafir bağlantıları yerine panel (üst çubukla aynı).
+                Telefonda 44 px dokunma alanı (mobil denetim 2026-10 g01). */}
+            <SessionSwap
+              member={
+                <Link href="/company" className={BOTTOM_LINK}>
+                  {tn("goToPanel")}
+                </Link>
+              }
+            >
+              <Link href="/company/login" className={BOTTOM_LINK}>
+                {t("login")}
+              </Link>
+              <Link href="/company/kayit" className={BOTTOM_LINK}>
+                {t("signup")}
+              </Link>
+            </SessionSwap>
           </div>
         </div>
       </div>

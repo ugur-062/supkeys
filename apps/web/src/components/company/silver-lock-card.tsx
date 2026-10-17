@@ -1,73 +1,103 @@
 "use client";
 
-import { Lock } from "lucide-react";
-import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  VERIFY_HREF,
+  VerificationActions,
+  VerificationButton,
+  VerificationLink,
+  VerificationLockCard,
+  useVerificationStatus,
+} from "@/components/company/verification-gate";
 
 /**
- * PAKET SAYFASININ ADRESİ — PANEL İÇİNDE KALIR (tek kaynak).
+ * GERİYE DÖNÜK ADLAR — ücretsiz dönem (2026-10-07).
  *
- * 2026-09-15'e kadar `/nasil-calisir#fiyatlar`tı: panelde çalışan kullanıcı
- * "Paketleri Gör"e basınca HERKESE AÇIK PAZARLAMA SAYFASINA düşüyordu — üst
- * çubuğu, sol menüsü, firma bağlamı gidiyor; kullanıcı sistemden çıkmış gibi
- * hissediyordu (kullanıcı bildirdi). Artık panel içindeki `/company/premium`:
- * önce doğrulama durumu, sonra paket seçimi, aynı kabuğun içinde.
+ * Paket çağrıları kalktı: bu dosyadaki her dışa aktarım artık DOĞRULAMA
+ * kapısının (`verification-gate.tsx`) ince bir sarmalayıcısıdır. Adlar ve
+ * prop'lar sayfalar derlenmeye devam etsin diye korunur; paket adı/etiketi
+ * taşıyan prop'lar (`ctaLabel`, `pricingLabel`) KABUL EDİLİR ama ÇİZİLMEZ —
+ * eski bir çağıran "… paketine geç" metni geçse de ekrana doğrulama eylemi
+ * basılır. Yeni kod doğrudan `verification-gate.tsx` adlarını kullanır.
  *
- * Pazarlama başlığındaki (`marketing-header.tsx`) fiyat bağlantısı AYRI ve
- * public kalır — orada doğru olan odur.
+ * Ücretli paketler geri geldiğinde eski gövde git geçmişinden döner.
  */
-export const PRICING_HREF = "/company/premium";
+
+export { VERIFY_HREF };
 
 /**
- * SILVER KİLİT KARTI (2026-09-06, "premium çekmek için"): ücretsiz üyenin
- * çarptığı her kilit aynı dili konuşur — açık talepler, talep detayı, bilgi
- * talebinde alıcı kimliği. Uydurma veri yok: `meta` ve `children` çağıranın
- * GERÇEK sayıları/örnekleridir. Tek CTA: paket sayfası.
+ * @deprecated Paketler sayfası KALDIRILDI (`/company/premium` doğrulama
+ * sayfasına 308). Eski çağıranlar kırık bağlantı üretmesin diye doğrulama
+ * akışının adresidir; yeni kod `VERIFY_HREF` kullanır.
  */
+export const PRICING_HREF = VERIFY_HREF;
+
+/**
+ * Birincil eylem doğrulama BAŞVURUSU mu: doğrulanmamış (UNVERIFIED) ya da
+ * reddedilmiş firmada true; incelemedeki (PENDING) ve doğrulanmış firmada
+ * false. Anlamı değişmedi — PENDING'i ayrı metinle işleyen çağıranlar buna
+ * güvenir.
+ */
+export function useVerifyFirst(): boolean {
+  const status = useVerificationStatus();
+  return !!status && status !== "VERIFIED" && status !== "PENDING";
+}
+
+/** @deprecated Kilit çağrısının tek adresi doğrulama akışıdır (`VERIFY_HREF`). */
+export function useUpgradeHref(): string {
+  return VERIFY_HREF;
+}
+
+/** @deprecated `VerificationButton` — `pricingLabel` çizilmez. */
+export function UpgradeButtons({
+  className,
+}: {
+  /** Yok sayılır (paket düğmesi kalktı). */
+  pricingLabel?: string;
+  className?: string;
+}) {
+  return <VerificationButton className={className} />;
+}
+
+/** @deprecated `VerificationLink`. */
+export function VerifyFirstLink({ className = "" }: { className?: string }) {
+  return <VerificationLink className={className} />;
+}
+
+/** @deprecated `VerificationActions` — `ctaLabel` çizilmez. */
+export function UpgradeActions({
+  className = "",
+  children,
+}: {
+  /** Yok sayılır (paket düğmesi kalktı). */
+  ctaLabel?: string;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return <VerificationActions className={className}>{children}</VerificationActions>;
+}
+
+/** @deprecated `VerificationLockCard` — `ctaLabel` çizilmez. */
 export function SilverLockCard({
   title,
   description,
   meta,
   children,
-  ctaLabel = "Silver paketine geç",
+  footnote,
   className = "",
 }: {
   title: string;
   description: string;
-  /** Tek satır gerçek sayı özeti (ör. "4 kategorinizde · 3 bu hafta"). */
   meta?: string | null;
-  /** Bulanık örnek satırlar gibi ek içerik (dekoratif; aria-hidden çağıranda). */
   children?: ReactNode;
+  /** Yok sayılır (paket düğmesi kalktı). */
   ctaLabel?: string;
+  footnote?: ReactNode | null;
   className?: string;
 }) {
   return (
-    <section
-      aria-label={title}
-      className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 ${className}`}
-    >
-      <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
-          <Lock aria-hidden className="size-5 text-zinc-700" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold tracking-tight text-zinc-950">{title}</h3>
-          {meta ? <p className="mt-0.5 text-sm font-medium text-zinc-700">{meta}</p> : null}
-          <p className="mt-1 text-sm text-zinc-600">{description}</p>
-        </div>
-      </div>
+    <VerificationLockCard title={title} description={description} meta={meta} footnote={footnote} className={className}>
       {children}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={PRICING_HREF}
-          className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          {ctaLabel}
-        </Link>
-        <span className="text-xs text-zinc-500">
-          Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.
-        </span>
-      </div>
-    </section>
+    </VerificationLockCard>
   );
 }

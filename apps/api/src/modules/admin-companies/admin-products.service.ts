@@ -1,10 +1,14 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type ProductReviewStatus } from "@rothern/db";
-import { productPath } from "@rothern/shared";
+import { PRODUCT_LIMITS, isHiddenCategory, productPath, productPublishBlockerCodes, visibleCategoryIds, type ProductLike } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 /**
@@ -65,6 +69,7 @@ const PRODUCT_SELECT = {
       city: true,
       country: true,
       tier: true,
+      membershipEndAt: true,
       companyVerificationStatus: true,
       isBlocked: true,
     },
@@ -80,7 +85,15 @@ export interface AdminProductRow {
   cover: string | null;
   imageCount: number;
   categoryId: string | null;
+  /** Never the name of a category under a hidden segment (then `null`). */
   categoryName: string | null;
+  /**
+   * The stored category is under a hidden segment: it is shown nowhere on the
+   * site and its name is not resolved here either. The screen uses the flag
+   * to say WHY the category is empty (a product that is not public yet cannot
+   * be approved until the seller picks a current category).
+   */
+  hiddenCategory: boolean;
   reviewStatus: ProductReviewStatus;
   isPublic: boolean;
   submittedAt: string | null;
@@ -93,7 +106,14 @@ export interface AdminProductRow {
     name: string;
     slug: string | null;
     city: string | null;
+    /** Ham DB kademesi — süresi geçmiş paketli firmada hâlâ SILVER/GOLD görünür. */
     tier: string;
+    /**
+     * EFEKTİF kademe (INV-TIER-1) — üyelik süresi geçmişse STANDART. Ekran
+     * bunu gösterir; onay tavanı da bununla hesaplanır (arayüz testi D-174).
+     */
+    effectiveTier: string;
+    membershipEndAt: string | null;
     verification: string;
     isBlocked: boolean;
   };
@@ -138,6 +158,8 @@ export class AdminProductsService {
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e) — SONDA ve isteğe bağlı (test rig'leri). */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   async list(q: AdminProductListQuery): Promise<{ items: AdminProductRow[]; total: number; page: number; pageSize: number }> {
@@ -147,6 +169,11 @@ export class AdminProductsService {
     const term = q.q?.trim();
     const where: Prisma.CompanyItemWhereInput = {
       isActive: true,
+      // KVKK ile anonimlestirilmis firmanin (Company.isActive=false) urunu
+      // kuyrukta/listede yer almaz (arayuz testi D-216): anonimlestirme
+      // urunleri DRAFT+pasif yapar; bu suzgec duzeltmeden ONCE anonimlesmis
+      // firmalarin artiklarina karsi ikinci kilit (veri duzeltmesi gocte).
+      company: { isActive: true },
       ...(status ? { reviewStatus: status } : { reviewStatus: { not: "DRAFT" } }),
       // FİRMA SÜZGECİ (2026-09-14): ücretsiz pakette ürün tavanı 50'ye çıktı.
       // Bir firmanın 50 ürününü sayfa sayfa avlamak yerine tek görünümde
@@ -186,13 +213,13 @@ export class AdminProductsService {
 
   async stats() {
     const [pending, oldest, rejected] = await Promise.all([
-      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "PENDING" } }),
+      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "PENDING", company: { isActive: true } } }),
       this.prisma.companyItem.findFirst({
-        where: { isActive: true, reviewStatus: "PENDING" },
+        where: { isActive: true, reviewStatus: "PENDING", company: { isActive: true } },
         select: { submittedAt: true },
         orderBy: { submittedAt: "asc" },
       }),
-      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "REJECTED" } }),
+      this.prisma.companyItem.count({ where: { isActive: true, reviewStatus: "REJECTED", company: { isActive: true } } }),
     ]);
     return { pending, rejected, oldestPendingSince: oldest?.submittedAt?.toISOString() ?? null };
   }
@@ -242,21 +269,18 @@ export class AdminProductsService {
   /** ONAYLA — PENDING → APPROVED + vitrine çıkar. Tek gerçek: isPublic burada true olur. */
   async approve(id: string, adminId: string) {
     const r = await this.require(id);
-    if (r.reviewStatus !== "PENDING") throw new BadRequestException("Yalnız onay bekleyen ürün onaylanabilir");
-    if (!r.slug) throw new BadRequestException("Ürünün URL parçası (slug) yok — firma yeniden göndermeli");
+    if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunOnaylanabilir"));
+    if (!r.slug) throw new BadRequestException(i18nMessage("api.adminCompanies.urununUrlParcasiSlugYokFirma"));
+    const blockers = this.blockerTexts(r);
+    if (blockers) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.urunYayinKosullariniKarsilamiyor", { join: blockers }));
+    }
     const now = new Date();
-    const done = await this.prisma.companyItem.updateMany({
-      where: { id, reviewStatus: "PENDING" },
-      data: {
-        reviewStatus: "APPROVED",
-        isPublic: true,
-        publishedAt: r.publishedAt ?? now,
-        reviewedAt: now,
-        reviewedByAdminId: adminId,
-        rejectReason: null,
-      },
-    });
-    if (done.count !== 1) throw new BadRequestException("Ürün durumu değişti — sayfayı yenileyin");
+    const done = await this.markApproved(r, adminId, now);
+    if (done.limit != null) {
+      throw new BadRequestException(i18nMessage(this.limitKey(r), { limit: done.limit }));
+    }
+    if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
       action: "admin.product.approved",
       actorType: "admin",
@@ -268,20 +292,114 @@ export class AdminProductsService {
       metadata: { name: r.name, wasPublic: r.isPublic },
     });
     this.seo?.productChanged(id);
+    void this.translations?.enqueue("PRODUCT", id);
     const path = r.company.slug ? productPath(r.company.slug, r.slug) : "/company/satis/urunlerim";
-    void this.companies.notifyCompany(
-      r.company.id,
-      r.isPublic ? "Ürün güncellemeniz onaylandı" : "Ürününüz yayına alındı",
-      [
-        "Merhaba,",
+    void this.companies.notifyCompany(r.company.id, {
+      type: "product_approved",
+      subjectKey: r.isPublic
+        ? "api.notifications.adminProducts.guncellemeOnaylandiBaslik"
+        : "api.notifications.adminProducts.yayinaAlindiBaslik",
+      paragraphKeys: [
         r.isPublic
-          ? `"${r.name}" ürününüzdeki değişiklik incelendi ve onaylandı; vitrindeki hâli güncel.`
-          : `"${r.name}" ürününüz incelendi ve vitrinde yayına alındı. Alıcılar artık ürün sayfanızı görebilir ve bilgi talebi gönderebilir.`,
+          ? "api.notifications.adminProducts.guncellemeOnaylandiGovde"
+          : "api.notifications.adminProducts.yayinaAlindiGovde",
       ],
-      "product_approved",
-      { label: "Ürünü gör", path },
-    );
+      params: { ad: r.name },
+      cta: { labelKey: "api.notifications.adminProducts.urunuGor", path },
+    });
     return { ok: true };
+  }
+
+  /**
+   * YAYIN KAPISI ONAYDA DA (arayüz testi O-009): firma tarafı kapıyı
+   * `publish`/`updateShowcase`te uygular; kapı sıkılaşmadan önce kuyruğa girmiş
+   * ya da başka yoldan eksik kalmış ürün onayla vitrine çıkmasın. Eksik yoksa
+   * null, varsa istek dilinde virgüllü metin.
+   */
+  private blockerTexts(r: Row): string | null {
+    // HIDDEN SEGMENTS (owner rule 2026-10-09) - same view as the company side
+    // (`CompanyItemsService.publishGateLike`): for a product that is NOT
+    // public yet, a category under a hidden segment counts as no category, so
+    // approval cannot put a new product on the shop window under a category
+    // nobody can see. An ALREADY public product (update re-review) keeps its
+    // stored category: approving edits of legacy products still works.
+    const outdatedCategory = !r.isPublic && isHiddenCategory(r.categoryId);
+    const like: ProductLike = {
+      name: r.name,
+      categoryId: outdatedCategory ? null : r.categoryId,
+      description: r.description,
+      images: r.images,
+      keywords: r.keywords,
+      priceMode: r.priceMode as ProductLike["priceMode"],
+      priceAmount: r.priceAmount,
+      priceTiers: r.priceTiers,
+      moq: r.moq,
+      attributes: (r.attributes as Record<string, unknown> | null) ?? null,
+    };
+    const blockers = productPublishBlockerCodes(like);
+    if (blockers.length === 0) return null;
+    return blockers
+      .map((b) =>
+        b.code === "category" && outdatedCategory
+          ? tApi("api.companyItems.publishBlocker.categoryNotCurrent")
+          : tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+      )
+      .join(", ");
+  }
+
+  /**
+   * Tavan hatası metni. Ürün tavanı yalnız efektif alt kademede vardır
+   * (ücretsiz dönemde: DOĞRULANMAMIŞ firma); metin paket adı anmaz.
+   */
+  private limitKey(_r: Row): "api.adminCompanies.firmaninUrunTavaniDolu" {
+    return "api.adminCompanies.firmaninUrunTavaniDolu";
+  }
+
+  /**
+   * Onay yazımı + PAKET ÜRÜN TAVANI (derin denetim MU-13).
+   *
+   * Firma tarafı tavanı yalnız kuyruğa GİRİŞTE uygular (`publish`). Paketi
+   * düşen firmada (lazy efektif kademe — 03:00 cron'u beklenmez) kuyrukta
+   * kalmış ürün onaylanınca ücretsiz tavan aşılıyordu. Vitrinde OLMAYAN ürün
+   * yayına alınırken firmanın efektif kademesine göre yayındaki ürün sayısı
+   * sayılır; tavan doluysa yazılmaz, ürün PENDING kalır (cron / `setTier`
+   * `enforceProductLimit` ile taslağa çeker; firma paket alırsa onaylanır).
+   * Sayım ve yazma `publish` ile AYNI firma kilidi altında (advisory xact
+   * lock) — eşzamanlı onay ile "onaya gönder" tavanı birlikte aşamaz.
+   * Zaten vitrindeki ürünün güncelleme onayı tavana dokunmaz.
+   */
+  private async markApproved(
+    r: Row,
+    adminId: string,
+    now: Date,
+  ): Promise<{ count: number; limit: number | null }> {
+    const write = (db: Pick<Prisma.TransactionClient, "companyItem">) =>
+      db.companyItem.updateMany({
+        where: { id: r.id, reviewStatus: "PENDING" },
+        data: {
+          reviewStatus: "APPROVED",
+          isPublic: true,
+          publishedAt: r.publishedAt ?? now,
+          reviewedAt: now,
+          reviewedByAdminId: adminId,
+          rejectReason: null,
+        },
+      });
+    const limit =
+      PRODUCT_LIMITS[effectiveTier(r.company.tier, r.company.membershipEndAt, r.company.companyVerificationStatus)] ?? null;
+    if (limit == null || r.isPublic || !r.isActive) {
+      const done = await write(this.prisma);
+      return { count: done.count, limit: null };
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${r.company.id}))`;
+      const published = await tx.companyItem.count({
+        where: { companyId: r.company.id, isActive: true, isPublic: true, id: { not: r.id } },
+      });
+      if (published >= limit) return { count: 0, limit };
+      const done = await write(tx);
+      return { count: done.count, limit: null };
+    });
   }
 
   /**
@@ -300,10 +418,10 @@ export class AdminProductsService {
    */
   async approveMany(ids: string[], adminId: string) {
     const tekil = Array.from(new Set(ids.filter(Boolean)));
-    if (tekil.length === 0) throw new BadRequestException("Ürün seçilmedi");
+    if (tekil.length === 0) throw new BadRequestException(i18nMessage("api.adminCompanies.urunSecilmedi"));
     if (tekil.length > BULK_APPROVE_MAX) {
       throw new BadRequestException(
-        `Tek seferde en fazla ${BULK_APPROVE_MAX} ürün onaylanabilir`,
+        i18nMessage("api.adminCompanies.tekSeferdeEnFazlaUrunOnaylanabilir", { BULKAPPROVEMAX: BULK_APPROVE_MAX }),
       );
     }
     const onaylanan: { id: string; companyId: string; name: string }[] = [];
@@ -327,17 +445,16 @@ export class AdminProductsService {
         atlanan.push({ id, reason: "URL parçası (slug) yok" });
         continue;
       }
-      const done = await this.prisma.companyItem.updateMany({
-        where: { id, reviewStatus: "PENDING" },
-        data: {
-          reviewStatus: "APPROVED",
-          isPublic: true,
-          publishedAt: r.publishedAt ?? now,
-          reviewedAt: now,
-          reviewedByAdminId: adminId,
-          rejectReason: null,
-        },
-      });
+      const blockers = this.blockerTexts(r);
+      if (blockers) {
+        atlanan.push({ id, reason: tApi("api.adminCompanies.urunYayinKosullariniKarsilamiyor", { join: blockers }) });
+        continue;
+      }
+      const done = await this.markApproved(r, adminId, now);
+      if (done.limit != null) {
+        atlanan.push({ id, reason: tApi(this.limitKey(r), { limit: done.limit }) });
+        continue;
+      }
       if (done.count !== 1) {
         atlanan.push({ id, reason: "Durum az önce değişti" });
         continue;
@@ -353,6 +470,7 @@ export class AdminProductsService {
         metadata: { name: r.name, wasPublic: r.isPublic, bulk: true },
       });
       this.seo?.productChanged(id);
+      void this.translations?.enqueue("PRODUCT", id);
       onaylanan.push({ id, companyId: r.company.id, name: r.name });
     }
 
@@ -364,24 +482,41 @@ export class AdminProductsService {
       byCompany.set(o.companyId, liste);
     }
     for (const [companyId, adlar] of byCompany) {
-      void this.companies.notifyCompany(
-        companyId,
-        adlar.length === 1
-          ? "Ürününüz yayına alındı"
-          : `${adlar.length} ürününüz yayına alındı`,
-        [
-          "Merhaba,",
-          adlar.length === 1
-            ? `"${adlar[0]}" ürününüz incelendi ve vitrinde yayına alındı.`
-            : `${adlar.length} ürününüz incelendi ve vitrinde yayına alındı: ${adlar
-                .slice(0, 5)
-                .map((a) => `"${a}"`)
-                .join(", ")}${adlar.length > 5 ? ` ve ${adlar.length - 5} tane daha` : ""}.`,
-          "Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      const tek = adlar.length === 1;
+      const kirpik = adlar.length > 5;
+      void this.companies.notifyCompany(companyId, {
+        type: "product_approved",
+        subjectKey: tek
+          ? "api.notifications.adminProducts.yayinaAlindiBaslik"
+          : "api.notifications.adminProducts.topluYayinaAlindiBaslik",
+        // İki paragraf → in-app satırı birleşmiş metnin anahtarını taşır.
+        bodyKey: tek
+          ? "api.notifications.adminProducts.topluTekGovde"
+          : kirpik
+            ? "api.notifications.adminProducts.topluCokGovdeKirpik"
+            : "api.notifications.adminProducts.topluCokGovde",
+        paragraphKeys: [
+          tek
+            ? "api.notifications.adminProducts.topluTekParagraf"
+            : kirpik
+              ? "api.notifications.adminProducts.topluCokParagrafKirpik"
+              : "api.notifications.adminProducts.topluCokParagraf",
+          "api.notifications.adminProducts.topluAliciNotu",
         ],
-        "product_approved",
-        { label: "Ürünlerimi gör", path: "/company/satis/urunlerim" },
-      );
+        params: {
+          ad: adlar[0] ?? "",
+          adet: adlar.length,
+          liste: adlar
+            .slice(0, 5)
+            .map((a) => `"${a}"`)
+            .join(", "),
+          kalan: Math.max(adlar.length - 5, 0),
+        },
+        cta: {
+          labelKey: "api.notifications.adminProducts.urunlerimiGor",
+          path: "/company/satis/urunlerim",
+        },
+      });
     }
     return { approved: onaylanan.length, skipped: atlanan };
   }
@@ -394,7 +529,7 @@ export class AdminProductsService {
    */
   async reject(id: string, reason: string, adminId: string) {
     const r = await this.require(id);
-    if (r.reviewStatus !== "PENDING") throw new BadRequestException("Yalnız onay bekleyen ürün reddedilebilir");
+    if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunReddedilebilir"));
     const clean = reason.trim();
     const done = await this.prisma.companyItem.updateMany({
       where: { id, reviewStatus: "PENDING" },
@@ -406,7 +541,7 @@ export class AdminProductsService {
         rejectReason: clean,
       },
     });
-    if (done.count !== 1) throw new BadRequestException("Ürün durumu değişti — sayfayı yenileyin");
+    if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
       action: "admin.product.rejected",
       actorType: "admin",
@@ -418,17 +553,25 @@ export class AdminProductsService {
       metadata: { name: r.name, reason: clean, wasPublic: r.isPublic },
     });
     if (r.isPublic) this.seo?.productChanged(id);
-    void this.companies.notifyCompany(
-      r.company.id,
-      "Ürününüzde düzeltme istendi",
-      [
-        "Merhaba,",
-        `"${r.name}" ürününüz incelendi ve düzeltme için size geri gönderildi.${r.isPublic ? " Ürün düzeltme tamamlanana kadar vitrinden çekildi." : ""} Gerekçe: ${clean}`,
-        "Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
+    void this.companies.notifyCompany(r.company.id, {
+      type: "product_rejected",
+      subjectKey: "api.notifications.adminProducts.duzeltmeIstendiBaslik",
+      // İki paragraf → in-app satırı birleşmiş metnin anahtarını taşır.
+      bodyKey: r.isPublic
+        ? "api.notifications.adminProducts.duzeltmeIstendiGovdeVitrinden"
+        : "api.notifications.adminProducts.duzeltmeIstendiGovde",
+      paragraphKeys: [
+        r.isPublic
+          ? "api.notifications.adminProducts.duzeltmeIstendiParagrafVitrinden"
+          : "api.notifications.adminProducts.duzeltmeIstendiParagraf",
+        "api.notifications.adminProducts.duzeltmeIstendiTekrarGonder",
       ],
-      "product_rejected",
-      { label: "Düzelt ve yeniden gönder", path: "/company/satis/urunlerim?sekme=rejected" },
-    );
+      params: { ad: r.name, gerekce: clean },
+      cta: {
+        labelKey: "api.notifications.adminProducts.duzeltVeGonder",
+        path: "/company/satis/urunlerim?sekme=rejected",
+      },
+    });
     return { ok: true };
   }
 
@@ -436,7 +579,7 @@ export class AdminProductsService {
 
   private async require(id: string): Promise<Row> {
     const r = await this.prisma.companyItem.findUnique({ where: { id }, select: PRODUCT_SELECT });
-    if (!r) throw new NotFoundException("Ürün bulunamadı");
+    if (!r) throw new NotFoundException(i18nMessage("api.adminCompanies.urunBulunamadi"));
     return r;
   }
 
@@ -449,6 +592,7 @@ export class AdminProductsService {
       imageCount: r.images.length,
       categoryId: r.categoryId,
       categoryName: r.categoryId ? (catNames.get(r.categoryId) ?? null) : null,
+      hiddenCategory: isHiddenCategory(r.categoryId),
       reviewStatus: r.reviewStatus,
       isPublic: r.isPublic,
       submittedAt: r.submittedAt?.toISOString() ?? null,
@@ -462,6 +606,8 @@ export class AdminProductsService {
         slug: r.company.slug,
         city: r.company.city,
         tier: r.company.tier,
+        effectiveTier: effectiveTier(r.company.tier, r.company.membershipEndAt, r.company.companyVerificationStatus),
+        membershipEndAt: r.company.membershipEndAt?.toISOString() ?? null,
         verification: r.company.companyVerificationStatus,
         isBlocked: r.company.isBlocked,
       },
@@ -469,7 +615,10 @@ export class AdminProductsService {
   }
 
   private async categoryNames(ids: (string | null)[]): Promise<Map<string, string>> {
-    const unique = [...new Set(ids.filter((i): i is string => !!i))];
+    // Names of visible categories only: a category under a hidden segment is
+    // not shown by name anywhere, the review queue included (the row carries
+    // `hiddenCategory` instead).
+    const unique = [...new Set(visibleCategoryIds(ids))];
     if (!unique.length) return new Map();
     const rows = await this.prisma.category.findMany({ where: { id: { in: unique } }, select: { id: true, nameTr: true } });
     return new Map(rows.map((c) => [c.id, c.nameTr]));

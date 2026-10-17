@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useFormatPercent } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import {
   ArrowDownRight,
@@ -7,7 +9,7 @@ import {
   ArrowUpRight,
   Minus,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import dynamic from "next/dynamic";
 
@@ -43,6 +45,9 @@ export function TrendBadge({
    */
   periodLabel?: string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
+  // Görünen rozet arayüz dilinin yüzde biçimiyle (TR "%12", EN "12%", RU "12 %").
+  const formatPct = useFormatPercent();
   if (pct == null) return null;
   const up = pct > 0;
   const flat = pct === 0;
@@ -50,11 +55,11 @@ export function TrendBadge({
   // C23: küçük tabandan gelen ham yüzdeler ("%20623") anlamsız — tavan.
   const capped = Math.abs(pct) > 999;
   const pctLabel = capped ? ">999" : String(Math.abs(pct));
-  const basis = periodLabel ?? "Önceki döneme göre";
-  const change = flat ? "değişim yok" : up ? "artış" : "azalış";
+  const basis = periodLabel ?? t("oncekiDonemeGore");
+  const change = flat ? t("degisimYok") : up ? t("artis") : t("azalis");
   const title = [
-    `${basis} %${pctLabel} ${change}`,
-    capped ? `Gerçek değer: %${Math.abs(pct)}` : null,
+    t("degisimBasligi", { basis, pct: pctLabel, change }),
+    capped ? t("gercekDeger", { abs: Math.abs(pct) }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -69,10 +74,11 @@ export function TrendBadge({
             : "bg-rose-50 text-rose-700",
         className,
       )}
-      aria-label={`${basis} yüzde ${pctLabel} ${change}`}
+      aria-label={t("yuzde", { basis: basis, pctLabel: pctLabel, change: change })}
       title={title}
     >
-      <Icon className="h-3 w-3" aria-hidden />%{pctLabel}
+      <Icon className="h-3 w-3" aria-hidden />
+      {capped ? `>${formatPct(999)}` : formatPct(Math.abs(pct))}
     </span>
   );
 }
@@ -93,7 +99,9 @@ export function KpiCard({
 }: {
   label: string;
   value: string | number;
-  href: string;
+  /** Drill-down hedefi. Yoksa (ör. hedef sayfaya izin yok) kart bağlantısız
+   *  çizilir — tıklayınca yetki duvarı açan kart olmaz (arayüz testi D-292). */
+  href?: string;
   deltaPct?: number | null;
   /** Delta rozetinin dayanağı — "Geçen aya göre" (TrendBadge tooltip'i). */
   deltaPeriodLabel?: string;
@@ -114,15 +122,8 @@ export function KpiCard({
   const stroke =
     accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#64748b";
   const hasSpark = !!spark && spark.some((s) => s.value > 0);
-  return (
-    <Link
-      href={href}
-      className={cn(
-        DASH_CARD,
-        "group relative block overflow-hidden transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
-        attention && "border-l-[3px] border-l-amber-500",
-      )}
-    >
+  const body = (
+    <>
       {hasSpark ? (
         /* Faz 4.3: dekoratif değil — gerçek 12 aylık seri + hover tooltip.
            TEMBEL: recharts yalnız seri VARSA iner (2026-09-03) — yeni pano
@@ -136,20 +137,48 @@ export function KpiCard({
         </div>
       ) : null}
       <div className="relative">
-        <div className="flex items-start justify-between gap-2">
+        {/* Telefonda iki sütunlu ızgarada (~124 px iç genişlik) en uzun sözcük
+            + değişim rozeti sığmayınca rozet kartın overflow-hidden'ında
+            kırpılıyordu ("Tekliflerim" + "%100"); rozet alt satıra iner.
+            sm+ eskisi gibi tek satır. */}
+        <div className="flex items-start justify-between gap-x-2 gap-y-1 max-sm:flex-wrap">
           <p className="text-sm font-medium text-slate-500">{label}</p>
           <TrendBadge pct={deltaPct} periodLabel={deltaPeriodLabel} />
         </div>
+        {/* Telefonda kart iki sütunlu ızgarada dar: değer bir boy küçük ve
+            sığmazsa sarar ("12,5 saat") — kartın overflow-hidden'ı onu
+            sessizce kırpmasın. sm+ eskisi gibi tek satır. */}
         <p
-          className="mt-2 text-3xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950"
+          className="mt-2 text-2xl font-semibold tracking-tight tabular-nums whitespace-nowrap text-slate-950 max-sm:whitespace-normal sm:text-3xl"
           title={valueTitle}
         >
           {value}
         </p>
+        {/* Telefonda ipucu SARAR (mobil denetim g10-14): kart iki sütunlu
+            ızgarada ~150 px; kırpılan ipucunun ("Kısmi kazanım dahil")
+            dokunmatikte okunacak başka yeri yok. sm+ eskisi gibi tek satır. */}
         {hint ? (
-          <p className="mt-1 truncate text-xs text-slate-500">{hint}</p>
+          <p className="mt-1 text-xs text-slate-500 sm:truncate">{hint}</p>
         ) : null}
       </div>
+    </>
+  );
+  const frame = cn(
+    DASH_CARD,
+    // Telefonda iki sütunlu ızgarada dar kart: iç boşluk p-4 (sm+ p-5).
+    "relative block overflow-hidden p-4 sm:p-5",
+    attention && "border-l-[3px] border-l-amber-500",
+  );
+  if (!href) return <div className={frame}>{body}</div>;
+  return (
+    <Link
+      href={href}
+      className={cn(
+        frame,
+        "group transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-card-hover",
+      )}
+    >
+      {body}
     </Link>
   );
 }
@@ -178,14 +207,18 @@ export function ChartCard({
    *  "son 12 ay") — sessizce farklı aralık kullanan kart kalmasın. */
   rangeBadge?: string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
   return (
     <section className={cn(DASH_CARD, className)} aria-label={ariaLabel}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-slate-500">
+          {/* Dar ekranda başlık sarınca aralık rozeti kendi içinde iki
+              satıra bölünüyordu ("son 12" / "ay", mobil denetim g10-15):
+              rozet bölünmez, sığmazsa başlığın altına iner. */}
+          <h3 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-slate-500">
             {title}
             {rangeBadge ? (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
                 {rangeBadge}
               </span>
             ) : null}
@@ -196,10 +229,12 @@ export function ChartCard({
         </div>
         {right}
         {href ? (
+          /* Görünen ok 24 px; dokunma alanı görünmez katmanla 44 px (mobil
+             denetim g10-15) — yerleşim ve hover zemini değişmez. */
           <Link
             href={href}
-            aria-label={`${title} — listeye git`}
-            className="rounded p-1 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+            aria-label={t("listeyeGit", { title: title })}
+            className="relative shrink-0 rounded p-1 text-slate-400 transition after:absolute after:-inset-2.5 hover:bg-slate-50 hover:text-slate-700"
           >
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
@@ -272,16 +307,26 @@ export function FunnelChart({
     href?: string;
     /** Önceki aşamayla karşılaştırılabilir değilse (farklı evren) oran gizlenir. */
     noConversion?: boolean;
+    /** Oranın tabanı önceki aşama DEĞİLSE tabanın `key`'i — kardeş (ayrık)
+     *  aşamalarda önceki aşamaya bölmek %194 gibi imkansız oran üretir
+     *  (arayüz testi O-041: Değerlendirmede → Kazanıldı ayrık kümeler). */
+    conversionFrom?: string;
   }[];
   accent?: "blue" | "emerald";
   formatValue?: (n: number) => string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
+  const formatPct = useFormatPercent();
   const max = Math.max(1, ...stages.map((s) => s.count));
   const tones = FUNNEL_TONES[accent];
   return (
-    <ol className="space-y-2" aria-label="Süreç hunisi">
+    <ol className="space-y-2" aria-label={t("surecHunisi")}>
       {stages.map((s, i) => {
-        const prev = i > 0 ? stages[i - 1]!.count : null;
+        const prev = s.conversionFrom
+          ? (stages.find((x) => x.key === s.conversionFrom)?.count ?? null)
+          : i > 0
+            ? stages[i - 1]!.count
+            : null;
         const conv =
           !s.noConversion && prev != null && prev > 0
             ? Math.round((s.count / prev) * 100)
@@ -299,7 +344,7 @@ export function FunnelChart({
                   {formatValue(s.count)}
                 </strong>
                 {conv != null ? (
-                  <span className="ml-1.5 text-slate-400">%{conv}</span>
+                  <span className="ml-1.5 text-slate-400">{formatPct(conv)}</span>
                 ) : null}
               </span>
             </div>
@@ -319,7 +364,7 @@ export function FunnelChart({
             {s.href ? (
               <Link
                 href={s.href}
-                aria-label={`${s.label} — listeye git`}
+                aria-label={t("listeyeGit2", { label: s.label })}
                 className="block rounded-md px-1 py-0.5 -mx-1 transition hover:bg-slate-50"
               >
                 {inner}

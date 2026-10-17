@@ -1,6 +1,7 @@
 import type { CreateListingInput } from "@/hooks/use-company-listings";
 import type { CurrencyCode } from "@/hooks/use-company-listings";
 import type { TenderFormData } from "./form-schema";
+import { parseAppWallClockInput } from "../time-zone";
 
 /**
  * FORM → BACKEND (CreateListingInput) — TEK KAYNAK (2026-09-09).
@@ -20,6 +21,9 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     // Format: RFQ / açık eksiltme.
     format: d.type,
     targetCountries: d.targetCountries,
+    // Özel talepte (yalnız seçilen firmalar) otomatik arama anlamsız — gönderilmez.
+    aiDiscovery: d.visibility === "PRIVATE" ? false : d.aiDiscovery,
+    inviteShowName: d.inviteShowName,
     deliveryAddressId: d.deliveryAddressId || undefined,
     // "Fatura adresim teslimatla aynı" tiki: fatura adresi teslimat adresinden
     // kopyalanır; tik kaldırıldıysa kullanıcının seçtiği adres gider.
@@ -31,8 +35,9 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     visibility: d.visibility,
     title: d.title.trim(),
     description: d.description?.trim() || undefined,
-    closesAt: toIso(d.bidsCloseAt),
-    bidsOpenAt: toIso(d.bidsOpenAt),
+    // Tarih-saat girdisi ürün saat diliminin duvar saati (lib/time-zone.ts).
+    closesAt: parseAppWallClockInput(d.bidsCloseAt)?.toISOString(),
+    bidsOpenAt: parseAppWallClockInput(d.bidsOpenAt)?.toISOString(),
     items: d.items.map((it) => ({
       name: it.name.trim(),
       description: it.description?.trim() || undefined,
@@ -73,7 +78,6 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     requireAllItems: d.requireAllItems,
     requireBidDocument: d.requireBidDocument,
     showTargetToSuppliers: d.showTargetToSuppliers,
-    isSealedBid: d.isSealedBid,
     primaryCurrency: d.primaryCurrency as CurrencyCode,
     allowedCurrencies: d.allowedCurrencies as CurrencyCode[],
     deliveryTerm: d.deliveryTerm,

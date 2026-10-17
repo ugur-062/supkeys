@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import { plainToInstance } from "class-transformer";
 import { validateSync } from "class-validator";
@@ -31,7 +32,7 @@ export function validatePendingDto<T extends object>(
     const first = errors[0]!;
     const detail = Object.values(first.constraints ?? {})[0] ?? first.property;
     throw new BadRequestException(
-      `Onaylanan işlem doğrulamadan geçmedi (${detail}) — lütfen ilgili sayfadan tekrar deneyin.`,
+      i18nMessage("api.ai.onaylananIslemDogrulamadanGecmediLutfenIlgili", { detail: detail }),
     );
   }
   return instance;

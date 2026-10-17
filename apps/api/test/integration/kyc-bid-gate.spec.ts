@@ -117,6 +117,35 @@ describe("Teklifte KYC kapısı", () => {
     ).resolves.toBeDefined();
   });
 
+  it("detay yanıtı KYC gereksinimini placeBid kuralıyla aynı söyler (arayüz testi D-028)", async () => {
+    const { service } = makeService();
+    // PUBLIC + tanımadan + doğrulanmamış → gerekir (form taslakla sınırlanır).
+    const pub = await setup({ visibility: "PUBLIC", sellerVerified: false, sellerTier: "SILVER" });
+    const d1 = (await service.getOne(pub.seller.auth as never, pub.listing.id)) as {
+      bidRequiresVerification: boolean;
+      ownerCompanyId: string;
+    };
+    expect(d1.bidRequiresVerification).toBe(true);
+    expect(d1.ownerCompanyId).toBe(pub.buyer.company.id);
+
+    // Bağlantılı → gerekmez (placeBid de belge istemez).
+    await truncateAll();
+    const con = await setup({ visibility: "CONNECTIONS", sellerVerified: false });
+    await connect(con.buyer.company.id, con.seller.company.id, con.buyer.user.id);
+    const d2 = (await service.getOne(con.seller.auth as never, con.listing.id)) as {
+      bidRequiresVerification: boolean;
+    };
+    expect(d2.bidRequiresVerification).toBe(false);
+
+    // Doğrulanmış → gerekmez.
+    await truncateAll();
+    const ver = await setup({ visibility: "PUBLIC", sellerVerified: true, sellerTier: "SILVER" });
+    const d3 = (await service.getOne(ver.seller.auth as never, ver.listing.id)) as {
+      bidRequiresVerification: boolean;
+    };
+    expect(d3.bidRequiresVerification).toBe(false);
+  });
+
   it("alıcı, doğrulanmamış teklif verenin durumunu GÖREBİLİR", async () => {
     // Rozetin kaynağı: kazandırmadan önce alıcı kör kalmamalı.
     const { service } = makeService();

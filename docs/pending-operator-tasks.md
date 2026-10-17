@@ -269,3 +269,59 @@ Bunlar körlemesine yapılmamalı; tarayıcı/DB erişimi ister:
 - **Bağlantılar sorgu yelpazesi** — kolay yarısı kapatıldı (Keşfet sekmeye
   kapılı). Kalan 4 sorgu rozetleri besliyor; birleştirmek `EXPLAIN` ister ve
   prod'da yalnız 20 firma var, temsili değil.
+
+---
+
+## 8. KVKK hesap silme rutinleri (2026-10-16, mağaza metinleri)
+
+Gizlilik Politikası m.6, KVKK m.7 / m.9 ve `/hesap-silme` iki söz veriyor; ikisi de operatörün elinde biter.
+
+### 8a. Kapanan firmanın firma düzeyi silmesi — **en geç 30 gün**
+
+Firmanın son kullanıcısı hesabını silince firma yalnız askıya alınır (not: "Hesap sahibi sildi - KVKK silme
+bekliyor"); vergi, adres, banka, belge bilgileri silinmez. Silme ELLE:
+
+1. Admin › Firmalar › Askı süzgeci **"KVKK silme bekliyor"** (en eski önce; satırdaki rozet kaç gün geçtiğini
+   yazar, 21. günden sonra kırmızı).
+2. Firma › Özet › KVKK / Tehlikeli Alan › firma kodunu yaz › **Kalıcı Olarak Sil / Anonimleştir**.
+
+Hatırlatıcı: API işi `account.closedCompanyErasure` her sabah 09:30'da kapanışından 7 gün geçmiş ve hâlâ
+bekleyen firmaları Sentry'ye yazar (`[KVKK-SILME-BEKLIYOR]`; 30 günü geçen varsa seviye "error"). Sentry
+uyarısı bir kişiye bağlı olmalı; yine de **haftada bir** süzgece bakılır.
+
+Kapanan firmanın tek işareti askı notudur; bu yüzden (2026-10-16 inceleme) **askıya alma, şikâyetten askıya alma
+ve askıyı kaldırma kapanan firmada reddedilir** (409 `COMPANY_CLOSED_BY_OWNER`; firma detayında "Askıyı Kaldır"
+çizilmez), notun metni askı sebebi olarak yazılamaz, kapanan firmaya admin "Kullanıcı Ekle" yapılamaz, kapanışta
+bekleyen ekip davetleri iptal edilir. Canlı kullanıcısı olan firma kuyrukta ve hatırlatmada görünmez. Firma
+hakkında açık şikâyet varsa askısız sonuçlandırılır; gerekiyorsa delil (şikâyet kaydı, denetim satırları)
+korunarak anonimleştirme seçilir.
+
+### 8b. Giriş yapamayan kişinin silme talebi (kvkk@rothern.com) — **en geç 30 gün**
+
+Pasifleştirilmiş, ekipten çıkarılmış ya da askıdaki firmanın kullanıcısı e-postayla yazar. Silme geri alınamaz
+ve yalnız bu e-postaya dayanır: **gelen e-postanın gönderen adresi kanıt değildir** (DMARC uygulamayan alan
+adlarında taklit edilebilir).
+
+1. Admin › Firmalar › firma › Kullanıcılar › kişinin satırı › ⋯ › **KVKK: Hesabı Sil** (ekipten çıkarılmış
+   hesapta satırdaki **KVKK: Kişisel Verileri Sil**) penceresini aç — henüz silmeden. Yalnız SUPER_ADMIN.
+   Pencere API'den şunları gösterir: ad, kayıtlı adres; ekipten çıkarılmış kayıtta satırdaki adres yer
+   tutucudur → **en son kullandığı adres** (denetim kaydından) ve çıkarılma tarihi; firmada aynı adı taşıyan
+   başka kayıt; firma kapanır mı, askıda mı.
+2. **Doğrula:** kvkk@ adresinden penceredeki kayıtlı (ya da son kullanılan) adrese yaz, silme onayını O
+   adresten bekle. Aynı adlı başka kayıt varsa adresle ayır. Onay gelmezse silme yapılmaz.
+3. Pencere silmeyi sunmuyorsa nedeni yazar (API aynı kuralla 409 döner):
+   - **Hesap hâlâ giriş yapabiliyor** (`ACCOUNT_CAN_SIGN_IN`: ekipte, aktif, firma askıda değil): kişiye
+     uygulamadaki "Hesabımı sil" adımlarını ilet (https://www.rothern.com/hesap-silme); şifresini unuttuysa
+     önce sıfırlar. Admin bunu senin yerine yapmaz.
+   - **Firma askıda ve kişi son kullanıcı** (`ACCOUNT_COMPANY_SUSPENDED`): silme firmayı kapatıp askı
+     kaydının yerine geçerdi. Önce askı kararını ver: askıyı kaldır ya da (dolandırıcılık / şikâyet
+     incelemesinde delili koruyarak) firmayı Özet › **Kalıcı Olarak Sil / Anonimleştir** ile sil — bu, tüm
+     kullanıcıların kişisel verisini de siler.
+   - **Firma anonimleştirilmiş**: silinecek veri kalmadı.
+4. Onay geldiyse **Kalıcı Olarak Sil**. Kişinin kendi silmesiyle aynı kurallar: Kurucuysa ve başka kullanıcı
+   varsa önce devir; firmanın son kullanıcısıysa süren iş biter, sonra firma da kapanır → 8a.
+5. Kişiye o adresten yanıt ver (silindi / neyin saklandığı: https://www.rothern.com/hesap-silme).
+
+Kuralı yerine getiremeyen (devredecek kimse yok, sipariş sonuçlanmıyor) ama giriş yapabilen kişi de aynı
+adrese yazar; durum firmayla birlikte çözülür (devir, kullanıcı çıkarma, siparişin sonuçlanması), silmeyi
+kişi uygulamada kendisi yapar.

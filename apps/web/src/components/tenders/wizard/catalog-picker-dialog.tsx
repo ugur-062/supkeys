@@ -1,6 +1,7 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
+import { useTranslations } from "next-intl";
+import { useEntityLabels, useUnitLabel } from "@/i18n/domain";
 
 import { useMemo, useState } from "react";
 import { Search, PackageSearch } from "lucide-react";
@@ -12,14 +13,16 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import { Input } from "@/components/ui/input";
+import { InputGroup } from "@/components/catalyst/input";
 import { Checkbox } from "@/components/catalyst/checkbox";
+import { MoneyInputNumber } from "@/components/ui/money-input";
+import { QUANTITY_DECIMALS } from "@rothern/shared";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useCatalogItems,
   useMarkCatalogUsed,
   type CatalogItem,
 } from "@/hooks/use-company-items";
-import { unitText } from "@/components/ui/unit-select";
 
 export interface PickedCatalogItem {
   catalogId: string;
@@ -56,42 +59,57 @@ export function CatalogPickerDialog({
   onClose: () => void;
   onPick: (items: PickedCatalogItem[]) => void;
 }) {
-  const L = entityLabels();
+  const t = useTranslations("web.panel.requests.catalogPickerDialog");
+  const L = useEntityLabels();
+  const unitLabel = useUnitLabel();
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
   // Modal kapalıyken ağ isteği atma.
   const list = useCatalogItems(debouncedQ, open);
   const markUsed = useMarkCatalogUsed();
-  const [selected, setSelected] = useState<Record<string, number>>({});
+  // Seçim kalemin KENDİSİNİ taşır: arama değişince liste değişse de önceki
+  // aramada işaretlenen kalem eklenir (derin denetim S084 — eskiden yalnız o
+  // anki sonuç süzülüyor, önceki seçimler sessizce düşüyordu).
+  // `qty` boş/yarım yazımda `undefined` (0'a sıfırlanıp sonraki rakamın arkasına
+  // eklenmesin — arayüz testi son tur S-BUY: "2.5" → 5).
+  const [selected, setSelected] = useState<
+    Record<string, { item: CatalogItem; qty: number | undefined }>
+  >({});
 
   const items = list.data?.items ?? [];
+  // Dokunmatik ekranda açılışta klavye AÇILMAZ (mobil denetim 2026-10): klavye
+  // pencerenin listesini ve "Ekle" düğmesini örtüyordu; masaüstünde odak aramada.
+  const [autoFocusSearch] = useState(
+    () => typeof window === "undefined" || !window.matchMedia?.("(pointer: coarse)")?.matches,
+  );
   const selectedCount = useMemo(
     () => Object.keys(selected).length,
     [selected],
   );
+  // Düzensiz miktar girişi (NaN) varken ekleme kapalı — kalem sessizce 1 olmaz.
+  const hasInvalidQty = Object.values(selected).some((s) => s.qty != null && Number.isNaN(s.qty));
 
   const toggle = (it: CatalogItem) =>
     setSelected((prev) => {
       const next = { ...prev };
       if (next[it.id] != null) delete next[it.id];
-      else next[it.id] = 1;
+      else next[it.id] = { item: it, qty: 1 };
       return next;
     });
 
   const apply = () => {
-    const picked: PickedCatalogItem[] = items
-      .filter((it) => selected[it.id] != null)
-      .map((it) => ({
-        catalogId: it.id,
-        name: it.name,
-        description: it.description,
-        unit: it.unit,
-        unitCode: it.unitCode,
-        materialCode: it.code,
-        quantity: selected[it.id] ?? 1,
-        targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
-        images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
-      }));
+    const picked: PickedCatalogItem[] = Object.values(selected).map(({ item: it, qty }) => ({
+      catalogId: it.id,
+      name: it.name,
+      description: it.description,
+      unit: it.unit,
+      unitCode: it.unitCode,
+      materialCode: it.code,
+      // Boşaltılan/0 miktar kalemi 0 ile eklemez (arayüz testi D-242): 1'e döner.
+      quantity: qty != null && Number.isFinite(qty) && qty > 0 ? qty : 1,
+      targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
+      images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
+    }));
     if (picked.length > 0) {
       onPick(picked);
       // Sıralama sinyali — en-iyi-çaba, başarısızlığı akışı kırmaz.
@@ -104,30 +122,29 @@ export function CatalogPickerDialog({
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
-      <DialogTitle>Katalogdan Kalem Ekle</DialogTitle>
+      <DialogTitle>{t("katalogdanKalemEkle")}</DialogTitle>
       <DialogBody className="space-y-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400"
-            aria-hidden
-          />
+        {/* Catalyst `InputGroup`: simge + iç girişin sol dolgusu (mobil denetim
+            2026-10 g06). Eskiden `pl-9` sarmalayıcı span'e gidiyor, girişin
+            solunda boş 36 px kutu kalıyor, beyaz zemin büyüteci örtüyordu. */}
+        <InputGroup>
+          <Search data-slot="icon" aria-hidden />
           <Input
-            autoFocus
-            className="pl-9"
-            placeholder="Kalem adı, stok kodu, marka…"
+            autoFocus={autoFocusSearch}
+            placeholder={t("kalemAdiStokKoduMarka")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            aria-label="Katalogda ara"
+            aria-label={t("katalogdaAra")}
           />
-        </div>
+        </InputGroup>
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center">
             <PackageSearch className="mx-auto size-6 text-zinc-400" aria-hidden />
             <p className="mt-2 text-sm text-zinc-600">
               {q
-                ? "Aramanızla eşleşen kalem yok."
-                : `Kataloğunuz henüz boş. Bir ${L.entityLower} oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz.`}
+                ? t("aramanizlaEslesenKalemYok")
+                : t("katalogunuzHenuzBosBirOlusturduktan", { entityLower: L.entityLower })}
             </p>
           </div>
         ) : (
@@ -136,39 +153,60 @@ export function CatalogPickerDialog({
               {items.map((it) => {
                 const isOn = selected[it.id] != null;
                 return (
-                  <li key={it.id} className="flex items-center gap-3 px-3 py-2.5">
+                  // SATIRIN TAMAMI seçer (mobil denetim 2026-10 g06): eskiden
+                  // yalnız 18 px onay kutusu seçiyordu, ada dokunmak boşa
+                  // gidiyordu. Kutunun ve miktar kutusunun kendi tıkı satıra
+                  // iki kez işlenmez.
+                  <li
+                    key={it.id}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('[role="checkbox"], input')) return;
+                      toggle(it);
+                    }}
+                    className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-zinc-50"
+                  >
                     <Checkbox
                       checked={isOn}
                       onChange={() => toggle(it)}
-                      aria-label={`${it.name} seç`}
+                      aria-label={t("sec", { name: it.name })}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">
+                      <p className="break-words text-sm font-medium text-zinc-900">
                         {it.name}
                       </p>
-                      <p className="truncate text-xs text-zinc-500">
+                      <p className="break-words text-xs text-zinc-500">
                         {[
                           it.code,
                           it.brand,
-                          unitText(it.unitCode, it.unit),
+                          unitLabel(it.unit, it.unitCode),
                         ]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
                     </div>
                     {isOn ? (
-                      <Input
-                        type="number"
-                        min={0.001}
-                        step="any"
+                      // Dilin ondalık biçimi (TR "2,5" / "1.500"); `type="number"`
+                      // Türkçe tarayıcıda "2." ara durumunu boş döndürüyordu.
+                      <MoneyInputNumber
+                        maxDecimals={QUANTITY_DECIMALS}
                         className="!w-28"
-                        aria-label={`${it.name} miktarı`}
-                        value={selected[it.id]}
-                        onChange={(e) =>
+                        aria-label={t("miktari", { name: it.name })}
+                        value={selected[it.id]?.qty}
+                        hasError={Number.isNaN(selected[it.id]?.qty)}
+                        onChange={(v) =>
                           setSelected((prev) => ({
                             ...prev,
-                            [it.id]: Number(e.target.value) || 0,
+                            [it.id]: { item: it, qty: v },
                           }))
+                        }
+                        onBlur={() =>
+                          setSelected((prev) => {
+                            const cur = prev[it.id];
+                            // Düzensiz giriş ("1,2,3" → NaN) 1'e ÇEVRİLMEZ: alan
+                            // kırmızı kalır, ekleme düğmesi kapalı (sessiz düzeltme yok).
+                            if (!cur || Number.isNaN(cur.qty) || (cur.qty != null && cur.qty > 0)) return prev;
+                            return { ...prev, [it.id]: { ...cur, qty: 1 } };
+                          })
                         }
                       />
                     ) : null}
@@ -181,16 +219,16 @@ export function CatalogPickerDialog({
 
         {list.data?.truncated ? (
           <p role="status" className="text-xs text-amber-700">
-            Sonuç listesi kısaltıldı — aramayı daraltın.
+            {t("sonucListesiKisaltildiAramayiDaraltin")}
           </p>
         ) : null}
       </DialogBody>
       <DialogActions>
         <Button variant="secondary" onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
-        <Button onClick={apply} disabled={selectedCount === 0}>
-          {selectedCount > 0 ? `${selectedCount} kalemi ekle` : "Ekle"}
+        <Button onClick={apply} disabled={selectedCount === 0 || hasInvalidQty}>
+          {selectedCount > 0 ? t("kalemiEkle", { n: selectedCount }) : t("ekle")}
         </Button>
       </DialogActions>
     </Dialog>

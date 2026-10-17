@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Body,
@@ -44,10 +45,10 @@ export class ResendWebhookController {
     @Headers("svix-id") svixId: string,
   ): Promise<{ ok: true; result: unknown }> {
     if (!svixId) {
-      throw new BadRequestException("svix-id header zorunlu");
+      throw new BadRequestException(i18nMessage("api.resendWebhook.svixIdHeaderZorunlu"));
     }
     if (!body || typeof body !== "object" || !body.type || !body.data) {
-      throw new BadRequestException("Geçersiz webhook payload");
+      throw new BadRequestException(i18nMessage("api.resendWebhook.gecersizWebhookPayload"));
     }
     const result = await this.eventService.handleEvent(body, svixId);
     return { ok: true, result };

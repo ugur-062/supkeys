@@ -1,5 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { JsonLd } from "@/components/seo/json-ld";
+import { isLocale } from "@rothern/i18n";
+import { useLocale } from "next-intl";
 import { siteGraph } from "@/lib/seo/jsonld";
 import { MarketplaceFooter } from "./marketplace-footer";
 import type { ReactNode } from "react";
@@ -41,6 +43,7 @@ export function PublicLayout({
   /** Gövde zemini. Katalog sayfaları `MARKET_GROUND`, gerisi beyaz. */
   className?: string;
 }) {
+  const locale = useLocale();
   return (
     <div className={`min-h-dvh ${className}`}>
       {/* SİTE KİMLİĞİ HER PUBLIC SAYFADA (2026-09-09). Eskiden yalnız
@@ -51,9 +54,23 @@ export function PublicLayout({
           düğümler (Product, Organization/firma, Demand, ItemList) buna EK
           olarak kendi script'lerinde durur; `@id` üzerinden aynı grafiğe
           bağlanırlar. */}
-      <JsonLd data={siteGraph()} />
+      <JsonLd data={siteGraph(isLocale(locale) ? locale : undefined)} />
       <MarketingHeader />
-      <main>{children}</main>
+      {/* Sabit üst çubuk güvenli alanın üst payı kadar uzar (mobil kabuk);
+          sayfaların kendi üst boşluğu (`pt-28`, hero `pt-32`) aynı kalır,
+          pay burada eklenir. Pay 0 iken eskisiyle aynı.
+          `@container` (2. tur safe-area): tam genişlik bantlar (`100cqw`,
+          anasayfa hero'su — `heroBandClass`) gövdenin yatay güvenli alan
+          payı DÜŞÜLMÜŞ genişliği ölçer; kapsayıcı yokken `100cqw` görünüm
+          alanının tamamıydı ve yatay iPhone'da arama kutusu ile "Ara"
+          çentik tarafına taşıyordu. Panelde `main` zaten kapsayıcı.
+          DİKKAT: eski motorlar (WebView/Chrome ~128 öncesi, eski Safari)
+          kapsayıcıya yerleşim kapsaması da uygular ve `main` içindeki `fixed`
+          öğenin içerik bloğu olur — yüzen düğme / alt çubuk görünüm alanına
+          değil `main`e göre konumlanır. Sayfa içeriğindeki her `fixed` öğe
+          `ViewportLayer` ile `body`ye taşınır (yüzen "Talep aç":
+          `FloatingRequestDock`). */}
+      <main className="@container pt-(--safe-top)">{children}</main>
       <MarketplaceFooter />
     </div>
   );

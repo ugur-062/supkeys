@@ -20,3 +20,12 @@ export function isCorsOriginAllowed(
   if (opts.allowVercel && VERCEL_ORIGIN.test(origin)) return true;
   return false;
 }
+
+/**
+ * Tarayıcı betiğine açılan yanıt başlıkları. api ve web AYRI origin'de →
+ * CORS-safelisted olmayan başlıkları tarayıcı ancak burada listelenirse verir.
+ * - x-request-id: destek ekibine iletilecek korelasyon kimliği.
+ * - content-disposition: indirmelerde (teklif/kalem şablonu, raporlar) sunucunun
+ *   dile göre ürettiği dosya adı; açılmazsa istemci sabit yedek ada düşer.
+ */
+export const CORS_EXPOSED_HEADERS = ["x-request-id", "content-disposition"];

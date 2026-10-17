@@ -1,4 +1,6 @@
+import { localizePath, localizedAlternates } from "@/i18n/href";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import type { Metadata } from "next";
 
 /**
@@ -19,6 +21,38 @@ import type { Metadata } from "next";
  */
 
 export const SITE_NAME = "Rothern";
+
+/** Başlık tavanı (canlı SEO denetimi), kök düzenin soneki DAHİL. */
+export const TITLE_MAX = 75;
+
+/**
+ * Kök düzen başlığa `%s · Rothern` şablonunu UYGULUYOR ([locale]/layout.tsx).
+ * Tavan hesabı bu soneki saymazsa üretilen başlık 75'i aşar (2026-09-12: 83
+ * karakterlik ürün başlığı). Sonek burada düşülür — çağıranlara bırakılmaz.
+ */
+export const TITLE_SUFFIX = ` · ${SITE_NAME}`;
+
+const PAGE_SEP = " — ";
+
+/**
+ * Sayfanın KENDİ başlık metnine kalan yer: tavan − sonek − (N>1 ise
+ * ` — Sayfa N`). Sayfa eki kırpılmış başlığa SONRADAN eklendiği için uzun
+ * kategori adı 2+ sayfada tavanı yeniden aşıyordu (arayüz testi webA-13
+ * gözden geçirme); başlığı kuran çağıran (ör. kategori kuyruğu) bu bütçeyle
+ * kırpar ki önce kuyruk düşsün.
+ */
+export function titleRoom(page?: number, pageLabel?: string): number {
+  const paged = !!pageQuery(page) && !!pageLabel;
+  return TITLE_MAX - TITLE_SUFFIX.length - (paged ? PAGE_SEP.length + pageLabel!.length : 0);
+}
+
+/** Metni `max` karaktere sığdırır: kelime sınırında keser, `…` ekler. */
+export function fitTitle(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  const atWord = cut.lastIndexOf(" ");
+  return `${(atWord > max * 0.6 ? cut.slice(0, atWord) : cut).trim()}…`;
+}
 
 /** Kanonik mutlak adres. Göreli yol verilir, base tek yerden çözülür. */
 export function absoluteUrl(path: string): string {
@@ -58,41 +92,186 @@ export interface PageMetaInput {
   images?: string[];
   noindex?: boolean;
   type?: "website" | "article" | "profile";
+  /** Sayfanın dili (i18n Faz 1): kanonik o dilin adresi, hreflang hazır diller + x-default. */
+  locale?: Locale;
+  /**
+   * Sayfanın KENDİ DİLİNDE hazır olduğu diller (2026-09-27 SEO denetimi):
+   * hreflang ve `og:locale:alternate` YALNIZ bunları listeler, `x-default` hazır
+   * İLK dile (tr → en → ru) gider. Verilmezse üç dil. Varlık sayfaları API'nin
+   * `readyLocales`ını geçer — sitemap'le aynı kural (eskiden sayfa hep üç dil
+   * yazıyordu: çevirisi bekleyen ürün `hreflang="en"` ile noindex sayfayı ilan
+   * ediyordu). Sayfanın dili listede yoksa ve sayfa indekslenebilirse kanonik
+   * hazır ilk dile işaret eder (sözleşme metinleri: `LEGAL_DOC_LOCALES`).
+   */
+  locales?: readonly Locale[];
+  /**
+   * Sayfalama (2026-09-27, Google önerisi): N>1 ise kanonik ve hreflang
+   * `?sayfa=N` — her sayfa KENDİ kanoniğidir (eskiden hepsi 1. sayfayı
+   * gösteriyordu, 2+ sayfadaki kayıtlar keşfedilmiyordu). Başka süzgeç varken
+   * çağıran 1 geçer (süzgeçli varyant tabana işaret eder) — `canonicalListPage`.
+   */
+  page?: number;
+  /**
+   * Sayfa N>1 iken başlığa (` — Sayfa N`) ve açıklamaya eklenen yerelleştirilmiş
+   * etiket (`web.shared.ui.pageN`). Kanonik `?sayfa=N` olan her sayfa
+   * indekslenebilir; 1. sayfayla aynı başlık/açıklama yinelenen meta sayılıyordu
+   * (arayüz testi D-084). `page` ≤ 1 ise yok sayılır.
+   */
+  pageLabel?: string;
+  /** og:image:alt / twitter:image:alt — verilmezse başlık (sayfanın dilinde). */
+  imageAlt?: string;
+}
+
+/**
+ * Segmentin KENDİ OG kartının adresi (`<segment>/opengraph-image.tsx`), sayfanın
+ * dilinde. Next'in dosya kuralı kartı og:image'a YAZMIYOR — `buildMetadata`
+ * her zaman `openGraph.images` verdiği için config kazanıyor (2026-09-27 yerel
+ * üretim sunucusunda ölçüldü) → kartı kullanmak isteyen sayfa bu adresi
+ * `images` ile geçer. Biçim: dil ön eki + İÇ yol (`/en/urunler/sehir/x/
+ * opengraph-image`): çevrilmiş yol + `/opengraph-image` bir rota şablonu
+ * değil, next-intl onu 404'e düşürüyor; ön ekli iç yol ise `[locale]`
+ * segmentine olduğu gibi geçiyor (200, ölçüldü).
+ */
+export function ogCardPath(path: string, locale: Locale = DEFAULT_LOCALE): string {
+  const card = `${path === "/" ? "" : path.replace(/\/$/, "")}/opengraph-image`;
+  return locale === DEFAULT_LOCALE ? card : `/${locale}${card}`;
+}
+
+/** OG kartı boyutu — kart çizimi (`og/card.tsx`) ve og:image boyut etiketleri aynı sabitten. */
+export const OG_CARD_SIZE = { width: 1200, height: 630 } as const;
+
+export const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
+/** JSON-LD `inLanguage` (BCP 47) — sayfanın dili; sözleşme metinleri istisna (her dilde tr-TR, `LegalDoc`). */
+export const LANG_TAG: Record<Locale, string> = { tr: "tr-TR", en: "en-US", ru: "ru-RU" };
+
+/**
+ * SÖZLEŞME METİNLERİ YALNIZ TÜRKÇE (hukuki metin çevrilmez): EN/RU sayfa açılır
+ * (kabuk + "Türkçe metin esastır" notu) ama kanoniği Türkçe adres, hreflang ve
+ * sitemap yalnız Türkçe — Türkçe gövdeli EN/RU sayfa kendi kanoniğiyle
+ * indekslenmesin (2026-09-27 SEO denetimi, kullanıcı kararı).
+ */
+export const LEGAL_DOC_LOCALES: readonly Locale[] = [DEFAULT_LOCALE];
+
+/** Hazır diller (LOCALES sırasıyla); boş/verilmemiş → üç dil. */
+export function readyLocalesOf(locales?: readonly string[] | null): Locale[] {
+  if (!locales) return [...LOCALES];
+  return LOCALES.filter((l) => locales.includes(l));
+}
+
+/**
+ * hreflang haritası (mutlak): yalnız hazır diller + `x-default` hazır İLK dile.
+ * Sayfa metası ve sitemap AYNI kuralı okur (`located`).
+ */
+export function hreflangMap(path: string, locales?: readonly Locale[], query = ""): Record<string, string> {
+  const ready = readyLocalesOf(locales);
+  const out: Record<string, string> = {};
+  for (const [lang, p] of Object.entries(localizedAlternates(path, ready))) out[lang] = `${absoluteUrl(p)}${query}`;
+  return out;
+}
+
+/**
+ * Gösterilen İÇERİĞİN dili sayfanın dilinden farklıysa onun etiketi (yoksa
+ * undefined): kayıt bu dilde hazır değilken (çeviri bekliyor, Almanca kaynak…)
+ * sayfa özgün metni gösterir — o blok `lang={…}` taşımalı, JSON-LD
+ * `inLanguage` da onu söylemeli (2026-09-27: EN sayfada `<html lang="en">`
+ * altında Türkçe h1 ve gövde). Kaynak bilinmiyorsa ("und") yazılmaz.
+ */
+export function contentLangOf(
+  state: { readyLocales?: readonly string[] | null; sourceLocale?: string | null },
+  locale: Locale,
+): string | undefined {
+  if (!state.readyLocales || state.readyLocales.includes(locale)) return undefined;
+  const src = state.sourceLocale ?? DEFAULT_LOCALE;
+  return src !== "und" && /^[a-z]{2,3}$/.test(src) && src !== locale ? src : undefined;
+}
+
+/** Sayfalama sorgusu: yalnız N>1 yazılır. */
+export function pageQuery(page?: number): string {
+  return page && page > 1 ? `?sayfa=${page}` : "";
+}
+
+/** OG kartı adresi mi (`…/opengraph-image`) — boyutu bilinen tek görsel türü. */
+function isOgCard(url: string): boolean {
+  return /\/opengraph-image(?:$|\?)/.test(url);
+}
+
+/**
+ * Arama motoru sahiplik doğrulama meta etiketleri (kök düzen, env'den).
+ * Boş değer etiket üretmez; hiçbiri yoksa `verification` hiç yazılmaz.
+ */
+export function siteVerification(env: { google?: string; bing?: string; yandex?: string }): Pick<Metadata, "verification"> {
+  const google = env.google?.trim();
+  const bing = env.bing?.trim();
+  const yandex = env.yandex?.trim();
+  if (!google && !bing && !yandex) return {};
+  return {
+    verification: {
+      ...(google ? { google } : {}),
+      ...(yandex ? { yandex } : {}),
+      ...(bing ? { other: { "msvalidate.01": bing } } : {}),
+    },
+  };
 }
 
 /**
  * Tek giriş noktası: sayfa metası. `alternates.canonical` her zaman yazılır —
- * süzgeçli varyantlar (`?sehir=`, `?sayfa=`) kanoniği kendi yolları olarak
- * bildirsin diye çağıran açıkça yol verir.
+ * süzgeçli varyantlar (`?sehir=`) kanoniği kendi yolları olarak bildirsin diye
+ * çağıran açıkça yol verir; sayfalama `page` ile.
  */
 export function buildMetadata({
-  title,
-  description,
+  title: baseTitle,
+  description: baseDescription,
   path,
   images,
   noindex,
   type = "website",
+  locale = DEFAULT_LOCALE,
+  locales,
+  page,
+  pageLabel,
+  imageAlt,
 }: PageMetaInput): Metadata {
-  const url = absoluteUrl(path);
+  const ready = readyLocalesOf(locales);
+  const query = pageQuery(page);
+  const paged = !!query && !!pageLabel;
+  // Ek, başlığı tavanın dışına itmesin: taban başlık ekin payı kadar kısalır
+  // (çağıran zaten `titleRoom` ile kırptıysa değişmez).
+  const title = paged ? `${fitTitle(baseTitle, titleRoom(page, pageLabel))}${PAGE_SEP}${pageLabel}` : baseTitle;
+  const description = paged ? `${pageLabel} · ${baseDescription}` : baseDescription;
+  // Sayfanın dili hazır değilse ve sayfa indekslenebilirse kanonik hazır dile
+  // (sözleşme metinleri). `noindex` sayfa kendi adresini söyler — Google
+  // noindex + başka kanonik birleşimini çelişkili sayar.
+  const canonicalLocale = !noindex && ready.length > 0 && !ready.includes(locale) ? ready[0]! : locale;
+  const url = `${absoluteUrl(localizePath(path, canonicalLocale))}${query}`;
+  const languages = hreflangMap(path, ready, query);
   const desc = clampDescription(description);
   // Varsayılan kart (2026-09-11 canlı denetim): Next'te kök `opengraph-image`
   // yalnız `/` için basılır, alt segmentlere MİRAS GEÇMEZ — /nasil-calisir ve
   // sözleşme sayfaları og:image'sız çıkıyordu. Görsel verilmeyen her sayfa kök
-  // marka kartını alır; varlık sayfaları kendi kartını geçer.
-  const abs = (images && images.length ? images : ["/opengraph-image"]).map((i) =>
-    i.startsWith("http") ? i : absoluteUrl(i),
-  );
+  // marka kartını alır; varlık sayfaları kendi kartını geçer. Kart sayfanın
+  // DİLİNDE (2026-09-27): ön eksiz `/opengraph-image` Türkçe karttır — EN/RU
+  // sayfa `/en/opengraph-image` alır (`[locale]/opengraph-image.tsx`).
+  const fallback = ogCardPath("/", locale);
+  const alt = imageAlt ?? title;
+  // og:image:alt + boyut (2026-09-27): OG kartı 1200×630 bilinir; firma/ürün
+  // fotoğrafının boyutu bilinmez, yazılmaz (uydurma yok).
+  const abs = (images && images.length ? images : [fallback]).map((i) => {
+    const u = i.startsWith("http") ? i : absoluteUrl(i);
+    return isOgCard(u) ? { url: u, alt, ...OG_CARD_SIZE } : { url: u, alt };
+  });
+  const alternateLocale = ready.filter((l) => l !== locale).map((l) => OG_LOCALE[l]);
   return {
     title,
     description: desc,
-    alternates: { canonical: url },
+    alternates: { canonical: url, languages },
     ...(noindex ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title,
       description: desc,
       url,
       siteName: SITE_NAME,
-      locale: "tr_TR",
+      locale: OG_LOCALE[locale],
+      ...(alternateLocale.length ? { alternateLocale } : {}),
       type,
       images: abs,
     },
@@ -102,7 +281,7 @@ export function buildMetadata({
       card: "summary_large_image",
       title,
       description: desc,
-      images: abs,
+      images: abs.map(({ url: u, alt: a }) => ({ url: u, alt: a })),
     },
   };
 }

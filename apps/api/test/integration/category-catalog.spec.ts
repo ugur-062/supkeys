@@ -8,7 +8,9 @@
  *     `catalog` parametresi göndermesine bağlı değil.
  *   • Firma "hangi alandasınız" seçimi TAM kataloğu görür — o 13 yaprak dahil.
  *   • Gösterim uçları (`children`, `search-tree`) `catalog`'a uyar.
- *   • `by-ids` süzmez: kayıtlı bir kodu her hâlükârda çözebilmeli.
+ *   • `by-ids` KATALOĞA göre süzmez: kayıtlı bir kodu discovery dışı olsa da
+ *     çözebilmeli. (Gizli SEGMENT ayrı kural — o kod hiç çözülmez:
+ *     `hidden-category-public-surfaces.spec.ts`.)
  */
 import { foldSearchText } from "@rothern/shared";
 import { CategoryService } from "../../src/modules/categories/services/category.service";
@@ -141,7 +143,7 @@ describe("gösterim uçları — catalog parametresi", () => {
     expect(discCodes).not.toContain(LEAF_FULL_ONLY);
   });
 
-  it("by-ids SÜZMEZ — firma kendi seçtiği kodu her zaman çözebilmeli", async () => {
+  it("by-ids KATALOĞA göre SÜZMEZ — firma kendi seçtiği discovery dışı kodu çözebilmeli", async () => {
     const rows = await service().getByIds([LEAF_FULL_ONLY]);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.nameTr).toBe("Plastik Kasalar");
@@ -192,7 +194,67 @@ describe("firma seçimi — TAM katalog", () => {
       [SEG],
       [LEAF_FULL_ONLY],
     );
-    expect(res.subIds).toEqual([LEAF_FULL_ONLY]);
+    // Yaprak ata zinciriyle saklanır (code-category-8: dönüşüm sunucuda da).
+    expect(res.subIds).toEqual([LEAF_FULL_ONLY, FAM, CLS]);
     expect(res.mainNames).toEqual(["Ambalaj malzemeleri"]);
+  });
+
+  it("ana liste yanlış segmenti taşısa da alt kodun segmenti eklenir (code-category-8)", async () => {
+    await makeCategory({ code: "11000000", nameTr: "Mineraller", level: 1 });
+    const res = await validateCategorySelection(
+      prisma as unknown as PrismaService,
+      ["11000000"],
+      [LEAF_BOTH],
+    );
+    expect(res.mainIds).toEqual(["11000000", SEG]);
+    expect(res.subIds).toEqual([LEAF_BOTH, FAM, CLS]);
+    expect(res.mainNames).toEqual(["Mineraller", "Ambalaj malzemeleri"]);
+  });
+});
+
+/**
+ * 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+ * görünür segmenttir; altında 4610 ailesi (silah) ve 4618 ailesinin 461825
+ * sınıfı gizli kalır. Kayıt akışının beyan kapısı (`validateCategorySelection`)
+ * gizli aile / sınıfı gizli segment gibi reddeder; 46'nın görünür kodları
+ * sıradan seçimdir.
+ */
+describe("firma seçimi — 46 görünür, gizli aile (4610) ve gizli sınıf (461825) seçilemez", () => {
+  async function seed46() {
+    await makeCategory({ code: "46000000", nameTr: "İş Güvenliği ve Yangın Ekipmanları", level: 1 });
+    await makeCategory({ code: "46100000", nameTr: "Hafif silahlar ve mühimmat", level: 2, parentId: "46000000" });
+    await makeCategory({ code: "46101500", nameTr: "Ateşli silahlar", level: 3, parentId: "46100000" });
+    await makeCategory({ code: "46180000", nameTr: "Kişisel güvenlik ve koruma", level: 2, parentId: "46000000" });
+    await makeCategory({ code: "46181500", nameTr: "Koruyucu giysiler", level: 3, parentId: "46180000" });
+    await makeCategory({ code: "46182500", nameTr: "Kişisel güvenlik cihazları veya silahları", level: 3, parentId: "46180000" });
+    await makeCategory({ code: "46182501", nameTr: "Biber gazı spreyleri", level: 4, parentId: "46182500" });
+    await makeCategory({ code: "10000000", nameTr: "Canlı Bitki ve Hayvan Malzemeleri", level: 1 });
+  }
+  const select = (main: string[], sub: string[]) =>
+    validateCategorySelection(prisma as unknown as PrismaService, main, sub);
+
+  it("46181500 seçilir: segmenti ve ailesiyle saklanır; segmentin tamamı da seçilebilir", async () => {
+    await seed46();
+    const res = await select([], ["46181500"]);
+    expect(res.mainIds).toEqual(["46000000"]);
+    expect(res.subIds).toEqual(["46181500", "46180000"]);
+    expect(res.mainNames).toEqual(["İş Güvenliği ve Yangın Ekipmanları"]);
+    expect((await select(["46000000"], [])).mainIds).toEqual(["46000000"]);
+  });
+
+  it.each([
+    ["gizli aile", "46100000"],
+    ["gizli ailenin sınıfı", "46101500"],
+    ["gizli sınıf", "46182500"],
+    ["gizli sınıfın yaprağı", "46182501"],
+  ])("%s alt kategori olarak reddedilir (görünür segmenti ana listede olsa da)", async (_level, code) => {
+    await seed46();
+    await expect(select(["46000000"], [code])).rejects.toThrow(/Geçersiz alt kategori/i);
+    await expect(select(["46000000"], ["46181500", code])).rejects.toThrow(/Geçersiz alt kategori/i);
+  });
+
+  it("tümüyle gizli segment ana kategori olarak eskisi gibi reddedilir", async () => {
+    await seed46();
+    await expect(select(["10000000"], [])).rejects.toThrow();
   });
 });

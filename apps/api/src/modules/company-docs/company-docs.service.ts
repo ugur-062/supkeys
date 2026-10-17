@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -8,13 +9,13 @@ import {
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
 import {
-  isValidIbanTr,
+  classifyBankAccountInput,
+  countryUsesIban,
   maskIban,
-  normalizeIban,
+  normalizeSwift,
   requiredDocsForCountry,
-  getCountryProfile,
-  ibanChecksumOk,
 } from "@rothern/shared";
+import { assertBankDetails } from "../../common/company/bank-details";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -23,6 +24,7 @@ import {
   assertReportedSize,
   assertSafeFileName,
   assertUploadedObjectValid,
+  assertUploadedSignature,
   MAX_UPLOAD_BYTES,
 } from "../../common/helpers/upload-validation";
 
@@ -65,6 +67,14 @@ export const DOC_META = {
 } as const;
 export type DocKind = keyof typeof DOC_META;
 const KINDS = Object.keys(DOC_META) as DocKind[];
+/**
+ * Belge türü doğrulaması — `kind in DOC_META` prototip zincirini de kabul
+ * ediyordu ("constructor"/"toString" geçip Prisma'da 500 üretiyordu; derin
+ * denetim LU-07). Yalnız KENDİ anahtarları geçerli.
+ */
+export function isDocKind(kind: string): kind is DocKind {
+  return Object.prototype.hasOwnProperty.call(DOC_META, kind);
+}
 /** Geriye dönük: türe göre yalnız URL alanı. */
 export const DOC_FIELDS = Object.fromEntries(
   KINDS.map((k) => [k, DOC_META[k].url]),
@@ -125,9 +135,11 @@ export class CompanyDocsService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
       },
     })) as Record<string, unknown> | null;
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyDocs.firmaBulunamadi"));
     // Hassas KYC belgeleri: kalıcı public URL yerine kısa ömürlü presigned GET
     // (bucket public olsa bile yetkisiz erişim engellenir).
     const entries = await Promise.all(
@@ -189,6 +201,10 @@ export class CompanyDocsService {
       tradeRegistryNo: c.tradeRegistryNo as string | null,
       iban: c.iban as string | null,
       ibanHolder: c.ibanHolder as string | null,
+      bankSwiftBic: c.bankSwiftBic as string | null,
+      bankName: c.bankName as string | null,
+      // Banka alanı biçimi (IBAN mı hesap no mu) — web aynı kuralı çizer.
+      usesIban: countryUsesIban(c.country as string | null),
     };
   }
 
@@ -199,9 +215,9 @@ export class CompanyDocsService {
     mimeType: string,
     fileSize?: number,
   ) {
-    if (!(kind in DOC_FIELDS)) throw new BadRequestException("Geçersiz belge türü");
+    if (!isDocKind(kind)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     if (!ALLOWED_MIME.includes(mimeType)) {
-      throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyDocs.sadecePdfVeyaGorselYuklenebilir"));
     }
     assertSafeFileName(fileName);
     assertReportedSize(fileSize);
@@ -217,12 +233,12 @@ export class CompanyDocsService {
     key: string,
     actor?: AuthenticatedCompanyUser,
   ) {
-    if (!(kind in DOC_META)) throw new BadRequestException("Geçersiz belge türü");
+    if (!isDocKind(kind)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     const k = kind as DocKind;
     // GÜVENLİK: key yalnız BU firmanın klasörüne işaret edebilir; aksi halde
     // başka firmanın/rastgele bir nesnenin URL'i kaydedilebilirdi.
     if (!key.startsWith(`company-docs/${companyId}/`)) {
-      throw new BadRequestException("Geçersiz dosya anahtarı");
+      throw new BadRequestException(i18nMessage("api.companyDocs.gecersizDosyaAnahtari"));
     }
     // KİLİT: belge yalnız (a) hiç gönderilmemişken (UNVERIFIED) ya da (b) genel
     // durum REJECTED iken ve BU belge onaylı değilken DOĞRUDAN değiştirilebilir.
@@ -247,18 +263,18 @@ export class CompanyDocsService {
           unknown
         >)
       | null;
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.companyDocs.firmaBulunamadi"));
     const overall = company.companyVerificationStatus;
     const docStatus = company[DOC_META[k].status] as KycDocStatus;
     if (docStatus === "APPROVED") {
-      throw new BadRequestException("Bu belge onaylandı; değiştirilemez");
+      throw new BadRequestException(i18nMessage("api.companyDocs.buBelgeOnaylandiDegistirilemez"));
     }
     if (overall === "VERIFIED") {
       return this.submitRevision(companyId, k, key, actor);
     }
     if (overall === "PENDING") {
       throw new BadRequestException(
-        "Doğrulama inceleniyor; belge değiştirilemez",
+        i18nMessage("api.companyDocs.dogrulamaInceleniyorBelgeDegistirilemez"),
       );
     }
     await assertUploadedObjectValid(
@@ -268,6 +284,8 @@ export class CompanyDocsService {
       MAX_UPLOAD_BYTES,
       ALLOWED_MIME,
     );
+    // D-014: beyan edilen tip değil İÇERİK imzası (ilk baytlar) belirleyici.
+    await assertUploadedSignature(this.storage, "private", key, ALLOWED_MIME);
     // KEY saklanır (public URL değil); okurken presigned GET üretilir. Yeniden
     // yüklenen (reddedilmiş) belge PENDING'e döner, red gerekçesi temizlenir.
     const previousKey = company[DOC_META[k].url] as string | null;
@@ -325,16 +343,35 @@ export class CompanyDocsService {
       MAX_UPLOAD_BYTES,
       ALLOWED_MIME,
     );
+    // D-014: beyan edilen tip değil İÇERİK imzası (ilk baytlar) belirleyici.
+    await assertUploadedSignature(this.storage, "private", key, ALLOWED_MIME);
     const pending = await this.prisma.companyKycRevision.findFirst({
       where: { companyId, kind, status: "PENDING" },
-      select: { id: true },
+      // Denetim MU-19 (S026): ezilecek bekleyen revizyonun eski anahtari da
+      // okunur; aksi halde nesne hicbir satirda referanssiz kalir ve KVKK
+      // purge'u (yalniz guncel anahtarlari toplar) onu silemez.
+      select: { id: true, key: true },
     });
+    // Gozden gecirme (MU-19): bekleyen satir CAS ile guncellenir. findFirst
+    // ile update arasinda admin revizyonu karara baglarsa (onay: company
+    // kolonu pending.key'i gosterir) satir artik PENDING degildir; kosulsuz
+    // update onayli satirin key'ini ezip asagidaki silme de CANLI belgeyi
+    // R2'dan silerdi. count === 0 ise eski nesneye dokunulmaz ve 409 donulur:
+    // onaylandiysa belge artik kalicidir (yeni revizyon acilmamali), reddedildiyse
+    // firma sayfayi yenileyip yeniden yukler.
+    let replacedKey: string | null = null;
     try {
       if (pending) {
-        await this.prisma.companyKycRevision.update({
-          where: { id: pending.id },
+        const updated = await this.prisma.companyKycRevision.updateMany({
+          where: { id: pending.id, status: "PENDING" },
           data: { key, submittedById: actor?.userId ?? null },
         });
+        if (updated.count === 0) {
+          throw new ConflictException(
+            i18nMessage("api.companyDocs.bekleyenGuncellemeAzOnceIncelendi"),
+          );
+        }
+        replacedKey = pending.key;
       } else {
         await this.prisma.companyKycRevision.create({
           data: {
@@ -349,10 +386,22 @@ export class CompanyDocsService {
       // Kısmi-unique yarışı (eşzamanlı iki commit) — X-CF-3 deseni.
       if ((e as { code?: string }).code === "P2002") {
         throw new ConflictException(
-          "Bu belge için bekleyen bir güncelleme zaten incelemede — sayfayı yenileyin",
+          i18nMessage("api.companyDocs.buBelgeIcinBekleyenBirGuncelleme"),
         );
       }
       throw e;
+    }
+    // #8 deseni: ezilen bekleyen revizyon nesnesini best-effort sil.
+    if (replacedKey && replacedKey !== key) {
+      await this.storage
+        .deleteObject("private", replacedKey)
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Old pending KYC revision object could not be deleted (${companyId}/${kind}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
     }
     // INV-AUDIT-1: revizyon gönderimi iz bırakır (tür adı; key yazılmaz).
     await this.audit.log({
@@ -376,22 +425,36 @@ export class CompanyDocsService {
       tradeRegistryNo?: string;
       iban?: string;
       ibanHolder?: string;
+      bankSwiftBic?: string;
+      bankName?: string;
     } = {},
     actor?: AuthenticatedCompanyUser,
   ) {
+    // D-166: firma kurulumu (unvan, vergi no, adres) bitmeden doğrulamaya
+    // gönderilemez — eskiden yalnız API ile unvansız firma incelemeye
+    // gidip VERIFIED olabiliyordu.
+    const onboarding = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { onboardingCompletedAt: true },
+    });
+    if (onboarding && !onboarding.onboardingCompletedAt) {
+      throw new BadRequestException(
+        i18nMessage("api.companyDocs.onceFirmaKurulumunuTamamlayin"),
+      );
+    }
     const { docs, docStatus, status, required, country } =
       await this.get(companyId);
     const missing = required.filter((k) => !docs[k]);
     if (missing.length > 0) {
       throw new BadRequestException(
-        `Eksik belge var (${missing.length}); tüm belgeleri yükleyin`,
+        i18nMessage("api.companyDocs.eksikBelgeVarTumBelgeleriYukleyin", { length: missing.length }),
       );
     }
     if (status === "VERIFIED") {
-      throw new BadRequestException("Firma zaten doğrulanmış");
+      throw new BadRequestException(i18nMessage("api.companyDocs.firmaZatenDogrulanmis"));
     }
     if (status === "PENDING") {
-      throw new BadRequestException("Doğrulama zaten inceleniyor");
+      throw new BadRequestException(i18nMessage("api.companyDocs.dogrulamaZatenInceleniyor"));
     }
     // KYC KİMLİK BİLGİLERİ — ZORUNLULUK EVRENSEL, BİÇİM ÜLKEYE GÖRE
     // (2026-09-14, kullanıcı: "bu evrensel bir sistem, yurtdışı yurtiçi
@@ -407,38 +470,39 @@ export class CompanyDocsService {
     // ÜLKEYE GÖRE DEĞİŞEN yalnız BİÇİM:
     //  · MERSİS — Türkiye'ye ÖZGÜ bir sicil numarası; başka ülkede karşılığı
     //    YOKTUR. "Yabancıda opsiyonel" değil, "o ülkede mevcut değil".
-    //  · Banka — IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda
-    //    (RU/UZ/CN) serbest biçimli hesap numarası kabul edilir. İkisinde de
-    //    ZORUNLU: sipariş ve ödeme akışı hesap bilgisi olmadan yürümüyor.
-    const profile = getCountryProfile(country ?? "TR");
+    //  · Banka — kural tek kaynak `assertBankDetails` (IBAN ülkesinde IBAN,
+    //    değilse hesap no + banka adı); SWIFT/BIC firma doğrulamasında HER
+    //    ÜLKEDE zorunlu (2026-09-27, kullanıcı: "şirket doğrularken swift
+    //    numarası girmek zorunlu olsun"). `iban` kolonu IBAN'sız ülkede hesap
+    //    numarasını taşır.
     const isTR = (country ?? "TR").toUpperCase() === "TR";
-    const usesIban = profile?.usesIban ?? true;
+    const usesIban = countryUsesIban(country ?? "TR");
     const mersisNo = kyc.mersisNo?.trim();
     const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
-    const iban = kyc.iban ? normalizeIban(kyc.iban) : undefined;
+    // IBAN zorunlu olmayan ülkede de geçerli IBAN yazılabilir → boşluksuz saklanır.
+    const acct = classifyBankAccountInput(country ?? "TR", kyc.iban);
+    const iban = kyc.iban ? (acct.iban ?? acct.accountNumber ?? kyc.iban.trim()) : undefined;
     const ibanHolder = kyc.ibanHolder?.trim();
+    const bankSwiftBic = kyc.bankSwiftBic !== undefined ? normalizeSwift(kyc.bankSwiftBic) : undefined;
+    const bankName = kyc.bankName?.trim();
 
     if (isTR && (!mersisNo || !/^\d{16}$/.test(mersisNo))) {
-      throw new BadRequestException("MERSİS numarası 16 haneli olmalı.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.mersisNumarasi16HaneliOlmali"));
     }
     if (!tradeRegistryNo) {
-      throw new BadRequestException("Sicil / kayıt numarası gerekli.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.sicilKayitNumarasiGerekli"));
     }
-    if (!iban) {
-      throw new BadRequestException(
-        usesIban ? "IBAN gerekli." : "Banka hesap numarası gerekli.",
-      );
-    }
-    if (usesIban) {
-      const gecerli = isTR ? isValidIbanTr(iban) : ibanChecksumOk(iban);
-      if (!gecerli) {
-        throw new BadRequestException(
-          "Geçerli bir IBAN gerekli — kontrol hanesi tutmuyor.",
-        );
-      }
-    }
+    assertBankDetails(
+      {
+        country: country ?? "TR",
+        ...(usesIban ? { iban } : { accountNumber: iban }),
+        swiftBic: bankSwiftBic,
+        bankName,
+      },
+      { requireSwift: true },
+    );
     if (!ibanHolder) {
-      throw new BadRequestException("Hesap sahibi gerekli.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.hesapSahibiGerekli"));
     }
     // Onaylı belgeler APPROVED kalır (admin yeniden incelemez); onaylı olmayan
     // (PENDING/REJECTED) belgeler PENDING'e çekilir + gerekçeleri temizlenir.
@@ -460,12 +524,14 @@ export class CompanyDocsService {
         ...(tradeRegistryNo !== undefined ? { tradeRegistryNo } : {}),
         ...(iban !== undefined ? { iban } : {}),
         ...(ibanHolder !== undefined ? { ibanHolder } : {}),
+        ...(bankSwiftBic !== undefined ? { bankSwiftBic } : {}),
+        ...(bankName !== undefined ? { bankName: bankName || null } : {}),
       },
     });
     // INV-AUDIT-1: doğrulamaya gönderim — KYC alan ADLARI + sıfırlanan belge
     // türleri; IBAN yalnız maskeli referans. IBAN yazımı para-yolu → critical.
     const kycFields = (
-      ["mersisNo", "tradeRegistryNo", "iban", "ibanHolder"] as const
+      ["mersisNo", "tradeRegistryNo", "iban", "ibanHolder", "bankSwiftBic", "bankName"] as const
     ).filter((f) => kyc[f] !== undefined);
     await this.audit.log({
       action: "company.docs.submitted",

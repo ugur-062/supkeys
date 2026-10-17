@@ -16,6 +16,9 @@ import { AudienceProvider } from "@/components/marketplace/audience-switch";
 import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
+import { isHiddenCategory } from "@rothern/shared";
 
 const product = (i: number) => ({
   slug: `urun-${i}`,
@@ -46,9 +49,11 @@ const hero = () => render(<AudienceProvider><HomeHero /></AudienceProvider>);
 beforeEach(() => window.localStorage.clear());
 
 describe("Anasayfa — panel ekranlarının anonim hâli", () => {
-  it("sunucu varsayılanı TEDARİKÇİ yüzü (2026-09-21): talep sorusu, yeşil 'Ara', kapsam pili YOK", () => {
+  it("sunucu varsayılanı TEDARİKÇİ yüzü (2026-09-21): sipariş başlığı, yeşil 'Ara', kapsam pili YOK", () => {
     hero();
-    expect(screen.getByRole("heading", { level: 1, name: /Hangi talebe/ })).toBeInTheDocument();
+    // Başlık 2026-10-08'de değişti (kullanıcı kararı): soru kipi kalktı,
+    // tedarikçi yüzü "Yeni siparişler bulun", alıcı yüzü "Yeni tedarikçiler bulun".
+    expect(screen.getByRole("heading", { level: 1, name: "Yeni siparişler bulun" })).toBeInTheDocument();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -66,11 +71,12 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(radios.map((r) => r.textContent)).toEqual(["Tedarikçiyim", "Alıcıyım"]);
   });
 
-  it("anahtar ALICI yüzüne geçirir: ürün sorusu, mavi 'Ara', firma pili yine YOK", async () => {
+  it("anahtar ALICI yüzüne geçirir: tedarikçi başlığı, mavi 'Ara', firma pili yine YOK", async () => {
     const user = userEvent.setup();
     hero();
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    expect(screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Yeni tedarikçiler bulun" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Yeni siparişler bulun" })).toBeNull();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
@@ -99,7 +105,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(document.getElementById("kategoriler")!.closest("[hidden]")).toBeNull();
   });
 
-  it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
+  it("AI ile ara ANONİMDE ÇİZİLMEZ (oturum ∧ koltuk izni ister)", async () => {
     const user = userEvent.setup();
     hero();
     expect(screen.queryByRole("button", { name: /AI ile ara/ })).toBeNull();
@@ -115,10 +121,115 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "/company/kayit?intent=teklif",
     );
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
-    expect(screen.getByRole("link", { name: /Talep aç/ })).toHaveAttribute(
+    // Misafir etiketi yalın (ücretsiz dönem 2026-10-07): paket/doğrulama eki yok.
+    expect(screen.getByRole("link", { name: "Talep aç" })).toHaveAttribute(
       "href",
       "/company/kayit?intent=talep",
     );
+  });
+
+  it("hero metinleri (ücretsiz dönem 2026-10-07): talep açmak ve teklif vermek tamamen ücretsiz; paket adı ve doğrulama şartı yazmaz", async () => {
+    const user = userEvent.setup();
+    const { container } = hero();
+    // Giriş cümlesi ve eylem notu: ücretsiz der, doğrulama ŞARTI koşmaz.
+    // (Dekor kartındaki "Doğrulanmış rozeti — Doğrulama ücretsiz" bir şart değil.)
+    const supplierLead = screen.getByText(/Teklif vermek tamamen ücretsiz\./);
+    const supplierNote = screen.getByText("Taleplere teklif vermek tamamen ücretsiz").closest("p")!;
+    for (const el of [supplierLead, supplierNote]) expect(el.textContent).not.toMatch(/doğrulama/i);
+    expect(container.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
+    await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+    const buyerLead = screen.getByText(/Alım talebi açmak tamamen ücretsiz\./);
+    const buyerNote = screen.getByText(/Alım talebi açmak ücretsiz\./).closest("p")!;
+    for (const el of [buyerLead, buyerNote]) expect(el.textContent).not.toMatch(/doğrulama/i);
+    expect(container.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
+  });
+
+  it("oturumlu üyede alıcı 'Talep aç' notu firmanın doğrulamasına göre (T-02): doğrulanmamış kilitli, incelemede 'inceleniyor', doğrulanmış sihirbaz", async () => {
+    const user = userEvent.setup();
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["buy:view", "buy:listing:manage"], roles: [] } as never,
+      company: { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as never,
+    });
+    try {
+      const { unmount } = hero();
+      await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+      expect(screen.getByRole("link", { name: "Talep aç · Doğrulama gerekli" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      unmount();
+      useCompanyAuthStore.setState({ company: { tier: "STANDART", companyVerificationStatus: "PENDING" } as never });
+      const pending = hero();
+      expect(screen.getByRole("link", { name: "Talep aç · Doğrulama inceleniyor" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      pending.unmount();
+      // Doğrulanmış firmanın `/me` kademesi efektif olarak en üst kademedir.
+      useCompanyAuthStore.setState({ company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never });
+      hero();
+      expect(screen.getByRole("link", { name: /^Talep aç/ })).toHaveAttribute(
+        "href",
+        "/company/satinalma/taleplerim/yeni",
+      );
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
+  });
+
+  it("oturumlu üyede tedarikçi notu 'Ücretsiz kaydolun' DEMEZ (webA-1): doğrulanmış ∧ izin panel, doğrulanmamış '· Doğrulama gerekli', izinsiz not yok", () => {
+    const signIn = (tier: string, status: string, permissions: string[]) =>
+      useCompanyAuthStore.setState({
+        isHydrated: true,
+        user: { id: "u", permissions, roles: [] } as never,
+        company: { tier, companyVerificationStatus: status } as never,
+      });
+    try {
+      signIn("GOLD", "VERIFIED", ["sell:view", "sell:bid:submit"]);
+      let r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: /^Açık talepleri görün$/ })).toHaveAttribute(
+        "href",
+        "/company/satis#acik-talepler",
+      );
+      r.unmount();
+
+      signIn("STANDART", "PENDING", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: "Açık talepleri görün · Doğrulama inceleniyor" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      r.unmount();
+
+      signIn("STANDART", "UNVERIFIED", ["sell:view", "sell:bid:submit"]);
+      r = hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.getByRole("link", { name: "Açık talepleri görün · Doğrulama gerekli" })).toHaveAttribute(
+        "href",
+        "/company/ayarlar/dogrulama",
+      );
+      r.unmount();
+
+      // Doğrulanmış ama teklif izni yok (Satın Almacı / Görüntüleyici): teklif çağrısı yok.
+      signIn("GOLD", "VERIFIED", ["buy:view"]);
+      hero();
+      expect(screen.queryByRole("link", { name: /Ücretsiz kaydolun/ })).toBeNull();
+      expect(screen.queryByRole("link", { name: /Açık talepleri görün/ })).toBeNull();
+      // Notun YERİ durur (kapanış kontrolü CL-01: kabuğun ayırdığı yuva kaybolunca
+      // başlık zıplıyordu) — metin yalnız görünmez, okunmayan ölçü hücresindedir.
+      const callTexts = screen.queryAllByText("Taleplere teklif vermek tamamen ücretsiz");
+      expect(callTexts.length).toBeGreaterThan(0);
+      for (const el of callTexts) {
+        expect(el).toHaveAttribute("aria-hidden", "true");
+        expect(el.className).toContain("invisible");
+        expect(el.querySelector("a")).toBeNull();
+      }
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
   });
 
   it("ALICI gövdesi: 'size uygun' ve 'öne çıkan' YOK — hero'dan sonra DOĞRUDAN kategoriler (2026-09-22)", () => {
@@ -147,7 +258,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
         newest={[] as any}
         showcase={[
           { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
-          { id: "10000000", name: "Canlı Bitki", count: 0, imageSrc: null },
+          { id: "41000000", name: "Laboratuvar", count: 0, imageSrc: null },
         ] as any}
       />,
     );
@@ -155,10 +266,91 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "href",
       "/urunler/kategori/39000000-elektrik",
     );
-    expect(screen.getAllByRole("link", { name: /Canlı Bitki/ })[0]).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Laboratuvar/ })[0]).toHaveAttribute(
       "href",
-      "/urunler?kategori=10000000",
+      "/urunler?kategori=41000000",
     );
+  });
+
+  it("kategori vitrini: tek segment kalsa da çizilir (tanıtım kartı), boş ızgara listesi yok", () => {
+    const { container } = render(
+      <HomeBuyer newest={[] as any} showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null }] as any} />,
+    );
+    const block = screen.getByRole("region", { name: "Elektrik" });
+    expect(block.querySelector('a[href="/urunler/kategori/39000000-elektrik"]')).not.toBeNull();
+    expect(block.querySelector("ul")).toBeNull();
+    expect(container.textContent).toContain("Elektrik");
+  });
+
+  // 2026-10-09 (sahip kararı): 77 anasayfadan kalktı. Vitrin verisi
+  // süzülü gelir (`buildShowcase`); kart çizimi son kattır — gizli segment
+  // girdide olsa bile anasayfada kartı, adı ve bağlantısı çıkmaz.
+  it("kategori vitrini: gizli segment (92, 77, 10) kart olarak çizilmez", () => {
+    const { container } = render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={[
+          { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
+          { id: "92000000", name: "Kamu Düzeni", count: 9, imageSrc: null },
+          { id: "23000000", name: "Makine", count: 2, imageSrc: null },
+          { id: "77000000", name: "Çevre Hizmetleri", count: 0, imageSrc: null },
+          { id: "10000000", name: "Canlı Bitki", count: 0, imageSrc: null },
+        ] as any}
+      />,
+    );
+    expect(screen.getAllByRole("link", { name: /Elektrik/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Makine/ }).length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/Kamu Düzeni|Çevre Hizmetleri|Canlı Bitki/);
+    expect(container.querySelector('a[href*="92000000"], a[href*="77000000"], a[href*="10000000"]')).toBeNull();
+  });
+
+  // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" adıyla
+  // anasayfaya döndü — kartı, adı ve açılış sayfası bağlantısı çizilir.
+  it("kategori vitrini: 46 (İş Güvenliği ve Yangın Ekipmanları) kart olarak çizilir", () => {
+    const { container } = render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={[
+          { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
+          { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", slug: "is-guvenligi-ve-yangin-ekipmanlari", count: 3, imageSrc: null },
+          { id: "23000000", name: "Makine", count: 2, imageSrc: null },
+        ] as any}
+      />,
+    );
+    const link = screen.getByRole("link", { name: /İş Güvenliği ve Yangın Ekipmanları/ });
+    expect(link.getAttribute("href")).toContain("/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari");
+    expect(container.querySelectorAll('a[href*="/urunler/kategori/"]')).toHaveLength(3);
+  });
+
+  // EŞİT BLOK TERCİHİ (2026-10-10): 28 görünür sektör üç blokta 10 + 9 + 9
+  // bölünüyordu — ilk blok beş sütunda dokuz dar kart, öteki ikisi 4 × 2.
+  // Artık dört blok × (1 tanıtım + 6 kart), her biri 3 × 2. Sayı elle yazılmaz:
+  // eşleme tablosundaki segmentlerden gizli olmayanlar (satınalma paneli aynı
+  // `toShowcaseRows` çağrısını yapar — `page-showcase.test`).
+  it("kategori vitrini: görünür sektörlerin tamamı dört EŞİT blokta (1 tanıtım + 6 kart, 3 sütun)", () => {
+    const visible = MAPPED_SEGMENTS.map((code) => `${code}000000`).filter((id) => !isHiddenCategory(id));
+    expect(visible).toHaveLength(28);
+    render(
+      <HomeBuyer
+        newest={[] as any}
+        showcase={visible.map((id) => ({ id, name: `Sektör ${id.slice(0, 2)}`, slug: `sektor-${id.slice(0, 2)}`, count: 1, imageSrc: null })) as any}
+      />,
+    );
+    const vitrin = document.getElementById("kategoriler")!;
+    const blocks = within(vitrin).getAllByRole("region");
+    expect(blocks).toHaveLength(4);
+    for (const block of blocks) {
+      const grid = block.querySelector("ul")!;
+      expect(grid.querySelectorAll("li")).toHaveLength(6);
+      expect(grid.classList.contains("grid-cols-2")).toBe(true);
+      expect(grid.classList.contains("sm:grid-cols-3")).toBe(true);
+      expect(grid.classList.contains("lg:grid-cols-3")).toBe(true);
+      expect(grid.classList.contains("lg:grid-cols-5")).toBe(false);
+    }
+    // Görünür her sektör bir kez çizilir.
+    const hrefs = within(vitrin).getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs).toHaveLength(28);
+    expect(new Set(hrefs).size).toBe(28);
   });
 
   it("kategori vitrini FOTOĞRAFSIZ — çizgisel segment ikonu (2026-09-21, kullanıcı kararı)", () => {
@@ -191,17 +383,22 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(within(list).getByRole("link", { name: /Tüm talepler \(16\)/ })).toBeInTheDocument();
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
-    expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
+    expect(within(list).getAllByText(/şartname ve belgeler doğrulanmış firmalara/).length).toBe(3);
+    expect(list.textContent).not.toMatch(/Gold|Silver|paket|premium/i);
     // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
     // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
+    // Misafir etiketi yalın (ücretsiz dönem 2026-10-07): davetli tedarikçi
+    // doğrulama olmadan da teklif verir; paket/doğrulama eki yok.
     const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
     expect(teklif).toHaveLength(3);
     // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
     expect(teklif[0]!.className).toContain("bg-emerald-600");
+    // Dönüş PANEL karşılığına (O-113): herkese açık talep sayfası değil.
+    expect(teklif[0]!.getAttribute("href")).toContain("intent=teklif&redirect=%2Fcompany%2Fsatis%3Fq%3D");
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {
@@ -218,5 +415,27 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "href",
       "/company/kayit?intent=teklif",
     );
+  });
+
+  it("oturumlu üyeye tedarikçi gövdesi kayıt çağrısı yapmaz (S-PUB-ADMIN): boş talep satırı ve 'Ürün ekle' panele", () => {
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["sell:view", "sell:product:manage"], roles: [] } as never,
+      company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never,
+    });
+    try {
+      const { unmount } = render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ücretsiz kaydolun" })).toBeNull();
+      expect(screen.queryByText(/kaydolduktan sonra/)).toBeNull();
+      expect(screen.getByRole("link", { name: "Panelde açın" })).toHaveAttribute("href", "/company/satis#acik-talepler");
+      expect(screen.getByRole("link", { name: "Ürün ekle" })).toHaveAttribute("href", "/company/satis/urunlerim?yeni=1");
+      unmount();
+      // Vitrin yetkisi olmayan üyeye "Ürün ekle" çizilmez (önce firmanın yetkisi, sonra izin; vitrin doğrulama istemez).
+      useCompanyAuthStore.setState({ user: { id: "u", permissions: ["buy:view"], roles: [] } as never });
+      render(<HomeSupplier demands={[demand(1)] as any} total={1} />);
+      expect(screen.queryByRole("link", { name: "Ürün ekle" })).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
   });
 });

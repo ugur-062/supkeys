@@ -1,4 +1,21 @@
-import { BUY_SEAT_PERMISSIONS, SELL_SEAT_PERMISSIONS } from "@rothern/shared";
+import {
+  BUY_SEAT_PERMISSIONS,
+  BUYING_TIER,
+  CURRENCY_CODES,
+  SELL_SEAT_PERMISSIONS,
+  isHiddenCategory,
+  tierAtLeast,
+  visibleCompanyCategorySelection,
+} from "@rothern/shared";
+import type { Locale } from "@rothern/i18n";
+import {
+  bidStatusLabel,
+  deliveryTermLabel,
+  listingStatusLabel,
+  orderStatusLabel,
+  paymentCategoryLabel,
+} from "../../../common/i18n/listing-terms-label";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
@@ -40,6 +57,15 @@ export function canSearchOpen(portals: Set<Portal>, _type: "ALIM" = "ALIM"): boo
 export function canListMyBids(portals: Set<Portal>): boolean {
   return portals.has("satis"); // teklif verme satış operasyonu
 }
+/**
+ * Satın alma talebi taslağı/yayını/daveti — satınalma portalı (alım koltuğu)
+ * VE satınalma paketi (GOLD; süresi dolmuş Gold efektif STANDART'tır). Rol
+ * kapısı paket kapısının içinde (arayüz testi O-054): Satışçıya ya da Silver
+ * kurucuya "talep açabilirim" denip Gold'a özel forma gönderilmiyordu.
+ */
+export function canDraftTender(portals: Set<Portal>, tier: string | null | undefined): boolean {
+  return portals.has("satinalma") && tierAtLeast(tier ?? "STANDART", BUYING_TIER);
+}
 
 /** Araç adları (beyaz-liste — bunun dışında hiçbir araç yürütülmez). */
 export const TOOL_NAMES = {
@@ -64,8 +90,25 @@ export const TOOL_NAMES = {
   requestMarkOrderReceived: "request_mark_order_received",
 } as const;
 
-/** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
-const CURRENCY_ENUM = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"];
+/**
+ * How the model is told to reference a request / an order (NEW-PF-1): by the
+ * NUMBER the user sees, or by the internal id a list tool returned. Every tool
+ * parameter that names a request or order carries one of these two texts; the
+ * server side is `record-ref.ts`. Model instructions, not user-facing text.
+ */
+const LISTING_REF_PARAM = {
+  type: "string",
+  description:
+    "Request number (e.g. ROT-000123 - when the user gave the number, pass it EXACTLY as written) or the internal id a list tool returned.",
+} as const;
+const ORDER_REF_PARAM = {
+  type: "string",
+  description:
+    "Order number (e.g. ROT-ORD-000123 - when the user gave the number, pass it EXACTLY as written) or the internal id a list tool returned.",
+} as const;
+
+/** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). Para birimi tek kaynak `CURRENCY_CODES`. */
+const CURRENCY_ENUM: string[] = [...CURRENCY_CODES];
 const DELIVERY_ENUM = [
   "DOMESTIC_DELIVERED", "DOMESTIC_PICKUP", "DOMESTIC_CARRIER_COLLECT",
   "DOMESTIC_ON_VEHICLE", "EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP",
@@ -87,7 +130,11 @@ const TENDER_DRAFT_PARAMS = {
     paymentCategory: { type: "string", enum: PAYMENT_ENUM, description: "Ödeme şekli" },
     paymentDays: { type: "number", description: "Vade günü (1-365) — vadeli/çek/senet/usance" },
     advancePercent: { type: "number", description: "Peşin yüzdesi (1-100) — yalnız ADVANCE" },
-    bidsCloseAt: { type: "string", description: "Teklif kapanış tarihi (ISO, gelecekte)" },
+    bidsCloseAt: {
+      type: "string",
+      description:
+        "Teklif kapanış tarihi (gelecekte): yalnız gün YYYY-MM-DD (o günün 23:59'u, Europe/Istanbul) ya da Europe/Istanbul duvar saatiyle YYYY-MM-DDTHH:mm",
+    },
     isInternational: { type: "boolean" },
     termsAndConditions: { type: "string" },
     keywords: { type: "array", items: { type: "string" } },
@@ -115,7 +162,10 @@ const TENDER_DRAFT_PARAMS = {
  * kullanıcıya list_my_bids sunulmaz (satış aracı); ama type-param'lı araçlar tek
  * tanım kalır ve yürütücü yönü ayrıca doğrular (defense-in-depth).
  */
-export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
+export function toolDefsForUser(
+  portals: Set<Portal>,
+  tier: string | null | undefined,
+): AiToolDef[] {
   const defs: AiToolDef[] = [
     {
       name: TOOL_NAMES.listMyTenders,
@@ -138,10 +188,10 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     {
       name: TOOL_NAMES.getTenderDetail,
       description:
-        "Belirli bir satın alma talebi/ilanın detayını getirir (id ile). Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır.",
+        "Belirli bir satın alma talebi/ilanın detayını getirir — talep NUMARASIYLA (ör. ROT-000123) ya da iç kimlikle (id). Kullanıcı numarayı söylediyse numarayı AYNEN ver; önce listelemen gerekmez. Görebildiğiniz kadarı döner; başkalarının teklifleri kapalı zarftır. Bu numarayla kullanıcının görebildiği bir talep yoksa \"not_found\" döner (kesinti DEĞİLDİR).",
       parameters: {
         type: "object",
-        properties: { id: { type: "string" } },
+        properties: { id: LISTING_REF_PARAM },
         required: ["id"],
       },
     },
@@ -152,10 +202,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     },
     {
       name: TOOL_NAMES.getOrderDetail,
-      description: "Belirli bir siparişin detayını getirir (id ile).",
+      description:
+        "Belirli bir siparişin detayını getirir — sipariş NUMARASIYLA (ör. ROT-ORD-000123) ya da iç kimlikle (id). Kullanıcı numarayı söylediyse numarayı AYNEN ver. Bu numarayla kullanıcının görebildiği bir sipariş yoksa \"not_found\" döner (kesinti DEĞİLDİR).",
       parameters: {
         type: "object",
-        properties: { id: { type: "string" } },
+        properties: { id: ORDER_REF_PARAM },
         required: ["id"],
       },
     },
@@ -172,9 +223,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: { type: "object", properties: {} },
     });
   }
-  // AI-3: kullanıcı ihale açmak isterse taslak toplama (yalnız SA/ST portalında
-  // anlamlı; oluşturma DEĞİL — kullanıcı formda tamamlar).
-  if (portals.size > 0) {
+  // AI-3: kullanıcı satın alma talebi açmak isterse taslak toplama (oluşturma
+  // DEĞİL — kullanıcı formda tamamlar). Yalnız satınalma portalı + GOLD
+  // (canDraftTender; arayüz testi O-054): taslağın el değiştirdiği form ve
+  // yayın/davet akışı Gold'a özel satınalma panelidir.
+  if (canDraftTender(portals, tier)) {
     defs.push({
       name: TOOL_NAMES.proposeTenderDraft,
       description:
@@ -186,11 +239,11 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
     defs.push({
       name: TOOL_NAMES.requestSendInvites,
       description:
-        "Kullanıcı kendi satın alma talebine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi satın alma talebi; rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
+        "Kullanıcı kendi satın alma talebine firma davet etmek İSTEDİĞİNDE çağır. Yürütmez: kullanıcıya onay kartı çıkarır, davet ancak kullanıcı onaylarsa gönderilir. listingId = kullanıcının kendi satın alma talebi (numarası ya da iç kimliği); rothernIds = davet edilecek firmaların Rothern kodları (bağlantı listesinden bulunabilir).",
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           rothernIds: { type: "array", items: { type: "string" } },
         },
         required: ["listingId", "rothernIds"],
@@ -226,7 +279,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           currency: { type: "string", description: "Boşsa satın alma talebinin ana para birimi" },
           items: {
             type: "array",
@@ -247,7 +300,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
               "Taahhüt edilen teslim SÜRESİ — ZORUNLU, kullanıcıya sor. STOKTAN=stoktan hemen, W1_2=1-2 hafta, W3_4=3-4 hafta, W5_8=5-8 hafta, M2_3=2-3 ay, M3_PLUS=3+ ay",
           },
           note: { type: "string" },
-          validityDays: { type: "number", description: "Teklif geçerlilik günü (ops.)" },
+          validityDays: { type: "number", description: "Teklif geçerlilik günü (1-365) — gönderimde zorunlu, kullanıcıya sor" },
         },
         required: ["listingId", "items", "deliveryTime"],
       },
@@ -262,15 +315,17 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: {
         type: "object",
         properties: {
-          orderId: { type: "string" },
+          orderId: ORDER_REF_PARAM,
           note: { type: "string", description: "Opsiyonel teslim notu" },
         },
         required: ["orderId"],
       },
     });
   }
-  if (portals.size > 0) {
-    // Faz 2 — ihale sahibi tarafı: eleme (normal) + toplu kazandırma (kritik).
+  if (portals.has("satinalma")) {
+    // Faz 2 — talep sahibi tarafı: eleme (normal) + toplu kazandırma (kritik).
+    // Yalnız satınalma portalı (arayüz testi O-054): satış koltuğu kendi
+    // firmasının talebinde teklif eleyemez/kazandıramaz (buy:award).
     defs.push({
       name: TOOL_NAMES.requestEliminateBid,
       description:
@@ -278,7 +333,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           bidId: { type: "string" },
           reason: { type: "string", description: "Opsiyonel eleme gerekçesi (tedarikçi görür)" },
         },
@@ -292,7 +347,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
       parameters: {
         type: "object",
         properties: {
-          listingId: { type: "string" },
+          listingId: LISTING_REF_PARAM,
           bidId: { type: "string" },
           note: { type: "string", description: "Opsiyonel not (onay akışı varsa onaycılara iletilir)" },
         },
@@ -310,4 +365,153 @@ export function trimList<T>(rows: T[], max = 30): { items: T[]; total: number; t
     total: rows.length,
     truncated: rows.length > max,
   };
+}
+
+/** Araç sonucundaki bir `status` alanının hangi varlığa ait olduğu. */
+export type ToolStatusKind = "listing" | "bid" | "order";
+
+/**
+ * Alt alan adı → içindeki `status`'un varlığı. Listede olmayan alt nesnelerin
+ * durumu ETİKETLENMEZ (ör. ödeme/revizyon durumu): PENDING/CANCELLED gibi
+ * kodlar varlıklar arasında ortak, bağlamsız eşleme yanlış etiket üretirdi.
+ */
+const STATUS_KIND_BY_KEY: Record<string, ToolStatusKind> = {
+  listing: "listing",
+  bids: "bid",
+  myBid: "bid",
+  orders: "order",
+  myOrder: "order",
+};
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (v === null || typeof v !== "object") return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+const CATEGORY_CODE_RE = /^\d{8}$/;
+/** Kategori taşıyan alan adları: categoryIds, categories, category, segment, sellerSubCategoryIds… */
+const CATEGORY_KEY_RE = /categor|segment/i;
+
+function isHiddenCode(v: unknown): boolean {
+  return typeof v === "string" && CATEGORY_CODE_RE.test(v) && isHiddenCategory(v);
+}
+
+/** Kategori referansı (`{ id | code, name… }`) gizli bir segmentte mi? */
+function isHiddenCategoryRef(v: unknown): boolean {
+  return isPlainObject(v) && (isHiddenCode(v.id) || isHiddenCode(v.code));
+}
+
+/**
+ * Araç sonucu MODEL GİRDİSİDİR: gizli segmentteki kategori (kod, ad, referans
+ * nesnesi) modele hiç gitmez (2026-10-09 — "anasayfada olmayan kategori hiçbir
+ * yerde gösterilmesin"; model 8 haneli koddan kategori adını kendi bilgisiyle
+ * de söyleyebilir). Köprülenen servisler kendi okumalarında süzer; bu geçiş
+ * asistanın KENDİ güvencesidir — yeni bir servis alanı süzmeyi unutsa da eski
+ * kaydın gizli kategorisi sohbete çıkmaz. Yalnız kategori taşıyan alanlarda
+ * (`CATEGORY_KEY_RE`) çalışır: dizi → gizli kod/referans düşer, tekil değer →
+ * `null`. Kaydın kendisi ve diğer alanları aynen kalır.
+ */
+export function redactHiddenCategories(value: unknown, categoryField = false): unknown {
+  if (Array.isArray(value)) {
+    const kept = categoryField ? value.filter((v) => !isHiddenCode(v) && !isHiddenCategoryRef(v)) : value;
+    return kept.map((v) => redactHiddenCategories(v, categoryField));
+  }
+  if (!isPlainObject(value)) return categoryField && isHiddenCode(value) ? null : value;
+  if (categoryField && isHiddenCategoryRef(value)) return null;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    out[key] = redactHiddenCategories(v, CATEGORY_KEY_RE.test(key));
+  }
+  return out;
+}
+
+/**
+ * `list_my_connections` rows as the MODEL gets them (2026-10-10).
+ *
+ * `CompanyConnectionsService.list` returns each partner's STORED selling
+ * declaration in `company.categoryIds`: main and sub axis merged, raw - the
+ * web invite picker scores with it. A declaration stores every pick with its
+ * ancestor chain (`46101500` -> `46000000` + `46100000` + `46101500`), and a
+ * hidden branch can now sit under a VISIBLE sector. `redactHiddenCategories`
+ * only drops the codes that are hidden themselves, so the visible ancestors
+ * stayed and the model presented a company whose only pick is a hidden one as
+ * a supplier of that whole visible sector.
+ *
+ * The model input is the SHOWN declaration - the same rule the profile, the
+ * directory and the discovery badge read (`visibleCompanyCategorySelection`;
+ * it takes the merged list as one axis). A deliberate "whole sector" pick and
+ * the chain of a visible pick stay. The service answer itself is not changed.
+ * Rows without such a list pass through as they are.
+ */
+export function connectionsForModel<T>(rows: readonly T[]): T[] {
+  return rows.map((row) => {
+    const company = isPlainObject(row) ? row.company : null;
+    if (!isPlainObject(company) || !Array.isArray(company.categoryIds)) return row;
+    const stored = company.categoryIds.filter((c): c is string => typeof c === "string");
+    return { ...row, company: { ...company, categoryIds: visibleCompanyCategorySelection(stored, []).mainIds } };
+  });
+}
+
+/** Field of the owner's request detail (`CompanyListingsService.getOne`) that the web edit form reads. */
+export const RETIRED_CATEGORY_FLAG = "hasRetiredCategory";
+/** What the model gets in its place: a plain sentence under a neutral name. */
+export const RETIRED_CATEGORY_NOTE_KEY = "categoryNote";
+
+/**
+ * Arayüz testi D-357 (kök düzeltme): araç sonuçlarındaki durum / teslim /
+ * ödeme KODLARINI modele vermeden önce istek dilinde etikete çevirir —
+ * `status: "Yayında"` + `statusCode: "OPEN"`. Model eskiden ham kodu görüp
+ * kendi çevirisini uyduruyordu ("Açık (OPEN)"; arayüz "Yayında" der). Etiket
+ * arayüzle aynı katalogdan gelir; kod ayrı alanda kalır (model akıl yürütsün,
+ * ama yazacağı alan etikettir). Bilinmeyen kod olduğu gibi kalır.
+ * `kind`: kök kayıtların varlığı (alt nesneler `STATUS_KIND_BY_KEY`'den).
+ */
+export function localizeToolCodes(
+  value: unknown,
+  kind: ToolStatusKind | null,
+  locale: Locale,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((v) => localizeToolCodes(v, kind, locale));
+  }
+  if (!isPlainObject(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    // RAW FLAG -> PLAIN NOTE (live re-check 2026-10-09, CP-08). The owner's
+    // request detail tells the edit form with `hasRetiredCategory` that a
+    // stored category is under a hidden segment (no code, no name). The model
+    // got the same raw flag and wrote it into its answer: "(hasRetiredCategory:
+    // true)". The model is handed a sentence in the reply language instead,
+    // from the catalogue; `false` carries nothing worth saying and is dropped.
+    if (key === RETIRED_CATEGORY_FLAG) {
+      if (v === true) out[RETIRED_CATEGORY_NOTE_KEY] = tApi("api.ai.assistant.toolNote.retiredCategory", undefined, locale);
+      continue;
+    }
+    if (typeof v === "string") {
+      let label: string | null = null;
+      if (key === "status" && kind === "listing") label = listingStatusLabel(v, locale);
+      else if (key === "status" && kind === "bid") label = bidStatusLabel(v, locale);
+      else if (key === "status" && kind === "order") {
+        const term = typeof value.deliveryTerm === "string" ? value.deliveryTerm : null;
+        label = orderStatusLabel(v, term, locale);
+      } else if (key === "myBidStatus") label = bidStatusLabel(v, locale);
+      else if (key === "deliveryTerm") {
+        const l = deliveryTermLabel(v, locale);
+        label = l !== v ? l : null;
+      } else if (key === "paymentCategory") {
+        const l = paymentCategoryLabel(v, locale);
+        label = l !== v ? l : null;
+      }
+      if (label) {
+        out[key] = label;
+        out[`${key}Code`] = v;
+        continue;
+      }
+      out[key] = v;
+      continue;
+    }
+    out[key] = localizeToolCodes(v, STATUS_KIND_BY_KEY[key] ?? null, locale);
+  }
+  return out;
 }

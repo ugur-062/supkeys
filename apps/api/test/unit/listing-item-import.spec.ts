@@ -1,10 +1,22 @@
 import ExcelJS from "exceljs";
-import { ITEM_IMPORT_SHEET, matchImportColumn } from "@rothern/shared";
+import { ITEM_IMPORT_SHEET, itemImportColumnsFor, matchImportColumn } from "@rothern/shared";
 import {
   ListingItemImportService,
   parseLocaleNumber,
   parseImportDate,
+  parseWorksheet,
 } from "../../src/modules/company-listings/import/listing-item-import.service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
+import { csvAsUtf8 } from "../../src/common/files/spreadsheet-reader";
+
+/** Windows-1254 (Turkce Windows Excel'in klasik CSV'si) baytlari — test yardimcisi. */
+const CP1254: Record<string, number> = {
+  "\u00c7": 0xc7, "\u00e7": 0xe7, "\u011e": 0xd0, "\u011f": 0xf0, "\u0130": 0xdd, "\u0131": 0xfd,
+  "\u00d6": 0xd6, "\u00f6": 0xf6, "\u015e": 0xde, "\u015f": 0xfe, "\u00dc": 0xdc, "\u00fc": 0xfc,
+};
+function cp1254(text: string): Buffer {
+  return Buffer.from([...text].map((ch) => CP1254[ch] ?? ch.charCodeAt(0)));
+}
 
 /**
  * Kalem Excel şablonu — şablon ↔ parser ROUND-TRIP + satır-hata matrisi.
@@ -124,6 +136,23 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     expect(c!.item.unitCode).toBeNull();
   });
 
+  it("Rusça birimler kod alır; birim hatası okuyucunun dilinde birim adı basar (2026-09-27)", async () => {
+    const b64 = await fillTemplate([
+      ["Болт", "12,5", "шт"], // шт = adet → ondalık reddedilir
+      ["Кабель", "120", "м"],
+      ["Цемент", "3", "мешок"],
+    ]);
+    const res = await runWithLocale("ru", () =>
+      svc.parse({ fileName: "s.xlsx", mimeType: "x", dataBase64: b64, listingType: "ALIM" }),
+    );
+    const [a, b, c] = res.rows;
+    expect(a!.item.unitCode).toBe("PCE");
+    expect(a!.errors[0]).toContain("«шт.»");
+    expect(a!.errors[0]).not.toContain("adet");
+    expect(b!.item.unitCode).toBe("M");
+    expect(c!.item.unitCode).toBe("BAG");
+  });
+
   it("şablon dışı ama başlıkları uyumlu kendi listesi (alias + farklı sıra + üstte başlık satırları) okunur", async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Liste");
@@ -157,6 +186,35 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     expect(res.rows[1]!.item).toMatchObject({ name: "Dirsek", quantity: 5, unit: "adet" });
   });
 
+  it("MU-19 (S029): CSV'de TR binlik ve GG-AA-YYYY tarih xlsx metin hücresiyle AYNI ayrışır (ExcelJS varsayılan map'i devrede değil)", async () => {
+    const csv =
+      "Kalem Adı;Miktar;Birim;Teslim Tarihi\nÇelik sac;1.500;kg;05-11-2099\nVida;2,5;m;2099-10-01\nSomun;007;adet;\n";
+    const res = await svc.parse({
+      fileName: "kalemler.csv",
+      mimeType: "text/csv",
+      dataBase64: Buffer.from(csv, "utf8").toString("base64"),
+      listingType: "ALIM",
+    });
+    expect(res.rows.map((r) => r.errors)).toEqual([[], [], []]);
+    expect(res.validCount).toBe(3);
+    expect(res.rows[0]!.item).toMatchObject({ name: "Çelik sac", quantity: 1500, requiredByDate: "2099-11-05" });
+    expect(res.rows[1]!.item).toMatchObject({ name: "Vida", quantity: 2.5, requiredByDate: "2099-10-01" });
+    expect(res.rows[2]!.item).toMatchObject({ name: "Somun", quantity: 7 });
+  });
+
+  it("derin denetim S029: Windows-1254 CSV (TR Excel varsayılanı) başlık ve kalem adıyla bozulmadan okunur", async () => {
+    const csv = cp1254("Kalem Adı;Miktar;Birim\nÇelik boru;10;m\nŞiş dirsek;5;adet\n");
+    const res = await svc.parse({
+      fileName: "kalemler.csv",
+      mimeType: "text/csv",
+      dataBase64: csv.toString("base64"),
+      listingType: "ALIM",
+    });
+    expect(res.validCount).toBe(2);
+    expect(res.rows[0]!.item).toMatchObject({ name: "Çelik boru", quantity: 10 });
+    expect(res.rows[1]!.item).toMatchObject({ name: "Şiş dirsek", quantity: 5 });
+  });
+
   it("zorunlu başlıklar yoksa şablon-dışı hatası; xlsm ve bilinmeyen dosya reddedilir", async () => {
     const wb = new ExcelJS.Workbook();
     wb.addWorksheet("S").addRow(["Foo", "Bar"]);
@@ -178,6 +236,48 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
   });
 });
 
+describe("seyrek satır (derin denetim 2026-09-29 Y-03)", () => {
+  // Başlık + 1 satır + çok uzaktaki TEK hücre: dosya birkaç KB; eski döngü
+  // 1..rowCount arasındaki HER satırı/hücreyi getRow/getCell ile OLUŞTURUYORDU
+  // (gerçek saldırıda r=1048576 → ~1M Row + milyonlarca Cell → OOM).
+  const FAR = 200_000;
+  async function sparseXlsx(): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(ITEM_IMPORT_SHEET);
+    ws.addRow(["Kalem Adı", "Miktar", "Birim"]);
+    ws.addRow(["Boru", 10, "m"]);
+    ws.getCell(`A${FAR}`).value = "Uzak kalem";
+    ws.getCell(`B${FAR}`).value = 3;
+    ws.getCell(`C${FAR}`).value = "adet";
+    return Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+  }
+
+  it("yalnız VAR OLAN satırlar gezilir; aradaki boş satırlar/hücreler yaratılmaz", async () => {
+    const buf = await sparseXlsx();
+    expect(buf.length).toBeLessThan(20 * 1024);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet(ITEM_IMPORT_SHEET)!;
+    expect(ws.rowCount).toBe(FAR); // rowCount = son satır NUMARASI
+
+    const res = parseWorksheet(ws, itemImportColumnsFor());
+    expect(res.rows.map((r) => r.rowNumber)).toEqual([2, FAR]);
+    expect(res.validCount).toBe(2);
+    expect(res.rows[1]!.item).toMatchObject({ name: "Uzak kalem", quantity: 3, unit: "adet" });
+    // Okuma çalışma sayfasını büyütmemeli: ara satırlar hâlâ yok.
+    expect(ws.findRow(3)).toBeUndefined();
+    expect(ws.findRow(FAR / 2)).toBeUndefined();
+    expect(ws.findRow(FAR - 1)).toBeUndefined();
+  });
+
+  it("servis yolu (parse) seyrek dosyayı aynı şekilde okur", async () => {
+    const b64 = (await sparseXlsx()).toString("base64");
+    const res = await svc.parse({ fileName: "seyrek.xlsx", mimeType: "x", dataBase64: b64, listingType: "ALIM" });
+    expect(res.rows.map((r) => r.rowNumber)).toEqual([2, FAR]);
+    expect(res.truncated).toBe(0);
+  });
+});
+
 describe("yardımcılar", () => {
   it("parseLocaleNumber TR/EN biçimleri", () => {
     expect(parseLocaleNumber("1.234,5")).toBe(1234.5);
@@ -190,6 +290,26 @@ describe("yardımcılar", () => {
     expect(parseLocaleNumber("abc")).toBeNull();
     expect(parseLocaleNumber(7)).toBe(7);
   });
+  /**
+   * Arayüz testi kapanış NUM: kural Türkçeye sabitti; İngilizce arayüzde
+   * "1,500" 1,5 ve "12.500" 12500 okunup satır "Hazır" işaretleniyordu.
+   */
+  it("parseLocaleNumber istek dilinin ayraç kuralıyla", () => {
+    // EN: virgül binlik, nokta ondalık.
+    expect(parseLocaleNumber("1,500", "en")).toBe(1500);
+    expect(parseLocaleNumber("12.500", "en")).toBe(12.5);
+    expect(parseLocaleNumber("1,500.5", "en")).toBe(1500.5);
+    expect(parseLocaleNumber("12,5", "en")).toBe(12.5); // başka alışkanlık
+    expect(parseLocaleNumber("1,234,567", "en")).toBe(1234567);
+    // TR / RU: nokta binlik, virgül ondalık.
+    expect(parseLocaleNumber("1,500", "tr")).toBe(1.5);
+    expect(parseLocaleNumber("12.500", "tr")).toBe(12500);
+    expect(parseLocaleNumber("1.250,5", "tr")).toBe(1250.5);
+    expect(parseLocaleNumber("0,5", "ru")).toBe(0.5);
+    expect(parseLocaleNumber("1 234,5", "ru")).toBe(1234.5);
+    // Düzensiz gruplama sayı değildir.
+    expect(parseLocaleNumber("1.2.3", "tr")).toBeNull();
+  });
   it("parseImportDate", () => {
     expect(parseImportDate("15.09.2026")).toEqual({ iso: "2026-09-15", invalid: false });
     expect(parseImportDate("15/09/2026")).toEqual({ iso: "2026-09-15", invalid: false });
@@ -197,5 +317,22 @@ describe("yardımcılar", () => {
     expect(parseImportDate("31.02.2026").invalid).toBe(true);
     expect(parseImportDate("")).toEqual({ iso: null, invalid: false });
     expect(parseImportDate(new Date(Date.UTC(2026, 0, 5)))).toEqual({ iso: "2026-01-05", invalid: false });
+  });
+});
+
+describe("csvAsUtf8 (derin denetim S029)", () => {
+  it("geçerli UTF-8 (BOM'lu/BOM'suz) aynı tampon döner", () => {
+    const plain = Buffer.from("Kalem Adı;Miktar\n", "utf8");
+    expect(csvAsUtf8(plain, "tr")).toBe(plain);
+    const bom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), plain]);
+    expect(csvAsUtf8(bom, "tr")).toBe(bom);
+  });
+
+  it("geçersiz UTF-8: TR/EN'de Windows-1254, RU'da Windows-1251 çözülür", () => {
+    expect(csvAsUtf8(cp1254("Kalem Adı;Şç"), "tr").toString("utf8")).toBe("Kalem Adı;Şç");
+    expect(csvAsUtf8(cp1254("ığü"), "en").toString("utf8")).toBe("ığü");
+    // "Труба" Windows-1251'de
+    const cp1251 = Buffer.from([0xd2, 0xf0, 0xf3, 0xe1, 0xe0]);
+    expect(csvAsUtf8(cp1251, "ru").toString("utf8")).toBe("Труба");
   });
 });

@@ -2,13 +2,17 @@ import { CompanyListingsService } from "../../src/modules/company-listings/servi
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { CompanyAffinityService } from "../../src/modules/company-affinity/company-affinity.service";
-import { prisma } from "./test-db";
+import { prisma as sharedPrisma } from "./test-db";
 
 /**
  * Gerçek Prisma (test şeması) + yan-etki bağımlılıkları mock'lanmış servis.
  * Onay akışı varsayılan: requestApproval → approved:true (doğrudan uygulama).
+ *
+ * `prisma`: varsayılan paylaşılan test istemcisi (`connection_limit=1` — bütün
+ * transaction'lar zaten seri). YARIŞ testi kendi çok bağlantılı istemcisini
+ * verir (yoksa satır kilidi sınanmış olmaz); test bitince onu kendisi kapatır.
  */
-export function makeService() {
+export function makeService(prisma: typeof sharedPrisma = sharedPrisma) {
   const blocks = {
     blockedCompanyIds: jest.fn().mockResolvedValue([] as string[]),
   };

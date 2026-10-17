@@ -13,7 +13,7 @@ import type {
 } from "@/lib/public/marketplace-api";
 import { useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import type { SellerTenderRow } from "./use-seller-tenders";
+import { withVisibleRowCategories, type SellerTenderRow } from "./use-seller-tenders";
 
 /**
  * PANO KEŞİF BLOĞU — veri katmanı.
@@ -29,6 +29,7 @@ export interface DiscoverProduct {
   slug: string;
   name: string;
   excerpt: string | null;
+  translatedFrom?: string | null;
   images: string[];
   unit: string;
   categoryId: string | null;
@@ -66,7 +67,8 @@ export function useDiscoverListings(limit = 6) {
       const { data } = await companyApi.get<SellerTenderRow[]>(
         `/company/listings/seller-tenders?type=ALIM&limit=${limit}&openOnly=true`,
       );
-      return data;
+      // Aynı uç, aynı kural: gizli segmentteki kategori satıra girmez.
+      return data.map(withVisibleRowCategories);
     },
     staleTime: 30_000,
   });
@@ -153,10 +155,13 @@ export function useDiscoverSearch(
       if (params.q) sp.set("q", params.q);
       if (params.category) sp.set("category", params.category);
       if (params.city) sp.set("city", params.city);
+      if (params.country) sp.set("country", params.country);
       if (params.activity) sp.set("activity", params.activity);
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
       if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+      // Seçilmediyse gönderilmez → sunucu FİRMANIN ülkesinin birimini kullanır.
+      if (params.currency) sp.set("currency", params.currency);
       if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
       if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
       if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
@@ -188,6 +193,7 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
       if (params.category) sp.set("category", params.category);
       if (params.q) sp.set("q", params.q);
       if (params.city) sp.set("city", params.city);
+      if (params.country) sp.set("country", params.country);
       if (params.activity) sp.set("activity", params.activity);
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
@@ -198,6 +204,7 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
         sp.set("radius", String(params.radius));
       }
       if (params.fastReply) sp.set("fastReply", "1");
+      if (params.currency) sp.set("currency", params.currency);
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;
@@ -207,14 +214,18 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
   });
 }
 
-/** İlişkili bloklar — firma altı public uç (anahtara tabi değil), panel de okur. */
+/**
+ * İlişkili bloklar — PANEL ucu (arayüz testi D-231): herkese açık uçla aynı
+ * fonksiyon, ama "diğer tedarikçiler" blokları görüntüleyenin kendi firmasını
+ * ve engel ilişkili firmaları dışlar (herkese açık uç görüntüleyeni bilmez).
+ */
 export function useRelatedProducts(companySlug: string, productSlug: string) {
   return useQuery<RelatedProducts>({
-    queryKey: ["public-product", "related", companySlug, productSlug],
+    queryKey: ["panel-product", "related", companySlug, productSlug],
     enabled: !!companySlug && !!productSlug,
     queryFn: async () => {
       const { data } = await companyApi.get<RelatedProducts>(
-        `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}/related`,
+        `/company/market/related/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}`,
       );
       return data;
     },
@@ -225,10 +236,10 @@ export function useRelatedProducts(companySlug: string, productSlug: string) {
 /** 58 üst kategori (L1) — kategori vitrini için doldurma listesi. Herkese
  *  açık `categories/segments` ucu; panelden de aynı adres. 1 saat taze. */
 export function useCategorySegments() {
-  return useQuery<{ id: string; nameTr: string }[]>({
+  return useQuery<{ id: string; nameTr: string; slug?: string }[]>({
     queryKey: ["categories", "segments"],
     queryFn: async () => {
-      const { data } = await companyApi.get<{ id: string; nameTr: string }[]>("/categories/segments");
+      const { data } = await companyApi.get<{ id: string; nameTr: string; slug?: string }[]>("/categories/segments");
       return data;
     },
     staleTime: 60 * 60_000,

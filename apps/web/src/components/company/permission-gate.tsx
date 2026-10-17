@@ -1,9 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { OWNER_ONLY_PERMISSIONS, tierAtLeast } from "@rothern/shared";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { userHasPermission } from "@/lib/company/permissions";
+import { Link } from "@/i18n/navigation";
 import { ShieldAlert } from "lucide-react";
+
+const OWNER_ONLY = new Set<string>(OWNER_ONLY_PERMISSIONS);
 
 /**
  * Genel izin kapısı (yetki tablosu Faz 3) — sayfa düzeyinde: kişinin efektif
@@ -14,28 +19,59 @@ import { ShieldAlert } from "lucide-react";
  */
 export function PermissionGate({
   permission,
-  title = "Bu sayfa yetki gerektirir",
+  title,
   description,
+  backHref,
+  backLabel,
+  tierFirst,
   children,
 }: {
   permission: string | readonly string[];
   title?: string;
   /** Hangi tikin gerektiği — Ayarlar › Kullanıcılar'daki satır adıyla. */
   description: string;
+  /** Kapı ekranında geri bağlantısı (ör. Ayarlar hub'ı). */
+  backHref?: string;
+  backLabel?: string;
+  /**
+   * Erişim (efektif kademe) kapısı izin kapısından ÖNCE (rol kontrolü onun
+   * İÇİNDE; API de önce `TIER_REQUIRED` der): firma bu kademenin altındaysa
+   * izin notu çizilmez, içerik — sayfanın kendi `VerifiedOnly` doğrulama
+   * kapısı — gösterilir (arayüz testi T3). Yalnız içi o kapıyı taşıyan
+   * sayfalarda. Ücretsiz dönemde kademenin altı = firma doğrulanmamış.
+   */
+  tierFirst?: "SILVER" | "GOLD";
   children: React.ReactNode;
 }) {
-  const { user } = useCompanyAuth();
-  if (!userHasPermission(user, permission)) {
+  const t = useTranslations("web.panel.trade.permissionGate");
+  const { user, company } = useCompanyAuth();
+  const heading = title ?? t("buSayfaYetkiGerektirir");
+  // Sahibe özel izin (banka, firma silme, devir) tabloda VERİLEMEZ: "firma
+  // yöneticinize başvurun" yanlış yönlendirir — kurucuya yönlendir (D-301).
+  const perms = typeof permission === "string" ? [permission] : permission;
+  const ownerOnly = perms.length > 0 && perms.every((p) => OWNER_ONLY.has(p));
+  const packageLocked = !!tierFirst && !!company && !tierAtLeast(company.tier, tierFirst);
+  if (!packageLocked && !userHasPermission(user, permission)) {
     return (
       <div
         className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center"
         role="status"
       >
         <ShieldAlert className="h-8 w-8 text-zinc-300" aria-hidden />
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+        <h2 className="text-base font-semibold text-zinc-900">{heading}</h2>
         <Text className="text-sm text-zinc-500">
-          {description} Yetki için firma yöneticinize başvurun.
+          {ownerOnly
+            ? t("kurucuyaBasvurun", { description: description })
+            : t("yetkiIcinFirmaYoneticinizeBasvurun", { description: description })}
         </Text>
+        {backHref && backLabel ? (
+          <Link
+            href={backHref}
+            className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
+          >
+            {backLabel}
+          </Link>
+        ) : null}
       </div>
     );
   }

@@ -7,7 +7,10 @@
  * fırlatır. Bkz. docs/invariants.md INV-STORAGE-1.
  */
 import type { ConfigService } from "@nestjs/config";
-import { StorageService } from "../../src/modules/storage/storage.service";
+import {
+  StorageService,
+  contentDisposition,
+} from "../../src/modules/storage/storage.service";
 
 /** Sabit env map'inden okuyan minimal ConfigService taklidi. */
 function configFor(env: Record<string, string | undefined>): ConfigService {
@@ -103,5 +106,23 @@ describe("StorageService — assertKeyBucket (yanlış-bucket'a yazma kilidi)", 
         "image/png",
       ),
     ).rejects.toThrow(/INV-STORAGE-1/);
+  });
+});
+
+describe("contentDisposition — RFC 6266 UTF-8 dosya adı (derin denetim LU-19)", () => {
+  it("Türkçe ad: ASCII yedek filename + yüzde-kodlu filename*", () => {
+    expect(contentDisposition("attachment", "Teknik Şartname.pdf")).toBe(
+      "attachment; filename=\"Teknik _artname.pdf\"; filename*=UTF-8''Teknik%20%C5%9Eartname.pdf",
+    );
+  });
+  it("Kiril ad inline önizlemede de filename* taşır", () => {
+    const v = contentDisposition("inline", "Смета.pdf");
+    expect(v.startsWith('inline; filename="_____.pdf"; ')).toBe(true);
+    expect(v).toContain("filename*=UTF-8''%D0%A1%D0%BC%D0%B5%D1%82%D0%B0.pdf");
+  });
+  it("tırnak/ters bölü başlığı bozamaz; RFC 5987 özel karakterleri kodlanır", () => {
+    expect(contentDisposition("attachment", 'a"b\\c (1)\'*.pdf')).toBe(
+      "attachment; filename=\"a_b_c (1)'*.pdf\"; filename*=UTF-8''a%22b%5Cc%20%281%29%27%2A.pdf",
+    );
   });
 });

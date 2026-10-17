@@ -1,12 +1,15 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminNoAccess } from "@/components/layout/admin-role-gate";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { PageHeader } from "@/components/list";
 import { useEmailLogs } from "@/hooks/use-email-logs";
 import { EMAIL_STATUS_ORDER } from "@/lib/email-logs/status";
 import type { EmailLogStatus } from "@/lib/email-logs/types";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DetailDrawer } from "./detail-drawer";
 import { EmailLogsTable } from "./email-logs-table";
 import { FiltersBar } from "./filters-bar";
@@ -95,6 +98,16 @@ function EmailLogsContent() {
   const items = list.data?.items ?? [];
   const pagination = list.data?.pagination;
 
+  // URL'deki sayfa toplam sayfayı aşıyorsa (`?page=999`, süzgeç daralınca
+  // eski sayfa) son sayfaya çekilir — "5 kayıt içinden 19961-5 arası" ve boş
+  // tablo yerine (arayüz testi D-218).
+  const lastPage = pagination?.totalPages ?? 0;
+  const pageOverflow =
+    !!pagination && pagination.total > 0 && lastPage >= 1 && page > lastPage;
+  useEffect(() => {
+    if (pageOverflow) updateUrl({ page: lastPage });
+  }, [pageOverflow, lastPage, updateUrl]);
+
   return (
     <AdminShell>
       <div className="max-w-6xl space-y-6">
@@ -123,9 +136,10 @@ function EmailLogsContent() {
             onSelect={setSelectedId}
           />
 
-          {pagination && (
+          {/* Toplam 0'da sayfalayıcı yok: tablonun boş durumu tek mesaj. */}
+          {pagination && pagination.total > 0 && (
             <Pagination
-              page={pagination.page}
+              page={Math.min(pagination.page, Math.max(1, lastPage))}
               totalPages={pagination.totalPages}
               total={pagination.total}
               pageSize={pagination.pageSize}
@@ -141,5 +155,14 @@ function EmailLogsContent() {
 }
 
 export function EmailLogsView() {
+  // Sayfa kapısı (T-09): izinsiz rolde liste sorgusu hiç başlamaz.
+  const { admin } = useAdminAuth();
+  if (!canAdminDo(admin?.role, "viewEmailLogs")) {
+    return (
+      <AdminShell>
+        <AdminNoAccess action="viewEmailLogs" />
+      </AdminShell>
+    );
+  }
   return <EmailLogsContent />;
 }

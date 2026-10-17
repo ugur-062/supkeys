@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNotifyCompany } from "@/hooks/use-admin-support";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /** Tek firmaya panelden bildirim + e-posta — "aradı, bilgi verdik" akışı. */
 export function NotifyDialog({
@@ -73,8 +74,7 @@ export function NotifyDialog({
                   toast.success("Bildirim gönderildi");
                   onClose();
                 },
-                onError: (e: unknown) =>
-                  toast.error(e instanceof Error ? e.message : "Hata"),
+                onError: (e: unknown) => toastApiError(e),
               },
             )
           }

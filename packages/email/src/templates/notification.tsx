@@ -1,98 +1,104 @@
-import { Section, Text } from "@react-email/components";
 import * as React from "react";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { NotificationData } from "../types";
-import { Button } from "./_components/button";
+import { Alert, CodeBlock, EntryList, HighlightPanel, InfoRows, Note, Paragraph } from "./_components/blocks";
+import { CtaButton } from "./_components/button";
 import { Heading } from "./_components/heading";
 import { Layout } from "./_components/layout";
-import { COLORS, FONTS } from "./_components/tokens";
-
-const paragraph = {
-  fontFamily: FONTS.sans,
-  fontSize: "14px",
-  lineHeight: "1.6",
-  color: COLORS.slate700,
-  margin: "0 0 16px 0",
-};
-
-const infoBox = {
-  backgroundColor: COLORS.brand50,
-  border: `1px solid ${COLORS.brand100}`,
-  borderRadius: "10px",
-  padding: "14px 16px",
-  margin: "16px 0",
-  fontFamily: FONTS.sans,
-  fontSize: "13px",
-  color: COLORS.slate700,
-  lineHeight: "1.7",
-};
-
-const ctaWrap = {
-  textAlign: "center" as const,
-  margin: "24px 0 8px 0",
-};
-
-const footerStyle = {
-  marginTop: "20px",
-  paddingTop: "20px",
-  borderTop: `1px solid ${COLORS.surfaceBorder}`,
-  fontFamily: FONTS.sans,
-  fontSize: "12px",
-  color: COLORS.slate500,
-  lineHeight: "1.6",
-};
 
 export function makeNotificationSubject(props: NotificationData): string {
   return props.subject;
 }
 
-export function NotificationEmail(props: NotificationData) {
+/**
+ * Kodlu e-postanın alıcının dilindeki parçaları (HTML ve düz metin AYNI
+ * kaynaktan — ikisi ayrışmasın).
+ */
+function codeTexts(props: NotificationData, locale: Locale) {
+  if (!props.code) return null;
+  const t = emailT(locale);
+  const minutes = props.code.expiresInMinutes;
+  return {
+    label: t("email.code.label"),
+    validity: minutes != null ? t("email.code.validity", { minutes }) : undefined,
+    preview:
+      minutes != null
+        ? t("email.code.preview", { code: props.code.value, minutes })
+        : t("email.code.previewNoExpiry", { code: props.code.value }),
+    textLine: t("email.code.textLine", { code: props.code.value }),
+    ignore: props.footerNote ?? t("email.code.ignoreNote"),
+  };
+}
+
+/**
+ * Gövde metni ÇAĞIRANDAN gelir (alıcının diliyle üretilmiş başlık/paragraf/CTA)
+ * — burada çeviri yapılmaz; yalnız kod bloğunun sabit parçaları (`email.code.*`)
+ * ve kabuk (Layout altbilgisi + <html lang>) alıcının dilinde. Dil verilmezse
+ * Türkçe.
+ */
+export function NotificationEmail(props: NotificationData & { locale?: Locale }) {
+  const locale = props.locale ?? DEFAULT_LOCALE;
+  const code = codeTexts(props, locale);
+  const footer = code ? code.ignore : props.footerNote;
   return (
-    <Layout preview={props.preview ?? props.heading}>
+    <Layout preview={props.preview ?? code?.preview ?? props.heading} locale={locale}>
       <Heading>{props.heading}</Heading>
 
       {props.paragraphs.map((p, i) => (
-        <Text key={i} style={paragraph}>
-          {p}
-        </Text>
+        <Paragraph key={i}>{p}</Paragraph>
       ))}
 
-      {props.infoRows && props.infoRows.length > 0 ? (
-        <Section style={infoBox}>
-          {props.infoRows.map((row, i) => (
-            <React.Fragment key={i}>
-              {row.label}: <strong>{row.value}</strong>
-              {i < props.infoRows!.length - 1 ? <br /> : null}
-            </React.Fragment>
-          ))}
-        </Section>
+      {code && props.code ? (
+        <CodeBlock code={props.code.value} label={code.label} caption={code.validity} />
       ) : null}
 
-      {props.ctaUrl && props.ctaLabel ? (
-        <Section style={ctaWrap}>
-          <Button href={props.ctaUrl}>{props.ctaLabel}</Button>
-        </Section>
-      ) : null}
+      {props.highlights?.length ? <HighlightPanel items={props.highlights} /> : null}
 
-      {props.footerNote ? (
-        <Section style={footerStyle}>{props.footerNote}</Section>
-      ) : null}
+      {props.entries?.length ? <EntryList entries={props.entries} /> : null}
+
+      {props.infoRows && props.infoRows.length > 0 ? <InfoRows rows={props.infoRows} /> : null}
+
+      {props.ctaUrl && props.ctaLabel ? <CtaButton href={props.ctaUrl}>{props.ctaLabel}</CtaButton> : null}
+
+      {props.alert ? <Alert>{props.alert}</Alert> : null}
+
+      {footer ? <Note>{footer}</Note> : null}
     </Layout>
   );
 }
 
-export function renderNotificationText(props: NotificationData): string {
+export function renderNotificationText(
+  props: NotificationData,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const code = codeTexts(props, locale);
   const lines = [props.heading, ""];
   for (const p of props.paragraphs) {
     lines.push(p, "");
   }
+  if (code) {
+    lines.push(code.textLine);
+    if (code.validity) lines.push(code.validity);
+    lines.push("");
+  }
+  if (props.highlights?.length) {
+    for (const h of props.highlights) lines.push(`- ${h}`);
+    lines.push("");
+  }
+  if (props.entries?.length) {
+    for (const e of props.entries) lines.push(e.detail ? `${e.title} — ${e.detail}` : e.title);
+    lines.push("");
+  }
   if (props.infoRows?.length) {
-    for (const row of props.infoRows) lines.push(`${row.label}: ${row.value}`);
+    for (const row of props.infoRows) lines.push(row.value ? `${row.label}: ${row.value}` : row.label);
     lines.push("");
   }
   if (props.ctaUrl && props.ctaLabel) {
     lines.push(`${props.ctaLabel}: ${props.ctaUrl}`, "");
   }
-  if (props.footerNote) lines.push(props.footerNote, "");
-  lines.push("— Rothern");
+  if (props.alert) lines.push(props.alert, "");
+  const footer = code ? code.ignore : props.footerNote;
+  if (footer) lines.push(footer, "");
+  lines.push(emailT(locale)("email.layout.textSignature"));
   return lines.join("\n");
 }

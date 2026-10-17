@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { safeFormat, safeFormatDistance } from "../date";
+import {
+  extendMinDateTimeLocal,
+  LISTING_HORIZON_MS,
+  listingMaxDateTimeLocal,
+  nextDateTimeLocal,
+  safeFormat,
+  safeFormatDistance,
+  toDateInput,
+  toDateTimeLocal,
+} from "../date";
 
 describe("safeFormat", () => {
   it("geçerli tarihi formatlar", () => {
@@ -18,5 +27,88 @@ describe("safeFormatDistance", () => {
   it("geçersiz girdide fallback döner, throw etmez", () => {
     expect(safeFormatDistance(null)).toBe("—");
     expect(safeFormatDistance("bozuk")).toBe("—");
+  });
+});
+
+describe("toDateTimeLocal (derin denetim LU-12 — datetime-local alt sınırı yerel saat)", () => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localOf = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  it("UTC ISO'yu yerel saate çevirir (slice(0,16) gibi UTC kesmez)", () => {
+    const iso = "2026-10-01T15:00:00.000Z";
+    expect(toDateTimeLocal(iso)).toBe(localOf(new Date(iso)));
+  });
+
+  it("boş/geçersiz girdide şimdiki anı verir", () => {
+    const before = localOf(new Date());
+    const got = toDateTimeLocal(null);
+    expect(got >= before).toBe(true);
+    expect(toDateTimeLocal("bozuk")).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+  });
+});
+
+describe("nextDateTimeLocal (derin denetim LU-12, gözden geçirme — alt sınır kesin sonra)", () => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localOf = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  it("tam dakikadaki kapanışta bir sonraki dakikayı verir (eşit değer backend'de reddedilir)", () => {
+    const iso = "2026-10-01T15:00:00.000Z";
+    expect(nextDateTimeLocal(iso)).toBe(localOf(new Date("2026-10-01T15:01:00.000Z")));
+  });
+
+  it("saniyeli kapanışta aynı dakikayı değil sonrakini verir", () => {
+    const iso = "2026-10-01T15:00:30.000Z";
+    expect(nextDateTimeLocal(iso)).toBe(localOf(new Date("2026-10-01T15:01:00.000Z")));
+  });
+
+  it("alt sınır her zaman girdiden kesin sonra", () => {
+    const iso = "2026-10-01T15:00:59.999Z";
+    const min = nextDateTimeLocal(iso);
+    expect(new Date(min).getTime()).toBeGreaterThan(new Date(iso).getTime());
+  });
+
+  it("boş girdide şimdiden sonraki dakikayı verir", () => {
+    const now = Date.now();
+    expect(new Date(nextDateTimeLocal()).getTime()).toBeGreaterThan(now);
+  });
+});
+
+describe("toDateInput (derin denetim LU-13 — rapor aralığı yerel takvim günü)", () => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  it("yerel günü verir (UTC günü değil)", () => {
+    // TR 1 Ekim 01:30 = UTC 30 Eylül 22:30; eski `toISOString().slice` 30 Eylül derdi.
+    const d = new Date("2026-09-30T22:30:00.000Z");
+    expect(toDateInput(d)).toBe(localDay(d));
+  });
+
+  it("yerel bileşenlerle kurulan ayın ilk günü kaymaz", () => {
+    expect(toDateInput(new Date(2026, 9, 1))).toBe("2026-10-01");
+  });
+
+  it("boş/geçersiz girdide bugünü verir", () => {
+    expect(toDateInput()).toBe(localDay(new Date()));
+    expect(toDateInput("bozuk")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+// Arayüz testi D-211: Süre Uzat sınırları backend ile aynı.
+describe("extendMinDateTimeLocal / listingMaxDateTimeLocal", () => {
+  it("kapanış gelecekteyse kapanıştan, geçmişteyse şimdiden sonraki dakika", () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    expect(extendMinDateTimeLocal(future)).toBe(nextDateTimeLocal(future));
+    const past = new Date(Date.now() - 3_600_000).toISOString();
+    expect(new Date(extendMinDateTimeLocal(past)).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(extendMinDateTimeLocal(null)).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("üst sınır şimdi + 2 yılı aşmaz (backend MAX_LISTING_HORIZON_MS)", () => {
+    expect(LISTING_HORIZON_MS).toBe(2 * 365 * 24 * 60 * 60 * 1000);
+    const max = new Date(listingMaxDateTimeLocal()).getTime();
+    expect(max).toBeLessThanOrEqual(Date.now() + LISTING_HORIZON_MS);
+    expect(max).toBeGreaterThan(Date.now() + LISTING_HORIZON_MS - 120_000);
   });
 });

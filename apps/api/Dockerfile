@@ -26,12 +26,14 @@ COPY apps/admin/package.json apps/admin/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/email/package.json packages/email/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 RUN pnpm install --frozen-lockfile
 
 # 2) Kaynak + build. Sıra: shared/email (tsc) → prisma client → api (tsc).
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 RUN pnpm --filter @rothern/shared build \
+ && pnpm --filter @rothern/i18n build \
  && pnpm --filter @rothern/email build \
  && pnpm --filter @rothern/db generate \
  && pnpm --filter @rothern/api build

@@ -1,14 +1,37 @@
 import { describe, expect, it } from "vitest";
 import type { AiSearchIntentResult } from "@rothern/shared";
-import { intentChips, intentToProductQuery, intentToRequestQuery } from "../ai-search";
+import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
+import { createTranslator } from "use-intl/core";
+import { aiSearchAccess, intentChips, intentToProductQuery, intentToRequestQuery, type IntentChipFormat, type IntentChipT } from "../ai-search";
+
+// `intentChips` React DIŞI: çevirmeni ÇAĞIRAN verir. Testte TR katalogdan
+// kurulur — beklenen Türkçe metin tek kaynaktan gelir.
+const t = createTranslator({
+  locale: "tr",
+  messages: messagesFor("tr", WEB_NAMESPACES),
+  namespace: "web.panel.shell.aiIntentBand" as never,
+  timeZone: "Europe/Istanbul",
+}) as unknown as IntentChipT;
+
+// Biçimleyiciler bileşende `@/i18n/domain` hook'larından gelir; burada sahte.
+const fmt = (locale = "tr"): IntentChipFormat => ({
+  t,
+  locale,
+  activityLabel: (c) => `act:${c}`,
+  quantity: (n, u) => `${n} ${u === "adet" ? (locale === "en" ? (n === 1 ? "piece" : "pieces") : "adet") : u}`,
+  cityLabel: (c) => `city:${c}`,
+  countryLabel: (cc) => `country:${cc}`,
+});
 
 const base: AiSearchIntentResult = {
   portal: "satinalma",
-  summary: "Anladığım: 50 adet kompanzasyon panosu, İstanbul",
+  summary: "50 adet kompanzasyon panosu, İstanbul",
   query: "kompanzasyon panosu",
-  category: { id: "39121500", nameTr: "Kompanzasyon panoları" },
+  category: { id: "39121500", name: "Kompanzasyon panoları" },
   categoryHint: "kompanzasyon panosu",
-  city: "İstanbul",
+  city: "istanbul",
+  cityName: "İstanbul",
+  country: null,
   verifiedOnly: true,
   activity: "MANUFACTURER",
   priceMax: 1500.5,
@@ -26,24 +49,108 @@ const base: AiSearchIntentResult = {
 describe("ai-search — yorum → URL süzgeci", () => {
   it("satınalma: ürün dizini şemasına yazar (adet → MOQ tavanı, fiyat tavanı)", () => {
     expect(intentToProductQuery(base)).toBe(
-      "?q=kompanzasyon+panosu&kategori=39121500&sehir=%C4%B0stanbul&faaliyet=MANUFACTURER&dogrulanmis=1&fiyatMax=1500.5&moqMax=50",
+      "?q=kompanzasyon+panosu&kategori=39121500&sehir=istanbul&faaliyet=MANUFACTURER&dogrulanmis=1&para=TRY&fiyatMax=1500.5&moqMax=50",
     );
+    // Fiyat tavanı yoksa para birimi yazılmaz (görünüm tercihi — tavansız anlamsız).
+    expect(intentToProductQuery({ ...base, priceMax: null })).not.toContain("para=");
+    // Ülke (şehirsiz ya da şehirle birlikte) satıcı ülkesi süzgecine yazılır.
+    expect(intentToProductQuery({ ...base, query: null, category: null, city: null, cityName: null, country: "DE", activity: null, verifiedOnly: false, priceMax: null, quantity: null })).toBe("?ulke=DE");
     expect(intentToProductQuery({ ...base, query: null, category: null, city: null, activity: null, verifiedOnly: false, priceMax: null, quantity: null })).toBe("");
   });
 
-  it("satış: kategori SEGMENT'e iner, şehir alıcı şehri; alıcıya özgü alanlar yazılmaz", () => {
-    expect(intentToRequestQuery({ ...base, portal: "satis" })).toBe("?q=kompanzasyon+panosu&kategori=39000000&sehir=%C4%B0stanbul");
+  it("satış: kategori SEGMENT'e iner; alıcı ŞEHRİ yazılmaz (2026-10-04 — süzgeç alıcı ülkesi); alıcıya özgü alanlar yazılmaz", () => {
+    expect(intentToRequestQuery({ ...base, portal: "satis" })).toBe("?q=kompanzasyon+panosu&kategori=39000000");
+    // Ülke = alıcı ülkesi süzgeci.
+    expect(intentToRequestQuery({ ...base, portal: "satis", city: "de-munich", country: "DE" })).toBe(
+      "?q=kompanzasyon+panosu&kategori=39000000&ulke=DE",
+    );
   });
 
   it("çipler URL'de duran parçalardan; kaldırılan çip düşer", () => {
     const sp = new URLSearchParams(intentToProductQuery(base));
-    expect(intentChips(base, sp).map((c) => c.param)).toEqual(["q", "kategori", "sehir", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
-    expect(intentChips(base, sp).find((c) => c.param === "moqMax")?.label).toBe("Min. sipariş ≤ 50 adet");
-    expect(intentChips(base, sp).find((c) => c.param === "fiyatMax")?.label).toBe("Birim fiyat ≤ 1.500,5 TRY");
+    expect(intentChips(base, sp, fmt()).map((c) => c.param)).toEqual(["q", "kategori", "sehir", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
+    expect(intentChips(base, sp, fmt()).find((c) => c.param === "moqMax")?.label).toBe("Min. sipariş ≤ 50 adet");
+    expect(intentChips(base, sp, fmt()).find((c) => c.param === "fiyatMax")?.label).toBe("Birim fiyat ≤ 1.500,5 ₺");
     sp.delete("sehir");
     sp.delete("q");
-    expect(intentChips(base, sp).map((c) => c.param)).toEqual(["kategori", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
+    expect(intentChips(base, sp, fmt()).map((c) => c.param)).toEqual(["kategori", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
     // Satışta alıcıya özgü çipler hiç çıkmaz.
-    expect(intentChips({ ...base, portal: "satis" }, new URLSearchParams("q=x&kategori=39000000&dogrulanmis=1")).map((c) => c.param)).toEqual(["q", "kategori"]);
+    expect(intentChips({ ...base, portal: "satis" }, new URLSearchParams("q=x&kategori=39000000&dogrulanmis=1"), fmt()).map((c) => c.param)).toEqual(["q", "kategori"]);
+    // Ülke çipi iki portalda da (satışta alıcı ülkesi).
+    expect(intentChips({ ...base, portal: "satis", country: "DE" }, new URLSearchParams("q=x&ulke=DE"), fmt()).map((c) => c.param)).toEqual(["q", "ulke"]);
+  });
+
+  it("çip etiketleri okuyucunun dilinde: şehir adı sunucudan, faaliyet/birim/ülke biçimleyiciden, sayı arayüz dilinde", () => {
+    const r = { ...base, country: "TR" };
+    const sp = new URLSearchParams(intentToProductQuery(r));
+    const chips = intentChips(r, sp, fmt("en"));
+    const label = (p: string) => chips.find((c) => c.param === p)?.label;
+    expect(label("sehir")).toBe("Şehir: İstanbul");
+    expect(label("ulke")).toBe("Ülke: country:TR");
+    expect(label("faaliyet")).toBe("act:MANUFACTURER");
+    // Sayı biçimi arayüz dilinden (eskiden "tr-TR" sabitti).
+    // İngilizcede sembol önde; miktar çoğul kuralıyla.
+    expect(label("fiyatMax")).toBe("Birim fiyat ≤ ₺1,500.5");
+    expect(label("moqMax")).toBe("Min. sipariş ≤ 50 pieces");
+    // Sunucu şehir adı vermediyse (eski oturum) yerel biçimleyici.
+    expect(intentChips({ ...base, cityName: null }, sp, fmt()).find((c) => c.param === "sehir")?.label).toBe("Şehir: city:istanbul");
+  });
+
+  it("kategori çipi verilen adı yazar — satışta uygulanan SEGMENT (arayüz testi D-276)", () => {
+    const r = { ...base, portal: "satis" as const, category: { id: "31162800", name: "Kollar veya tokmaklar" } };
+    const sp = new URLSearchParams(intentToRequestQuery(r));
+    const seg = (code: string) => (code.startsWith("31") ? "Üretim Bileşenleri" : undefined);
+    expect(intentChips(r, sp, { ...fmt(), categoryLabel: seg }).find((c) => c.param === "kategori")?.label).toBe("Kategori: Üretim Bileşenleri");
+    // Ad bulunamazsa (segmentler yüklenmedi) sunucunun adı.
+    expect(intentChips(r, sp, { ...fmt(), categoryLabel: () => undefined }).find((c) => c.param === "kategori")?.label).toBe("Kategori: Kollar veya tokmaklar");
+  });
+});
+
+// 2026-10-09 (sahip kararı): AI yorumu gizli bir kategori döndürse bile (eski
+// API) süzgeç adresine yazılmaz ve bantta adı çip olmaz. Fikstür görünür 46
+// sektörünün GİZLİ ailesindedir (2026-10-10): satışta kod segmente inmeden önce
+// sınanmazsa `?kategori=46000000` yazılır, gizli dal görünür sektöre dönüşürdü.
+describe("ai-search — gizli kategori YOK sayılır", () => {
+  const hidden = { ...base, category: { id: "46101500", name: "Ateşli silahlar" } };
+
+  it("satınalma: ürün süzgecine kategori yazılmaz; diğer parçalar yerinde", () => {
+    const sp = new URLSearchParams(intentToProductQuery(hidden));
+    expect(sp.has("kategori")).toBe(false);
+    expect(sp.get("q")).toBe("kompanzasyon panosu");
+    expect(sp.get("sehir")).toBe("istanbul");
+  });
+
+  it("satış: açık talep süzgecine gizli sektör yazılmaz", () => {
+    const sp = new URLSearchParams(intentToRequestQuery({ ...hidden, portal: "satis" }));
+    expect(sp.has("kategori")).toBe(false);
+  });
+
+  it("adreste elle duran ?kategori= olsa bile gizli kategori adı çip olmaz", () => {
+    const sp = new URLSearchParams("q=x&kategori=46101500");
+    const chips = intentChips(hidden, sp, fmt());
+    expect(chips.find((c) => c.param === "kategori")).toBeUndefined();
+    expect(JSON.stringify(chips)).not.toContain("Ateşli silahlar");
+  });
+
+  it("görünür 46 kategorisi (koruyucu giysi) süzgece yazılır: satınalmada kod, satışta sektör", () => {
+    const visible = { ...base, category: { id: "46181500", name: "Koruyucu giysi" } };
+    expect(new URLSearchParams(intentToProductQuery(visible)).get("kategori")).toBe("46181500");
+    expect(new URLSearchParams(intentToRequestQuery({ ...visible, portal: "satis" })).get("kategori")).toBe("46000000");
+  });
+});
+
+describe("aiSearchAccess — hero AI kapısı ve kilit nedeni (arayüz testi O-050)", () => {
+  const buyer = { permissions: ["buy:listing:manage"] };
+  const admin = { permissions: ["company:manage"] };
+  it("Silver altı → paket kilidi (rol ne olursa olsun)", () => {
+    expect(aiSearchAccess({ tier: "STANDART" }, buyer)).toEqual({ enabled: false, lockedBy: "tier" });
+    expect(aiSearchAccess({ tier: "STANDART" }, admin)).toEqual({ enabled: false, lockedBy: "tier" });
+    expect(aiSearchAccess(null, buyer)).toEqual({ enabled: false, lockedBy: "tier" });
+  });
+  it("paket yeterli, koltuk izni yok → rol kilidi (paket bağlantısı gösterilmez)", () => {
+    expect(aiSearchAccess({ tier: "GOLD" }, admin)).toEqual({ enabled: false, lockedBy: "role" });
+  });
+  it("Silver+ ∧ koltuk izni → açık", () => {
+    expect(aiSearchAccess({ tier: "SILVER" }, buyer)).toEqual({ enabled: true });
   });
 });

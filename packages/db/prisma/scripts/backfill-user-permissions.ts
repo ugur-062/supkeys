@@ -18,13 +18,14 @@
  *   pnpm --filter @rothern/db backfill-user-permissions
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import {
   normalizePermissions,
   permissionsForRoles,
   rolesFromPermissions,
 } from "@rothern/shared";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("backfill-user-permissions") });
 const force = process.argv.includes("--force");
 
 async function main() {

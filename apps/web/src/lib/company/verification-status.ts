@@ -5,7 +5,13 @@
  * (STATUS_META) ve Firma Bilgileri ("Doğrulandı / Bekliyor" — UNVERIFIED ve
  * REJECTED firmaya da "Bekliyor" yazıyordu). Etiket ve kilit kuralı buradan
  * okunur; backend `company-profile.service` KYC kilidiyle BİREBİR.
+ *
+ * i18n Faz 2: RENK/TON burada, METİN katalogda
+ * (`web.panel.settings.verificationStatus.<DURUM>.{label,hint}`) — üç yüzey
+ * de `useVerificationMeta()` ile okuyucunun dilinde çizer; Türkçe yedek
+ * sözlük KALDIRILDI (tek kaynak katalog).
  */
+import { useTranslations } from "next-intl";
 import type { StatusTone } from "@/components/ui/status-badge";
 
 export type VerificationStatus =
@@ -16,41 +22,43 @@ export type VerificationStatus =
 
 export type BadgeColor = "zinc" | "amber" | "green" | "red";
 
-export const VERIFICATION_STATUS: Record<
-  VerificationStatus,
-  { label: string; color: BadgeColor; tone: StatusTone; hint: string }
-> = {
-  UNVERIFIED: {
-    label: "Belge bekleniyor",
-    color: "zinc",
-    tone: "neutral",
-    hint: "Doğrulama belgeleri henüz gönderilmedi.",
-  },
-  PENDING: {
-    label: "İncelemede",
-    color: "amber",
-    tone: "pending",
-    hint: "Belgeler ekibimizce inceleniyor.",
-  },
-  VERIFIED: {
-    label: "Doğrulandı",
-    color: "green",
-    tone: "done",
-    hint: "Firma belgelerle doğrulandı.",
-  },
-  REJECTED: {
-    label: "Reddedildi",
-    color: "red",
-    tone: "failed",
-    hint: "Belgelerde eksik/hata var; düzeltip yeniden gönderin.",
-  },
+export interface VerificationMeta {
+  label: string;
+  color: BadgeColor;
+  tone: StatusTone;
+  hint: string;
+}
+
+/** Durum → rozet rengi/tonu (metin katalogdan gelir). */
+const VERIFICATION_TONE: Record<VerificationStatus, { color: BadgeColor; tone: StatusTone }> = {
+  UNVERIFIED: { color: "zinc", tone: "neutral" },
+  PENDING: { color: "amber", tone: "pending" },
+  VERIFIED: { color: "green", tone: "done" },
+  REJECTED: { color: "red", tone: "failed" },
 };
 
 /** Bilinmeyen/boş değerde UNVERIFIED'a düşer (eski kayıt / eksik alan). */
-export function verificationMeta(status: string | null | undefined) {
-  return VERIFICATION_STATUS[(status as VerificationStatus) in VERIFICATION_STATUS
+function normalizeStatus(status: string | null | undefined): VerificationStatus {
+  return (status as VerificationStatus) in VERIFICATION_TONE
     ? (status as VerificationStatus)
-    : "UNVERIFIED"];
+    : "UNVERIFIED";
+}
+
+/**
+ * Doğrulama durumu, okuyucunun dilinde — hub rozeti, Doğrulama ve Firma
+ * Bilgileri aynı sözlüğü okur. Yalnız bileşen/hook gövdesinde çağrılır
+ * (rules-of-hooks).
+ */
+export function useVerificationMeta(): (status: string | null | undefined) => VerificationMeta {
+  const t = useTranslations("web.panel.settings.verificationStatus");
+  return (status) => {
+    const key = normalizeStatus(status);
+    return {
+      ...VERIFICATION_TONE[key],
+      label: t(`${key}.label` as never),
+      hint: t(`${key}.hint` as never),
+    };
+  };
 }
 
 /**

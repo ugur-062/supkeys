@@ -4,10 +4,14 @@ import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
+  expandCompanyCategorySelection,
 } from "@rothern/shared";
 import { CompleteOnboardingDto } from "../../src/modules/company-auth/dto/onboarding.dto";
 import { UpdateCompanyProfileDto } from "../../src/modules/company-profile/dto/update-company-profile.dto";
-import { validateCategorySelection } from "../../src/common/helpers/category-selection.helper";
+import {
+  normalizeCategorySelection,
+  validateCategorySelection,
+} from "../../src/common/helpers/category-selection.helper";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 
 /**
@@ -81,10 +85,17 @@ describe("Firma kategori tavanı — tek kaynak", () => {
       ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
     });
 
-    it("sıfır ana kategoriyi REDDEDER — eşleşme sinyali olmadan firma sessiz kalır", async () => {
+    it("sıfır kategoriyi REDDEDER — eşleşme sinyali olmadan firma sessiz kalır", async () => {
       await expect(
-        validateCategorySelection(sahtePrisma(), [], yapraklar(3)),
-      ).rejects.toThrow();
+        validateCategorySelection(sahtePrisma(), [], []),
+      ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
+    });
+
+    it("ana liste boş gelse de alt kodların segmenti türetilir (code-category-8)", async () => {
+      // Eskiden reddediliyordu; artık sunucu web ile aynı dönüşümü uygular ve
+      // alt kodun segmenti ana eksene yazılır — firma yine sessiz kalmaz.
+      const r = await validateCategorySelection(sahtePrisma(), [], yapraklar(3));
+      expect(r.mainIds).toEqual(["39000000"]);
     });
 
     it("SEÇİM tavanını uygular — depolama tavanından ayrı", async () => {
@@ -118,6 +129,76 @@ describe("Firma kategori tavanı — tek kaynak", () => {
         [],
       );
       expect(r.mainIds).toEqual([tek]);
+    });
+  });
+
+  /**
+   * code-category-8: ata zinciri ve segment türetimi yalnız tarayıcıdaydı.
+   * Sunucu artık aynı dönüşümü (shared `expandCompanyCategorySelection`)
+   * tavan denetimlerinden ÖNCE uygular.
+   */
+  describe("sunucu dönüşümü — normalizeCategorySelection (code-category-8)", () => {
+    it("zincirsiz yaprak: L2 + L3 alt listeye, segment ana listeye eklenir", () => {
+      expect(normalizeCategorySelection([], ["39121614"])).toEqual({
+        mainIds: ["39000000"],
+        subIds: ["39121614", "39120000", "39121600"],
+      });
+    });
+
+    it("alt kodun segmenti ana listede yoksa eklenir, gelen segment korunur", () => {
+      const r = normalizeCategorySelection(["11000000"], ["39121614"]);
+      expect(r.mainIds).toEqual(["11000000", "39000000"]);
+    });
+
+    it("web'in gönderdiği (zaten tam) beyan AYNEN kalır — sıra dahil", () => {
+      // Web: sektör geneli segment önce, sonra seçimlerin zinciri sırayla.
+      const web = expandCompanyCategorySelection(
+        ["39121614", "40141600", "39121615", "31171500"],
+        ["23000000"],
+      );
+      expect(normalizeCategorySelection(web.mainIds, web.subIds)).toEqual(web);
+      // Atası torundan SONRA yazılmış tam liste de yeniden sıralanmaz.
+      const ters = ["39121614", "39121600", "39120000"];
+      expect(normalizeCategorySelection(["39000000"], ters).subIds).toEqual(ters);
+    });
+
+    it("geçersiz kod ve alt listedeki segment ATILMAZ — doğrulama reddetsin diye kalır", () => {
+      const r = normalizeCategorySelection(["39120000", "x1"], ["abc", "40000000", "39121600"]);
+      expect(r.mainIds).toEqual(["39120000", "x1", "39000000"]);
+      expect(r.subIds).toEqual(["abc", "40000000", "39121600", "39120000"]);
+    });
+
+    it("servis kapısı dönüşmüş listeyi döner ve saklatır", async () => {
+      const r = await validateCategorySelection(sahtePrisma(), ["11000000"], ["39121614"]);
+      expect(r.mainIds).toEqual(["11000000", "39000000"]);
+      expect(r.subIds).toEqual(["39121614", "39120000", "39121600"]);
+      expect(r.mainNames).toHaveLength(2);
+    });
+
+    it("ana kategori tavanı TÜRETİLEN segmentlerle birlikte sayılır", async () => {
+      // 5 segment + başka segmentte bir yaprak = 6 → DTO geçer, servis reddeder.
+      await expect(
+        validateCategorySelection(
+          sahtePrisma(),
+          segmentler(MAX_COMPANY_MAIN_CATEGORIES),
+          ["39121614"],
+        ),
+      ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
+    });
+
+    it("depolama tavanı zincir EKLENDİKTEN sonra ölçülür", async () => {
+      // Seçim tavanını aşmayan ama zinciriyle depolama tavanını aşan beyan
+      // kurulamaz (50 seçim × 3 = 150 < 200); tersini kilitle: tavan kadar
+      // zincirsiz yaprak, zinciriyle birlikte tavanın ALTINDA saklanır.
+      const secim = yapraklar(MAX_COMPANY_SUB_PICKS);
+      const r = await validateCategorySelection(sahtePrisma(), [], secim);
+      expect(r.subIds.length).toBeGreaterThan(secim.length);
+      expect(r.subIds.length).toBeLessThanOrEqual(MAX_COMPANY_SUB_CATEGORIES);
+      for (const c of secim) {
+        expect(r.subIds).toEqual(
+          expect.arrayContaining([c, `${c.slice(0, 6)}00`, `${c.slice(0, 4)}0000`]),
+        );
+      }
     });
   });
 

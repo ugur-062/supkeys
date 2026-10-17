@@ -53,7 +53,7 @@ describe("SearchTypeahead", () => {
     await u.selectOptions(screen.getByLabelText("Arama kapsamı"), "listings");
     expect(container.querySelector("form")?.getAttribute("action")).toBe("/alim-talepleri");
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "boru");
-    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings"));
+    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings", "tr"));
   });
 
   it("öneri grupları: kategori · ürün (firma adıyla) · firma", async () => {
@@ -65,13 +65,43 @@ describe("SearchTypeahead", () => {
     expect(screen.getAllByText("Elektrik A.Ş.").length).toBeGreaterThan(0);
   });
 
+  // 2026-10-09 (sahip kararı): arama kutusu kataloğu SUNAN yüzeydir — gizli
+  // kategori (API önerisinde gelse bile) öneri satırı olmaz. 2026-10-10: 46
+  // görünür sektördür; gizli olan silah / kolluk aileleri (4610) ve görünür
+  // 4618 ailesinin 461825 sınıfıdır.
+  it("gizli kategori önerilmez; görünür kategori (46'nın görünür dalı dahil) önerilir", async () => {
+    h.suggest.mockResolvedValue({
+      ...RESULT,
+      categories: [
+        { id: "46101500", name: "Ateşli silahlar", level: 3 },
+        { id: "39120000", name: "Panolar", level: 2 },
+        { id: "92000000", name: "Kamu Düzeni ve Güvenlik Hizmetleri", level: 1, slug: "kamu-duzeni-ve-guvenlik-hizmetleri" },
+        { id: "46182500", name: "Kişisel güvenlik cihazları veya silahları", level: 3 },
+        { id: "46181500", name: "Koruyucu giysi", level: 3 },
+        { id: "46000000", name: "İş Güvenliği ve Yangın Ekipmanları", level: 1, slug: "is-guvenligi-ve-yangin-ekipmanlari" },
+      ],
+    });
+    const u = userEvent.setup();
+    const { container } = render(<SearchTypeahead />);
+    await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "pano");
+    expect(await screen.findByText("Panolar")).toBeTruthy();
+    expect(screen.queryByText(/silah|Kamu Düzeni/)).toBeNull();
+    expect(container.querySelector('a[href*="92000000"]')).toBeNull();
+    expect(container.querySelector('a[href*="kategori=4610"], a[href*="kategori=461825"]')).toBeNull();
+    // 46 geri açıldı: sektör açılış sayfasına, görünür sınıfı süzgeçli dizine gider.
+    expect(screen.getByText("Koruyucu giysi")).toBeTruthy();
+    expect(screen.getByText("İş Güvenliği ve Yangın Ekipmanları")).toBeTruthy();
+    expect(container.querySelector('a[href*="/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari"]')).not.toBeNull();
+    expect(container.querySelector('a[href*="kategori=46181500"]')).not.toBeNull();
+  });
+
   it("↑↓ ile gezinir, Enter seçili öneriye gider", async () => {
     const u = userEvent.setup();
     render(<SearchTypeahead />);
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "pano");
     await screen.findByText("Panolar");
     await u.keyboard("{ArrowDown}{Enter}");
-    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler/kategori/39120000"));
+    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler?kategori=39120000"));
   });
 
   it("son aramalar yazılır ve boş kutuda gösterilir", async () => {

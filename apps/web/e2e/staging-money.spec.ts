@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * PARA YOLU (2026-09-12) — çok para birimli teklif, KALEM BAZLI kazandırma ve
@@ -22,15 +22,9 @@ test("çok para birimli teklif → kalem bazlı kazandırma → iki sipariş →
   const s1 = await apiSession(QA.tedarikciSatisci);
   const s2 = await apiSession(QA.tedarikci2Satisci);
 
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Para Depo ${stamp}`,
-    addressLine: "Organize Sanayi 6. Cadde No 21",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addr.status).toBeLessThan(300);
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+
+  const addressId = await qaDeliveryAddressId(buyer);
 
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM",
@@ -39,7 +33,7 @@ test("çok para birimli teklif → kalem bazlı kazandırma → iki sipariş →
     description: "Çok para birimli teklif ve kalem bazlı kazandırma QA talebi.",
     visibility: "PUBLIC",
     categoryIds: [CATEGORY],
-    deliveryAddressId: addr.body.id,
+    deliveryAddressId: addressId,
     closesAt: daysFromNow(5),
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY", "USD"],
@@ -131,15 +125,19 @@ test("çok para birimli teklif → kalem bazlı kazandırma → iki sipariş →
   const zero = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: 0, method: "EFT" });
   expect(zero.status, "sıfır tutar").toBeGreaterThanOrEqual(400);
 
-  const half = Math.floor(total / 2);
-  const first = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: half, method: "EFT" });
+  // Kısmi ödeme EŞİT İKİ PARÇA OLMAZ: aynı tutar + yöntemle az önce açılmış,
+  // onay bekleyen kayıt varsa ikincisi DUPLICATE_PAYMENT ile reddedilir (çift
+  // tık koruması); tutar çiftken "yarım + kalan" aynı tutardı ve test bu
+  // ürün kuralına takılıyordu. %40 + kalan her zaman farklı tutardır.
+  const part = Math.floor(total * 0.4);
+  const first = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: part, method: "EFT" });
   expect(first.status, JSON.stringify(first.body)).toBeLessThan(300);
 
   // Kısmi ödemeden SONRA kalanı aşan ikinci ödeme yine reddedilir.
-  const overAgain = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: total - half + 1, method: "EFT" });
+  const overAgain = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: total - part + 1, method: "EFT" });
   expect(overAgain.status, "kısmi ödemeden sonra kalan tavanı").toBeGreaterThanOrEqual(400);
 
-  const rest = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: total - half, method: "EFT" });
+  const rest = await apiPost(buyer, `/company/orders/${tryOrder.id}/payments`, { amount: total - part, method: "EFT" });
   expect(rest.status, JSON.stringify(rest.body)).toBeLessThan(300);
 
   // Satıcı onaylayınca ödeme tamamlanır; toplam TAM tutarı geçmez.

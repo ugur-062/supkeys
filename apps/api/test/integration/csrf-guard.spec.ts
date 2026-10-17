@@ -90,6 +90,55 @@ describe("CsrfGuard — double-submit fail-closed (SameSite=lax)", () => {
       guard.canActivate(ctx("POST", "/api/company-auth/login")),
     ).toBe(true);
   });
+
+  // D-349: bayat rk_company var, rk_csrf yok → token'lı ön-oturum uçları düşmez.
+  it("şifre sıfırlama onayı bayat çerezle header'sız muaf (D-349)", () => {
+    expect(
+      guard.canActivate(ctx("POST", "/api/auth/password-reset/confirm", authCookie())),
+    ).toBe(true);
+  });
+
+  // Arayüz testi 2026-10 login-16: sayfa açılırken sorulan bağlantı denetimi
+  // de token'la çalışan ön-oturum ucudur — bayat çerez 403'e düşürmemeli
+  // (web 403'ü "bilinmiyor" sayıp formu açar, denetim boşa giderdi).
+  // TEK ADRES: `auth/password-reset/check`. İlk sürümdeki ikinci adres
+  // (`password-reset/check`) kaldırıldı; muafiyet listesinde de yok.
+  it("şifre sıfırlama bağlantı denetimi bayat çerezle header'sız muaf — yalnız tek adresi (login-16)", () => {
+    for (const path of ["/api/auth/password-reset/check", "/auth/password-reset/check"]) {
+      expect(guard.canActivate(ctx("POST", path, authCookie()))).toBe(true);
+    }
+    // Kaldırılan ikinci adres ve benzer yollar muaf DEĞİL.
+    for (const path of [
+      "/api/password-reset/check",
+      "/password-reset/check",
+      "/api/auth/password-reset/check/extra",
+      "/api/password-reset/check/extra",
+      "/api/company/password-reset/check",
+      "/api/company/auth/password-reset/check",
+      "/api/password-reset/confirm-all",
+    ]) {
+      expect(() => guard.canActivate(ctx("POST", path, authCookie()))).toThrow(/CSRF/);
+    }
+  });
+
+  it("üye daveti kabulü bayat çerezle header'sız muaf (D-349)", () => {
+    expect(
+      guard.canActivate(
+        ctx("POST", `/api/company/invitations/${"f".repeat(64)}/accept`, authCookie()),
+      ),
+    ).toBe(true);
+  });
+
+  it("oturumlu benzer uçlar muaf DEĞİL (bağlantı/sipariş kabulü)", () => {
+    expect(() =>
+      guard.canActivate(ctx("POST", "/api/company/connections/abc/accept", authCookie(TOKEN))),
+    ).toThrow(/CSRF/);
+    expect(() =>
+      guard.canActivate(
+        ctx("POST", "/api/company/connections/invitations/abc/accept", authCookie(TOKEN)),
+      ),
+    ).toThrow(/CSRF/);
+  });
 });
 
 describe("CsrfGuard — SameSite=none prod-default açığı (belgeler)", () => {

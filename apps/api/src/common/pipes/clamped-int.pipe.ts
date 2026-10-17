@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import {
   ArgumentMetadata,
   BadRequestException,
@@ -47,7 +48,9 @@ export class ClampedIntPipe implements PipeTransform {
     if (typeof value === "number") {
       if (!Number.isFinite(value) || !Number.isInteger(value)) {
         throw new BadRequestException(
-          `${metadata.data ?? "parameter"} must be a valid integer`,
+          i18nMessage("api.validation.paramGecerliBirTamSayiOlmali", {
+            param: metadata.data ?? "parameter",
+          }),
         );
       }
       return Math.max(this.min, Math.min(this.max, value));
@@ -58,14 +61,20 @@ export class ClampedIntPipe implements PipeTransform {
     const str = String(value).trim();
     if (!/^-?\d+$/.test(str)) {
       throw new BadRequestException(
-        `${metadata.data ?? "parameter"} must be a valid integer (got "${value}")`,
+        i18nMessage("api.validation.paramGecerliBirTamSayiOlmaliGelen", {
+          param: metadata.data ?? "parameter",
+          value: String(value),
+        }),
       );
     }
 
     const parsed = Number(str);
     if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
       throw new BadRequestException(
-        `${metadata.data ?? "parameter"} must be a valid integer (got "${value}")`,
+        i18nMessage("api.validation.paramGecerliBirTamSayiOlmaliGelen", {
+          param: metadata.data ?? "parameter",
+          value: String(value),
+        }),
       );
     }
 

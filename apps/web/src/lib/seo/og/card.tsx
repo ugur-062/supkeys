@@ -3,6 +3,7 @@ import path from "node:path";
 import { ImageResponse } from "next/og";
 import { optimizable } from "@/lib/public/image-host";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { OG_CARD_SIZE, SITE_NAME } from "@/lib/seo/meta";
 import type { OgContent } from "./content";
 
 /**
@@ -22,8 +23,16 @@ import type { OgContent } from "./content";
  * yerine tipografik kart).
  */
 
-export const OG_SIZE = { width: 1200, height: 630 } as const;
+export const OG_SIZE = OG_CARD_SIZE;
 export const OG_CONTENT_TYPE = "image/png";
+/**
+ * Segment kartlarının dosya sözleşmesindeki `alt` — STATİK dışa aktarım
+ * (Next, segmentin dilini göremez; dile göre `generateImageMetadata` görsel
+ * adresine `/0` eklerdi) → DİLDEN BAĞIMSIZ marka adı. Sayfanın gerçek
+ * og:image:alt'ı `buildMetadata`dan, sayfanın dilinde (2026-09-27: EN/RU
+ * sayfalara Türkçe `alt` basılıyordu).
+ */
+export const OG_ALT = SITE_NAME;
 
 let fontCache: Promise<{ regular: Buffer; bold: Buffer }> | null = null;
 
@@ -49,11 +58,12 @@ function loadFonts() {
 async function embedImage(src: string | null): Promise<string | null> {
   if (!src) return null;
   const site = resolveSiteUrl();
-  // Optimize edici yalnız `remotePatterns`taki host'u kabul eder; dış host'ta
-  // ham adres denenir (JPEG/PNG ise Satori okur).
-  const url = optimizable(src) || src.startsWith("/")
-    ? `${site}/_next/image?url=${encodeURIComponent(src)}&w=640&q=80`
-    : src;
+  // Yalnız kendi CDN'imiz (`remotePatterns`) ve site içi görsel gömülür.
+  // Dış adres sunucudan ÇEKİLMEZ (yayın denetimi 2026-09-28 Bölüm 5): ürün
+  // görseli alanı her adresi kabul ettiği için OG uç noktası rastgele bir
+  // adresi sunucu tarafında indiren bir araca dönüşüyordu. Görselsiz kart çizilir.
+  if (!optimizable(src) && !src.startsWith("/")) return null;
+  const url = `${site}/_next/image?url=${encodeURIComponent(src)}&w=640&q=80`;
   try {
     // Accept başlığı bilinçli YOK: optimize edici WebP/AVIF sunmaz, JPEG döner.
     const res = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: 3600 } });

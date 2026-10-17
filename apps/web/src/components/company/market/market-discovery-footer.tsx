@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 
 /**
  * KEŞİF ALTLIĞI — listenin altında gezinmeye devam edecek bağlantılar.
@@ -10,23 +11,32 @@ import Link from "next/link";
  * gerekçeyle "N tedarikçi inceledi" de basılmıyor).
  */
 export function MarketDiscoveryFooter({
+  kind = "products",
   cities,
   categories,
   cityHref,
   categoryHref,
 }: {
-  cities: { city: string; count: number }[];
+  /**
+   * Hangi dizinin altlığı: şehir bloğunun başlığı ona göre (arayüz testi
+   * D-049). Firma dizini iki portalda da HERKESİ listeler — satış
+   * portalında "Şehre göre tedarikçiler" alıcı arayan satıcıya yanlış
+   * şeyi söylüyordu; firma dizininde başlık "Şehre göre firmalar".
+   */
+  kind?: "products" | "companies";
+  cities: { city: string; name?: string; count: number }[];
   categories: { id: string; name: string; count: number }[];
   cityHref: (city: string) => string;
   categoryHref: (c: { id: string; name: string }) => string;
 }) {
+  const t = useTranslations("web.panel.market.marketDiscoveryFooter");
   const topCities = cities.slice(0, 12);
   const topCategories = categories.slice(0, 12);
   if (topCities.length === 0 && topCategories.length === 0) return null;
   return (
     <section aria-labelledby="kesif-altligi" className="border-t border-zinc-200 pt-8">
       <h2 id="kesif-altligi" className="sr-only">
-        Keşfetmeye devam edin
+        {t("kesfetmeyeDevamEdin")}
       </h2>
       {/* İKİ BLOK ALT ALTA, ÇİPLER YAN YANA (2026-09-08, kullanıcı kararı):
           eskiden bloklar yan yana iki sütundaydı ve her sütun ekranın yarısı
@@ -37,16 +47,16 @@ export function MarketDiscoveryFooter({
           sonra şehir. */}
       <div className="space-y-8">
         {topCategories.length > 0 ? (
-          <Block title="Sektöre göre">
+          <Block title={t("sektoreGore")}>
             {topCategories.map((c) => (
               <Item key={c.id} href={categoryHref(c)} label={c.name} count={c.count} />
             ))}
           </Block>
         ) : null}
         {topCities.length > 0 ? (
-          <Block title="Şehre göre tedarikçiler">
+          <Block title={kind === "companies" ? t("sehreGoreFirmalar") : t("sehreGoreTedarikciler")}>
             {topCities.map((c) => (
-              <Item key={c.city} href={cityHref(c.city)} label={c.city} count={c.count} />
+              <Item key={c.city} href={cityHref(c.city)} label={c.name ?? c.city} count={c.count} />
             ))}
           </Block>
         ) : null}
@@ -66,14 +76,16 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 function Item({ href, label, count }: { href: string; label: string; count: number }) {
   return (
-    <li>
+    <li className="max-w-full">
       <Link
         href={href}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950"
       >
         {/* Tam genişlikte akan şeritte daha uzun ada yer var; yine de
-            tavan kalır — tek bir uzun ad satırı tek başına yemesin. */}
-        <span className="max-w-[22rem] truncate">{label}</span>
+            tavan kalır — tek bir uzun ad satırı tek başına yemesin. Dar
+            ekranda kapsayıcıyı AŞMAZ (375 px'te 22rem + sayaç taşıyordu —
+            yayın denetimi 2026-09-28 Bölüm 12). */}
+        <span className="min-w-0 max-w-[22rem] truncate">{label}</span>
         <span className="tnum text-xs text-zinc-500">{count}</span>
       </Link>
     </li>

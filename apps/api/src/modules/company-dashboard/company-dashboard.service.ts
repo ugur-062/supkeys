@@ -1,17 +1,25 @@
 import { Injectable } from "@nestjs/common";
-import type { Currency } from "@rothern/db";
+import type { Currency, ListingStatus, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { appMonth, appYearStart } from "../../common/time/app-calendar";
+import { tApi } from "../../common/i18n/i18n.service";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
-  bidRateToTry,
-  itemUnitPriceTry,
-  listingAmountTry,
+  awardedSavingsVolumeTry,
+  reportCurrencyOf,
+  tryToCurrency,
 } from "../../common/company/report-currency";
+import { breakdownSegmentOf } from "./category-breakdown";
 
-/** "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. */
+/**
+ * "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. Türkçe büyütme yalnız
+ * Türkçe harfli adda ("industrial" → "İND" olmasın; web `upperForText` ile aynı).
+ */
 function shortenName(name: string): string {
-  const cleaned = name.trim().toLocaleUpperCase("tr-TR");
+  const t = name.trim();
+  const cleaned = /[çğıöşüÇĞİÖŞÜ]/.test(t) ? t.toLocaleUpperCase("tr-TR") : t.toUpperCase();
   if (cleaned.length <= 3) return cleaned;
   return `${cleaned.slice(0, 3)}...`;
 }
@@ -118,13 +126,17 @@ export class CompanyDashboardService {
       bidsPrev30,
       buyersActive,
     ] = await Promise.all([
-      // Henüz teklif verilmemiş açık ALIM davetleri.
+      // Henüz teklif verilmemiş açık ALIM davetleri. Sahibi askıdaki/pasif
+      // talep sayılmaz — tıklanınca 404 döner (derin denetim MU-20).
       this.prisma.listingInvitation.count({
         where: {
           invitedCompanyId: companyId,
           listing: {
             status: "OPEN",
             type: "ALIM",
+            company: { isActive: true, isBlocked: false },
+            // Açılış embargosundaki talep davetliye de görünmez (derin denetim LU-07).
+            OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
             bids: {
               none: {
                 bidderCompanyId: companyId,
@@ -188,28 +200,44 @@ export class CompanyDashboardService {
       }),
     ]);
 
-    // Sipariş tutarlarını TRY-eşdeğere çevir (sipariş tarihi kuru, cache'li).
-    const rateCache = new Map<string, number>();
-    const getRate = async (c: Currency, d: Date): Promise<number> => {
-      if (c === "TRY") return 1;
-      const k = `${c}|${d.toISOString().slice(0, 10)}`;
-      const cached = rateCache.get(k);
-      if (cached !== undefined) return cached;
-      const r = await this.exchangeRate.getRateOnDate(c, d);
-      rateCache.set(k, r);
-      return r;
-    };
+    // Sipariş tutarları FİRMANIN RAPOR BİRİMİNE (2026-09-27): sipariş tarihinin
+    // kurlarıyla çapraz çevrim (kur_sipariş / kur_rapor, ikisi de TRY bazlı).
+    // Eskiden "TRY karşılığı" TRY etiketiyle dönüyordu — EUR satan Alman
+    // satıcı gelirini TRY görüyordu.
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, requestDefaults: true },
+    });
+    const reportCur = reportCurrencyOf(company) as Currency;
+    // Kurlar birim başına TOPLU çekilir (`getRatesOnDates`: birim başına iki
+    // sorgu). Eskiden her (birim, gün) çifti için sıralı `getRateOnDate`
+    // çağrılıyordu — yıl boyu USD/EUR satan satıcıda istek başına yüzlerce
+    // sıralı sorgu (derin denetim LU-07).
+    const dates = revenueOrders.map((o) => o.createdAt);
+    const needed = new Set<Currency>();
+    for (const o of revenueOrders) {
+      const cur = (o.currency ?? "TRY") as Currency;
+      if (cur !== reportCur && cur !== "TRY") needed.add(cur);
+    }
+    if (reportCur !== "TRY" && revenueOrders.some((o) => (o.currency ?? "TRY") !== reportCur)) {
+      needed.add(reportCur);
+    }
+    const ratesBy = new Map<Currency, number[]>(
+      await Promise.all(
+        [...needed].map(async (c) => [c, await this.exchangeRate.getRatesOnDates(c, dates)] as const),
+      ),
+    );
+    const rateAt = (c: Currency, i: number) => (c === "TRY" ? 1 : ratesBy.get(c)![i]!);
     let revenueTotal = 0;
     let revenueLast30 = 0;
     let revenuePrev30 = 0;
-    for (const o of revenueOrders) {
+    revenueOrders.forEach((o, i) => {
       const cur = (o.currency ?? "TRY") as Currency;
-      const rate = await getRate(cur, o.createdAt);
-      const v = Number(o.amount) * rate;
+      const v = cur === reportCur ? Number(o.amount) : (Number(o.amount) * rateAt(cur, i)) / rateAt(reportCur, i);
       revenueTotal += v;
       if (o.createdAt >= d30) revenueLast30 += v;
       else if (o.createdAt >= d60) revenuePrev30 += v;
-    }
+    });
 
     return {
       invitations: { active: activeInvitations },
@@ -220,6 +248,8 @@ export class CompanyDashboardService {
         total: revenueTotal,
         last30: revenueLast30,
         prev30: revenuePrev30,
+        /** Tutarların birimi — firmanın rapor para birimi. */
+        currency: reportCur,
       },
       last30Days: { bidsSubmitted: bids30, prevBidsSubmitted: bidsPrev30 },
       buyers: { active: buyersActive },
@@ -243,10 +273,21 @@ export class CompanyDashboardService {
     // kaynaktan gelebilir → her kaynaktan o kadar çekmek zorundayız.
     const take = Math.min(offset + pageSize, MAX_FEED);
 
+    // Davet satırı talep TASLAKKEN de oluşur; yayımlanmamış (taslak/onay
+    // bekleyen) ya da açılış embargosundaki talebin başlığı/numarası davetliye
+    // sızmasın — embargolu talebi yalnız sahibi görür (derin denetim LU-07).
+    const now = new Date();
+    const visibleInvitationWhere = {
+      invitedCompanyId: companyId,
+      listing: {
+        status: { notIn: ["DRAFT", "IN_APPROVAL"] as ListingStatus[] },
+        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+      },
+    } satisfies Prisma.ListingInvitationWhereInput;
     const [invitations, bids, orders, invCount, bidCount, orderCount] =
       await Promise.all([
         this.prisma.listingInvitation.findMany({
-          where: { invitedCompanyId: companyId },
+          where: visibleInvitationWhere,
           orderBy: { createdAt: "desc" },
           take,
           select: {
@@ -261,7 +302,7 @@ export class CompanyDashboardService {
           select: {
             createdAt: true,
             submittedAt: true,
-            version: true,
+            submitCount: true,
             listing: { select: { id: true, number: true, title: true } },
           },
         }),
@@ -277,7 +318,7 @@ export class CompanyDashboardService {
           },
         }),
         this.prisma.listingInvitation.count({
-          where: { invitedCompanyId: companyId },
+          where: visibleInvitationWhere,
         }),
         this.prisma.listingBid.count({
           where: { bidderCompanyId: companyId },
@@ -298,21 +339,28 @@ export class CompanyDashboardService {
       ...invitations.map((iv): ActivityRow => ({
         type: "invitation",
         title: iv.listing.title,
-        subtitle: `Satın Alma Talebi daveti · ${iv.listing.number ?? "—"}`,
+        subtitle: tApi("api.companyDashboard.activity.invitationSubtitle", {
+          number: iv.listing.number ?? "—",
+        }),
         at: iv.createdAt,
         href: `/company/ilan/${iv.listing.id}`,
       })),
       ...bids.map((b): ActivityRow => ({
         type: "bid",
         title: b.listing.title,
-        subtitle: `Teklif · ${b.listing.number ?? "—"} · v${b.version}`,
+        subtitle: tApi("api.companyDashboard.activity.bidSubtitle", {
+          number: b.listing.number ?? "—",
+          // Revizyon numarası gönderim sayısıdır; `version` taslak
+          // kaydında da artan eşzamanlılık sayacıdır (O-036).
+          version: String(Math.max(1, b.submitCount)),
+        }),
         at: b.submittedAt ?? b.createdAt,
         href: `/company/ilan/${b.listing.id}`,
       })),
       ...orders.map((o): ActivityRow => ({
         type: "order",
-        title: o.listing?.title ?? "Sipariş",
-        subtitle: `Sipariş · ${o.number ?? "—"}`,
+        title: o.listing?.title ?? tApi("api.companyDashboard.activity.orderTitle"),
+        subtitle: tApi("api.companyDashboard.activity.orderSubtitle", { number: o.number ?? "—" }),
         at: o.createdAt,
         href: `/company/siparis/${o.id}`,
       })),
@@ -349,8 +397,16 @@ export class CompanyDashboardService {
    */
   async satinalmaTasarruf(user: AuthenticatedCompanyUser) {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearStart = new Date(now.getFullYear(), 0, 1);
+    // Tutarlar TRY'de hesaplanır (damga), gösterim FİRMANIN RAPOR BİRİMİNDE.
+    const reportCur = reportCurrencyOf(
+      await this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { country: true, requestDefaults: true },
+      }),
+    );
+    // İstanbul takvimi (sunucu UTC; bkz. `app-calendar`).
+    const monthStart = appMonth(now).start;
+    const yearStart = appYearStart(now);
 
     const listings = await this.prisma.listing.findMany({
       where: {
@@ -375,14 +431,24 @@ export class CompanyDashboardService {
         items: {
           select: {
             id: true,
+            name: true,
             quantity: true,
             targetPrice: true,
             awardedQuantity: true,
           },
         },
+        // Kalemin FİİLEN kime verildiği siparişlerden çözülür
+        // (`awardedBidForItem`; teklifçi = satıcı, ad + birim fiyat).
+        orders: {
+          select: {
+            sellerCompanyId: true,
+            items: { select: { name: true, unitPrice: true } },
+          },
+        },
         bids: {
           where: { status: { in: ["WON", "AWARDED_PARTIAL"] } },
           select: {
+            bidderCompanyId: true,
             currency: true,
             exchangeRateSnapshot: true,
             items: {
@@ -399,12 +465,21 @@ export class CompanyDashboardService {
     });
 
     // Kategori etiketleri — ilk categoryId kodunu segment (level 1) adına çöz.
-    const firstCodes = [
+    // Derin denetim 2026-09-29 S026: kod segmente YUVARLANIR (analitiğin
+    // `categorySavings`'i ile aynı anahtar) ve ad okuyucunun dilinde üretilir;
+    // eskiden talebin L3/L4 kodunun Türkçe adı basılıyordu.
+    // HIDDEN SEGMENTS (owner rule 2026-10-09): the key is the segment of the
+    // first VISIBLE category (`breakdownSegmentOf`). A request whose
+    // categories are all hidden has no key and falls into the existing
+    // "uncategorized" bucket below - its amount stays in the totals and is
+    // never printed under the hidden segment's name.
+    const segCodes = [
       ...new Set(
-        listings.map((l) => l.categoryIds[0]).filter((c): c is string => !!c),
+        listings.map((l) => breakdownSegmentOf(l.categoryIds)).filter((c): c is string => !!c),
       ),
     ];
-    const catLabel = await this.resolveCategoryLabels(firstCodes);
+    const catLabel = await this.resolveCategoryLabels(segCodes);
+    const uncategorized = tApi("api.companyDashboard.uncategorized");
 
     interface Agg {
       number: string;
@@ -419,64 +494,24 @@ export class CompanyDashboardService {
     const aggregates: Agg[] = listings.map((l) => {
         const awardedAt = l.awardedAt ?? l.createdAt;
         // Hedef fiyat İLANIN birimindedir, kazanan birim fiyatı ise TEKLİFİN
-        // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir.
-        // TEK KAYNAK: report-currency.ts (rapordaki blokla birebir aynı).
-        // İlan birimi TRY değilse oran, ilan birimini kullanan kazanan teklifin
-        // DAMGASINDAN türetilir; damga yoksa referans yok → o satır kıyas dışı.
-        const listingRate =
-          l.primaryCurrency === "TRY"
-            ? 1
-            : (l.bids
-                .map((b) =>
-                  b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
-                )
-                .find((r): r is number => r != null) ?? null);
-
-        // Kalem başına EN İYİ (ALIM → en düşük) TRY birim fiyatı. Aynı kalemi
-        // birden çok kazanan teklif içerebilir (kalem-bazlı kazandırma).
-        const winningByItem = new Map<string, number>();
-        for (const it of l.items) {
-          let best: number | null = null;
-          for (const b of l.bids) {
-            const bi = b.items.find((x) => x.itemId === it.id);
-            if (!bi) continue;
-            const up = itemUnitPriceTry(b, bi);
-            if (up == null) continue; // damga yok → hesaba KATILMAZ
-            if (best == null || up < best) best = up;
-          }
-          if (best != null) winningByItem.set(it.id, best);
-        }
-
-        let savings = 0;
-        let volume = 0;
-        for (const it of l.items) {
-          const winUnit = winningByItem.get(it.id);
-          if (winUnit == null) continue;
-          const qty =
-            it.awardedQuantity != null && Number(it.awardedQuantity) > 0
-              ? Number(it.awardedQuantity)
-              : Number(it.quantity);
-          const refUnit = listingAmountTry(
-            l.primaryCurrency,
-            it.targetPrice,
-            listingRate,
-          );
-          volume += winUnit * qty;
-          if (refUnit != null && refUnit > winUnit) {
-            savings += (refUnit - winUnit) * qty;
-          }
-        }
+        // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir. Kalem
+        // başına FİİLEN kazanan fiyat × awardedQuantity; damgasız satır kıyas
+        // dışı. TEK KAYNAK: report-currency.ts `awardedSavingsVolumeTry` (pano
+        // analitiği de aynı fonksiyonu kullanır).
+        const { savings, volume } = awardedSavingsVolumeTry(l);
         return {
           number: l.number ?? "—",
           title: l.title,
-          // Tutarlar TRY-eşdeğerdir (yukarıda çevrildi) — etiket de öyle olmalı.
-          currency: "TRY",
+          // Kırılım anahtarı TALEBİN kendi birimi ("hangi birimde açılan
+          // taleplerde ne kadar tasarruf"; oran birimsizdir). Eskiden sabit
+          // "TRY" yazılıyordu → kırılım hep tek satırdı.
+          currency: l.primaryCurrency,
           awardedAt,
-          savings,
-          volume,
+          // TRY → rapor birimi (güncel kur).
+          savings: tryToCurrency(savings, reportCur) ?? 0,
+          volume: tryToCurrency(volume, reportCur) ?? 0,
           categoryLabel:
-            (l.categoryIds[0] && catLabel.get(l.categoryIds[0])) ||
-            "Kategorisiz",
+            catLabel.get(breakdownSegmentOf(l.categoryIds) ?? "") ?? uncategorized,
         };
     });
 
@@ -493,8 +528,12 @@ export class CompanyDashboardService {
         averageSavingsRate: Number(rate.toFixed(2)),
       };
     };
+    // Tasarrufu olmayan talep "en yüksek tasarruflu 5" listesine girmez —
+    // 0,00'lık satırlar boş grafik + anlamsız sıralama üretiyordu (arayüz
+    // testi D-297; analitiğin `topSavings`'i ile aynı kural).
     const top5 = (rows: Agg[]) =>
-      [...rows]
+      rows
+        .filter((r) => r.savings > 0)
         .sort((a, b) => b.savings - a.savings)
         .slice(0, 5)
         .map((r, i) => ({
@@ -518,6 +557,10 @@ export class CompanyDashboardService {
       return Array.from(map.entries())
         .map(([label, v]) => ({
           label,
+          // Tutar yüzdeyle AYNI pencereden (ay/yıl) — web satırın yanına
+          // analytics'in seçili-dönem tutarını eşliyordu; çeyrek/özel aralıkta
+          // yıl yüzdesiyle çeyrek tutarı yan yana basılıyordu.
+          amount: v.savings,
           percent:
             v.volume > 0
               ? Number(((v.savings / v.volume) * 100).toFixed(2))
@@ -530,6 +573,8 @@ export class CompanyDashboardService {
     };
 
     return {
+      /** Tutarların (toplam, ilk 5) birimi — firmanın rapor para birimi. */
+      currency: reportCur,
       month: summarize(monthAggs),
       year: summarize(yearAggs),
       topSavingsMonth: top5(monthAggs),
@@ -547,8 +592,9 @@ export class CompanyDashboardService {
    */
   async satinalmaTedarikci(user: AuthenticatedCompanyUser) {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearStart = new Date(now.getFullYear(), 0, 1);
+    // İstanbul takvimi (sunucu UTC; bkz. `app-calendar`).
+    const monthStart = appMonth(now).start;
+    const yearStart = appYearStart(now);
 
     const bids = await this.prisma.listingBid.findMany({
       where: {
@@ -655,7 +701,7 @@ export class CompanyDashboardService {
       if (list.length === 0) {
         return {
           tenderNumber: "—",
-          title: "Veri yok",
+          title: tApi("api.companyDashboard.noData"),
           bidderCount: 0,
           distribution: [{ id: "t1", count: 0 }],
         };
@@ -687,7 +733,7 @@ export class CompanyDashboardService {
     };
   }
 
-  /** UNSPSC kategori kodlarını segment (level 1) adına çözer. */
+  /** UNSPSC segment kodlarını (level 1) okuyucunun dilindeki ada çözer. */
   private async resolveCategoryLabels(
     codes: string[],
   ): Promise<Map<string, string>> {
@@ -695,9 +741,9 @@ export class CompanyDashboardService {
     if (codes.length === 0) return out;
     const cats = await this.prisma.category.findMany({
       where: { code: { in: codes } },
-      select: { code: true, nameTr: true },
+      select: { code: true, ...CATEGORY_NAME_SELECT },
     });
-    for (const c of cats) out.set(c.code, c.nameTr);
+    for (const c of cats) out.set(c.code, categoryName(c));
     return out;
   }
 }

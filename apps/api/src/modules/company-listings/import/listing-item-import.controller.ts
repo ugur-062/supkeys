@@ -10,6 +10,9 @@ import {
 } from "@nestjs/common";
 import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 import type { Response } from "express";
+import { DEFAULT_LOCALE } from "@rothern/i18n";
+import { slugifyText } from "@rothern/shared";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
@@ -47,7 +50,10 @@ export class ListingItemImportController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const buf = await this.service.buildTemplate();
-    const name = "rothern-satın alma talebi-kalem-sablonu.xlsx";
+    // Content-Disposition yalnız ASCII taşır (Kiril/Türkçe harf → ERR_INVALID_CHAR):
+    // çevrilen ad slug'a indirgenir, Latin dışı ad boş kalırsa Türkçe yedek.
+    const key = "api.companyListings.itemImport.template.fileName" as const;
+    const name = `${slugifyText(tApi(key)) || slugifyText(tApi(key, undefined, DEFAULT_LOCALE))}.xlsx`;
     res.set({
       "Content-Type": XLSX_MIME,
       "Content-Disposition": `attachment; filename="${name}"`,

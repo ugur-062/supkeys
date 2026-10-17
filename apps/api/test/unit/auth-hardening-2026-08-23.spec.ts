@@ -69,7 +69,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 const aged = (ageSec: number, extra: object = {}) =>
   jwt.sign({ type: "company", userId: "u1", iat: nowSec() - ageSec, ...extra }, { expiresIn: "1h" });
 async function run(ctx: ExecutionContext, body: unknown = {}) {
-  const i = new AuthCookieInterceptor(config, jwt);
+  const i = new AuthCookieInterceptor(config, jwt, { isRevoked: async () => false } as never);
   return firstValueFrom(i.intercept(ctx, { handle: () => of(body) } as CallHandler));
 }
 
@@ -127,6 +127,8 @@ describe("#6 maskSensitiveUrl", () => {
     expect(maskSensitiveUrl("/api/company/invitations/0123456789abcdef0123456789abcdef/accept")).toBe("/api/company/invitations/[redacted]/accept");
     expect(maskSensitiveUrl("/api/public/referral-optout?token=abcDEF123&x=1")).toBe("/api/public/referral-optout?token=[redacted]&x=1");
     expect(maskSensitiveUrl("/api/company/listings/clx123?page=2")).toBe("/api/company/listings/clx123?page=2");
+    // Davet jetonu (yayın denetimi 2026-09-28): talep önizlemesi `?ref=`.
+    expect(maskSensitiveUrl("/api/public/invite-preview?ref=ckref123&l=lst1")).toBe("/api/public/invite-preview?ref=[redacted]&l=lst1");
     expect(maskSensitiveUrl(undefined)).toBe("");
   });
 });
@@ -160,7 +162,7 @@ describe("#3 AdminJwtStrategy tokenVersion kapısı", () => {
       platformAdmin: {
         findUnique: jest.fn(async () => ({ id: "a1", email: "a@x", firstName: "A", lastName: "B", role: "SUPER_ADMIN", isActive: true, tokenVersion })),
       },
-    } as never);
+    } as never, { isRevoked: async () => false } as never);
   it("tv eşleşiyorsa geçer; eşleşmiyorsa 401; tv claim'siz eski token yalnız tokenVersion=0 iken geçer", async () => {
     await expect(mk(1).validate({ sub: "a1", email: "a@x", role: "SUPER_ADMIN", type: "admin", tv: 1 })).resolves.toMatchObject({ id: "a1" });
     await expect(mk(1).validate({ sub: "a1", email: "a@x", role: "SUPER_ADMIN", type: "admin", tv: 0 })).rejects.toBeInstanceOf(UnauthorizedException);
@@ -173,7 +175,8 @@ describe("#10 SupabaseAuthService.verifyPassword hata sınıfı", () => {
   function svcWith(error: { status?: number; message: string; name?: string } | null) {
     const s = Object.create(SupabaseAuthService.prototype) as SupabaseAuthService;
     (s as unknown as { logger: { debug: () => void; error: () => void } }).logger = { debug: () => undefined, error: () => undefined };
-    (s as unknown as { publicClient: unknown }).publicClient = {
+    // Y-11: parola doğrulama `passwordClient` üzerinden (secret anahtar yoksa publicClient'ın kendisi).
+    (s as unknown as { passwordClient: unknown }).passwordClient = {
       auth: { signInWithPassword: async () => ({ data: { user: error ? null : { id: "auth-1", email: "e@x" } }, error }) },
     };
     return s;

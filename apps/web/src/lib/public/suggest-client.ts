@@ -1,5 +1,7 @@
+import { foldSearchText } from "@rothern/shared";
 import type { CategoryMenuNode, SuggestResult } from "./marketplace-api";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { visibleCategoryRefs } from "@/lib/visible-categories";
 
 /**
  * ÖNERİ VE MENÜ — İSTEMCİ tarafı tek kaynak (PROMPT 6).
@@ -16,14 +18,24 @@ export const EMPTY_SUGGEST: SuggestResult = { products: [], categories: [], comp
 
 export type SuggestScope = "products" | "companies" | "listings";
 
-export async function fetchSuggest(q: string, scope?: SuggestScope): Promise<SuggestResult> {
+/**
+ * Sayfa dili AÇIKÇA gönderilir (derin denetim S093/X05/X06): başlıksız `fetch`
+ * tarayıcının kendi Accept-Language'ını yollar; API kategori/ürün adlarını
+ * ona göre yerelleştirdiği için /en'de Türkçe, /tr'de İngilizce ad çıkıyordu.
+ * Web'in dili URL'den gelir (routing.ts `localeDetection: false`).
+ */
+function langHeaders(locale: string | undefined): HeadersInit | undefined {
+  return locale ? { "accept-language": locale } : undefined;
+}
+
+export async function fetchSuggest(q: string, scope?: SuggestScope, locale?: string): Promise<SuggestResult> {
   const term = q.trim();
   if (term.length < 2) return EMPTY_SUGGEST;
   const base = resolveApiBaseUrl();
   if (!base) return EMPTY_SUGGEST;
   try {
     const url = `${base}/public/suggest?q=${encodeURIComponent(term)}${scope ? `&scope=${scope}` : ""}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: langHeaders(locale) });
     if (!res.ok) return EMPTY_SUGGEST;
     const data = (await res.json()) as SuggestResult;
     return { ...EMPTY_SUGGEST, ...data };
@@ -38,23 +50,44 @@ export async function fetchSuggest(q: string, scope?: SuggestScope): Promise<Sug
  * her herkese açık sayfada çiziliyor, ağacı sunucuda beklemek her sayfayı
  * bir tur yavaşlatırdı. Kategori bağlantıları SEO için zaten footer'da,
  * sitemap'te ve kategori sayfalarında var.
+ *
+ * GİZLİ DAL (2026-10-10): gizli sektör düğümü ve görünür sektörün gizli ailesi
+ * (46'nın silah / kolluk aileleri) ağaca girmez. API aynı süzgeci uygular;
+ * burası ikinci kat (eski yanıt, kenar önbelleği).
  */
-let menuCache: Promise<CategoryMenuNode[]> | null = null;
+// Dil başına: istemci tarafı dil değişiminden sonra eski dilin ağacı kalmasın.
+const menuCache = new Map<string, Promise<CategoryMenuNode[]>>();
 
-export function fetchCategoryMenu(): Promise<CategoryMenuNode[]> {
-  if (menuCache) return menuCache;
-  menuCache = (async () => {
+export function fetchCategoryMenu(locale?: string): Promise<CategoryMenuNode[]> {
+  const cacheKey = locale ?? "";
+  const hit = menuCache.get(cacheKey);
+  if (hit) return hit;
+  const pending: Promise<CategoryMenuNode[]> = (async () => {
     const base = resolveApiBaseUrl();
     if (!base) return [];
     try {
-      const res = await fetch(`${base}/public/categories/menu`);
+      const res = await fetch(`${base}/public/categories/menu`, { headers: langHeaders(locale) });
       if (!res.ok) return [];
-      return (await res.json()) as CategoryMenuNode[];
+      const nodes = (await res.json()) as CategoryMenuNode[];
+      if (!Array.isArray(nodes)) return [];
+      return visibleCategoryRefs(nodes).map((node) => ({ ...node, children: visibleCategoryRefs(node.children) }));
     } catch {
       return [];
     }
-  })().catch(() => []);
-  return menuCache;
+  })()
+    .catch(() => [] as CategoryMenuNode[])
+    .then((nodes) => {
+      // Yalnız dolu başarılı yanıt kalıcı: hata/boş yanıtta (soğuk başlangıç,
+      // deploy anı) önbellek düşer, bir sonraki açılış yeniden dener — yoksa
+      // menü tam yenilemeye kadar ölü kalıyordu (derin denetim LU-24).
+      if (!Array.isArray(nodes) || nodes.length === 0) {
+        if (menuCache.get(cacheKey) === pending) menuCache.delete(cacheKey);
+        return [];
+      }
+      return nodes;
+    });
+  menuCache.set(cacheKey, pending);
+  return pending;
 }
 
 /** Son aramalar — yalnız bu tarayıcıda; erişilemezse sessizce devre dışı. */
@@ -75,7 +108,7 @@ export function pushRecentSearch(term: string): void {
   const t = term.trim();
   if (t.length < 2) return;
   try {
-    const next = [t, ...readRecentSearches().filter((x) => x.toLocaleLowerCase("tr") !== t.toLocaleLowerCase("tr"))].slice(0, RECENT_MAX);
+    const next = [t, ...readRecentSearches().filter((x) => foldSearchText(x) !== foldSearchText(t))].slice(0, RECENT_MAX);
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   } catch {
     /* özel pencere / kapalı depolama — öneri kaybı kabul */

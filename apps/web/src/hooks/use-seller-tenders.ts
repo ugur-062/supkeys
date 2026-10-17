@@ -1,11 +1,24 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
+import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { useQuery } from "@tanstack/react-query";
+import { visibleCategoryRefs, visibleRowCategories } from "@/lib/visible-categories";
 
 /** GET /company/listings/seller-tenders satırı. */
 export interface SellerTenderRow {
+  /** Maskeli satırda iç kimlik YOK — `masked:<numara>` (yalnız React anahtarı). */
   id: string;
+  /**
+   * Ücretsiz üyenin ALICI GİZLİ herkese açık talebi (2026-10-03): satır
+   * `GET …/seller-tenders/masked`ten gelir, `owner` null, teklif Silver ile;
+   * tıklayınca panel içi maskeli görünüm (`maskedRequestHref`).
+   */
+  masked?: boolean;
+  /** Maskeli satırda alıcının "Doğrulanmış alıcı" rozeti (kimlik değil nitelik). */
+  ownerVerified?: boolean;
   number: string | null;
   title: string;
   status: string;
@@ -15,13 +28,16 @@ export interface SellerTenderRow {
   isInternational: boolean;
   /** Görünürlük ülkeleri (boş = tüm ülkeler). */
   targetCountries?: string[];
+  /** Talebin açıldığı ülke (alıcının ülkesi) — Açık Talepler "Alıcı ülkesi" süzgeci. */
   ownerCountry?: string | null;
   closesAt: string | null;
   createdAt: string;
   itemCount: number;
+  /**
+   * Alıcının ŞEHRİ YOK (2026-10-04 sahip kararı): talepte konum = ülke
+   * (`ownerCountry`); API `ownerCity*` alanlarını artık göndermiyor.
+   */
   owner: { id: string; name: string } | null;
-  /** Şehir kimlik DEĞİL nitelik — maskeli kartta da kalır (lojistik kararı). */
-  ownerCity?: string | null;
   /** Kapak görseli: sahibin seçtiği, yoksa ilk kalemin ilk görseli. */
   coverImageUrl?: string | null;
   canBid: boolean;
@@ -29,7 +45,8 @@ export interface SellerTenderRow {
   /** Talebi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
   connected: boolean;
   myBidStatus: string | null;
-  myBidVersion: number | null;
+  /** Gönderim sayısı ("· v2" eki; taslak saymaz — arayüz testi O-036). */
+  myBidSubmitCount: number | null;
   categoryMatch: boolean;
   /** Alıcının aradığı tedarikçi tipi bende var mı — sıralama basamağı. */
   activityMatch?: boolean;
@@ -46,21 +63,118 @@ export interface SellerTenderRow {
   extraCategoryCount: number;
   /** İlk 20 kalem adı — arama "kalem" ile de bulsun (2026-09-05). */
   itemNames?: string[];
+  /** Başlık/kalem adları okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
   /** Kataloğumdaki bir ürün talebin kategorisi/kalemleriyle eşleşiyor. */
   productMatch?: boolean;
   /** Eşleşen ürünün adı (kullanıcı yüzü). */
   matchedProduct?: string | null;
 }
 
-/** Başka firmaların AÇIK ALIM talepleri (Açık Talepler). */
+/**
+ * GET /company/listings/seller-tenders/masked satırı — herkese açık KART
+ * yansıtması (`toPublicListingCard`) + usul, kalem adları ve izleyenin
+ * eşleşme sinyalleri. Alıcı adı/kimliği/iç kimlik ve şehri YOK.
+ */
+export type MaskedTenderApiRow = Omit<PublicListingCard, "translatedFrom"> & {
+  masked: true;
+  format: string | null;
+  itemNames: string[];
+  categoryMatch: boolean;
+  productMatch: boolean;
+  matchedProduct: string | null;
+  translatedFrom?: string | null;
+};
+
+/** Panel içi maskeli talep görünümü (numarayla — iç kimlik ücretsiz üyeye verilmez). */
+export function maskedRequestHref(number: string): string {
+  return `/company/satis/acik-talep/${encodeURIComponent(number)}`;
+}
+
+/**
+ * Maskeli API satırı → liste satırı. Süzgeç/arama/sıralama/sektör sayacı aynı
+ * motoru (`request-facets`) okusun diye AYNI şekle çevrilir; alıcı alanları
+ * boş, eylem bayrakları kapalı (teklif Silver ile).
+ */
+export function maskedRowToSellerRow(m: MaskedTenderApiRow): SellerTenderRow {
+  // Gizli segmentteki kategori satıra hiç girmez (2026-10-09) — "+N" de yalnız
+  // görünürleri sayar (bu satırda sayaç web'de üretilir, liste eksiksizdir).
+  const categories = visibleCategoryRefs(m.categories);
+  return {
+    id: `masked:${m.number}`,
+    masked: true,
+    number: m.number,
+    title: m.title,
+    status: m.status,
+    visibility: "PUBLIC",
+    format: m.format,
+    currency: m.primaryCurrency,
+    isInternational: m.isInternational,
+    targetCountries: m.targetCountries,
+    ownerCountry: m.company.country,
+    closesAt: m.closesAt,
+    // "Yayın tarihi" süzgeci ve "en yeni" sıralaması — herkese açık yayın anı.
+    createdAt: m.publishedAt ?? "",
+    itemCount: m.itemCount,
+    owner: null,
+    ownerVerified: m.company.verified,
+    coverImageUrl: m.coverImageUrl,
+    canBid: false,
+    invited: false,
+    connected: false,
+    myBidStatus: null,
+    myBidSubmitCount: null,
+    categoryMatch: m.categoryMatch,
+    productMatch: m.productMatch,
+    matchedProduct: m.matchedProduct,
+    categories: categories.slice(0, 2).map((c) => ({ code: c.id, name: c.name })),
+    extraCategoryCount: Math.max(0, categories.length - 2),
+    itemNames: m.itemNames,
+    translatedFrom: m.translatedFrom ?? null,
+  };
+}
+
+/**
+ * API satırı → liste satırı: gizli segmentteki kategori DÜŞER (2026-10-09).
+ * Tek geçiş noktası burası olduğu için satırı okuyan her şey aynı listeyi
+ * görür: Kategori sütunu ve "+N", genişletilmiş çipler, sektör sayacı, arama
+ * metni (gizli kategori adıyla arayan talebi bulamaz), `?kategori=` süzgeci ve
+ * satış anasayfasının "Sektörler" önerisi. Eşleşme bayrakları (`categoryMatch`
+ * …) sunucuda saklanan kodların TAMAMINDAN hesaplanır; dokunulmaz.
+ */
+export function withVisibleRowCategories<T extends Pick<SellerTenderRow, "categories" | "extraCategoryCount">>(row: T): T {
+  const { categories, extraCount } = visibleRowCategories(row.categories, row.extraCategoryCount);
+  return categories.length === (row.categories?.length ?? 0) && extraCount === row.extraCategoryCount
+    ? row
+    : { ...row, categories, extraCategoryCount: extraCount };
+}
+
+/**
+ * Başka firmaların AÇIK ALIM talepleri (Açık Talepler). Ücretsiz üyede liste
+ * İKİ uçtan kurulur (2026-10-03): önce tam satırlar (davetli/bağlantılı —
+ * teklif verilebilir), ardından alıcı gizli herkese açık talepler. Paketli
+ * üye maskeli ucu hiç çağırmaz (API ona zaten boş döner).
+ */
 export function useSellerTenders() {
+  const tier = useCompanyAuthStore((s) => s.company?.tier);
+  const withMasked = !tierAtLeast(tier ?? "STANDART", PAID_TIER);
   return useQuery<SellerTenderRow[]>({
-    queryKey: ["company-listings", "seller-tenders", "ALIM"],
+    queryKey: ["company-listings", "seller-tenders", "ALIM", withMasked ? "masked" : "full"],
     queryFn: async () => {
-      const { data } = await companyApi.get<SellerTenderRow[]>(
-        "/company/listings/seller-tenders?type=ALIM",
-      );
-      return data;
+      const [full, masked] = await Promise.all([
+        companyApi
+          .get<SellerTenderRow[]>("/company/listings/seller-tenders?type=ALIM")
+          .then((r) => r.data.map(withVisibleRowCategories)),
+        withMasked
+          ? companyApi
+              .get<MaskedTenderApiRow[]>("/company/listings/seller-tenders/masked")
+              .then((r) => r.data.map(maskedRowToSellerRow))
+              // Maskeli küme ek bilgidir: alınamazsa teklif verilebilir talepler
+              // yine listelenir (tam liste hatası ise sorguyu düşürür).
+              .catch(() => [] as SellerTenderRow[])
+          : Promise.resolve([] as SellerTenderRow[]),
+      ]);
+      return [...full, ...masked];
     },
     staleTime: 10_000,
     refetchInterval: 15_000, // canlı liste — teklif durumu/kapanış tazelensin
@@ -68,38 +182,23 @@ export function useSellerTenders() {
   });
 }
 
-/**
- * GET /company/listings/seller-tenders/locked-summary — ücretsiz üyenin kilit
- * kartı (2026-09-06): Silver olsaydı göreceği PUBLIC talep sayıları + bulanık
- * örnek satırlar (gerçek veri, kimlik yok). Paketliye `{ locked: false }`.
- */
-export type LockedRequestsSummary =
-  | { locked: false }
-  | {
-      locked: true;
-      total: number;
-      inMyCategories: number;
-      thisWeek: number;
-      itemCount: number;
-      samples: {
-        title: string;
-        category: string | null;
-        itemCount: number;
-        closesAt: string | null;
-        city: string | null;
-        isInternational: boolean;
-      }[];
-    };
+/** Maskeli görünüm yanıtı: herkese açık detay, ya da maskesiz görülebiliyorsa tam detay kimliği. */
+export type MaskedTenderResponse =
+  | (PublicListingDetail & { masked: true })
+  | { masked: false; id: string };
 
-export function useLockedRequestsSummary() {
-  return useQuery<LockedRequestsSummary>({
-    queryKey: ["company-listings", "seller-tenders", "locked-summary"],
+/** GET /company/listings/seller-tenders/masked/:number — panel içi maskeli talep görünümü. */
+export function useMaskedTender(number: string) {
+  return useQuery<MaskedTenderResponse>({
+    queryKey: ["company-listings", "seller-tenders", "masked-detail", number],
     queryFn: async () => {
-      const { data } = await companyApi.get<LockedRequestsSummary>(
-        "/company/listings/seller-tenders/locked-summary",
+      const { data } = await companyApi.get<MaskedTenderResponse>(
+        `/company/listings/seller-tenders/masked/${encodeURIComponent(number)}`,
       );
       return data;
     },
-    staleTime: 60_000,
+    enabled: !!number,
+    staleTime: 30_000,
+    retry: false,
   });
 }

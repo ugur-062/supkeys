@@ -5,6 +5,7 @@ import { avatarInitials, avatarHash, AVATAR_PASTELS } from "@/lib/avatar-utils";
 import { Avatar } from "../avatar";
 import { Badge } from "../badge";
 import { Breadcrumb } from "../breadcrumb";
+import { Chip } from "../chip";
 import { pageSlots } from "../pagination";
 
 describe("pageSlots — 7 yuva", () => {
@@ -27,8 +28,13 @@ describe("pageSlots — 7 yuva", () => {
 });
 
 describe("Avatar monogram", () => {
-  it("TR büyük harf: 'izmir demir' → 'İD'; tek kelime ilk iki harf", () => {
-    expect(avatarInitials("izmir demir")).toBe("İD");
+  // 2026-09-27: büyük harf ADIN diline göre — Türkçe harfli adda Türkçe kural
+  // ("iş makine" → "İM"), Türkçe harfsiz adda dilden bağımsız ("ivan petrov" →
+  // "IP"; `tr-TR` sabitken "İP" oluyordu). Büyük harfle yazılmış "İzmir" korunur.
+  it("büyük harf adın diline göre; tek kelime ilk iki harf", () => {
+    expect(avatarInitials("İzmir Demir")).toBe("İD");
+    expect(avatarInitials("iş makine")).toBe("İM");
+    expect(avatarInitials("ivan petrov")).toBe("IP");
     expect(avatarInitials("ışık")).toBe("IŞ");
   });
   it("aynı ad aynı pastel (deterministik), farklı adlar dağılır", () => {
@@ -57,5 +63,65 @@ describe("Badge / Breadcrumb", () => {
     render(<Breadcrumb items={[{ label: "Anasayfa", href: "/" }, { label: "Ürünler", href: "/urunler" }, { label: "Pano" }]} />);
     expect(screen.getByText("Pano").getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Ürünler" }).getAttribute("href")).toBe("/urunler");
+  });
+
+  /* 2026-10-10: halkalar genişlik tavanıyla "…" ile kesilir (bağlantı 192 px,
+     bulunulan sayfa 224 / 320 px). Ürün sayfasında sektör halkası "İş Güvenliği
+     ve Yangın Ekip…" kalıyor, tam ad hiçbir yerden okunamıyordu. jsdom yerleşim
+     hesaplamaz; kilitlenen şey tavanı olan öğenin tam etiketi `title` olarak
+     taşımasıdır (kesilip kesilmediği tarayıcıda görülür). */
+  it("kısalan kırıntının tam adı `title`da: tavanlı bağlantı ve bulunulan sayfa", () => {
+    const sector = "İş Güvenliği ve Yangın Ekipmanları";
+    const product = "Kesilmeye dayanıklı, nitril kaplı, EN 388 belgeli iş eldiveni (12 çift)";
+    render(
+      <Breadcrumb
+        home={{ href: "/" }}
+        items={[
+          { label: sector, href: "/urunler/kategori/46000000-is-guvenligi-ve-yangin-ekipmanlari" },
+          { label: "Acme İş Güvenliği A.Ş.", href: "/firma/acme" },
+          { label: product },
+        ]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: sector });
+    // Tavan + kesme yerinde; tam ad `title`da.
+    expect(link.className.split(/\s+/)).toEqual(expect.arrayContaining(["max-w-[12rem]", "truncate"]));
+    expect(link).toHaveAttribute("title", sector);
+    expect(screen.getByRole("link", { name: "Acme İş Güvenliği A.Ş." })).toHaveAttribute("title", "Acme İş Güvenliği A.Ş.");
+    const current = screen.getByText(product);
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current.className.split(/\s+/)).toContain("truncate");
+    expect(current).toHaveAttribute("title", product);
+    // Kesilen HER öğe (tavanı olan) title taşır — biri unutulursa burada görünür.
+    const crumb = screen.getByRole("navigation", { name: "Yol" });
+    for (const el of crumb.querySelectorAll(".truncate")) expect(el.getAttribute("title")).toBe(el.textContent);
+    expect(crumb.querySelectorAll(".truncate")).toHaveLength(3);
+    // Ev ikonu kesilmez (adı `sr-only` metinde) — ona `title` yazılmaz.
+    expect(screen.getByRole("link", { name: "Anasayfa" })).not.toHaveAttribute("title");
+  });
+
+  it("bağlantısız ara halka (href yok) da tavanlıdır ve tam adını `title`da taşır", () => {
+    render(<Breadcrumb items={[{ label: "Makine ve Ekipman Kiralama Hizmetleri" }, { label: "Pano" }]} />);
+    const mid = screen.getByText("Makine ve Ekipman Kiralama Hizmetleri");
+    expect(mid).not.toHaveAttribute("aria-current");
+    expect(mid).toHaveAttribute("title", "Makine ve Ekipman Kiralama Hizmetleri");
+  });
+});
+
+describe("Chip — dar ekranda uzun etiket (arayüz testi O-114)", () => {
+  it("çip kapsayıcıyı aşamaz, metin kısalır ve tam ad `title`da; × düğmesi küçülmez", () => {
+    const long = "Elektrik Sistemleri, Aydınlatma, Bileşenleri ve Aksesuarları ile Elektrik Malzemeleri";
+    render(
+      <Chip onRemove={() => {}} removeLabel="kaldır">
+        {long}
+      </Chip>,
+    );
+    const label = screen.getByText(long);
+    expect(label.className).toContain("truncate");
+    expect(label.getAttribute("title")).toBe(long);
+    const chip = label.parentElement!;
+    expect(chip.className).toContain("max-w-full");
+    expect(chip.className).toContain("min-w-0");
+    expect(screen.getByRole("button", { name: "kaldır" }).className).toContain("shrink-0");
   });
 });

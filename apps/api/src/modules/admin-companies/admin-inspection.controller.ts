@@ -66,8 +66,14 @@ export class AdminInspectionController {
 
   @Get("companies/:companyId/connections")
   @AllowAnyAdminRole()
-  listConnections(@Param("companyId") companyId: string) {
-    return this.service.listConnections(companyId);
+  listConnections(
+    @Param("companyId") companyId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    // SUPPORT üçüncü kişi (davet edilen) e-postalarını maskeli görür (D-182).
+    return this.service.listConnections(companyId, {
+      maskEmails: admin.role === "SUPPORT",
+    });
   }
 
   // ── müdahale ──

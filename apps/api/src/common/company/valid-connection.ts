@@ -17,7 +17,11 @@ import { effectiveTier } from "./effective-tier";
  */
 export interface ConnectionRowForValidity {
   origin: string | null;
-  inviter: { tier: string; membershipEndAt: Date | null } | null;
+  inviter: {
+    tier: string;
+    membershipEndAt: Date | null;
+    companyVerificationStatus: string;
+  } | null;
 }
 
 export function isConnectionValid(row: ConnectionRowForValidity): boolean {
@@ -27,6 +31,7 @@ export function isConnectionValid(row: ConnectionRowForValidity): boolean {
     effectiveTier(
       row.inviter.tier as never,
       row.inviter.membershipEndAt,
+      row.inviter.companyVerificationStatus,
     ) as never,
     "SILVER",
   );
@@ -42,7 +47,11 @@ export async function hasValidConnection(
       findMany: (args: unknown) => Promise<
         {
           origin: string | null;
-          inviter: { tier: string; membershipEndAt: Date | null } | null;
+          inviter: {
+    tier: string;
+    membershipEndAt: Date | null;
+    companyVerificationStatus: string;
+  } | null;
         }[]
       >;
     };
@@ -60,7 +69,7 @@ export async function hasValidConnection(
     },
     select: {
       origin: true,
-      inviter: { select: { tier: true, membershipEndAt: true } },
+      inviter: { select: { tier: true, membershipEndAt: true, companyVerificationStatus: true } },
     },
   });
   return rows.some(isConnectionValid);

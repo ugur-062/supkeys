@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -6,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 @Injectable()
@@ -18,35 +20,41 @@ export class CompanyComplaintsService {
   ) {
     const code = normalizeShortCode(input.rothernId);
     if (!validateShortCode(code)) {
-      throw new BadRequestException("Geçersiz firma kodu");
+      throw new BadRequestException(i18nMessage("api.companyComplaints.gecersizFirmaKodu"));
     }
     const target = await this.prisma.company.findUnique({
       where: { rothernId: code },
       select: { id: true, name: true },
     });
-    if (!target) throw new NotFoundException("Firma bulunamadı");
+    if (!target) throw new NotFoundException(i18nMessage("api.companyComplaints.firmaBulunamadi"));
     if (target.id === actor.companyId) {
-      throw new BadRequestException("Kendinizi şikayet edemezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyComplaints.kendiniziSikayetEdemezsiniz"));
     }
-    const dup = await this.prisma.companyComplaint.findFirst({
-      where: {
-        complainantCompanyId: actor.companyId,
-        againstCompanyId: target.id,
-        status: "OPEN",
-      },
-      select: { id: true },
-    });
-    if (dup) {
-      throw new ConflictException("Bu firma için zaten açık şikayetiniz var");
-    }
-    const c = await this.prisma.companyComplaint.create({
-      data: {
-        complainantCompanyId: actor.companyId,
-        againstCompanyId: target.id,
-        reason: input.reason.trim(),
-        detail: input.detail?.trim() || null,
-        createdById: actor.userId,
-      },
+    // "Zaten açık şikayet var mı" + oluşturma (şikayet eden × şikayet edilen)
+    // danışma kilidi altında (arayüz testi FX-00 O-115): eşzamanlı iki istek
+    // eskiden ikisi de kontrolü boş görüp admin kuyruğuna iki şikayet ekliyordu.
+    const c = await runTenantTx(this.prisma, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`complaint:${actor.companyId}:${target.id}`}))`;
+      const dup = await tx.companyComplaint.findFirst({
+        where: {
+          complainantCompanyId: actor.companyId,
+          againstCompanyId: target.id,
+          status: "OPEN",
+        },
+        select: { id: true },
+      });
+      if (dup) {
+        throw new ConflictException(i18nMessage("api.companyComplaints.buFirmaIcinZatenAcikSikayetiniz"));
+      }
+      return tx.companyComplaint.create({
+        data: {
+          complainantCompanyId: actor.companyId,
+          againstCompanyId: target.id,
+          reason: input.reason.trim(),
+          detail: input.detail?.trim() || null,
+          createdById: actor.userId,
+        },
+      });
     });
     return { id: c.id, ok: true };
   }

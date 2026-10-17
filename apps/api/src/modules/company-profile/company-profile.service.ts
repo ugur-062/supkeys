@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   requestPublicImageUpload,
   resolvePublicImage,
@@ -10,28 +11,47 @@ import {
   NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  MAX_COMPANY_MAIN_CATEGORIES,
+  MAX_COMPANY_SUB_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
+  categoryAncestors,
   deepestCategoryPicks,
+  isHiddenCategory,
+  visibleCompanyCategorySelection,
   generateSlug,
-  isValidIbanTr,
+  countryUsesIban,
+  isValidAccountNumber,
+  isMistypedIban,
+  isValidIbanAny,
+  isValidSwiftBic,
+  normalizeSwift,
   maskIban,
   normalizeIban,
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
-import { effectiveTier } from "../../common/company/effective-tier";
+import { effectiveTier, isFreePeriod } from "../../common/company/effective-tier";
+import { visibleTaxNumber } from "../../common/company/visible-tax-number";
+import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   assertUploadedObjectValid,
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
+import { normalizeCategorySelection } from "../../common/helpers/category-selection.helper";
 import { AuditService } from "../audit/audit.service";
+import { assertPostalCode } from "../company-addresses/company-addresses.service";
+import { assertWebsiteAddress } from "../../common/company/website-address";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 
 const IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"];
+
+/** Süresi dolan paketin panelde "süre doldu / yenile" olarak gösterildiği gün sayısı (D-029). */
+const MEMBERSHIP_EXPIRED_NOTICE_DAYS = 30;
 
 const SELECT = {
   id: true,
@@ -43,6 +63,7 @@ const SELECT = {
   country: true,
   city: true,
   district: true,
+  stateRegion: true,
   addressLine: true,
   postalCode: true,
   aboutText: true,
@@ -65,6 +86,8 @@ const SELECT = {
   taxNumber: true,
   taxOffice: true,
   companyType: true,
+  legalFormLocal: true,
+  cityId: true,
   authorizedTckn: true,
   authorizedTitle: true,
   mersisNo: true,
@@ -82,6 +105,39 @@ const SELECT = {
   onboardingCompletedAt: true,
 } as const;
 
+/**
+ * The four declaration arrays AS SHOWN to the company itself: without the
+ * codes under a hidden prefix (owner rule 2026-10-09 - a hidden category is
+ * shown to nobody, the declaring company included). A legacy code stays in
+ * the record, and matching keeps reading it there, until the category
+ * declaration is saved the next time (`update` drops it then). The settings
+ * form is seeded from this answer, so it never sends a hidden code back.
+ *
+ * PER AXIS, through `visibleCompanyCategorySelection` (2026-10-10, hiding now
+ * also works on a family or a class): a declaration stores the ancestor chain
+ * of every pick, so dropping the hidden codes alone would leave the VISIBLE
+ * ancestors of a hidden pick behind (`46000000` for a company that picked
+ * `46101500`) and the form would show - and save - "the whole sector".
+ */
+function withVisibleCategories<
+  T extends {
+    buyerCategoryIds: string[];
+    buyerSubCategoryIds: string[];
+    sellerCategoryIds: string[];
+    sellerSubCategoryIds: string[];
+  },
+>(c: T): T {
+  const buying = visibleCompanyCategorySelection(c.buyerCategoryIds, c.buyerSubCategoryIds);
+  const selling = visibleCompanyCategorySelection(c.sellerCategoryIds, c.sellerSubCategoryIds);
+  return {
+    ...c,
+    buyerCategoryIds: buying.mainIds,
+    buyerSubCategoryIds: buying.subIds,
+    sellerCategoryIds: selling.mainIds,
+    sellerSubCategoryIds: selling.subIds,
+  };
+}
+
 @Injectable()
 export class CompanyProfileService {
   constructor(
@@ -91,6 +147,8 @@ export class CompanyProfileService {
     private readonly audit: AuditService,
     /** Yayın anı SEO bildirimi — SONDA ve isteğe bağlı (test rig'leri kırılmasın). */
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): tanıtım/hizmet/sektör değişince çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /**
@@ -120,12 +178,17 @@ export class CompanyProfileService {
       where: { id: companyId },
       select: SELECT,
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyProfile.firmaBulunamadi"));
     // INV-TIER-1: efektif tier — ham `tier` doğrudan dönmez (süre-dolma
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
     const { membershipEndAt, ...rest } = c;
-    const base = { ...rest, tier: effectiveTier(c.tier, membershipEndAt) };
+    const tier = effectiveTier(c.tier, membershipEndAt, c.companyVerificationStatus);
+    const base = {
+      ...withVisibleCategories(rest),
+      tier,
+      membership: await this.membershipStatus(companyId, c.tier, tier, membershipEndAt),
+    };
     // KVKK veri-minimizasyonu: yetkili TCKN + IBAN + fatura telefonu kişisel/
     // finansal veridir — yalnız company:manage yetkisi olan kullanıcıya döner.
     if (!canSeeSensitive) {
@@ -139,11 +202,48 @@ export class CompanyProfileService {
         billingPhone: null,
         // Şahıs firmasında taxNumber = 11 haneli TCKN (kişisel veri) → onu da
         // maskele. Tüzel kişide (JOINT_STOCK/LIMITED) vergi no kamuya açıktır.
-        taxNumber:
-          c.companyType === "SOLE_PROPRIETOR" ? null : c.taxNumber,
+        taxNumber: visibleTaxNumber(c),
       };
     }
     return base;
+  }
+
+  /**
+   * ÜYELİK SÜRESİ (arayüz testi D-029): panel paketin ne zaman biteceğini ve
+   * süresi dolduysa ne zaman dolduğunu gösterebilsin diye.
+   *  · endsAt   — efektif paket hâlâ ücretliyse bitiş tarihi (süresizde null).
+   *  · expiredAt — paket DÜŞTÜYSE (efektif STANDART) son 30 gün içindeki bitiş:
+   *    cron öncesi tembel pencerede ham `membershipEndAt`; cron sonrası
+   *    (`membershipEndAt` temizlenir) en son üyelik olayı EXPIRE ise onun
+   *    `endBefore`'u. Sonradan GRANT/EXTEND/REVOKE geldiyse bant gösterilmez.
+   */
+  private async membershipStatus(
+    companyId: string,
+    rawTier: string,
+    tier: string,
+    membershipEndAt: Date | null,
+  ): Promise<{ endsAt: Date | null; expiredAt: Date | null }> {
+    // Ücretsiz dönem: üyelik süresi/bitiş bandı gösterilmez (paket yok —
+    // doğrulama yeterli). Alan adları durur, değerler boş döner.
+    if (isFreePeriod()) return { endsAt: null, expiredAt: null };
+    if (tier !== "STANDART") return { endsAt: membershipEndAt, expiredAt: null };
+    const windowStart = Date.now() - MEMBERSHIP_EXPIRED_NOTICE_DAYS * 86_400_000;
+    if (rawTier !== "STANDART" && membershipEndAt) {
+      return {
+        endsAt: null,
+        expiredAt: membershipEndAt.getTime() >= windowStart ? membershipEndAt : null,
+      };
+    }
+    const last = await this.prisma.companyMembershipEvent.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { action: true, endBefore: true },
+    });
+    const expiredAt =
+      last?.action === "EXPIRE" && last.endBefore && last.endBefore.getTime() >= windowStart
+        ? last.endBefore
+        : null;
+    return { endsAt: null, expiredAt };
   }
 
   /**
@@ -156,6 +256,11 @@ export class CompanyProfileService {
     dto: UpdateCompanyProfileDto,
     actor?: AuthenticatedCompanyUser,
   ) {
+    // DTO `@Length(2, 200)` KIRPILMAMIŞ değere bakar; kayıt kırpılmış değeri
+    // yazar → "   " boş ad olarak saklanıyordu (derin denetim LU-16).
+    if (dto.name !== undefined && dto.name.trim().length < 2) {
+      throw new BadRequestException(i18nMessage("api.companyProfile.firmaAdiEnAz2Karakter"));
+    }
     // Fix1: SAKLANAN görsel URL'leri kendi R2 tenant-profile deposundan olmalı —
     // harici/data: URL PATCH'i public profilde <img src> olarak render edilir.
     // GRANDFATHER: yalnız DEĞİŞEN/YENİ değeri doğrula (mevcut değer dokunulmuyorsa
@@ -206,6 +311,9 @@ export class CompanyProfileService {
     if (dto.website !== undefined) data.website = dto.website.trim() || null;
     if (dto.city !== undefined) data.city = dto.city.trim() || null;
     if (dto.district !== undefined) data.district = dto.district.trim() || null;
+    // Eyalet/bölge (TR dışı) — kayıtta sorulur, Firma Bilgileri'nden de
+    // düzenlenir (2026-09-27; eskiden kayıttan sonra değiştirilemiyordu).
+    if (dto.stateRegion !== undefined) data.stateRegion = dto.stateRegion.trim() || null;
     if (dto.addressLine !== undefined)
       data.addressLine = dto.addressLine.trim() || null;
     if (dto.postalCode !== undefined)
@@ -248,31 +356,118 @@ export class CompanyProfileService {
     const seciminiDenetle = (ids: string[]) => {
       if (deepestCategoryPicks(ids).length > MAX_COMPANY_SUB_PICKS) {
         throw new BadRequestException(
-          `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+          i18nMessage("api.companyProfile.enFazlaUrunHizmetSecebilirsiniz", { MAXCOMPANYSUBPICKS: MAX_COMPANY_SUB_PICKS }),
         );
       }
     };
-    if (dto.buyerSubCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.buyerSubCategoryIds, {
-        minLevel: 2,
+    // SUNUCU DA DEPOLAMA BİÇİMİNE GETİRİR (code-category-8): kayıt yoluyla aynı
+    // dönüşüm (`normalizeCategorySelection`) — alt kodun ata zinciri alt
+    // listeye, segmenti ana listeye. Eskiden yalnız tarayıcı yapıyordu; web
+    // dışı istemci yaprağı zincirsiz, alt kodu segmenti ana listede olmadan
+    // yazabiliyordu. Tavanlar ve doğrulama dönüşümden SONRAKİ listeye bakar.
+    //
+    // İstek ekseni KISMEN gönderebilir (form yalnız değişen alanı yollar) →
+    // gelmeyen taraf kayıtlı değerden tamamlanır. Kayıtlı taraf yalnız dönüşüm
+    // onu DEĞİŞTİRDİYSE yazılır ve yalnız EKLENEN kodları doğrulanır: isteğin
+    // dokunmadığı eski kayıt bu yüzden reddedilmez.
+    const kategoriyeDokunuyor =
+      dto.buyerCategoryIds !== undefined ||
+      dto.buyerSubCategoryIds !== undefined ||
+      dto.sellerCategoryIds !== undefined ||
+      dto.sellerSubCategoryIds !== undefined;
+    if (kategoriyeDokunuyor) {
+      const kayitli = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          buyerCategoryIds: true,
+          buyerSubCategoryIds: true,
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+        },
       });
-      seciminiDenetle(dto.buyerSubCategoryIds);
-      data.buyerSubCategoryIds = [...new Set(dto.buyerSubCategoryIds)];
-    }
-    if (dto.sellerSubCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.sellerSubCategoryIds, {
-        minLevel: 2,
-      });
-      seciminiDenetle(dto.sellerSubCategoryIds);
-      data.sellerSubCategoryIds = [...new Set(dto.sellerSubCategoryIds)];
-    }
-    if (dto.buyerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.buyerCategoryIds, { exactLevel: 1 });
-      data.buyerCategoryIds = [...new Set(dto.buyerCategoryIds)];
-    }
-    if (dto.sellerCategoryIds !== undefined) {
-      await this.categories.validateIds(dto.sellerCategoryIds, { exactLevel: 1 });
-      data.sellerCategoryIds = [...new Set(dto.sellerCategoryIds)];
+      // HIDDEN SEGMENTS - LEGACY DECLARATIONS (code-category-12, tightened by
+      // the owner rule of 2026-10-09). A code that is ALREADY stored (and the
+      // ancestors derived from it) is not rejected for being under a hidden
+      // segment: the form sends the stored value back on every save, and that
+      // used to block every other change. But it is not KEPT either: whenever
+      // the category declaration is saved, hidden codes leave all four arrays
+      // (they are shown nowhere, so nobody could remove them by hand). A NEW
+      // hidden code is still rejected by `validateIds`.
+      //
+      // HIDDEN FAMILY / CLASS UNDER A VISIBLE SEGMENT (2026-10-10). The stored
+      // side of an axis is read through `visibleCompanyCategorySelection`: with
+      // the hidden pick, the visible ancestors that were stored ONLY because
+      // of it leave too. Dropping the hidden codes alone would keep the bare
+      // segment, which means "the whole sector" - the company would start to
+      // receive every notification of a sector it never chose. A list the
+      // REQUEST sends is written as sent (minus stored hidden codes): the
+      // form is seeded from the shown declaration, so a visible code in it is
+      // the user's own choice.
+      //
+      // The exemption is PER AXIS (audit F25): a hidden code stored only on
+      // the buying side is "new" on the selling side and is rejected there.
+      // Until this change one set covered both axes, so such a code (and its
+      // ancestors) could be copied from one axis to the other.
+      const ayniListe = (a: readonly string[], b: readonly string[]) =>
+        a.length === b.length && a.every((code, i) => code === b[i]);
+      const ekseniIsle = async (
+        mainKey: "buyerCategoryIds" | "sellerCategoryIds",
+        subKey: "buyerSubCategoryIds" | "sellerSubCategoryIds",
+      ) => {
+        const gelenMain = dto[mainKey];
+        const gelenSub = dto[subKey];
+        const oncekiMain = kayitli?.[mainKey] ?? [];
+        const oncekiSub = kayitli?.[subKey] ?? [];
+        // Stored side as it is SHOWN: hidden codes and the ancestors kept only
+        // for them are gone. Equal to the stored lists when nothing is hidden.
+        const gorunen = visibleCompanyCategorySelection(oncekiMain, oncekiSub);
+        if (gelenMain === undefined && gelenSub === undefined) {
+          // The request does not touch this axis: nothing is re-derived or
+          // re-validated here; only its hidden legacy codes are dropped.
+          if (gorunen.mainIds.length !== oncekiMain.length) data[mainKey] = gorunen.mainIds;
+          if (gorunen.subIds.length !== oncekiSub.length) data[subKey] = gorunen.subIds;
+          return;
+        }
+        const buEksendeKayitli = new Set(
+          [...oncekiMain, ...oncekiSub].flatMap((code) => [code, ...categoryAncestors(code)]),
+        );
+        const eskiGizlileriAt = (ids: readonly string[]) =>
+          ids.filter((code) => !(isHiddenCategory(code) && buEksendeKayitli.has(code)));
+        const { mainIds, subIds } = normalizeCategorySelection(
+          gelenMain !== undefined ? eskiGizlileriAt(gelenMain) : gorunen.mainIds,
+          gelenSub !== undefined ? eskiGizlileriAt(gelenSub) : gorunen.subIds,
+        );
+        const mainYazilir = gelenMain !== undefined || !ayniListe(mainIds, oncekiMain);
+        const subYazilir = gelenSub !== undefined || !ayniListe(subIds, oncekiSub);
+        if (subYazilir) {
+          if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
+            throw new BadRequestException(i18nMessage("api.helpers.altKategoriBeyaniFazlaGenis"));
+          }
+          seciminiDenetle(subIds);
+          // No `allowHidden`: the stored hidden codes are already out of the
+          // list, so every hidden code still here is a NEW one -> rejected.
+          await this.categories.validateIds(
+            gelenSub !== undefined ? subIds : subIds.filter((code) => !oncekiSub.includes(code)),
+            { minLevel: 2 },
+          );
+          data[subKey] = subIds;
+        }
+        if (mainYazilir) {
+          // DTO tavanı gelen listeye bakar; türeyen segmentlerle aşılabilir.
+          if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
+            throw new BadRequestException(
+              i18nMessage("api.helpers.n1ArasiAnaKategoriSecmelisiniz", { MAXCOMPANYMAINCATEGORIES: MAX_COMPANY_MAIN_CATEGORIES }),
+            );
+          }
+          await this.categories.validateIds(
+            gelenMain !== undefined ? mainIds : mainIds.filter((code) => !oncekiMain.includes(code)),
+            { exactLevel: 1 },
+          );
+          data[mainKey] = mainIds;
+        }
+      };
+      await ekseniIsle("buyerCategoryIds", "buyerSubCategoryIds");
+      await ekseniIsle("sellerCategoryIds", "sellerSubCategoryIds");
     }
 
     // SIFIR KATEGORİ KAPISI — iki eksen BİRDEN boşalamaz.
@@ -292,9 +487,16 @@ export class CompanyProfileService {
     // Yalnız kategori alanına DOKUNAN istek denetlenir. Varlığa bakan bir kapı,
     // bugün sıfır kategoriyle duran eski bir firmanın şehrini bile
     // güncellemesini engellerdi (KYC kilidinde öğrenilen ders).
+    //
+    // `data.*` counts too: a main list can be written without being in the
+    // request. Dropping hidden legacy codes can EMPTY a main list from a
+    // request that sent only the sub list or only the other axis; a company
+    // must not be left without any category that way either.
     if (
       dto.buyerCategoryIds !== undefined ||
-      dto.sellerCategoryIds !== undefined
+      dto.sellerCategoryIds !== undefined ||
+      data.buyerCategoryIds !== undefined ||
+      data.sellerCategoryIds !== undefined
     ) {
       const mevcut = await this.prisma.company.findUnique({
         where: { id: companyId },
@@ -310,7 +512,7 @@ export class CompanyProfileService {
         [];
       if (alis.length === 0 && satis.length === 0) {
         throw new BadRequestException(
-          "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+          i18nMessage("api.companyProfile.enAzBirAnaKategoriSecili"),
         );
       }
     }
@@ -335,6 +537,7 @@ export class CompanyProfileService {
       "mersisNo",
       "tradeRegistryNo",
       "ibanHolder",
+      "bankName",
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
     const kycBefore = await this.prisma.company.findUnique({
@@ -347,6 +550,11 @@ export class CompanyProfileService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        country: true,
+        postalCode: true,
+        website: true,
       },
     });
     const kycLocked =
@@ -361,12 +569,16 @@ export class CompanyProfileService {
       const ibanChanged =
         dto.iban !== undefined &&
         (dto.iban.trim() ? normalizeIban(dto.iban) : null) !==
-          (kycBefore.iban ?? null);
-      if (changed || ibanChanged) {
+          (kycBefore.iban ? normalizeIban(kycBefore.iban) : null);
+      // SWIFT de ödeme yolunu değiştirir → IBAN gibi kilitli.
+      const swiftChanged =
+        dto.bankSwiftBic !== undefined &&
+        (normalizeSwift(dto.bankSwiftBic) || null) !== (kycBefore.bankSwiftBic ?? null);
+      if (changed || ibanChanged || swiftChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
+            ? i18nMessage("api.companyProfile.dogrulamaInceleniyorKilitliAlanlar")
+            : i18nMessage("api.companyProfile.firmanizDogrulandiKilitliAlanlar"),
         );
       }
     }
@@ -380,26 +592,68 @@ export class CompanyProfileService {
     if (dto.kepAddress !== undefined) {
       const kep = dto.kepAddress.trim();
       if (kep && !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(kep)) {
-        throw new BadRequestException("Geçerli bir KEP adresi giriniz");
+        throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirKepAdresiGiriniz"));
       }
       data.kepAddress = kep || null;
     }
     if (dto.iban !== undefined) {
       const raw = dto.iban.trim();
       if (raw) {
-        const iban = normalizeIban(raw);
-        // Banka hesaplarıyla aynı kural: TR katı; yabancı IBAN gevşek format
-        // (yabancı firma profili TR-only kuralla IBAN kaydedemiyordu).
-        const valid = iban.startsWith("TR")
-          ? isValidIbanTr(iban)
-          : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
-        if (!valid) {
-          throw new BadRequestException("Geçerli bir IBAN giriniz");
+        // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (mod-97, TR katı);
+        // IBAN kullanmayan ülkede bu alan HESAP NUMARASI taşır.
+        if (countryUsesIban(kycBefore?.country ?? "TR")) {
+          const iban = normalizeIban(raw);
+          if (!isValidIbanAny(iban)) {
+            throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
+          }
+          data.iban = iban;
+        } else {
+          // IBAN biçiminde ama mod-97'si tutmayan değer hesap no sayılmaz
+          // (yanlış yazılmış IBAN — derin denetim LU-10).
+          if (isMistypedIban(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.ibanInvalid"));
+          }
+          if (!isValidAccountNumber(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
+          }
+          data.iban = raw;
         }
-        data.iban = iban;
       } else {
         data.iban = null;
       }
+    }
+    if (dto.bankSwiftBic !== undefined) {
+      const sw = normalizeSwift(dto.bankSwiftBic);
+      if (sw && !isValidSwiftBic(sw)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.swiftInvalid"));
+      }
+      data.bankSwiftBic = sw || null;
+    }
+    if (dto.bankName !== undefined) data.bankName = dto.bankName.trim() || null;
+    // Merkez adresi posta kodu: adres defteriyle AYNI kural (TR'de 5 rakam).
+    // Yalnız arayüz denetliyordu; PATCH 'ABCDE' kaydediyordu (arayüz testi
+    // webC-09 yeniden doğrulama). Adres defteri gibi yalnız DEĞİŞEN değerde:
+    // kuraldan önce kaydedilmiş hatalı kod başka alanın kaydını engellemesin.
+    if (
+      dto.postalCode !== undefined &&
+      (dto.postalCode.trim() || null) !== (kycBefore?.postalCode ?? null)
+    ) {
+      assertPostalCode(kycBefore?.country ?? "TR", dto.postalCode);
+    }
+    // Web sitesi: kayıt (onboarding) ile AYNI kural — nokta taşıyan, boşluksuz
+    // alan adı (arayüz testi signup-tr-5). Posta kodu gibi yalnız DEĞİŞEN
+    // değerde: form kayıtlı değeri her kayıtta geri gönderir, kuraldan önce
+    // kaydedilmiş hatalı adres başka alanın kaydını engellemesin. Boş = silme.
+    if (
+      dto.website !== undefined &&
+      (dto.website.trim() || null) !== (kycBefore?.website ?? null)
+    ) {
+      assertWebsiteAddress(dto.website);
+    }
+    // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
+    if (dto.city !== undefined || dto.cityId !== undefined) {
+      data.cityId = resolveCityId(kycBefore?.country ?? "TR", dto.city ?? null, dto.cityId);
+      if (dto.city !== undefined && dto.city.trim()) data.city = storedCityName(data.cityId as number | null, dto.city);
     }
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.
@@ -447,8 +701,11 @@ export class CompanyProfileService {
       // Profil herkese açıksa (ya da az önce açıldı/kapandıysa) firma
       // sayfası + dizin + ürün sayfalarındaki satıcı bloğu tazelenir.
       if (current?.publicEnabled || c.publicEnabled) this.seo?.companyChanged(companyId);
+      if (c.publicEnabled && (dto.aboutText !== undefined || dto.services !== undefined || dto.industry !== undefined)) {
+        void this.translations?.enqueue("COMPANY", companyId);
+      }
     }
-    return c;
+    return withVisibleCategories(c);
   }
 
   /** Tek kaynak `common/company/company-slug.ts` — kayıt akışı da onu okur. */

@@ -17,8 +17,15 @@ import { CompanyViewsService } from "../../src/modules/company-views/company-vie
 const user = { companyId: "firma-A", userId: "u1", email: "a@x.test" } as never;
 
 function itemsRig(withBypass: boolean) {
-  const prisma = { companyItem: { findMany: jest.fn().mockResolvedValue([]) } };
-  const bypass = { companyItem: { findMany: jest.fn().mockResolvedValue([]) } };
+  // companyBlock: keşif engel ilişkisindeki firmaları da dışlar (derin denetim LU-08 artığı).
+  const prisma = {
+    companyItem: { findMany: jest.fn().mockResolvedValue([]) },
+    companyBlock: { findMany: jest.fn().mockResolvedValue([]) },
+  };
+  const bypass = {
+    companyItem: { findMany: jest.fn().mockResolvedValue([]) },
+    companyBlock: { findMany: jest.fn().mockResolvedValue([]) },
+  };
   const svc = new CompanyItemsService(
     prisma as never,
     { log: jest.fn() } as never, // audit
@@ -36,10 +43,25 @@ describe("RLS çapraz okuma — ürün keşfi", () => {
     await svc.discoverProducts(user, { limit: 5 });
     expect(bypass.companyItem.findMany).toHaveBeenCalledTimes(1);
     expect(prisma.companyItem.findMany).not.toHaveBeenCalled();
-    // Kendi ürünleri HARİÇ ve görünürlük kapısı sorguda (tek kaynak publicProductWhere).
+    // Kendi ürünleri ve engel ilişkisindeki firmalar HARİÇ, görünürlük kapısı sorguda
+    // (tek kaynak publicProductWhere). Engel okuması da bypass'tan: RLS açıkken kısıtlı
+    // istemci company_blocks'u göremez, liste boş dönüp engelli firma görünürdü.
     const where = bypass.companyItem.findMany.mock.calls[0]![0].where;
-    expect(where.companyId).toEqual({ not: "firma-A" });
+    expect(where.companyId).toEqual({ notIn: ["firma-A"] });
     expect(where.isPublic).toBe(true);
+    expect(bypass.companyBlock.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.companyBlock.findMany).not.toHaveBeenCalled();
+  });
+
+  it("engel ilişkisindeki firma (iki yön) sorgudan dışlanır", async () => {
+    const { svc, bypass } = itemsRig(true);
+    bypass.companyBlock.findMany.mockResolvedValue([
+      { blockerCompanyId: "firma-A", blockedCompanyId: "firma-B" },
+      { blockerCompanyId: "firma-C", blockedCompanyId: "firma-A" },
+    ]);
+    await svc.discoverProducts(user, {});
+    const where = bypass.companyItem.findMany.mock.calls[0]![0].where;
+    expect(where.companyId).toEqual({ notIn: ["firma-A", "firma-B", "firma-C"] });
   });
 
   it("bypass yoksa (eski rig) ana client'a düşer — geriye uyumlu", async () => {

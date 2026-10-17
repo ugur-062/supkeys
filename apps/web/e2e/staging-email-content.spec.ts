@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { WEB, apiGet, apiPost, apiSession, QA, daysFromNow } from "./staging-helpers";
+import { WEB, apiGet, apiPost, apiSession, QA, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 import { closeDb, db } from "./db-helpers";
 
 /**
@@ -14,6 +14,22 @@ import { closeDb, db } from "./db-helpers";
 test.afterAll(async () => closeDb());
 
 const PLACEHOLDER = /\{\{|\$\{|\bundefined\b|\bnull\b|\[object Object\]/;
+/**
+ * POLİTİKA GEREĞİ ATLANAN gönderimler hata değil (LU-18): status=FAILED,
+ * payload'sız, errorMessage bu öneklerle. apps/api email.service.ts
+ * `EMAIL_SKIPPED_SUPPRESSED_PREFIX` / `EMAIL_SKIPPED_OPTED_OUT_PREFIX` ile
+ * AYNI değerler (e2e Nest modülünü import etmesin diye kopya).
+ */
+const ATLANAN_ONEKLER = ["suppressed:", "opted_out:"] as const;
+/**
+ * Staging alıcı İZİN LİSTESİ (`EMAIL_ALLOWLIST`, 2026-10-05): listede olmayan
+ * alıcıya e-posta sağlayıcıya gitmez ama satır ÇİZİLİP konu + payload ile
+ * yazılır (FAILED + bu önek). Atlanan sayılmaz: içerik denetimi aynen koşar.
+ * apps/api email.service.ts `EMAIL_SKIPPED_ALLOWLIST_REASON` ile aynı önek.
+ */
+const IZIN_LISTESI_ONEKI = "suppressed: allowlist";
+/** Admin suppression aklaması payload'sız bir SENT işaret satırı yazar (e-posta değil). */
+const ISARET_SABLONLARI = new Set(["suppression_clear"]);
 
 test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", async () => {
   test.setTimeout(300_000);
@@ -21,14 +37,12 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   // Taze bir e-posta üret: sipariş/teklif akışı tetiklenmeden log bayat olabilir.
   const buyer = await apiSession(QA.aliciSatinalmaci);
   const stamp = Date.now().toString(36).toUpperCase();
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT", title: `QA Posta ${stamp}`, addressLine: "Sanayi Cad. 4",
-    city: "İstanbul", district: "Tuzla", country: "TR",
-  });
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM", format: "RFQ", title: `QA Posta Talebi ${stamp}`,
     description: "E-posta içeriği doğrulaması için açılan QA talebi.",
-    visibility: "PUBLIC", categoryIds: ["31161500"], deliveryAddressId: addr.body.id,
+    visibility: "PUBLIC", categoryIds: ["31161500"], deliveryAddressId: addressId,
     closesAt: daysFromNow(4), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
     items: [{ name: "Posta Kalemi", quantity: 5, unit: "adet" }],
   });
@@ -53,12 +67,27 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   const host = new URL(WEB).host; // staging.supkeys.com
   const sorunlar: string[] = [];
   const kotaDolu: string[] = [];
+  const atlanan: string[] = [];
+  const isaret: string[] = [];
+  const gonderilmedi: string[] = [];
 
   for (const r of rows) {
     const p = (r.payload ?? {}) as Record<string, unknown>;
     const etiket = `${r.template} → ${r.toEmail.replace(/@.*/, "@…")} "${r.subject ?? ""}"`;
 
-    if (r.status === "FAILED") {
+    if (ISARET_SABLONLARI.has(r.template)) {
+      isaret.push(etiket);
+      continue;
+    }
+    const izinDisi = r.status === "FAILED" && (r.errorMessage ?? "").startsWith(IZIN_LISTESI_ONEKI);
+    if (izinDisi) {
+      gonderilmedi.push(etiket);
+    } else if (r.status === "FAILED" && ATLANAN_ONEKLER.some((o) => (r.errorMessage ?? "").startsWith(o))) {
+      atlanan.push(`${etiket}: ${r.errorMessage}`);
+      continue;
+    }
+
+    if (r.status === "FAILED" && !izinDisi) {
       /**
        * Sağlayıcı KOTASI ürün hatası değil, ortam sınırı: staging ücretsiz
        * Resend kademesinde günde 100 e-posta gönderebiliyor ve yoğun test
@@ -66,7 +95,8 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
        * teslimat hatasını gürültüye boğardı; ayrı raporlanır. Diğer HER
        * başarısızlık (geçersiz adres, kimlik hatası) kırmızı kalır.
        */
-      const kotaMi = /daily_quota|rate_limit|too many requests/i.test(r.errorMessage ?? "");
+      // Aylık kota da ortam sınırıdır (2026-09-23: staging ücretsiz Resend kademesi ay sonundan önce doldu).
+      const kotaMi = /daily_quota|monthly_quota|quota_exceeded|rate_limit|too many requests/i.test(r.errorMessage ?? "");
       if (kotaMi) kotaDolu.push(etiket);
       else sorunlar.push(`BAŞARISIZ ${etiket}: ${r.errorMessage ?? ""}`);
     }
@@ -108,6 +138,13 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
     if (paragraflar.some((x) => typeof x !== "string" || x.trim() === "")) sorunlar.push(`boş paragraf: ${etiket}`);
   }
 
+  if (atlanan.length > 0) {
+    console.log(`   ⓘ ${atlanan.length} gönderim politika gereği atlandı (bastırılmış/abonelikten çıkmış adres, ürün hatası değil).`);
+  }
+  if (gonderilmedi.length > 0) {
+    console.log(`   ⓘ ${gonderilmedi.length} e-posta izin listesi dışında: çizildi ve içerik tarandı, sağlayıcıya gönderilmedi (EMAIL_ALLOWLIST).`);
+  }
+  if (isaret.length > 0) console.log(`   ⓘ ${isaret.length} suppression aklama işareti tarama dışı.`);
   if (kotaDolu.length > 0) {
     console.log(`   ⚠ ${kotaDolu.length} e-posta sağlayıcı KOTASI nedeniyle gitmedi (ortam sınırı, ürün hatası değil).`);
   }

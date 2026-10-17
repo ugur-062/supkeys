@@ -116,7 +116,16 @@ export class TenderExtractController {
     return this.service.suggestTitle(user, dto.items);
   }
 
+  /**
+   * ORTAK AI yükleme presign'ı — talep AI'ı (GOLD) yanında Silver+ satış
+   * AI'ı ("Belgeden Fiyatla", bid-price-extract) da dosyalarını buradan
+   * yükler. Sınıfın GOLD kapısı burada SILVER'a ezilir (guard
+   * getAllAndOverride: handler > class); paket + koltuk kapısı serviste
+   * assertAiAccess ile ayrıca uygulanır. Belge → talep taslağı (bu uç VE
+   * asistan eki) GOLD kapısını TenderExtractService.extract içinde taşır.
+   */
   @Post("uploads/url")
+  @RequireTier("SILVER")
   @RequireCompanyPermission(ALL_SEAT_PERMISSIONS)
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

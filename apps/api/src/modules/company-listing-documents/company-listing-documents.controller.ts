@@ -15,6 +15,7 @@ import { RequireCompanyPermission } from "../company-auth/decorators/require-com
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyListingDocumentsService } from "./company-listing-documents.service";
+import { ListingDocUploadUrlDto, RegisterListingDocDto } from "./dto/listing-document.dto";
 
 @Controller("company/listings/:id/documents")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
@@ -35,7 +36,7 @@ export class CompanyListingDocumentsController {
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { fileName: string; mimeType: string; fileSize?: number },
+    @Body() body: ListingDocUploadUrlDto,
   ) {
     return this.service.requestUploadUrl(user, id, body);
   }
@@ -45,15 +46,7 @@ export class CompanyListingDocumentsController {
   register(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body()
-    body: {
-      key: string;
-      fileName: string;
-      mimeType: string;
-      kind?: import("@rothern/db").ListingDocKind;
-      /** Faz 3: doluysa belge o KALEME bağlanır (ilan seviyesi değil). */
-      itemId?: string;
-    },
+    @Body() body: RegisterListingDocDto,
   ) {
     return this.service.register(user, id, body);
   }

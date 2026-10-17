@@ -1,10 +1,25 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { AudienceSwitch, useAudience } from "./audience-switch";
-import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import {
+  HERO_COLUMN_CLASS,
+  HERO_LEAD_CLASS,
+  HERO_TITLE_CLASS,
+  HeroDecor,
+  HeroNotePlaceholder,
+  HeroSearchPlaceholder,
+  PanelHeroSearch,
+  SizedSlot,
+  heroBandClass,
+} from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { signupHref } from "@/lib/public/visibility";
+import { PANEL_TARGET, signupHref } from "@/lib/public/visibility";
+import { gateHref } from "@/lib/public/member-gate";
+import { NEW_REQUEST_PATH, STAGE_LABEL, useBuyingGate, useVerificationStage } from "./member-cta";
+import { usePublicBidGate } from "./listing-bid-cta";
 import { Suspense } from "react";
 
 /**
@@ -39,7 +54,60 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience } = useAudience();
+  const t = useTranslations("web.marketing.home");
   const supplier = audience === "supplier";
+  const tGate = useTranslations("web.marketplace.memberGate");
+  /* ALICI "TALEP AÇ" NOTU üyenin yetkisine göre (arayüz testi webA-03 gözden
+     geçirme, T-02): eskiden herkese `signupHref("talep")` — oturumlu üye kayıt
+     sayfasından sessizce `/company`ye atılıyordu. Misafir → kayıt; tam yetki ∧
+     izin → sihirbaz; firma doğrulanmamış → "Talep aç · Doğrulama gerekli"
+     (doğrulama sayfası); izin yok → not çizilmez. Kapı hidrasyondan önce
+     "guest" (sunucu HTML'i aynı). Ücretsiz dönem (2026-10-07): kademe adı yok. */
+  const stage = useVerificationStage();
+  const gate = useBuyingGate("listing");
+  const lockedHref = gateHref(gate);
+  const buyerCtaNote =
+    gate === "noPermission"
+      ? undefined
+      : {
+          text: t("buyerCtaText"),
+          /* Misafir ve tam yetkili yalın etiket; yalnız oturumlu ama firması
+             doğrulanmamış üyeye doğrulama eki. */
+          label: lockedHref ? tGate(STAGE_LABEL[stage], { label: t("buyerCtaLabel") }) : t("buyerCtaLabel"),
+          href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
+        };
+  /* TEDARİKÇİ "TEKLİF" NOTU da oturuma göre (arayüz testi kapanış webA-1):
+     eskiden herkese "Ücretsiz kaydolun" basılıyordu — oturumlu üye kayıt
+     sayfasından panele atılıyor, teklif izni olmayan üyeye de teklif çağrısı
+     yapılıyordu. Misafir → kayıt; tam yetki ∧ `sell:bid:submit` → panelin açık
+     talepler listesi; firma doğrulanmamış → "· Doğrulama gerekli" (doğrulama
+     sayfası); izin yok → not çizilmez (önce firmanın yetkisi, sonra izin). */
+  const tBid = useTranslations("web.marketplace.bidGate");
+  const bidGate = usePublicBidGate();
+  const bidLockedHref = gateHref(bidGate);
+  const supplierCtaNote =
+    bidGate === "noPermission"
+      ? undefined
+      : bidGate === "guest"
+        ? { text: t("supplierCtaText"), label: t("supplierCtaLabel"), href: signupHref("teklif") }
+        : {
+            text: t("supplierCtaText"),
+            label: bidLockedHref
+              ? tBid(STAGE_LABEL[stage], { label: t("supplierMemberCtaLabel") })
+              : t("supplierMemberCtaLabel"),
+            href: bidLockedHref ?? PANEL_TARGET.openRequests,
+          };
+  /* KABUĞUN AYIRDIĞI NOT YUVASI HERO'DA DA DURUR (kapanış kontrolü CL-01).
+     Sunucu HTML'i her zaman misafir hâlidir: kabuk iki yüzün MİSAFİR notuna yer
+     ayırır. Hidrasyondan sonra üyenin notu başka (etiketi farklı) ya da HİÇ yok
+     (izni yok: görüntüleyici; yalnız satınalma / yalnız satış rolünde öteki yüz).
+     Eskiden notu olmayan yüz yuvayı çizmiyordu: başlık ve arama kutusu hidrasyonda
+     28–52 px, yüz geçişinde 28–42 px oynuyordu. Kabuğun ölçtüğü iki misafir notu
+     artık her yüzde ölçü olarak durur (öteki yüzün gerçek notuyla birlikte);
+     yuva her rolde ve iki yüzde aynı not kümesinin en uzunu kadardır. Misafirde
+     küme değişmez (yinelenen ölçü çizilmez). */
+  const guestSupplierNote = { text: t("supplierCtaText"), label: t("supplierCtaLabel") };
+  const guestBuyerNote = { text: t("buyerCtaText"), label: t("buyerCtaLabel") };
 
   return (
     /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
@@ -80,15 +148,25 @@ export function HomeHero() {
         <AudienceSwitch className="pointer-events-auto bg-white/70 shadow-md shadow-zinc-950/5 ring-zinc-950/10 backdrop-blur" />
       </div>
 
-      <Suspense fallback={<HeroShell />}>
+      {/* Kabuk hero ile AYNI yüksekliği ayırır (NEW-04): not yuvasını iki yüzün
+          MİSAFİR notuyla — sunucu HTML'i her zaman misafir hâlidir (CL-01). */}
+      <Suspense fallback={<HeroShell note={guestSupplierNote} noteSizer={guestBuyerNote} />}>
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          title="Hangi talebe teklif vereceksiniz?"
+          title={t("supplierTitle")}
           plainTitle
-          lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
-          placeholder="Talep, sektör veya ürün arayın"
+          /* Öteki yüzün metinleri görünmez ölçü (2026-10-09): yeni başlıklar
+             telefonda farklı satır sayısına sarıyordu, geçişte arama kutusu
+             24 px oynuyordu. Blok artık iki yüzde aynı yükseklikte. */
+          titleSizer={t("buyerTitle")}
+          lead={t("supplierLead")}
+          leadSizer={t("buyerLead")}
+          placeholder={t("supplierPlaceholder")}
           action={MARKETPLACE_ROUTES.demands}
+          /* Talep aramaları SATIŞ son aramalarına yazılır (arayüz testi
+             D-312) — bu yüzde AI yok, portal kutudan çıkarılamıyordu. */
+          portal="satis"
           /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
              yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
              yapı — başlık · iki satır alt cümle · arama · not. */
@@ -96,29 +174,25 @@ export function HomeHero() {
           backdrop
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
-          ctaNote={{
-            text: "Teklif vermek ve alıcıyı görmek için",
-            label: "Ücretsiz kaydolun",
-            href: signupHref("teklif"),
-          }}
+          ctaNote={supplierCtaNote}
+          ctaNoteSizer={[buyerCtaNote, guestSupplierNote, guestBuyerNote]}
         />
       ) : (
         <PanelHeroSearch
           key="buyer"
-          title="Hangi ürünü arıyorsunuz?"
+          title={t("buyerTitle")}
           plainTitle
-          lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
-          placeholder="Ürün veya sektör arayın..."
+          titleSizer={t("supplierTitle")}
+          lead={t("buyerLead")}
+          leadSizer={t("supplierLead")}
+          placeholder={t("buyerPlaceholder")}
           action={MARKETPLACE_ROUTES.products}
           accent="blue"
           backdrop
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
-          ctaNote={{
-            text: "Aradığınız ürünü bulamadınız mı?",
-            label: "Talep aç",
-            href: signupHref("talep"),
-          }}
+          ctaNote={buyerCtaNote}
+          ctaNoteSizer={[supplierCtaNote, guestSupplierNote, guestBuyerNote]}
         />
       )}
       </Suspense>
@@ -126,39 +200,55 @@ export function HomeHero() {
   );
 }
 
-/* Bandın sınıfları ve arka plan maskesi `PanelHeroSearch` ile AYNI olmak
-   ZORUNDA — kabuk hidrasyondan önce onun yerinde duruyor, ayrışırsa sayfa
-   gözle görülür biçimde zıplar. Panel dosyası değiştirilemediği (kullanıcı
-   sınırı) ve sınıflar prop olarak dışa verilmediği için burada tekrarlanıyor;
-   hero'nun bandı elden geçerse burası da elden geçmeli. */
-const BAND =
-  "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
-  "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
-
 /**
- * Hidrasyondan önceki sessiz hero: beyaz bant, BAŞLIK ve alt cümle (fotoğraf
- * 2026-09-17'de kalktı). Arama
- * çubuğu YOK — o etkileşimli parça sınırın içinde kalıyor. Üst etiket de
- * YOK: hero'nun kendisi de basmıyor (yuva anahtarın), ikisi ayrışırsa
- * hidrasyonda başlık zıplar.
+ * Hidrasyondan önceki sessiz hero — sunucu HTML'inde hero'nun YERİNİ tutar
+ * (hero `useSearchParams` okuduğu için statik sayfada istemciye ertelenir).
+ *
+ * YERİ BİREBİR TUTAR (son canlı kontrol 2026-10-10, NEW-04). Bant içeriğini
+ * dikeyde ortalar; kabuk eskiden yalnız başlık ve alt cümleyi taşıyordu, arama
+ * formu ile not hidrasyonda belirince başlık 68–92 px yukarı zıplıyordu (her
+ * ziyaretçide, üç dilde; yerleşim kayması puanını da bozar). Kabuk artık
+ * hero'nun dört yuvasını aynı sırada ve aynı sınıflarla taşır:
+ *   başlık yuvası · alt cümle yuvası · arama formunun yer tutucusu · not yuvası.
+ * Bandın, sütunun ve yuvaların sınıfları `panel-hero-search.tsx`ten gelir
+ * (`heroBandClass`, `HERO_*`, `HeroSearchPlaceholder`, `HeroNotePlaceholder`);
+ * burada elle sınıf yazılmaz. Sözleşme testi `home-hero-shell.test.tsx` —
+ * hero'ya yükseklik katan bir parça eklenirse kabuğa da eklenir.
+ *
+ * ETKİLEŞİMLİ PARÇA YOK: arama alanı, düğme ve nottaki bağlantı kabukta
+ * çizilmez (yalnız görünmez yerleri durur) — hidrasyonda atılan bir alan
+ * yazılanı götürürdü. İstemci kancası da yok (statik üretim): notlar
+ * `HomeHero`dan prop olarak gelir. Üst etiket YOK: hero da basmıyor (yuva
+ * anahtarın).
  *
  * Sunucu her zaman TEDARİKÇİ yüzünü basar (2026-09-21), dolayısıyla kabuk da
  * tedarikçi metnini taşır (alıcı yüzü ancak istemci tercihi okunduktan sonra
  * çizilir). Metinler yukarıdaki `PanelHeroSearch key="supplier"` ile AYNI olmalı.
  */
-function HeroShell() {
+function HeroShell({
+  note,
+  noteSizer,
+}: {
+  /** Tedarikçi yüzünün MİSAFİR notu (görünmez yer) ve öteki yüzün misafir notu (ölçü). */
+  note?: { text: string; label: string };
+  noteSizer?: { text: string; label: string };
+}) {
+  const t = useTranslations("web.marketing.home");
   return (
-    <section aria-label="Hangi talebe teklif vereceksiniz?" className={BAND}>
+    <section aria-label={t("supplierTitle")} className={heroBandClass("emerald", SELLER_WIDGETS.length > 0)}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
       <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
-      <div className="mx-auto w-full max-w-4xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi talebe teklif vereceksiniz?
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
-          Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla.
-        </p>
+      <div className={HERO_COLUMN_CLASS}>
+        {/* Ölçü yuvaları hero ile AYNI (`SizedSlot`): kabuk öteki yüzün
+            metnine de yer ayırır, hidrasyonda başlık zıplamaz. */}
+        <SizedSlot sizer={t("buyerTitle")} sizerClassName={HERO_TITLE_CLASS}>
+          <h1 className={`[grid-area:1/1] ${HERO_TITLE_CLASS} text-zinc-950`}>{t("supplierTitle")}</h1>
+        </SizedSlot>
+        <SizedSlot sizer={t("buyerLead")} sizerClassName={HERO_LEAD_CLASS}>
+          <p className={`[grid-area:1/1] ${HERO_LEAD_CLASS} text-zinc-500`}>{t("supplierLead")}</p>
+        </SizedSlot>
+        <HeroSearchPlaceholder />
+        <HeroNotePlaceholder note={note} sizer={noteSizer} />
       </div>
     </section>
   );

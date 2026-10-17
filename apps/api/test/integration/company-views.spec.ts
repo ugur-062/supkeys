@@ -135,7 +135,7 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
     expect(r.viewerCities).toEqual([{ city: "Ankara", count: 1 }]);
     expect(r.connections.invitesReceived).toBe(1);
     expect(r.bids).toEqual({ submitted: 0, won: 0 });
-    expect(r.inquiries).toEqual({ received: 0, replied: 0, medianFirstReplyHours: null });
+    expect(r.inquiries).toEqual({ received: 0, replied: 0, medianFirstReplyHours: null, replyWindowDays: 90 });
   });
 
   it("temizlik: 180 günden eski satırlar silinir", async () => {
@@ -148,5 +148,26 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
     });
     expect(await svc().purgeExpired()).toBe(1);
     expect(await prisma.companyView.count()).toBe(1);
+  });
+
+  it("yanıt süresi cron'u updatedAt'i ilerletmez; yalnız değişen firmayı yazar; pencereden düşen temizlenir (MU-10)", async () => {
+    const me = await publicCompany();
+    const gone = await publicCompany();
+    const old = new Date("2026-01-01T00:00:00Z");
+    await prisma.$executeRaw`UPDATE "companies" SET "updatedAt" = ${old} WHERE "id" IN (${me.company.id}, ${gone.company.id})`;
+    await prisma.$executeRaw`UPDATE "companies" SET "medianReplyHours" = ${5} WHERE "id" = ${gone.company.id}`;
+    const asked = new Date(Date.now() - 3 * 3_600_000);
+    const inq = await prisma.publicInquiry.create({
+      data: { companyId: me.company.id, productId: me.item.id, name: "Ali", email: "ali@x.test", message: "fiyat?", tokenHash: "h-mu10", expiresAt: new Date(Date.now() + 86_400_000), createdAt: asked },
+    });
+    await prisma.publicInquiryReply.create({ data: { inquiryId: inq.id, authorId: me.user.id, body: "ok", createdAt: new Date(asked.getTime() + 2 * 3_600_000) } });
+    const first = await svc().recomputeReplyTimes();
+    expect(first.updated).toBe(2);
+    const after = await prisma.company.findMany({ where: { id: { in: [me.company.id, gone.company.id] } }, select: { id: true, medianReplyHours: true, updatedAt: true } });
+    expect(after.find((c) => c.id === me.company.id)?.medianReplyHours).toBe(2);
+    expect(after.find((c) => c.id === gone.company.id)?.medianReplyHours).toBeNull();
+    expect(after.every((c) => c.updatedAt.getTime() === old.getTime())).toBe(true);
+    // Değer aynı kalınca hiç yazılmaz.
+    expect((await svc().recomputeReplyTimes()).updated).toBe(0);
   });
 });

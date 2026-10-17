@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminMeRefresher } from "@/components/layout/two-factor-setup-notice";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { usePathname } from "next/navigation";
 
@@ -8,6 +9,10 @@ import { usePathname } from "next/navigation";
  * seviyesinde korur. Böylece yeni bir admin sayfası eklendiğinde guard'ı
  * unutma riski yok (önceden her sayfa manuel <RequireAdminAuth> sarıyordu;
  * biri unutulursa korumasız render olurdu).
+ *
+ * AdminMeRefresher her korumalı sayfada /me'yi tazeler: 2FA zorunlu ama
+ * kurulmamış admin (MU-01) eski snapshot'la da Ayarlar'a kilitlenir. Nedenini
+ * anlatan uyarı kartı Ayarlar sayfasının içinde (akışta) çizilir — GB1.
  */
 export default function AdminLayout({
   children,
@@ -16,5 +21,10 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   if (pathname === "/admin/login") return <>{children}</>;
-  return <RequireAdminAuth>{children}</RequireAdminAuth>;
+  return (
+    <RequireAdminAuth>
+      {children}
+      <AdminMeRefresher />
+    </RequireAdminAuth>
+  );
 }

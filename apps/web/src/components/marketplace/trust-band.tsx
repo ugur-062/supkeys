@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import {
   CheckBadgeIcon,
   LockClosedIcon,
@@ -13,39 +14,23 @@ import {
  * İçerik her zaman DOĞRU: envanterden bağımsız, ürünün nasıl çalıştığını
  * anlatıyor. Az kayıtlı bir pazar yerinde sayfayı ayakta tutan şey bu.
  */
-const STEPS = [
-  {
-    icon: UsersIcon,
-    title: "Kaydol ve firmanı tanıt",
-    body: "Tek hesapla hem alıcı hem satıcı olursun. Faaliyet alanını ve kategorilerini seç; eşleşen talepler sana gelsin.",
-  },
-  {
-    icon: LockClosedIcon,
-    title: "Kapalı zarf teklif ver",
-    body: "Teklifini yalnız talep sahibi görür. Rakip tedarikçiler ne teklifini, ne kimliğini, ne de kaç teklif geldiğini görebilir.",
-  },
-  {
-    icon: CheckBadgeIcon,
-    title: "Siparişe dönüştür",
-    body: "Kazandırma kararıyla sipariş otomatik oluşur; teslim ve ödeme adımlarını aynı panelden takip edersin.",
-  },
-];
-
-/** Adımlar dışa açık — `/nasil-calisir` aynı üç adımı basar (tek kaynak). */
-export const HOW_IT_WORKS_STEPS = STEPS;
+const STEP_ICONS = [UsersIcon, LockClosedIcon, CheckBadgeIcon] as const;
 
 export function TrustBand() {
+  const t = useTranslations("web.marketing.trustBand");
+  const STEPS = ([1, 2, 3] as const).map((n, i) => ({
+    icon: STEP_ICONS[i]!,
+    title: t(`step${n}Title`),
+    body: t(`step${n}Body`),
+  }));
   return (
     <section id="nasil-calisir" className="scroll-mt-24 border-t border-zinc-950/5 bg-zinc-50">
       <div className="mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8">
-        <p className="text-sm/6 font-semibold text-emerald-700">Nasıl çalışır</p>
+        <p className="text-sm/6 font-semibold text-emerald-700">{t("eyebrow")}</p>
         <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-4xl">
-          Talepten teklife, tekliften siparişe
+          {t("title")}
         </h2>
-        <p className="mt-4 max-w-2xl text-lg/8 text-pretty text-zinc-500">
-          İncelemek ücretsiz. Teklif vermek ve firma detayları için ücretsiz
-          hesap; komisyon alınmaz.
-        </p>
+        <p className="mt-4 max-w-2xl text-lg/8 text-pretty text-zinc-500">{t("lead")}</p>
 
         {/* Application UI — Data display / Stats / "with shared borders":
             paylaşılan kenarlı ızgara. Ayrı ayrı kart yerine tek bir yüzey

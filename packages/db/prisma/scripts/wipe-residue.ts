@@ -13,8 +13,11 @@
  * platform adminine ait olmayan Supabase Auth hesapları.
  *
  * KORUNAN: kategori kataloğu, kategori nitelikleri, döviz kurları, platform
- * adminleri (ve Supabase hesapları), zaman tasarrufu ayarları, migration
- * geçmişi.
+ * adminleri (ve Supabase hesapları), zaman tasarrufu ayarları, dünya şehir
+ * listesi (`geo_cities`, 2026-09-27 — başvuru verisi; boşalırsa yabancı şehir
+ * sayfaları 404 verir ve `seed-geo-cities` yeniden koşana dek öyle kalır;
+ * `companies.cityId` bilerek FK'sız olduğundan FK ön kontrolü bunu
+ * yakalamaz), migration geçmişi.
  *
  * EMNİYETLER:
  *  1. Varsayılan KURU ÇALIŞMA — sayar, dokunmaz.
@@ -47,7 +50,7 @@ for (const line of readFileSync(envFile, "utf8").split("\n")) {
 import { Prisma, PrismaClient } from "@prisma/client";
 
 /** Model adları — bunların tabloları ASLA boşaltılmaz. */
-const KORUNAN = new Set(["Category", "CategoryAttribute", "ExchangeRate", "PlatformAdmin", "TimeSavingsConfig"]);
+const KORUNAN = new Set(["Category", "CategoryAttribute", "ExchangeRate", "GeoCity", "PlatformAdmin", "TimeSavingsConfig"]);
 /**
  * Boşaltılmayan ama boş OLMASI şart olan: `time_savings_configs` (korunan)
  * `companies`e FK taşıdığı için TRUNCATE listesine giremez. Firmaları
@@ -116,7 +119,7 @@ async function main() {
     (await prisma.companyUser.findMany({ select: { authId: true } })).map((u) => u.authId).filter(Boolean),
   );
   console.log(`🔐 Supabase Auth: ${auth.length} hesap · admin ${auth.length - sahipsiz.length} (korunur) · silinecek ${sahipsiz.length}`);
-  console.log(`🛡️  KORUNAN: kategori ${await prisma.category.count()} · nitelik ${await prisma.categoryAttribute.count()} · kur ${await prisma.exchangeRate.count()} · admin ${admins.length} · zaman ayarı ${await prisma.timeSavingsConfig.count()}`);
+  console.log(`🛡️  KORUNAN: kategori ${await prisma.category.count()} · nitelik ${await prisma.categoryAttribute.count()} · kur ${await prisma.exchangeRate.count()} · admin ${admins.length} · zaman ayarı ${await prisma.timeSavingsConfig.count()} · şehir ${await prisma.geoCity.count()}`);
 
   const sql = `TRUNCATE TABLE ${tables.map((t) => q(t.table)).join(", ")}`;
 

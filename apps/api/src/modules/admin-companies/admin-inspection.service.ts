@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -5,11 +6,58 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { Prisma, type CompanyOrderStatus } from "@rothern/db";
+import { Prisma, type CompanyOrderStatus, type ListingType } from "@rothern/db";
+import { encodeSystemText } from "@rothern/shared";
+import { dateParam } from "../../common/notifications/notification-params";
+import { maskEmail } from "../../common/logging/mask-email";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { MAX_LISTING_HORIZON_MS } from "../../common/constants/money";
 import { AuditService } from "../audit/audit.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
+import { CompanyListingsService } from "../company-listings/services/company-listings.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
+import type { NotificationPortal } from "../notifications/notification.service";
+
+/**
+ * Talep SAHİBİNİN portalı (CompanyListingsService.ownerPortal aynası): ALIM
+ * talebine müdahale satın alma tarafının bildirimidir.
+ */
+function ownerPortalOf(type: ListingType): NotificationPortal {
+  return type === "ALIM" ? "satinalma" : "satis";
+}
+
+/**
+ * Talebe dair müdahale bildiriminin bağlantısı: sahip, etkilenen talebin
+ * detayına ("Alım Talebini Gör" → /company/ilan/<id>) gider ve in-app satır
+ * talebe bağlanır. Önceden CTA genel "Rothern'e Git" → /company idi ve
+ * listingId boş kalıyordu (arayüz testi son tur).
+ */
+function ownerListingLink(listingId: string) {
+  return {
+    listingId,
+    cta: {
+      labelKey: "api.notifications.listings.cta.viewRequest" as const,
+      path: `/company/ilan/${listingId}`,
+    },
+  };
+}
+
+/**
+ * Admin sipariş iptali bildiriminin taraf portalı ve bağlantısı: sipariş
+ * ekranlarında alıcı her zaman satın alma, satıcı satış portalındadır
+ * (CompanyOrdersService bildirimleriyle aynı kural); CTA iptal edilen
+ * siparişin detayına gider ("Siparişi Gör" → /company/siparis/<id>).
+ */
+export function orderCancelLink(orderId: string, side: "buyer" | "seller") {
+  return {
+    portal: (side === "buyer" ? "satinalma" : "satis") as NotificationPortal,
+    cta: {
+      labelKey: "api.notifications.listings.cta.viewOrder" as const,
+      path: `/company/siparis/${orderId}`,
+    },
+  };
+}
 
 /**
  * Admin inceleme + müdahale (Faz 5) — "satın alma talebimde ne oldu / siparişim takıldı"
@@ -26,7 +74,88 @@ export class AdminInspectionService {
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly realtime?: RealtimeService,
+    // Katılımcı (davetli + teklifçi) bildirimi — firma tarafının tek yolu.
+    // @Optional yalnız elle kurulan test rig'leri için; Nest her zaman enjekte eder.
+    @Optional() private readonly listings?: CompanyListingsService,
+    // Herkese açık talep sayfası/sitemap/IndexNow tazelemesi — durum ya da
+    // kapanış değiştiren diğer tüm yollar (cron, sahip kapanış değişikliği,
+    // iptal) çağırıyor; admin müdahalesi de (derin denetim LU-03).
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
+
+  /** İnceleme listelerinin satır tavanı; aşılırsa `truncated` döner. */
+  private static readonly LIST_CAP = 100;
+
+  /**
+   * Admin kapanış tarihi üst sınırı + yayın açılışı kuralı — sahip tarafındaki
+   * `changeClosingTime` ile AYNI (derin denetim LU-03): IsISO8601 "2062-10-05"
+   * gibi bir yazım hatasını kabul ediyordu, talep onlarca yıl OPEN kalıyordu;
+   * embargolu (bidsOpenAt gelecekte) talep açılıştan önceki bir kapanışla
+   * yeniden açılabiliyordu.
+   */
+  private assertClosesAtBounds(closesAt: Date, bidsOpenAt: Date | null) {
+    if (closesAt.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiCokIleriEnFazla"));
+    }
+    if (bidsOpenAt && closesAt.getTime() <= bidsOpenAt.getTime()) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.kapanisTarihiAcilisTarihindenSonraOlmali"),
+      );
+    }
+  }
+
+  /**
+   * Admin müdahalesi talep sahibinin YANINDA davetli ve teklif veren firmalara
+   * da bildirilir (derin denetim MU-04): yeniden açılan / uzatılan talebi
+   * öğrenmeyen tedarikçi teklif veremez. Best-effort — müdahale yanıtını
+   * bekletmez, hata yalnız loglanır.
+   */
+  private notifyParticipants(
+    listingId: string,
+    opts: Parameters<CompanyListingsService["notifyListingParticipants"]>[1],
+  ) {
+    if (!this.listings) return;
+    void this.listings.notifyListingParticipants(listingId, opts).catch((err) =>
+      this.logger.error(
+        `admin intervention participant notification failed (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+  }
+
+  /**
+   * Talep odası + sahip + davetli/teklifçi firma odalarına realtime ping.
+   * Best-effort: durum değişikliği ve audit zaten yazıldı; katılımcı okuması
+   * ya da ping düşerse müdahale 500 dönmez ve ardından gelen bildirimler
+   * yine çalışır — hata yalnız loglanır.
+   */
+  private async pingListingParties(listingId: string, ownerCompanyId: string) {
+    if (!this.realtime) return;
+    try {
+      const [invs, bids] = await Promise.all([
+        this.prisma.listingInvitation.findMany({
+          where: { listingId },
+          select: { invitedCompanyId: true },
+        }),
+        this.prisma.listingBid.findMany({
+          where: { listingId },
+          select: { bidderCompanyId: true },
+        }),
+      ]);
+      this.realtime.pingListing(listingId, [
+        ownerCompanyId,
+        ...invs.map((i) => i.invitedCompanyId),
+        ...bids.map((b) => b.bidderCompanyId),
+      ]);
+    } catch (err) {
+      this.logger.warn(
+        `admin intervention realtime ping failed (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   // ── İLANLAR ────────────────────────────────────────────────
 
@@ -47,9 +176,11 @@ export class AdminInspectionService {
         _count: { select: { bids: true, invitations: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      // Tavan + 1: sessiz kesme yerine `truncated` bayrağı (derin denetim LU-03).
+      take: AdminInspectionService.LIST_CAP + 1,
     });
-    return rows.map((l) => ({
+    const truncated = rows.length > AdminInspectionService.LIST_CAP;
+    const items = rows.slice(0, AdminInspectionService.LIST_CAP).map((l) => ({
       id: l.id,
       number: l.number,
       title: l.title,
@@ -63,6 +194,7 @@ export class AdminInspectionService {
       invitationCount: l._count.invitations,
       createdAt: l.createdAt,
     }));
+    return { items, truncated };
   }
 
   /** Tam ilan görünümü — kalemler, davetliler, TÜM teklifler, siparişler. */
@@ -138,6 +270,7 @@ export class AdminInspectionService {
             currency: true,
             status: true,
             version: true,
+            submitCount: true,
             round: true,
             submittedAt: true,
             deliveryDate: true,
@@ -163,7 +296,7 @@ export class AdminInspectionService {
         },
       },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     return l;
   }
 
@@ -180,26 +313,36 @@ export class AdminInspectionService {
       data: { status: "CLOSED", cancelReason: reason.trim() },
     });
     if (done.count !== 1) {
-      throw new BadRequestException("Yalnız AÇIK ilan kapatılabilir");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlanKapatilabilir"));
     }
     await this.audit.log({
       action: "admin.listing.closed",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { reason },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlanınız yönetici tarafından kapatıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınız platform yöneticisi tarafından teklife kapatıldı. Gerekçe: ${reason.trim()}`,
+    this.seo?.listingChanged(id);
+    await this.pingListingParties(id, l.companyId);
+    // Katılımcılara gerekçe GİTMEZ (şikayet/moderasyon ayrıntısı iç bilgi).
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.adminClosed.subject",
+      headingKey: "api.notifications.listings.adminClosed.title",
+      bodyKey: "api.notifications.listings.adminClosed.body",
+      type: "listing_closed",
+    });
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_closed",
+      portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
+      subjectKey: "api.notifications.adminInspection.ilanKapatildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanKapatildiGovde",
       ],
-      "admin_listing_closed",
-    );
+      params: { baslik: l.title, gerekce: reason.trim() },
+    });
     return { ok: true };
   }
 
@@ -211,39 +354,56 @@ export class AdminInspectionService {
   async extendListing(id: string, closesAtRaw: string, adminId: string) {
     const l = await this.requireListing(id);
     if (l.status !== "OPEN") {
-      throw new BadRequestException("Yalnız AÇIK ilanın süresi uzatılabilir");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlaninSuresiUzatilabilir"));
     }
     const closesAt = new Date(closesAtRaw);
     if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date()) {
-      throw new BadRequestException("Kapanış gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.kapanisGelecekteOlmali"));
     }
     if (l.closesAt && closesAt <= l.closesAt) {
       throw new BadRequestException(
-        "Yalnız uzatma yapılabilir — kısaltma teklif verenlere haksızlık olur",
+        i18nMessage("api.adminCompanies.yalnizUzatmaYapilabilirKisaltmaTeklifVerenlere"),
       );
     }
-    await this.prisma.listing.update({
-      where: { id },
+    this.assertClosesAtBounds(closesAt, l.bidsOpenAt);
+    // Koşullu-atomik (sahip tarafındaki F2 ile simetrik): okuma ile yazma
+    // arasında cron talebi değerlendirmeye alırsa kapanış artık-OPEN-olmayan
+    // talebe yazılmaz, sahibe yanlış "süre uzatıldı" bildirimi gitmez.
+    const done = await this.prisma.listing.updateMany({
+      where: { id, status: "OPEN" },
       data: { closesAt, closingReminderSentAt: null },
     });
+    if (done.count !== 1) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlaninSuresiUzatilabilir"));
+    }
     await this.audit.log({
       action: "admin.listing.extended",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { from: l.closesAt, to: closesAt },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlan kapanış süresi uzatıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınızın kapanış tarihi destek talebiniz üzerine ${closesAt.toLocaleString("tr-TR")} olarak güncellendi.`,
+    this.seo?.listingChanged(id); // validThrough değişti
+    await this.pingListingParties(id, l.companyId);
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.closingChanged.subject",
+      headingKey: "api.notifications.listings.closingChanged.title",
+      bodyKey: "api.notifications.listings.closingChanged.body",
+      params: { direction: "extended", closesAt: dateParam(closesAt, "dateTime") },
+      type: "listing_closing_changed",
+    });
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_extended",
+      portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
+      subjectKey: "api.notifications.adminInspection.ilanUzatildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanUzatildiGovde",
       ],
-      "admin_listing_extended",
-    );
+      params: { baslik: l.title, tarih: dateParam(closesAt, "dateTime") },
+    });
     return { ok: true, closesAt };
   }
 
@@ -261,47 +421,63 @@ export class AdminInspectionService {
         companyId: true,
         title: true,
         status: true,
+        type: true,
         awardedAt: true,
+        bidsOpenAt: true,
         _count: { select: { orders: true } },
       },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     if (l.awardedAt || l._count.orders > 0) {
       throw new BadRequestException(
-        "Kazandırma yapılmış ilan yeniden açılamaz",
+        i18nMessage("api.adminCompanies.kazandirmaYapilmisIlanYenidenAcilamaz"),
       );
     }
     const closesAt = new Date(closesAtRaw);
     if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date()) {
-      throw new BadRequestException("Kapanış gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.kapanisGelecekteOlmali"));
     }
+    this.assertClosesAtBounds(closesAt, l.bidsOpenAt);
     const done = await this.prisma.listing.updateMany({
       where: { id, status: { in: ["CLOSED", "IN_AWARD"] } },
-      data: { status: "OPEN", closesAt, closingReminderSentAt: null },
+      // Moderasyon kapatmasının gerekçesi (cancelReason) temizlenir — açık
+      // talepte eski "Kapatma gerekçesi" bandı kalmasın (arayüz testi D-140).
+      data: { status: "OPEN", closesAt, closingReminderSentAt: null, cancelReason: null },
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız kapalı/değerlendirmedeki (kazandırılmamış) ilan yeniden açılabilir",
+        i18nMessage("api.adminCompanies.yalnizKapaliDegerlendirmedekiKazandirilmamisIlan"),
       );
     }
     await this.audit.log({
       action: "admin.listing.reopened",
       actorType: "admin",
       actorId: adminId,
+      tenantId: l.companyId,
       entityType: "listing",
       entityId: id,
       metadata: { closesAt },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlanınız yeniden açıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınız destek talebiniz üzerine yeniden teklife açıldı. Yeni kapanış: ${closesAt.toLocaleString("tr-TR")}.`,
+    this.seo?.listingChanged(id);
+    await this.pingListingParties(id, l.companyId);
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.adminReopened.subject",
+      headingKey: "api.notifications.listings.adminReopened.title",
+      bodyKey: "api.notifications.listings.adminReopened.body",
+      params: { closesAt: dateParam(closesAt, "dateTime") },
+      // Kapanış ailesi (tercih `listingClosed`) — yeni kapanışla yeniden açılış.
+      type: "listing_closing_changed",
+    });
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_reopened",
+      portal: ownerPortalOf(l.type),
+      ...ownerListingLink(id),
+      subjectKey: "api.notifications.adminInspection.ilanYenidenAcildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanYenidenAcildiGovde",
       ],
-      "admin_listing_reopened",
-    );
+      params: { baslik: l.title, tarih: dateParam(closesAt, "dateTime") },
+    });
     return { ok: true, closesAt };
   }
 
@@ -325,9 +501,11 @@ export class AdminInspectionService {
         seller: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      // Tavan + 1: sessiz kesme yerine `truncated` bayrağı (derin denetim LU-03).
+      take: AdminInspectionService.LIST_CAP + 1,
     });
-    return rows.map((o) => ({
+    const truncated = rows.length > AdminInspectionService.LIST_CAP;
+    const items = rows.slice(0, AdminInspectionService.LIST_CAP).map((o) => ({
       id: o.id,
       number: o.number,
       status: o.status,
@@ -341,6 +519,7 @@ export class AdminInspectionService {
       // Durum etiketi teslim şekline göre ("Gönderildi"/"Teslime Hazır").
       deliveryTerm: o.deliveryTerm,
     }));
+    return { items, truncated };
   }
 
   /** Tam sipariş görünümü — kalemler + ödemeler + belgeler + zaman çizgisi. */
@@ -423,7 +602,7 @@ export class AdminInspectionService {
         },
       },
     });
-    if (!o) throw new NotFoundException("Sipariş bulunamadı");
+    if (!o) throw new NotFoundException(i18nMessage("api.adminCompanies.siparisBulunamadi"));
     // F5 (X7 frontend kardeşi): onaylı ödeme toplamı DECIMAL ile burada hesaplanır
     // (INV-MONEY-1) → admin sayfası float `reduce` ile yeniden toplamasın; kuruş
     // sapması olmadan "Onaylı: X" ve iptal-uyarısı bu değeri kullanır.
@@ -461,7 +640,7 @@ export class AdminInspectionService {
         sellerCompanyId: true,
       },
     });
-    if (!order) throw new NotFoundException("Sipariş bulunamadı");
+    if (!order) throw new NotFoundException(i18nMessage("api.adminCompanies.siparisBulunamadi"));
     // Admin, taraflardan farklı olarak IN_DELIVERY'deki takılmış siparişi de
     // iptal edebilir (destek müdahalesi); DELIVERED/COMPLETED dokunulmaz.
     const CANCELABLE: CompanyOrderStatus[] = [
@@ -476,7 +655,7 @@ export class AdminInspectionService {
       const status = rows[0]?.status;
       if (!status || !CANCELABLE.includes(status)) {
         throw new BadRequestException(
-          "Sipariş bu durumda iptal edilemez (teslim/tamamlanmış olabilir)",
+          i18nMessage("api.adminCompanies.siparisBuDurumdaIptalEdilemezTeslim"),
         );
       }
       const confirmedPayments = await tx.companyOrderPayment.count({
@@ -484,19 +663,20 @@ export class AdminInspectionService {
       });
       if (confirmedPayments > 0) {
         throw new BadRequestException(
-          "Onaylı ödemesi olan sipariş iptal edilemez — önce iade süreci",
+          i18nMessage("api.adminCompanies.onayliOdemesiOlanSiparisIptalEdilemez"),
         );
       }
       const done = await tx.companyOrder.updateMany({
         where: { id, status: { in: CANCELABLE } },
         data: {
           status: "CANCELLED",
-          cancelReason: `[Yönetici] ${reason.trim()}`,
+          // Kodlu: firma ekranı "[Yönetici]" önekini okuyucunun dilinde çizer.
+          cancelReason: encodeSystemText("ADMIN", reason),
           cancelledAt: new Date(),
         },
       });
       if (done.count !== 1) {
-        throw new BadRequestException("Sipariş durumu az önce değişti");
+        throw new BadRequestException(i18nMessage("api.adminCompanies.siparisDurumuAzOnceDegisti"));
       }
     });
     // Dalga B (denetim 2026-08-26 Parça 9): iptal İLANA dokunmaz — kazandırma
@@ -517,9 +697,14 @@ export class AdminInspectionService {
       action: "admin.order.cancelled",
       actorType: "admin",
       actorId: adminId,
+      // Firma Denetim sekmesi firma kimligiyle arar: alici tenantId, satici
+      // `counterpartyCompanyId` (AuditService.query) — mudahale iki tarafin
+      // sekmesinde de gorunur (arayuz testi api2-02 yeniden dogrulama).
+      tenantId: order.buyerCompanyId,
       entityType: "order",
       entityId: id,
       metadata: {
+        counterpartyCompanyId: order.sellerCompanyId,
         reason,
         listingId: order.listingId ?? null,
         // "Bu iptalle ilan canlı siparişsiz kaldı" — destek/uyum izi.
@@ -531,29 +716,51 @@ export class AdminInspectionService {
       order.buyerCompanyId,
       order.sellerCompanyId,
     ]);
-    const label = order.number ? `${order.number} numaralı` : "İlgili";
-    for (const companyId of [order.buyerCompanyId, order.sellerCompanyId]) {
-      void this.companies.notifyCompany(
-        companyId,
-        "Sipariş yönetici tarafından iptal edildi",
-        [
-          "Merhaba,",
-          `${label} sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: ${reason.trim()}`,
-          ...(stranded
-            ? [
-                "Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
-              ]
-            : []),
+    // Sipariş numarası varsa "N numaralı sipariş", yoksa "İlgili sipariş":
+    // cümlenin ÖZNESİ değiştiği için iki ayrı anahtar (çeviride sözcük sırası
+    // değişebilir, parça birleştirmek yanlış olurdu).
+    const numarali = !!order.number;
+    // Taraf başına metin (arayüz testi D-164): "talebin canlı siparişi kalmadı,
+    // yeni tedarikçiyle devam…" tavsiyesi YALNIZ alıcıya gider — satıcıya
+    // alıcı tavsiyesi ve "satın alma talebi" terimi gitmez.
+    for (const side of ["buyer", "seller"] as const) {
+      const companyId =
+        side === "buyer" ? order.buyerCompanyId : order.sellerCompanyId;
+      const buyerStranded = stranded && side === "buyer";
+      void this.companies.notifyCompany(companyId, {
+        type: "admin_order_cancelled",
+        // Taraf portalı + siparişe giden CTA (arayüz testi kapanış, api-1
+        // NEW-2): alıcı satırı satın alma, satıcı satırı satış tarafına ait;
+        // portal verilmeyince satır nötr yazılıp alıcı metni Satış süzgecinde
+        // rozetsiz görünüyor, CTA genel "Rothern'e Git" → /company idi.
+        ...orderCancelLink(id, side),
+        subjectKey: "api.notifications.adminInspection.siparisIptalBaslik",
+        bodyKey: buyerStranded
+          ? numarali
+            ? "api.notifications.adminInspection.siparisIptalGovdeNumaraliSahipsiz"
+            : "api.notifications.adminInspection.siparisIptalGovdeSahipsiz"
+          : numarali
+            ? "api.notifications.adminInspection.siparisIptalNumarali"
+            : "api.notifications.adminInspection.siparisIptalGenel",
+        paragraphKeys: [
+          numarali
+            ? "api.notifications.adminInspection.siparisIptalNumarali"
+            : "api.notifications.adminInspection.siparisIptalGenel",
+          buyerStranded && "api.notifications.adminInspection.siparisIptalSahipsizTalep",
         ],
-        "admin_order_cancelled",
-      );
+        params: { numara: order.number ?? "", gerekce: reason.trim() },
+      });
     }
     return { ok: true };
   }
 
   // ── BAĞLANTILAR + DAVETLER ─────────────────────────────────
 
-  async listConnections(companyId: string) {
+  /**
+   * `maskEmails`: salt-okuma SUPPORT rolü üçüncü kişilerin (davet edilen,
+   * henüz üye olmayan) e-posta adreslerini MASKELİ görür (arayüz testi D-182).
+   */
+  async listConnections(companyId: string, opts: { maskEmails?: boolean } = {}) {
     const [connections, referrals] = await Promise.all([
       this.prisma.companyConnection.findMany({
         where: {
@@ -598,44 +805,83 @@ export class AdminInspectionService {
         other:
           c.inviterCompanyId === companyId ? c.invitee : c.inviter,
       })),
-      referralInvites: referrals,
+      referralInvites: opts.maskEmails
+        ? referrals.map((r) => ({ ...r, email: maskEmail(r.email) }))
+        : referrals,
     };
   }
 
   /** Bekleyen bağlantı davetini iptal et (ACTIVE bağlantıya dokunulmaz). */
   async revokeConnectionInvite(id: string, adminId: string) {
+    // Olmayan kimlik 404 (arayüz testi D-183) — 400 yalnız BEKLEYEN olmayan
+    // (ör. ACTIVE) gerçek kayıt için.
+    const exists = await this.prisma.companyConnection.findUnique({
+      where: { id },
+      select: { id: true, inviterCompanyId: true, inviteeCompanyId: true },
+    });
+    if (!exists) {
+      throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
+    }
     const done = await this.prisma.companyConnection.deleteMany({
       where: { id, status: "PENDING" },
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız BEKLEYEN bağlantı daveti iptal edilebilir",
+        i18nMessage("api.adminCompanies.yalnizBekleyenBaglantiDavetiIptalEdilebilir"),
       );
     }
     await this.audit.log({
       action: "admin.connection_invite.revoked",
       actorType: "admin",
       actorId: adminId,
+      // Iki tarafin Denetim sekmesi: davet eden tenantId, davet edilen
+      // counterpartyCompanyId (siparis iptaliyle ayni kural).
+      tenantId: exists.inviterCompanyId,
       entityType: "connection",
       entityId: id,
+      metadata: { counterpartyCompanyId: exists.inviteeCompanyId },
     });
     return { ok: true };
   }
 
   /** Bekleyen referans (e-posta) davetini iptal et. */
   async revokeReferralInvite(id: string, adminId: string) {
-    const done = await this.prisma.companyReferralInvite.deleteMany({
-      where: { id, status: "PENDING" },
+    // Derin denetim MU-04: satır SİLİNMEZ, CANCELLED olur — firma panelindeki
+    // iptal (B5-4) ve paket düşüşüyle aynı kural. Silme, cascade ile gönderilmiş
+    // dış talep davetlerini ve adres başına 7 gün freni / günlük tavan
+    // geçmişini de götürüyordu. Kuyruktaki talep davetleri de iptal edilir.
+    const exists = await this.prisma.companyReferralInvite.findUnique({
+      where: { id },
+      select: { id: true, inviterCompanyId: true },
     });
+    if (!exists) {
+      throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
+    }
+    const [done] = await this.prisma.$transaction([
+      this.prisma.companyReferralInvite.updateMany({
+        where: { id, status: "PENDING" },
+        data: { status: "CANCELLED" },
+      }),
+      this.prisma.externalListingInvite.updateMany({
+        where: {
+          referralInviteId: id,
+          state: "QUEUED",
+          referralInvite: { status: "CANCELLED" },
+        },
+        data: { state: "CANCELLED", cancelReason: "REFERRAL_CANCELLED" },
+      }),
+    ]);
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız BEKLEYEN referans daveti iptal edilebilir",
+        i18nMessage("api.adminCompanies.yalnizBekleyenReferansDavetiIptalEdilebilir"),
       );
     }
     await this.audit.log({
       action: "admin.referral_invite.revoked",
       actorType: "admin",
       actorId: adminId,
+      // Davet eden firmanin Denetim sekmesinde gorunur.
+      tenantId: exists.inviterCompanyId,
       entityType: "referral_invite",
       entityId: id,
     });
@@ -645,9 +891,17 @@ export class AdminInspectionService {
   private async requireListing(id: string) {
     const l = await this.prisma.listing.findUnique({
       where: { id },
-      select: { id: true, companyId: true, title: true, status: true, closesAt: true },
+      select: {
+        id: true,
+        companyId: true,
+        title: true,
+        status: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        type: true,
+      },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     return l;
   }
 }

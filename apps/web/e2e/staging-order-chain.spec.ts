@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry, openAs } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry, openAs, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * PARÇA 3 — SATIN ALMA ZİNCİRİ (staging, QA hesapları).
@@ -23,16 +23,8 @@ test("talep → teklif → kazandırma → sipariş → tamamlandı", async ({ b
 
   // ── Alıcı kurulumu (API) ──────────────────────────────────────────────
   const buyer = await apiSession(QA.aliciKurucu);
-  const addrRes = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Depo ${stamp}`,
-    addressLine: "Organize Sanayi 1. Cadde No 5",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addrRes.status, JSON.stringify(addrRes.body)).toBeLessThan(300);
-  const addressId: string = addrRes.body.id;
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
 
   const listingRes = await apiPost(buyer, "/company/listings", {
     type: "ALIM",

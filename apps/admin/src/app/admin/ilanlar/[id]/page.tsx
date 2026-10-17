@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink, useCanOpenCompany } from "@/components/ui/company-link";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -12,11 +13,19 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import {
   useAdminListingDetail,
   useListingIntervention,
 } from "@/hooks/use-admin-inspection";
-import { safeFormat } from "@/lib/date";
+import {
+  extendMinDateTimeLocal,
+  listingMaxDateTimeLocal,
+  nextDateTimeLocal,
+  safeFormat,
+} from "@/lib/date";
+import { isSealedListing } from "@/lib/listing-format";
+import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
   fmtMoney,
@@ -28,22 +37,42 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 
 function ListingInspection({ id }: { id: string }) {
-  const { data: l, isLoading, isError, refetch } = useAdminListingDetail(id);
+  const { data: l, isLoading, isError, error, refetch } = useAdminListingDetail(id);
   const act = useListingIntervention(id);
   const [dialog, setDialog] = useState<"close" | "extend" | "reopen" | null>(
     null,
   );
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
+  // Kapat/uzat/yeniden aç SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
+  const { admin } = useAdminAuth();
+  const canIntervene = canAdminDo(admin?.role, "listingIntervention");
+  // Firma detayı Destek rolüne kapalı → geri bağlantı düz metin (T-09).
+  const canOpenCompany = useCanOpenCompany();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
       </div>
+    );
+  }
+  // Var olmayan ilan: "Tekrar dene" yine 404 verir (arayüz testi D-215).
+  // Ayrı liste sayfası yok — ilana firma detayından gelinir; firma
+  // detayını göremeyen rol (Destek) panele döner (T-09).
+  if (isError && isNotFoundError(error)) {
+    return (
+      <NotFoundState
+        title="İlan bulunamadı."
+        message="Bağlantı hatalı olabilir ya da ilan silinmiş olabilir."
+        backHref={canOpenCompany ? "/admin/firmalar" : "/admin/dashboard"}
+        backLabel={canOpenCompany ? "Firmalar listesine dön" : "Panele dön"}
+      />
     );
   }
   if (isError || !l) {
@@ -57,6 +86,8 @@ function ListingInspection({ id }: { id: string }) {
     );
   }
 
+  // "Kapalı zarf" formata bağlı (T-16) — kayıtlı isSealedBid okunmaz.
+  const sealed = isSealedListing(l);
   const meta = LISTING_STATUS[l.status] ?? {
     label: l.status,
     color: "zinc" as const,
@@ -64,6 +95,7 @@ function ListingInspection({ id }: { id: string }) {
   // Moderasyon kapatması (CLOSED) veya yanlış "Değerlendirmeye Al" (IN_AWARD,
   // sahip tarafında geri alınamaz — destek kanalı burası).
   const canReopen =
+    canIntervene &&
     (l.status === "CLOSED" || l.status === "IN_AWARD") &&
     !l.awardedAt &&
     l.orders.length === 0;
@@ -73,19 +105,25 @@ function ListingInspection({ id }: { id: string }) {
       {/* Başlık + müdahale */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <Link
-            href={`/admin/firmalar/${l.company.id}?tab=ilanlar`}
-            className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> {l.company.name}
-          </Link>
+          {canOpenCompany ? (
+            <Link
+              href={`/admin/firmalar/${l.company.id}?tab=ilanlar`}
+              className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {l.company.name}
+            </Link>
+          ) : (
+            <p className="text-admin-text-muted mb-2 text-xs font-medium">
+              {l.company.name}
+            </p>
+          )}
           <h1 className="text-admin-text text-2xl font-bold">{l.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge color={meta.color}>{meta.label}</Badge>
             <Badge color={l.type === "ALIM" ? "blue" : "green"}>
               {l.type === "ALIM" ? "Alış" : "Satış"}
             </Badge>
-            {l.isSealedBid ? <Badge color="zinc">Kapalı zarf</Badge> : null}
+            {sealed ? <Badge color="zinc">Kapalı zarf</Badge> : null}
             <span className="text-admin-text-muted font-mono text-xs">
               {l.number ?? "—"}
             </span>
@@ -102,7 +140,7 @@ function ListingInspection({ id }: { id: string }) {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          {l.status === "OPEN" ? (
+          {canIntervene && l.status === "OPEN" ? (
             <>
               <Button
                 variant="secondary"
@@ -128,11 +166,14 @@ function ListingInspection({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Kapalı-zarf uyarısı — adminin gördüğünü taraflar görmez */}
+      {/* Gizlilik uyarısı — adminin gördüğünü taraflar görmez. Metin formata
+          bağlı (T-16): açık eksiltmede güncel en iyi tutar herkese açıktır. */}
       <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">
-        Aşağıdaki teklif tutarlarını yalnız platform yönetimi görür — kapalı
-        zarf kuralı taraflar arasında geçerlidir. Bu bilgiyi teklifçilerle
-        paylaşmayın.
+        {sealed
+          ? "Aşağıdaki teklif tutarlarını yalnız platform yönetimi görür — kapalı zarf kuralı taraflar arasında geçerlidir. Bu bilgiyi teklifçilerle paylaşmayın."
+          : l.format === "ENGLISH_AUCTION"
+            ? "Açık eksiltmede teklifçiler yalnız güncel en iyi tutarı görür; aşağıdaki teklif ve teklifçi ayrıntılarını yalnız platform yönetimi görür. Bu bilgiyi teklifçilerle paylaşmayın."
+            : "Aşağıdaki teklif ayrıntılarını yalnız platform yönetimi görür. Bu bilgiyi teklifçilerle paylaşmayın."}
       </div>
 
       {/* Teklifler */}
@@ -148,7 +189,7 @@ function ListingInspection({ id }: { id: string }) {
               <TableHeader>Teklifçi</TableHeader>
               <TableHeader>Tutar</TableHeader>
               <TableHeader>Durum</TableHeader>
-              <TableHeader>Versiyon/Tur</TableHeader>
+              <TableHeader>Revizyon/Tur</TableHeader>
               <TableHeader>Gönderim</TableHeader>
               <TableHeader>Eleme gerekçesi</TableHeader>
             </TableRow>
@@ -172,12 +213,12 @@ function ListingInspection({ id }: { id: string }) {
                 return (
                   <TableRow key={b.id}>
                     <TableCell className="text-admin-text text-sm font-medium">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${b.bidderCompany.id}`}
                         className="hover:underline"
                       >
                         {b.bidderCompany.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
                     <TableCell className="text-admin-text text-sm font-semibold tabular-nums">
                       {fmtMoney(b.amount, b.currency)}
@@ -186,7 +227,7 @@ function ListingInspection({ id }: { id: string }) {
                       <Badge color={bm.color}>{bm.label}</Badge>
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs">
-                      v{b.version} / tur {b.round}
+                      {b.submitCount > 0 ? `r${b.submitCount}` : "—"} / tur {b.round}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                       {b.submittedAt
@@ -194,7 +235,7 @@ function ListingInspection({ id }: { id: string }) {
                         : "taslak"}
                     </TableCell>
                     <TableCell className="text-admin-text-muted max-w-[200px] truncate text-xs">
-                      {b.eliminationReason ?? "—"}
+                      {systemTextTr(b.eliminationReason) ?? "—"}
                     </TableCell>
                   </TableRow>
                 );
@@ -251,12 +292,12 @@ function ListingInspection({ id }: { id: string }) {
                 key={inv.id}
                 className="flex items-center justify-between px-5 py-2.5"
               >
-                <Link
+                <CompanyLink
                   href={`/admin/firmalar/${inv.invitedCompany.id}`}
                   className="text-admin-text text-sm hover:underline"
                 >
                   {inv.invitedCompany.name}
-                </Link>
+                </CompanyLink>
                 <span className="text-admin-text-muted text-xs">
                   {safeFormat(inv.createdAt, "d MMM")}
                 </span>
@@ -273,7 +314,7 @@ function ListingInspection({ id }: { id: string }) {
                   className="flex items-center justify-between px-5 py-2.5"
                 >
                   <Link
-                    href={`/admin/siparisler/${o.id}`}
+                    href={`/admin/siparisler/${o.id}?from=listing`}
                     className="text-admin-text font-mono text-xs hover:underline"
                   >
                     {o.number ?? o.id.slice(0, 10)}
@@ -303,6 +344,8 @@ function ListingInspection({ id }: { id: string }) {
         label="Gerekçe (en az 10 karakter — ilan sahibine bildirilir)"
         placeholder="Örn. şikayet üzerine incelemeye alındı"
         required
+        minLength={10}
+        maxLength={500}
         confirmLabel="Kapat"
         onConfirm={(v) => {
           act.mutate(
@@ -321,7 +364,8 @@ function ListingInspection({ id }: { id: string }) {
         title="Süre Uzat"
         label="Yeni kapanış (yalnız uzatma — kısaltma yapılamaz)"
         type="datetime-local"
-        minDateTime={(l.closesAt ?? new Date().toISOString()).slice(0, 16)}
+        minDateTime={extendMinDateTimeLocal(l.closesAt)}
+        maxDateTime={listingMaxDateTimeLocal()}
         required
         confirmLabel="Uzat"
         onConfirm={(v) => {
@@ -342,7 +386,8 @@ function ListingInspection({ id }: { id: string }) {
         title="İlanı Yeniden Aç"
         label="Yeni kapanış tarihi"
         type="datetime-local"
-        minDateTime={new Date().toISOString().slice(0, 16)}
+        minDateTime={nextDateTimeLocal()}
+        maxDateTime={listingMaxDateTimeLocal()}
         required
         confirmLabel="Yeniden Aç"
         onConfirm={(v) => {
