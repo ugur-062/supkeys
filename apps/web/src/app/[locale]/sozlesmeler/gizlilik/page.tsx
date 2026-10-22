@@ -26,11 +26,11 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/gizlilik"
       title="Gizlilik Politikası"
-      updatedAt="2026-10-16"
+      updatedAt="2026-10-22"
       sections={[
         {
           paragraphs: [
-            `Bu Gizlilik Politikası, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda (www.rothern.com web sitesi ile Rothern iOS ve Android mobil uygulamaları) kişisel verilerinizin ve ticari bilgilerinizin nasıl korunduğunu özetler. Kişisel verilerin işlenmesine ilişkin ayrıntılı bilgilendirme KVKK Aydınlatma Metni'nde, saklama süreleri ve imha kuralları Kişisel Veri Saklama ve İmha Politikası'nda yer alır; bu politika onları tamamlar.`,
+            `Bu Gizlilik Politikası, ${OPERATOR.legalName} tarafından işletilen Rothern platformunda (www.rothern.com web sitesi ile Rothern mobil uygulamaları) kişisel verilerinizin ve ticari bilgilerinizin nasıl korunduğunu özetler. Kişisel verilerin işlenmesine ilişkin ayrıntılı bilgilendirme KVKK Aydınlatma Metni'nde, saklama süreleri ve imha kuralları Kişisel Veri Saklama ve İmha Politikası'nda yer alır; bu politika onları tamamlar.`,
           ],
         },
         {
@@ -46,21 +46,21 @@ export default async function Page({ params }: { params: LocaleParams }) {
         {
           heading: "2. Ticari Gizlilik — Kapalı Zarf",
           paragraphs: [
-            "Teklif içerikleriniz kapalı zarf esasıyla korunur: teklifinizi yalnız satın alma talebi sahibi görür; rakip tedarikçiler birbirinin teklifini, kimliğini ve teklif sayısını göremez. Platform çalışanları da ticari verilere yalnız destek/denetim gerekliliği ölçüsünde ve kayıt altında erişir.",
+            "Teklif içerikleriniz kapalı zarf esasıyla korunur: teklifinizi yalnız satın alma talebi sahibi görür; rakip tedarikçiler birbirinin teklifini, kimliğini ve teklif sayısını göremez. Ancak talep sahibi bir talepte açık eksiltme (pazarlık) turu açarsa, o turda talep ayarına göre tedarikçilere en iyi teklif tutarı, kendi sıraları, katılımcı sayısı ve sıralı teklif tutarlarından biri ya da birkaçı gösterilebilir; teklif veren firmaların kimliği bu turda da gösterilmez. Platform çalışanları ticari verilere yalnız destek ve denetim gerekliliği ölçüsünde, rol bazlı yetkiyle erişir; yönetim panelinde yapılan değişiklikler denetim kaydına yazılır.",
           ],
         },
         {
           heading: "3. Herkese Açık Görünen Bilgiler",
           paragraphs: [
-            "Bir satın alma talebinin görünürlüğünü \"herkese açık\" seçtiğinizde o talep, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: talep numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın ülkesi, sektörü ve faaliyet tipi. Bu talep sayfalarında firma adınız gösterilmez. Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı talep bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
+            "Bir satın alma talebinin görünürlüğünü \"herkese açık\" seçtiğinizde o talep, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: talep numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın ülkesi, sektörü ve faaliyet tipi. Bu talep sayfalarında firma adınız gösterilmez. Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Herkese açık bir talebin görünürlüğünü, talep üzerinde henüz hiçbir teklif (taslak teklif dâhil) oluşturulmamışken talebi düzenleyerek değiştirebilir ya da talep teklif toplarken talebi iptal ederek pazar yeri sayfalarından kaldırabilirsiniz. Teklif toplama süresi dolan ya da sonuçlanan herkese açık talepler pazar yeri sayfalarında kalır, ancak arama motorlarının dizinlemesine kapatılır.",
             "Firma profiliniz (firma adı, logo, tanıtım metni, web sitesi gibi profilinizde yer verdiğiniz bilgiler ve yayımladığınız ürünler) ise kayıt tamamlandığında giriş gerektirmeyen firma profili sayfasında herkese açık yayımlanır, firma vitrininde listelenebilir ve arama motorlarınca dizinlenebilir. Profilin yayınını panelde Profilim sayfasındaki \"Herkese açık profil\" anahtarıyla dilediğiniz zaman kapatabilirsiniz.",
           ],
         },
         {
           heading: "4. Verilerin Paylaşımı",
           paragraphs: [
-            "Verileriniz üçüncü kişilere satılmaz veya kiralanmaz. Yalnız işlem yaptığınız firmalarla (talep, teklif, sipariş, mesaj ve bağlantı süreçlerinde; madde 2–3), hizmetin çalışması için gereken hizmet sağlayıcılarıyla (barındırma, veritabanı, dosya depolama, e-posta, kurumsal e-posta, hata izleme; yapay zekâ özellikleri için Google; mobil uygulamanın anlık bildirimleri için Google Firebase Cloud Messaging ve iOS cihazlarda Apple — güncel liste KVKK Aydınlatma Metni'ndedir) ve yasal zorunluluk hâlinde yetkili kurumlarla paylaşılır. Veri işleyen sağlayıcılar verilerinizi yalnız hizmetin sunulması amacıyla ve Rothern'in talimatları doğrultusunda işler; verilerinizi bu politikada belirtilen korumayla aynı ya da ona eşdeğer düzeyde korumakla yükümlüdür.",
-            "Sağlayıcıların tamamı yurt dışında yerleşiktir. Yurt dışındaki veri işleyen sağlayıcılara aktarım, KVKK m. 9/4-c uyarınca Kişisel Verileri Koruma Kurulu'nun ilan ettiği standart sözleşmelere dayanır; açık rızanıza bağlı değildir ve Platform'u kullanmanız bu aktarıma rıza vermenizi gerektirmez. Sağlayıcıların unvanı, ülkesi, verilerin tutulduğu yer ve aktarılan veriler ile iOS anlık bildirimlerini ileten Apple'ın durumu KVKK Aydınlatma Metni'nin 4. maddesinde yer alır.",
+            "Verileriniz üçüncü kişilere satılmaz veya kiralanmaz. Yalnız işlem yaptığınız firmalarla (talep, teklif, sipariş, mesaj ve bağlantı süreçlerinde; madde 2–3), hizmetin çalışması için gereken hizmet sağlayıcılarıyla (barındırma, veritabanı, dosya depolama, e-posta, kurumsal e-posta, hata izleme; yapay zekâ özellikleri için Google; mobil uygulamanın anlık bildirimleri için Google Firebase Cloud Messaging — güncel liste KVKK Aydınlatma Metni'ndedir) ve yasal zorunluluk hâlinde yetkili kurumlarla paylaşılır; iOS cihazlarda anlık bildirimler ayrıca Apple'ın bildirim hizmeti üzerinden iletilir (Apple veri işleyen sağlayıcılar arasında değildir; ayrıntı KVKK Aydınlatma Metni'nin 4. maddesindedir); Avrupa Birliği'nde yerleşik firmaların kayıt sırasında girilen KDV kimlik numarası ayrıca Avrupa Komisyonu'nun VIES hizmetinde sorgulanır. Veri işleyen sağlayıcılar verilerinizi, kabul ettikleri veri işleme koşulları uyarınca yalnız hizmetin sunulması amacıyla ve Rothern'in talimatları doğrultusunda işler; verilerinizi korumak için teknik ve idari tedbir almakla yükümlüdür.",
+            "Sağlayıcıların tamamı yurt dışında yerleşiktir. Rothern, yurt dışındaki veri işleyen sağlayıcılara aktarımda KVKK m. 9/4-c uyarınca Kişisel Verileri Koruma Kurulu'nun ilan ettiği standart sözleşmeyi kullanır; bu aktarım açık rızanıza bağlı değildir ve Platform'u kullanmanız bu aktarıma rıza vermenizi gerektirmez. Standart sözleşmenin nasıl uygulandığı, sağlayıcıların unvanı, ülkesi, verilerin tutulduğu yer ve aktarılan veriler ile iOS anlık bildirimlerini ileten Apple'ın durumu KVKK Aydınlatma Metni'nin 4. maddesinde yer alır.",
           ],
         },
         {

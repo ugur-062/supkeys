@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/kullanici"
       title="Kullanıcı Sözleşmesi"
-      updatedAt="2026-10-16"
+      updatedAt="2026-10-22"
       sections={[
         {
           heading: "1. Taraflar ve Konu",
@@ -76,7 +76,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
           heading: "7. Hizmetin Kapsamı ve Değişiklikler",
           paragraphs: [
             "Platform, hizmetin kapsamını, özelliklerini ve ücretsiz/ücretli hizmet içeriklerini değiştirme, geliştirme veya sonlandırma hakkını saklı tutar; Kullanıcı aleyhine esaslı değişiklikler makul süre önceden duyurulur.",
-            "Platform'da yer alan yapay zekâ destekli özellikler (belgeden form doldurma, kategori önerisi, asistan) yalnızca yardımcı niteliktedir; üretilen çıktıların doğruluğunun kontrolü ve nihai karar Kullanıcı'ya aittir.",
+            "Platform'da yer alan yapay zekâ destekli özellikler (belgeden talep ve teklif fiyatı doldurma, yapay zekâ ile arama, başlık ve kategori önerisi, açıklama ve tanıtım metni önerileri, asistan, tedarikçi araması, içeriklerin otomatik çevirisi) yardımcı niteliktedir. Kullanıcı'nın kullandığı ya da kabul ettiği öneri, taslak ve sonuçların doğruluğunun kontrolü Kullanıcı'ya aittir; içeriklerin otomatik çevirisinde esas olan, Kullanıcı'nın girdiği özgün metindir. Kullanıcı, talep formunda yapay zekânın tedarikçi bulup davet etmesi seçeneğini açık bırakırsa, talep yayımlandıktan sonra bulunan ve davete uygun firmalar, talebi yayımlayan Kullanıcı adına ve talepteki ayara göre davet eden firmanın adı gösterilerek ya da gösterilmeden otomatik olarak davet edilir; bu seçenek talep bazında kapatılabilir.",
           ],
         },
         {
@@ -86,10 +86,10 @@ export default async function Page({ params }: { params: LocaleParams }) {
              Gizlilik m.6, KVKK m.7/m.9, `/hesap-silme` ve Saklama ve İmha
              Politikası birlikte güncellenir. Metin değişikliği yeniden onay
              istemez (onay kapısı yalnız boş onay tarihine bakar); m.11 gereği
-             esaslı değişiklik kullanıcılara bildirilir — canlıya çıkışta
-             uygulama içi + e-posta bildirimi operatör adımıdır
-             (`docs/kvkk-uyum.md` Canlı kapısı; yeniden onay gerekip
-             gerekmediği avukat sorusu 9). */
+             esaslı değişiklik kullanıcılara bildirilir — yayın günü uygulama
+             içi + e-posta bildirimi operatör adımıdır (`docs/kvkk-uyum.md`
+             "Yayın sonrası açık adımlar"; yeniden onay gerekip gerekmediği
+             avukat sorusu 9). */
           heading: "8. Askıya Alma, Hesabın Kapatılması ve Fesih",
           paragraphs: [
             "Platform; işbu Sözleşme'ye, Aracılık Sözleşmesi'ne veya mevzuata aykırılık hâlinde Kullanıcı hesabını geçici olarak askıya alabilir veya Sözleşme'yi haklı nedenle feshedebilir.",

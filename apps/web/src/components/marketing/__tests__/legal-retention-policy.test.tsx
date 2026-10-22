@@ -108,13 +108,23 @@ describe("Kişisel Veri Saklama ve İmha Politikası — Silme Yönetmeliği m.6
     expect(row(1)).toContain("hesap silindiğinde hemen");
     // Ekipten çıkarılan kullanıcının hesap verisi de çıkarıldığı anda gider; adı firmada kalır.
     expect(row(1)).toContain("kullanıcı ekipten çıkarıldığında hemen");
-    expect(row(1)).toContain("adı, firmanın kayıtlarında işlemi yapanın görünmesi için");
+    // Yayın günü doğru (2026-10-22): kod çıkarma, silme ve firma anonimleştirmesinde
+    // izin / rol alanlarını temizlemiyor → "izinler" silinen veriler arasında
+    // sayılmaz; yetki bilgisi hesap kaydında kalır (gerekçe cümlesi yalnız ada).
+    expect(row(1)).toContain("adı, firmanın kayıtlarında işlemi yapanın görünmesi için firma kaydıyla birlikte kalır (2. satır)");
+    expect(row(1)).toContain("kullanıcının firmadaki yetki bilgisi de hesap kaydında kalır");
+    expect(row(1)).not.toContain("adı ve kullanıcı yetkileri");
+    expect(rows[0]![0]).not.toContain("izinler");
+    expect(rows[0]![3]).not.toContain("izinler");
     // Hesap ve firma kaydı ticari kayıtlara bağlı kalır, takma adlıdır: "anonim" yazılmaz.
     expect(row(1)).not.toMatch(/anonim/i);
     expect(row(1)).toContain("Silinmiş Kullanıcı");
     expect(row(2)).toContain("en geç 30 gün");
     expect(row(2)).not.toMatch(/anonim/i);
     expect(row(2)).toContain("Silinmiş Firma");
+    // Firma imhasında yalnız kodun sildiği dosyalar sayılır (ürün görselleri değil).
+    expect(row(2)).toContain("Firma doğrulama belgeleri, kimlik belgesi görüntüleri, logo ve kapak görselleri dosya depolama alanından silinir");
+    expect(row(2)).not.toContain("Belge ve görseller dosya depolama alanından silinir");
     expect(row(3)).toContain("Kaydın oluştuğu takvim yılının sonundan itibaren 10 yıl");
     // 10 yıl yalnız TİCARİ işlemlere ilişkin e-posta kayıtlarına; geri kalanı 21. satır.
     expect(row(3)).toContain("ticari işlemlere ilişkin e-postaların");
@@ -128,7 +138,13 @@ describe("Kişisel Veri Saklama ve İmha Politikası — Silme Yönetmeliği m.6
     expect(row(4)).toContain("10 yıl");
     expect(row(4)).toContain("en fazla 2 yıl");
     expect(row(4)).toContain("5651 sayılı Kanun m. 5/3");
-    expect(row(5)).toContain("En az 1 yıl, en fazla 2 yıl");
+    // Trafik kayıtları: yayın günü doğru olan üst sınır ve sağlayıcı sisteminde
+    // silme; kapalı kova + 400 gün kurulunca rakam ve kapalı alan yazılır
+    // (docs/kvkk-uyum.md "Yayın sonrası açık adımlar").
+    expect(row(5)).toContain("En fazla 2 yıl (5651 sayılı Kanun m. 5/3)");
+    expect(row(5)).not.toMatch(/En az 1 yıl/);
+    expect(row(5)).not.toContain("kapalı saklama alanında");
+    expect(row(5)).toContain("hizmet sağlayıcı sisteminde, hesap ayarlarıyla belirlenen süre sonunda otomatik silme");
     expect(row(6)).toContain("5 yıl");
     expect(row(6)).toContain("1 yıl");
     // İç maliyet kaydı VUK defteri değildir: sebep meşru menfaat.
@@ -167,12 +183,17 @@ describe("Kişisel Veri Saklama ve İmha Politikası — Silme Yönetmeliği m.6
     const html = await loadPolicy();
     expect(text(between(html, "madde-2", "madde-3"))).toContain("Kurumsal e-posta kutuları");
     const m5 = text(between(html, "madde-5", "madde-6"));
-    // "Her veri işleyenle ... sözleşme bulunur" bugün doğru değil (SS-2 / DPA operatör adımı).
+    // "Her veri işleyenle ... sözleşme bulunur" yazılmaz; DPA'lar sağlayıcıların
+    // veri işleme ekleridir. Yayın günü doğru (2026-10-22): aktarımda standart
+    // sözleşme KULLANILIR, aktarımın imzalı sözleşmelerle "yapıldığı" yazılmaz.
     expect(m5).not.toContain("sözleşmesi bulunur");
-    expect(m5).toContain("veri işleme sözleşmesi yapılır");
-    // Erişim günlükleri IP taşır; "kişisel veriler maskelenir" mutlak sözü yok.
+    expect(m5).toContain("veri işleme sözleşmeleri (sağlayıcıların veri işleme ekleri) yapılır");
+    expect(m5).toContain("standart sözleşme kullanılır");
+    expect(m5).not.toContain("standart sözleşmelerle yapılır");
+    // Erişim günlükleri IP taşıyabilir; "kişisel veriler maskelenir" mutlak sözü yok.
     expect(m5).not.toContain("kişisel veriler maskelenir");
-    expect(m5).toContain("Erişim (trafik) günlükleri 5651 sayılı Kanun gereği IP adresi içerir");
+    expect(m5).toContain("Erişim (trafik) günlükleri IP adresi içerebilir ve 8. maddedeki tablonun 5. satırına göre saklanır");
+    expect(m5).not.toContain("5651 sayılı Kanun gereği IP adresi içerir");
     const m6 = text(between(html, "madde-6", "madde-7"));
     expect(m6).toContain("anonim sayılmaz");
   });
@@ -193,13 +214,15 @@ describe("Kişisel Veri Saklama ve İmha Politikası — Silme Yönetmeliği m.6
     expect(m10).toContain("günde bir kez kaydedilir");
   });
 
-  it("ilgili kişi talebi 30 gün; hesap silme ve KVKK metnine bağlanır; değişiklik geçmişi 16.10.2026", async () => {
+  it("ilgili kişi talebi 30 gün; hesap silme ve KVKK metnine bağlanır; değişiklik geçmişi gerçek yayım tarihi 22.10.2026", async () => {
     const html = await loadPolicy();
     const m11 = between(html, "madde-11", "madde-12");
     expect(text(m11)).toContain("en geç 30 gün içinde");
     expect(m11).toContain('href="/hesap-silme"');
     expect(m11).toContain('href="/sozlesmeler/kvkk"');
-    expect(text(between(html, "madde-12"))).toContain("16.10.2026");
+    const m12 = text(between(html, "madde-12"));
+    expect(m12).toContain("22.10.2026 — İlk yayım");
+    expect(m12).not.toContain("16.10.2026");
   });
 });
 
@@ -269,5 +292,29 @@ describe("Kullanıcı Sözleşmesi m.8 — hesabın kapatılması gerçek koşul
     for (const href of ["/hesap-silme", "/sozlesmeler/gizlilik#madde-6", "/sozlesmeler/saklama-imha"]) {
       expect(section).toContain(`href="${href}"`);
     }
+  });
+});
+
+/* Yayın günü doğru (2026-10-22): yapay zekâ tedarikçi araması, kutu açık
+   bırakılırsa bulduğu firmaları talebi yayımlayan adına KENDİSİ davet eder →
+   "nihai karar Kullanıcı'ya aittir" yazılmaz; otomatik davet ve kapatma yolu
+   açıkça söylenir. */
+describe("Kullanıcı Sözleşmesi m.7 — yapay zekâ özellikleri koddaki davranışla", () => {
+  it("otomatik davet yazılı, 'nihai karar' sözü yok", async () => {
+    const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/kullanici/page"));
+    const m7 = text(between(html, "madde-7", "madde-8"));
+    expect(m7).not.toContain("nihai karar");
+    expect(m7).toContain("yardımcı niteliktedir");
+    expect(m7).toContain("tedarikçi araması");
+    expect(m7).toContain("talebi yayımlayan Kullanıcı adına");
+    // Tur yalnız davete uygun firmayı davet eder (zayıf eşleşme, çıkış, önceden onay
+    // ülkesi, günlük tavan…); kullanıcı görmediği çeviriden sorumlu tutulmaz.
+    expect(m7).toContain("bulunan ve davete uygun firmalar");
+    expect(m7).not.toContain("üretilen çıktıların doğruluğunun kontrolü");
+    expect(m7).toContain("kullandığı ya da kabul ettiği öneri, taslak ve sonuçların doğruluğunun kontrolü");
+    expect(m7).toContain("otomatik çevirisinde esas olan, Kullanıcı'nın girdiği özgün metindir");
+    expect(m7).toContain("otomatik olarak davet edilir");
+    expect(m7).toContain("talep bazında kapatılabilir");
+    expect(m7).not.toMatch(/ihale/i);
   });
 });

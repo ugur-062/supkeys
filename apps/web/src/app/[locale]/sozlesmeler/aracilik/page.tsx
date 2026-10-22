@@ -26,12 +26,12 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/aracilik"
       title="Platform Aracılık ve Kullanım Sözleşmesi"
-      updatedAt="2026-10-07"
+      updatedAt="2026-10-22"
       sections={[
         {
           heading: "1. Konu ve Platformun Rolü",
           paragraphs: [
-            `İşbu Sözleşme; Rothern platformunun işletmecisi ${OPERATOR.legalName}'nin ("Platform"), alıcı ve satıcı firmalar arasında satın alma talebi (RFQ), teklif toplama, açık eksiltme/artırma, kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.`,
+            `İşbu Sözleşme; Rothern platformunun işletmecisi ${OPERATOR.legalName}'nin ("Platform"), alıcı ve satıcı firmalar arasında satın alma talebi (RFQ), teklif toplama, açık eksiltme (pazarlık), kazandırma ve sipariş süreçlerine elektronik ortamda aracılık etmesinin koşullarını düzenler.`,
             "Platform yalnızca aracıdır: taraflar arasında kurulan alım-satım ilişkisinin tarafı, temsilcisi, komisyoncusu veya garantörü değildir. Malın/hizmetin mevzuata ve satın alma talebi şartlarına uygunluğu, ayıptan sorumluluk, teslimat, fatura ve ödeme yükümlülükleri münhasıran alıcı ile satıcı arasındadır.",
           ],
         },
@@ -40,15 +40,15 @@ export default async function Page({ params }: { params: LocaleParams }) {
           paragraphs: [
             "Satın Alma Talebini açan firma; satın alma talebi şartlarını, kalemleri, teslimat ve ödeme koşullarını doğru ve eksiksiz belirlemekle yükümlüdür. Yayımlanan satın alma talebi, belirlenen kapanış tarihine kadar tekliflere açıktır; satın alma talebi sahibi mevzuata uygun olmak kaydıyla satın alma talebini kalıcı olarak kapatabilir veya iptal edebilir.",
             "Görünürlük üç kademelidir: davetli (kapalı) satın alma taleplerini yalnızca davet edilen firmalar; bağlantılara açık olanları yalnızca satın alma talebi sahibiyle bağlantısı bulunan firmalar görür.",
-            "Herkese açık olarak yayımlanan satın alma talepleri, Platform'un giriş gerektirmeyen sayfalarında (pazar yeri) yayımlanabilir ve arama motorlarınca dizinlenebilir. Bu sayfalarda satın alma talebinin numarası, başlığı, açıklaması, kategorisi, kalemleri, miktar ve birimleri, teslimat/ödeme koşulları, son teklif tarihi ile satın alma talebini açan firmanın şehri, ülkesi, sektörü ve faaliyet tipi görüntülenebilir.",
+            "Herkese açık olarak yayımlanan satın alma talepleri, Platform'un giriş gerektirmeyen sayfalarında (pazar yeri) yayımlanabilir ve arama motorlarınca dizinlenebilir. Bu sayfalarda satın alma talebinin numarası, başlığı, açıklaması, kategorisi, kalemleri, miktar ve birimleri, teslimat/ödeme koşulları, son teklif tarihi ile satın alma talebini açan firmanın ülkesi, sektörü ve faaliyet tipi görüntülenebilir.",
             "Teklifler bu kapsamın DIŞINDADIR: teklif içerikleri, teklif veren firmaların kimlikleri ve teklif sayısı herkese açık sayfalarda hiçbir koşulda yayımlanmaz (madde 3).",
-            "Firma, herkese açık yayımı üç noktadan geri alabilir: satın alma talebinin görünürlüğünü \"bağlantılar\" veya \"davetli\" olarak değiştirerek, satın alma talebi bazında arama motoru dizinlemesini kapatarak ya da firma ayarlarından tüm satın alma taleplerinin pazar yerinde görünmesini durdurarak. Yayımdan kaldırılan bir sayfanın arama motoru sonuçlarından ne zaman düşeceği ilgili arama motorunun tarama sıklığına bağlıdır ve Platform'un denetiminde değildir.",
+            "Firma, herkese açık bir satın alma talebinin görünürlüğünü talep üzerinde henüz hiçbir teklif (taslak teklif dâhil) oluşturulmamışken talebi düzenleyerek değiştirebilir ya da talep teklif toplarken talebi iptal ederek pazar yeri sayfalarından kaldırabilir. Teklif toplama süresi dolan ya da sonuçlanan herkese açık talepler pazar yeri sayfalarında kalır, ancak arama motorlarının dizinlemesine kapatılır. Yayımdan kaldırılan bir sayfanın arama motoru sonuçlarından ne zaman düşeceği ilgili arama motorunun tarama sıklığına bağlıdır ve Platform'un denetiminde değildir.",
           ],
         },
         {
           heading: "3. Kapalı Zarf Esası",
           paragraphs: [
-            "Aksi satın alma talebi tipinde açıkça öngörülmedikçe teklifler kapalı zarf esasıyla toplanır: teklif verenler birbirlerinin tekliflerini, kimliklerini ve teklif sayısını göremez; teklifleri yalnızca satın alma talebi sahibi görür. Açık eksiltme/artırma (pazarlık) tipi satın alma taleplerinde görünürlük, satın alma talebi sahibinin seçtiği ve satın alma talebinde ilan edilen görünürlük moduna tabidir.",
+            "Aksi satın alma talebi tipinde açıkça öngörülmedikçe teklifler kapalı zarf esasıyla toplanır: teklif verenler birbirlerinin tekliflerini, kimliklerini ve teklif sayısını göremez; teklifleri yalnızca satın alma talebi sahibi görür. Açık eksiltme (pazarlık) tipi satın alma taleplerinde görünürlük, satın alma talebi sahibinin seçtiği ve satın alma talebinde ilan edilen görünürlük moduna tabidir.",
           ],
         },
         {

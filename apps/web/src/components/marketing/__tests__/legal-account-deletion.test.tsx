@@ -50,12 +50,20 @@ describe("Gizlilik Politikası — hesap silme maddesi", () => {
     expect(text(html.slice(html.indexOf('id="madde-7"')))).toContain("açık rızanızı geri alma");
   });
 
-  it("mobil uygulamalar kapsamda; yapay zekâ ve anlık bildirim sağlayıcıları adıyla, eşdeğer koruma beyanı", async () => {
+  /* Yayın günü doğru (2026-10-22 sahip kararı): iOS uygulaması henüz yayında
+     değil → "Rothern mobil uygulamaları" (iki mağaza da canlı olunca "iOS ve
+     Android"e döner, docs/kvkk-uyum.md "Yayın sonrası açık adımlar"); sağlayıcı
+     yükümlülüğü kabul edilen veri işleme koşullarına dayanır, "eşdeğer koruma"
+     sözü yok. */
+  it("mobil uygulamalar kapsamda; yapay zekâ ve anlık bildirim sağlayıcıları adıyla, veri işleme koşulları", async () => {
     const body = text(await renderLegal(() => import("@/app/[locale]/sozlesmeler/gizlilik/page")));
-    expect(body).toContain("Rothern iOS ve Android mobil uygulamaları");
+    expect(body).toContain("Rothern mobil uygulamaları");
+    expect(body).not.toMatch(/iOS ve Android/);
     expect(body).toContain("yapay zekâ özellikleri için Google");
     expect(body).toContain("Firebase Cloud Messaging");
-    expect(body).toContain("aynı ya da ona eşdeğer düzeyde korumakla yükümlüdür");
+    expect(body).toContain("kabul ettikleri veri işleme koşulları uyarınca");
+    expect(body).toContain("teknik ve idari tedbir almakla yükümlüdür");
+    expect(body).not.toContain("eşdeğer düzeyde");
   });
 });
 
@@ -104,6 +112,61 @@ describe("Gizlilik Politikası — koda sadık metin", () => {
   });
 });
 
+/* Yayın günü doğru (2026-10-22): kapalı zarf sözü pazarlık turunu da söyler,
+   personel erişimi "kayıt altında" değil (okuma denetim kaydına yazılmıyor),
+   talep yayını için olmayan anahtarlar (dizinleme / firma geneli) vaat edilmez. */
+describe("Gizlilik Politikası — yayın günü doğru (m.2, m.3)", () => {
+  it("m.2 pazarlık turunda gösterilenleri yazar; personel erişimi rol bazlı, değişiklikler denetim kaydında", async () => {
+    const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/gizlilik/page"));
+    const m2 = text(html.slice(html.indexOf('id="madde-2"'), html.indexOf('id="madde-3"')));
+    expect(m2).toContain("rakip tedarikçiler birbirinin teklifini, kimliğini ve teklif sayısını göremez");
+    expect(m2).toContain("açık eksiltme (pazarlık) turu");
+    // Mutlak kapalı zarf cümlesi ile pazarlık istisnası çelişmesin: istisna "Ancak"
+    // ile bağlanır; modlar birkaç bilgiyi birlikte gösterebilir (computeAuctionView).
+    expect(m2).toContain("Ancak talep sahibi bir talepte açık eksiltme (pazarlık) turu açarsa");
+    expect(m2).toContain("katılımcı sayısı ve sıralı teklif tutarlarından biri ya da birkaçı gösterilebilir");
+    expect(m2).toContain("teklif veren firmaların kimliği bu turda da gösterilmez");
+    expect(m2).not.toContain("kayıt altında erişir");
+    expect(m2).toContain("rol bazlı yetkiyle erişir");
+    expect(m2).toContain("yönetim panelinde yapılan değişiklikler denetim kaydına yazılır");
+    expect(m2).not.toMatch(/ihale/i);
+  });
+
+  it("m.3 yayından kaldırma yalnız var olan yollarla; firma geneli anahtar ve dizinleme anahtarı vaat edilmez", async () => {
+    const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/gizlilik/page"));
+    const m3 = text(html.slice(html.indexOf('id="madde-3"'), html.indexOf('id="madde-4"')));
+    expect(m3).not.toContain("firma ayarlarından toptan");
+    expect(m3).not.toContain("arama motoru dizinlemesini kapatma");
+    expect(m3).toContain("talep üzerinde henüz hiçbir teklif (taslak teklif dâhil) oluşturulmamışken talebi düzenleyerek");
+    expect(m3).toContain("talebi iptal ederek");
+    expect(m3).toContain("arama motorlarının dizinlemesine kapatılır");
+  });
+});
+
+/* Yayın günü doğru (2026-10-22): Aracılık Sözleşmesi kayıtta kabul edilir ve
+   Gizlilik m.3 / KVKK m.2 ile çelişmemeli — talep bazında dizinleme ve firma
+   geneli pazar yeri anahtarı yok (`publicIndexable` / `publicListingsEnabled`
+   yalnız okunur; kvkk-uyum B12), alıcı şehri talep yüzeyinde basılmaz, ileri
+   açık artırma 2026-09-04'te kalktı. */
+describe("Aracılık Sözleşmesi — yayın günü doğru (m.1–m.3)", () => {
+  it("m.2 yayından kaldırma yalnız var olan yollarla, şehir yok; m.1 ve m.3'te artırma yok", async () => {
+    const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/aracilik/page"));
+    const body = text(html);
+    expect(body).not.toContain("üç noktadan geri alabilir");
+    expect(body).not.toContain("arama motoru dizinlemesini kapatarak");
+    expect(body).not.toContain("firma ayarlarından tüm satın alma taleplerinin");
+    expect(body).toContain("talep üzerinde henüz hiçbir teklif (taslak teklif dâhil) oluşturulmamışken talebi düzenleyerek değiştirebilir");
+    expect(body).toContain("talebi iptal ederek pazar yeri sayfalarından kaldırabilir");
+    expect(body).toContain("arama motorlarının dizinlemesine kapatılır");
+    expect(body).toContain("arama motorunun tarama sıklığına bağlıdır");
+    expect(body).toContain("satın alma talebini açan firmanın ülkesi, sektörü ve faaliyet tipi");
+    expect(body).not.toContain("şehri");
+    expect(body).not.toMatch(/artırma/);
+    expect(body).toContain("açık eksiltme (pazarlık)");
+    expect(body).not.toMatch(/ihale/i);
+  });
+});
+
 describe("KVKK Aydınlatma Metni — koda sadık metin", () => {
   it("m.1 yetkili kimlik no + belge; m.4 bildirim içeriği türü ve bağlantısıyla; m.7 alan adlarıyla, firma kaydı bilgisi firmayla kalır", async () => {
     const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/kvkk/page"));
@@ -142,10 +205,22 @@ describe("KVKK Aydınlatma Metni — yurt dışına aktarım", () => {
     const m4 = text(html.slice(html.indexOf('id="madde-4"'), html.indexOf('id="madde-5"')));
     expect(m4).toContain("KVKK m. 9/4-c");
     expect(m4).toContain("standart sözleşme");
-    // Mekanizma şimdiki zamanla: imza ve bildirim canlı kapısındaki operatör adımı
-    // (docs/kvkk-uyum.md); metin "imzalanmış / bildirilmiştir" diye olmuş bitmiş yazmaz.
-    expect(m4).toContain("beş iş günü içinde Kişisel Verileri Koruma Kurumu'na bildirilir");
-    expect(m4).not.toMatch(/imzalanmış|bildirilmiştir/);
+    // Yayın günü doğru (2026-10-22 sahip kararı): Rothern standart sözleşmeyi
+    // KULLANIR ve sağlayıcılara imzaya SUNAR; aktarımın imzalı sözleşmeye
+    // "dayandığı" ya da sözleşmenin "imzalandığı" yazılmaz, sağlayıcı başına imza
+    // durumu sayfada yok. Hepsi imzalanıp bildirilince cümle yükseltilir
+    // (docs/kvkk-uyum.md "Yayın sonrası açık adımlar").
+    expect(m4).toContain("Kurul'un ilan ettiği standart sözleşmeyi (veri sorumlusundan veri işleyene aktarım) kullanır");
+    // Kapsam listedeki veri işleyenlerdir (Apple ve VIES değil); Gizlilik m.4 ve
+    // Politika m.5 ile aynı dar kapsam.
+    expect(m4).toContain("Rothern, yukarıda sayılan sağlayıcılara aktarımda KVKK m. 9/4-c");
+    expect(m4).not.toContain("yurt dışındaki sağlayıcılara aktarımda");
+    expect(m4).toContain("metin değiştirilmeden imzaya sunulur");
+    expect(m4).toContain("imzalanan her sözleşme, imzaların tamamlanmasından itibaren beş iş günü içinde Kişisel Verileri Koruma Kurumu'na bildirilir");
+    expect(m4).toContain("Listeye eklenecek yeni bir sağlayıcıya aktarım, standart sözleşme imzalanıp Kurum'a bildirildikten sonra başlar");
+    expect(m4).not.toMatch(/imzalanmış|bildirilmiştir|imzalanır ve|standart sözleşmeye \(veri sorumlusundan veri işleyene aktarım\) dayanır/);
+    expect(m4).not.toMatch(/bildirim tarihi|imzaladı/);
+    expect(m4).toContain("kabul ettikleri veri işleme koşulları uyarınca yalnız hizmetin sunulması amacıyla");
     expect(m4).toContain("KVKK m. 5/2-c");
     expect(m4).toContain("m. 5/2-f");
     expect(m4).toContain("Platform'dan yararlanmanız yurt dışına aktarıma rıza vermenize bağlı değildir");
@@ -159,18 +234,31 @@ describe("KVKK Aydınlatma Metni — yurt dışına aktarım", () => {
     expect(m4).not.toMatch(/Bu aktarımlar KVKK m\. 8\/2-a/);
   });
 
-  /* İnceleme 2026-10-16: Apple standart sözleşme imzalamıyor (kvkk-uyum
-     sağlayıcı tablosu). Veri işleyen listesinde ve SS-2 cümlesinde yer almaz;
-     kendi paragrafı yalnız olguyu yazar. */
-  it("Apple (APNs) veri işleyen listesinde değil; kendi paragrafında olgu ve kapatma yolu", async () => {
+  /* Apple (APNs) veri işleyen listesinde ve SS-2 cümlesinde yer almaz; kendi
+     paragrafı yalnız olguyu yazar (dayanak avukat yanıtıyla, kvkk-uyum §10
+     soru 3). 2026-10-22: öteki sağlayıcılar da henüz imzalamadığı için "standart
+     sözleşme imzalamadığı için" karşıtlığı yazılmaz; bildirim izni kapatılınca
+     cihaz kaydı hemen silinmez (30 gün yenilenmezse gönderim durur) — metin
+     koddaki davranışı söyler. İzin kapalıyken yalnız AÇILIŞTAKİ kayıt yenilenmez
+     (şifre değişimindeki `rebindStoredPushToken` izne bakmaz → kvkk-uyum B11);
+     çıkıştaki silme istemci çağrısıdır, "artık gönderilmez" sözü verilmez. */
+  it("Apple (APNs) veri işleyen listesinde değil; kendi paragrafında olgu ve koddaki kapatma davranışı", async () => {
     const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/kvkk/page"));
     const m4html = html.slice(html.indexOf('id="madde-4"'), html.indexOf('id="madde-5"'));
     const list = text(m4html.slice(m4html.indexOf("<ul"), m4html.indexOf("</ul>")));
     expect(list).not.toContain("Apple");
     const m4 = text(m4html);
     expect(m4).toContain("Apple Inc.'in (ABD) Apple Push Notification service (APNs)");
-    expect(m4).toContain("standart sözleşme imzalamadığı için yukarıdaki sağlayıcılar arasında sayılmaz");
-    expect(m4).toContain("cihazınızın ayarlarından kapattığınızda Apple'a bildirim içeriği gönderilmez");
+    expect(m4).toContain("Apple bu hizmeti kendi koşullarıyla sunar ve yukarıdaki veri işleyen listesinde yer almaz");
+    expect(m4).not.toContain("imzalamadığı için");
+    expect(m4).not.toContain("Apple'a bildirim içeriği gönderilmez");
+    expect(m4).toContain("bildirimler cihazınızda gösterilmez");
+    expect(m4).toContain("e-posta tercihlerinize göre e-postayla gelmeye devam eder");
+    expect(m4).toContain("İzin kapalıyken uygulama, açılışlarda cihaz kaydınızı yenilemez");
+    expect(m4).not.toContain("bundan sonra yenilenmez");
+    expect(m4).toContain("30 gün boyunca yenilenmeyen cihaz kaydına anlık bildirim gönderilmez");
+    expect(m4).toContain("oturumunuzu kapattığınızda ya da hesabınızı sildiğinizde cihaz kaydınız silinir");
+    expect(m4).not.toContain("artık anlık bildirim gönderilmez");
   });
 
   it("kurumsal e-posta (Google Workspace) sağlayıcılar arasında; Sentry ayıklama sözü mutlak değil", async () => {
@@ -191,7 +279,8 @@ describe("KVKK Aydınlatma Metni — yurt dışına aktarım", () => {
       "Render Services, Inc. (ABD",
       "Cloudflare, Inc. (ABD",
       "Plus Five Five, Inc. (Resend; ABD)",
-      "Google LLC ve bağlı şirketleri (ABD",
+      // Sözleşme tarafı hizmet başına doğrulanana dek ara ifade (kvkk-uyum "Yayın sonrası açık adımlar").
+      "Google LLC (merkezi ABD'de) ve bağlı şirketleri",
       "Apple Inc.'in (ABD)",
       "Functional Software, Inc. (Sentry; ABD",
     ]) {
@@ -237,7 +326,10 @@ describe("KVKK Aydınlatma Metni — yurt dışına aktarım", () => {
     const m7 = text(section);
     expect(m7).toContain("kaydın oluştuğu takvim yılının sonundan itibaren 10 yıl");
     expect(m7).toContain("2 yıl dolmadan silinir");
-    expect(m7).toContain("en az 1 yıl, en fazla 2 yıl");
+    // Trafik kayıtları: yayın günü doğru olan üst sınır; kapalı kova + 400 gün
+    // kurulunca rakam yazılır (kvkk-uyum "Yayın sonrası açık adımlar").
+    expect(m7).toContain("Erişim (trafik) kayıtları: en fazla 2 yıl (5651 sayılı Kanun m. 5/3)");
+    expect(m7).not.toMatch(/en az 1 yıl/);
     expect(m7).toContain("en geç 30 gün içinde");
     expect(m7).toContain("süresiz");
     expect(section).toContain('href="/sozlesmeler/saklama-imha"');
@@ -252,11 +344,61 @@ describe("KVKK Aydınlatma Metni — yurt dışına aktarım", () => {
   });
 });
 
+/* Yayın günü doğru (2026-10-22): kapsam "mobil uygulamalar" (iOS henüz yok);
+   yapay zekâ özellik listesi koddaki bütün Gemini çağrılarını sayar; Vercel'de
+   istekler küresel ağdan karşılanır; VIES sorgusu olgu olarak yazılır (dayanağı
+   avukat yanıtıyla); m.2'de talebi yayından kaldırma yalnız var olan yollarla. */
+describe("KVKK Aydınlatma Metni — yayın günü doğru", () => {
+  it("giriş, yapay zekâ listesi, Vercel, VIES ve m.2 yayından kaldırma koddaki gerçekle", async () => {
+    const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/kvkk/page"));
+    const body = text(html);
+    expect(body).toContain("www.rothern.com adresinde ve Rothern mobil uygulamalarında sunulan");
+    expect(body).not.toMatch(/iOS ve Android/);
+    const m2 = text(html.slice(html.indexOf('id="madde-2"'), html.indexOf('id="madde-3"')));
+    expect(m2).not.toContain("talepler talep ayarlarından yayından kaldırılabilir");
+    expect(m2).toContain("talep üzerinde henüz hiçbir teklif (taslak teklif dâhil) oluşturulmamışken talep düzenlenerek");
+    const m4 = text(html.slice(html.indexOf('id="madde-4"'), html.indexOf('id="madde-5"')));
+    for (const feature of [
+      "belgeden talep ve teklif fiyatı çıkarımı",
+      "yapay zekâ ile arama",
+      "talep başlığı ve kategori önerisi",
+      "firma tanıtım metni önerileri",
+      "tedarikçi araması (Google arama desteğiyle)",
+      "otomatik çevirisinde",
+    ]) {
+      expect(m4, feature).toContain(feature);
+    }
+    expect(m4).toContain("istekler ve sabit içerik Vercel'in küresel ağı üzerinden karşılanır");
+    // VIES ne Platform'daki bir firma ne yetkili kurumdur: kendi paragrafında,
+    // yalnız kayıt (şirket bilgileri) sırasında sorgulandığı yazılır.
+    expect(m4).toContain(
+      "Avrupa Komisyonu (VIES): Avrupa Birliği'nde yerleşik firmaların kayıt sırasında girilen KDV kimlik numarası, Avrupa Komisyonu'nun VIES hizmetinde sorgulanır.",
+    );
+    expect(m4).not.toContain("firma bilgileri girilirken ve doğrulanırken");
+    const m4html = html.slice(html.indexOf('id="madde-4"'), html.indexOf('id="madde-5"'));
+    expect(m4html).toMatch(/o işlemle birlikte iletilir\.<\/p><p>Avrupa Komisyonu \(VIES\):/);
+  });
+});
+
 describe("Gizlilik Politikası — aktarım ve saklama KVKK metni ve politikayla hizalı", () => {
   it("m.4 aktarım dayanağı standart sözleşme, rızaya bağlı değil; m.6 süreler politikadan ve politikaya bağlantı", async () => {
     const html = await renderLegal(() => import("@/app/[locale]/sozlesmeler/gizlilik/page"));
     const m4 = text(html.slice(html.indexOf('id="madde-4"'), html.indexOf('id="madde-5"')));
     expect(m4).toContain("KVKK m. 9/4-c");
+    expect(m4).toContain("standart sözleşmeyi kullanır");
+    expect(m4).not.toContain("standart sözleşmelere dayanır");
+    // "kullanır" tek başına tamamlanmış dayanak gibi okunmasın: nasıl uygulandığı
+    // (imzaya sunulur …) KVKK m.4'e yönlendirilir.
+    expect(m4).toContain("Standart sözleşmenin nasıl uygulandığı, sağlayıcıların unvanı");
+    // "Yalnız … paylaşılır" listesi tam olmalı: VIES sorgusu da sayılır (KVKK m.4 ile aynı).
+    // Apple veri işleyen listesinde DEĞİL (KVKK m.4): sağlayıcı parantezinin dışında, ayrı cümlede.
+    expect(m4).toContain(
+      "yetkili kurumlarla paylaşılır; iOS cihazlarda anlık bildirimler ayrıca Apple'ın bildirim hizmeti üzerinden iletilir (Apple veri işleyen sağlayıcılar arasında değildir",
+    );
+    expect(m4).not.toContain("ve iOS cihazlarda Apple —");
+    expect(m4).toContain(
+      "4. maddesindedir); Avrupa Birliği'nde yerleşik firmaların kayıt sırasında girilen KDV kimlik numarası ayrıca Avrupa Komisyonu'nun VIES hizmetinde sorgulanır",
+    );
     expect(m4).toContain("açık rızanıza bağlı değildir");
     // Karşı taraf firmalar da alıcıdır; sağlayıcıların TAMAMI yurt dışında.
     expect(m4).toContain("işlem yaptığınız firmalarla");

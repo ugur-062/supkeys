@@ -106,6 +106,10 @@ Rothern — B2B-платформа для закупок, которая объ�
 | Destek e-postası | support@rothern.com |
 | Geliştirici | Rothern Teknoloji Limited Şirketi |
 
+**Gönderim sırası (2026-10-22):** mağaza incelemesine ancak `main` canlıdayken ve
+https://www.rothern.com/en/account-deletion 200 dönerken gönderilir — eski canlı sürümde bu sayfa ve uygulama içi
+silme yok, kabuk canlı siteyi açtığı için inceleme "hesap silme yok" diye reddeder (`docs/kvkk-uyum.md` A14).
+
 Hesap silme sayfası (2026-10-16) girişsiz açılır ve üç dile çevrilidir. **Play'e İngilizce adres yazılır**
 (inceleme ekibi İngilizce okur; sayfanın dil seçicisi TR / RU'yu açar); App Store Connect'te her dil kendi
 adresini alır. Hukuki metinler (Gizlilik, KVKK) her dilde Türkçe çizilir ve Türkçesi esastır — EN / RU
@@ -145,7 +149,7 @@ Koddan çıkarılan durum; formu doldururken son kez doğrula.
 | Yüklenen belgeler (doğrulama, talep ekleri) | Evet | Uygulama işlevi | Evet |
 | Mesajlar (firmalar arası) | Evet | Uygulama işlevi | Evet |
 | Uygulama içi etkinlik (görüntülenen profil / ürün) | Evet | Uygulama işlevi (Ziyaret Edenler) | Evet |
-| Hata kayıtları | Evet | Teşhis | Hayır (çerezsiz, jetonlar ayıklanır) |
+| Hata kayıtları | Evet | Teşhis | Evet (bazı kayıtlarda iç kullanıcı / firma kimliği; çerez, istek gövdesi, IP ve bağlantı jetonları ayıklanır) — Play: "Uygulama bilgileri ve performans" › "Kilitlenme günlükleri" / "Teşhis", kimliğe bağlı; Apple: "Diagnostics", "Linked to You", izleme için kullanılmaz |
 | Cihaz bildirimi jetonu | Evet (bildirime izin verilirse) | Anlık bildirim (Firebase Cloud Messaging; iOS'ta Apple) | Evet |
 | Konum, kişiler, fotoğraf galerisi, sağlık, finansal ödeme | Hayır | — | — |
 

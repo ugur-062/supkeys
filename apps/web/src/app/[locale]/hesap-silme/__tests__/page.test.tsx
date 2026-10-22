@@ -162,7 +162,8 @@ describe("hesap silme sayfası", () => {
 
   /* 2026-10-16: saklananlar Saklama ve İmha Politikası tablosuyla aynı süreleri
      söyler ve politikaya bağlanır (ticari kayıt 10 yıl yıl sonundan, IP 2 yıl
-     dolmadan, erişim kaydı 1–2 yıl, ret kaydı süresiz). */
+     dolmadan, erişim kaydı en fazla 2 yıl — 2026-10-22 yayın günü doğru olan üst
+     sınır, kapalı kova + 400 gün kurulunca rakam yazılır; ret kaydı süresiz). */
   it.each(LOCALES)("%s: saklananlar politikanın süreleriyle; politikaya bağlantı", async (locale) => {
     const html = await render(locale);
     const section = html.slice(html.indexOf('id="saklananlar"'), html.indexOf('id="ozel-durumlar"'));
@@ -177,8 +178,21 @@ describe("hesap silme sayfası", () => {
     const body = text(await render("tr"));
     expect(body).toContain("kaydın oluştuğu takvim yılının sonundan itibaren 10 yıl");
     expect(body).toContain("2 yıl dolmadan silinir");
-    expect(body).toContain("en az 1, en fazla 2 yıl");
+    expect(body).toContain("Sunucu erişim (trafik) kayıtları en fazla 2 yıl saklanır (5651 sayılı Kanun m. 5/3)");
+    expect(body).not.toMatch(/en az 1/);
     expect(body).toContain("süresiz saklanır");
+  });
+
+  /* Yayın günü doğru (2026-10-22): iOS uygulaması henüz yayında değil → giriş
+     "mobil uygulamalar" der; iki mağaza da canlı olunca "iOS ve Android"e döner
+     (docs/kvkk-uyum.md "Yayın sonrası açık adımlar"). */
+  it.each(LOCALES)("%s: giriş platformu web sitesi ve mobil uygulamalar olarak anar, iOS / Android adı yok", async (locale) => {
+    const body = text(await render(locale));
+    const intro = msg(locale, "web.marketing.accountDeletion.intro")
+      .replace(/<\/?b>/g, "")
+      .replace("{legalName}", OPERATOR.legalName);
+    expect(body).toContain(intro);
+    expect(body).not.toMatch(/iOS|Android/);
   });
 
   it.each(LOCALES)("%s: anonimleştirilmiş kaydın adı sunucunun yazdığı yer tutucu", async (locale) => {

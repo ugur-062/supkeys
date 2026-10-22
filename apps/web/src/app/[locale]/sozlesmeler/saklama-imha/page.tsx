@@ -42,16 +42,16 @@ const RETENTION_COLUMNS = ["Kişisel veri / kayıt", "Saklama süresi", "Saklama
 /** Silme Yönetmeliği m.6/1-g: saklama ve imha sürelerini gösteren tablo. */
 const RETENTION_ROWS: string[][] = [
   [
-    "1. Hesap verileri: ad, soyad, e-posta adresi, telefon numarası, şifre (kimlik doğrulama sistemindeki giriş kaydı), oturumlar, mobil bildirim cihaz kaydı, iki adımlı doğrulama bilgileri, bildirim tercihleri ve izinler",
+    "1. Hesap verileri: ad, soyad, e-posta adresi, telefon numarası, şifre (kimlik doğrulama sistemindeki giriş kaydı), oturumlar, mobil bildirim cihaz kaydı, iki adımlı doğrulama bilgileri ve bildirim tercihleri",
     "Üyelik süresince; hesap silindiğinde hemen; kullanıcı ekipten çıkarıldığında hemen",
     "KVKK m. 5/2-c (üyelik sözleşmesinin kurulması ve ifası); süre sonunda KVKK m. 7",
-    "Hesap silme işlemiyle anında silme. Hesap kaydı, bağlı ticari kayıtların bütünlüğü için kişisel alanları silinmiş olarak \"Silinmiş Kullanıcı\" adıyla ve sözleşme onay tarihleriyle, bu kayıtlar saklandığı sürece kalır. Ekipten çıkarılan kullanıcıda giriş kaydı, e-posta adresi, telefon numarası, iki adımlı doğrulama bilgileri, bildirim tercihleri, izinler, bildirimler ve yapay zekâ asistanı sohbetleri çıkarıldığı anda silinir; adı, firmanın kayıtlarında işlemi yapanın görünmesi için firma kaydıyla birlikte kalır (2. satır).",
+    "Hesap silme işlemiyle anında silme. Hesap kaydı, bağlı ticari kayıtların bütünlüğü için kişisel alanları silinmiş olarak \"Silinmiş Kullanıcı\" adıyla ve sözleşme onay tarihleriyle, bu kayıtlar saklandığı sürece kalır. Ekipten çıkarılan kullanıcıda giriş kaydı, e-posta adresi, telefon numarası, iki adımlı doğrulama bilgileri, bildirim tercihleri, bildirimler ve yapay zekâ asistanı sohbetleri çıkarıldığı anda silinir; adı, firmanın kayıtlarında işlemi yapanın görünmesi için firma kaydıyla birlikte kalır (2. satır); kullanıcının firmadaki yetki bilgisi de hesap kaydında kalır.",
   ],
   [
     "2. Firma kayıtları: unvan, vergi numarası (şahıs firmalarında T.C. kimlik numarası), adresler, banka hesap bilgileri, firma doğrulama belgeleri, firma yetkilisinin kimlik numarası ve kimlik belgesi görüntüleri",
     "Firma hesabı açık olduğu sürece; firma kapandıktan (firmanın son kullanıcısı hesabını sildikten) sonra en geç 30 gün",
     "KVKK m. 5/2-c (sözleşmenin ifası, firma doğrulaması), m. 5/2-f (Platform'da güvenli ticaret)",
-    "Yönetici işlemiyle silme: firma kaydındaki kişisel veriler (unvan, vergi ve kimlik numarası, adresler, banka bilgileri, belgeler) ve firma kullanıcılarının adları silinir; geçmiş ticari kayıtları olan firmanın kaydı yalnız \"Silinmiş Firma\" adıyla kalır. Belge ve görseller dosya depolama alanından silinir.",
+    "Yönetici işlemiyle silme: firma kaydındaki kişisel veriler (unvan, vergi ve kimlik numarası, adresler, banka bilgileri, belgeler) ve firma kullanıcılarının adları silinir; geçmiş ticari kayıtları olan firmanın kaydı yalnız \"Silinmiş Firma\" adıyla kalır. Firma doğrulama belgeleri, kimlik belgesi görüntüleri, logo ve kapak görselleri dosya depolama alanından silinir.",
   ],
   [
     "3. Ticari kayıtlar ve ticari yazışmalar: satın alma talepleri, teklifler, siparişler, ödeme bildirimleri, değerlendirmeler, firmalar arası mesajlar ve yüklenen belgeler; ticari işlemlere ilişkin e-postaların (talep, teklif, sipariş, mesaj, bilgi talebi, bağlantı ve üyelik bildirimleri) gönderim ve teslim kayıtları (alıcı, konu, içerik verisi, teslim durumu)",
@@ -66,10 +66,10 @@ const RETENTION_ROWS: string[][] = [
     "IP adresi ve tarayıcı bilgisi 2 yıllık üst sınır dolmadan otomatik silinir; kayıt 10 yıl dolunca otomatik silinir.",
   ],
   [
-    "5. Erişim (trafik) kayıtları: sunucu ve içerik dağıtım ağı (CDN) erişim günlükleri — IP adresi, port, erişim zamanı, istenen adres ve hizmet türü",
-    "En az 1 yıl, en fazla 2 yıl",
+    "5. Erişim (trafik) kayıtları: sunucu ve içerik dağıtım ağı (CDN) erişim günlükleri — IP adresi, erişim zamanı, istenen adres ve hizmet türü",
+    "En fazla 2 yıl (5651 sayılı Kanun m. 5/3)",
     "5651 sayılı Kanun m. 5/3; KVKK m. 5/2-ç",
-    "Günlüklerin tutulduğu kapalı saklama alanında süre sonunda otomatik silme",
+    "Günlüklerin tutulduğu hizmet sağlayıcı sisteminde, hesap ayarlarıyla belirlenen süre sonunda otomatik silme",
   ],
   [
     "6. Yapay zekâ kullanım kayıtları: kullanılan özellik, kullanım zamanı ve maliyeti, kullanıcı kimliği ve e-posta adresi",
@@ -189,11 +189,11 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/saklama-imha"
       title="Kişisel Veri Saklama ve İmha Politikası"
-      updatedAt="2026-10-16"
+      updatedAt="2026-10-22"
       sections={[
         {
           paragraphs: [
-            `İşbu Kişisel Veri Saklama ve İmha Politikası ("Politika"), veri sorumlusu sıfatıyla ${OPERATOR.legalName} ("Rothern") tarafından işletilen Rothern platformunda (www.rothern.com web sitesi ile Rothern iOS ve Android mobil uygulamaları; "Platform") işlenen kişisel verilerin ne kadar süre saklanacağını ve süre sonunda nasıl imha edileceğini belirler. Politika, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") m. 7 ile Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Hakkında Yönetmelik ("Yönetmelik") uyarınca hazırlanmıştır ve Veri Sorumluları Siciline kayıt yükümlülüğünden bağımsız olarak uygulanır. Veri sorumlusunun adresi: ${OPERATOR.address}.`,
+            `İşbu Kişisel Veri Saklama ve İmha Politikası ("Politika"), veri sorumlusu sıfatıyla ${OPERATOR.legalName} ("Rothern") tarafından işletilen Rothern platformunda (www.rothern.com web sitesi ile Rothern mobil uygulamaları; "Platform") işlenen kişisel verilerin ne kadar süre saklanacağını ve süre sonunda nasıl imha edileceğini belirler. Politika, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") m. 7 ile Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Hakkında Yönetmelik ("Yönetmelik") uyarınca hazırlanmıştır ve Veri Sorumluları Siciline kayıt yükümlülüğünden bağımsız olarak uygulanır. Veri sorumlusunun adresi: ${OPERATOR.address}.`,
             "Kişisel verilerin hangi amaçlarla ve hangi hukuki sebeplere dayanılarak işlendiği, kimlere aktarıldığı ve ilgili kişilerin hakları KVKK Aydınlatma Metni'nde açıklanır; bu Politika onu tamamlar.",
           ],
         },
@@ -265,14 +265,14 @@ export default async function Page({ params }: { params: LocaleParams }) {
             "Firma doğrulama belgeleri ve kimlik belgesi görüntüleri herkese kapalı depolama alanında tutulur ve yalnız yetkili kişiye, kısa süreli imzalı bağlantıyla açılır.",
             "Oturumlar istemci betiklerinin erişemediği (httpOnly) çerezlerle taşınır; değişiklik yapan isteklerde CSRF koruması ve istek hızı sınırlaması uygulanır.",
             "Yönetim paneline erişim rol bazlıdır ve en yetkili rolde iki adımlı doğrulama zorunludur; kritik işlemler denetim kaydına yazılır ve denetim kayıtları bu Politika'daki imha işlemleri dışında değiştirilmez.",
-            "Hata izleme kayıtlarına gönderilen kişisel veriler en aza indirilir (çerezler, istek gövdesi, IP adresi ve bağlantılardaki jetonlar gönderilmeden ayıklanır); uygulama günlüklerine yalnız izin verilen istek bilgileri yazılır. Erişim (trafik) günlükleri 5651 sayılı Kanun gereği IP adresi içerir ve 8. maddedeki tablonun 5. satırındaki süreyle saklanır.",
+            "Hata izleme kayıtlarına gönderilen kişisel veriler en aza indirilir (çerezler, istek gövdesi, IP adresi ve bağlantılardaki jetonlar gönderilmeden ayıklanır); uygulama günlüklerine yalnız izin verilen istek bilgileri yazılır. Erişim (trafik) günlükleri IP adresi içerebilir ve 8. maddedeki tablonun 5. satırına göre saklanır.",
           ],
         },
         {
           paragraphs: ["Başlıca idari tedbirler:"],
           list: [
             "Kişisel verilere erişim yetkisi yalnız görevi gereği ihtiyaç duyan kişilere ve o ölçüde verilir; yetkiler görev değişikliğinde ve görevden ayrılışta kaldırılır.",
-            "Veri işleyenlerle, verilerin yalnız Rothern'in talimatıyla ve hizmetin sunulması amacıyla işlenmesini öngören veri işleme sözleşmesi yapılır; yurt dışındaki veri işleyenlere aktarım KVKK m. 9/4-c uyarınca Kişisel Verileri Koruma Kurulu'nun ilan ettiği standart sözleşmelerle yapılır (KVKK Aydınlatma Metni m. 4). Veri işleyenlerin tedbirleri, alt veri işleyenleri ve kendi kayıtlarını saklama süreleri yılda en az bir kez gözden geçirilir.",
+            "Veri işleyenlerle, verilerin yalnız Rothern'in talimatıyla ve hizmetin sunulması amacıyla işlenmesini öngören veri işleme sözleşmeleri (sağlayıcıların veri işleme ekleri) yapılır; yurt dışındaki veri işleyenlere aktarımda KVKK m. 9/4-c uyarınca Kişisel Verileri Koruma Kurulu'nun ilan ettiği standart sözleşme kullanılır (KVKK Aydınlatma Metni m. 4). Veri işleyenlerin tedbirleri, alt veri işleyenleri ve kendi kayıtlarını saklama süreleri yılda en az bir kez gözden geçirilir.",
             "Kişisel veri ihlali öğrenildiğinde Kişisel Verileri Koruma Kurulu'na en geç 72 saat içinde, etkilenen ilgili kişilere en kısa sürede bildirim yapılır (KVKK m. 12/5).",
           ],
         },
@@ -355,7 +355,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
           paragraphs: [
             "Politika, www.rothern.com'da yayımlandığı tarihte yürürlüğe girer. Politika; saklama süreleri, kayıt ortamları ya da mevzuat değiştiğinde ve her durumda yılda en az bir kez gözden geçirilir. Güncellemeler aşağıdaki değişiklik geçmişine tarihiyle yazılır ve güncel metin her zaman bu sayfada yayımlanır.",
           ],
-          list: ["16.10.2026 — İlk yayım: saklama ve imha süreleri tablosu, periyodik imha süreleri, imha yöntemleri ve görev dağılımı."],
+          list: ["22.10.2026 — İlk yayım: saklama ve imha süreleri tablosu, periyodik imha süreleri, imha yöntemleri ve görev dağılımı."],
         },
       ]}
     />

@@ -46,15 +46,18 @@ Yerel geliştirme (`.env`) **staging**'e bağlıdır. Canlı değerler `.env.pro
 - Riskli özellik anahtarla (`MARKETPLACE_LIVE` kalıbı): kod çıkar, anahtar staging'de
   doğrulanınca açılır.
 - Haftada bir toplu sürüm; acil düzeltme aynı akıştan, beklemeden.
-- **KVKK metin kapısı (2026-10-16, BLOKLAYICI).** 2026-10-16 tarihli değişiklikler
-  — `sozlesmeler/{kvkk,gizlilik,saklama-imha,kullanici}`, `/hesap-silme` metinleri
-  ve kayıt formundaki onay satırları — `docs/kvkk-uyum.md` "Canlı kapısı"
-  maddelerinin TAMAMI bitip `docs/legal/dpa/README.md`'ye işlenmeden `production`'a
-  BİRLEŞTİRİLMEZ (SS-2 imza + 5 iş günü bildirim, Sentry DPA + veri ayıklama,
-  trafik kayıtlarının kapalı kovaya akması, Apple ve yurt dışı karşı taraf için
-  avukat yanıtı, yeterlilik kararı kontrolü, kullanıcılara m.8 bildirimi). `main`
-  staging'e kendiliğinden kurulur: staging'de görünmesi sorun değil, canlıya
-  çıkan PR bu dosyaları kapı bitene dek içermez (gerekirse ayrı dal).
+- **KVKK metinleri: yayın günü doğru (2026-10-22 sahip kararı; 16 Ekim'deki
+  BLOKLAYICI "Canlı kapısı" kuralının yerine).** Hukuki metinler
+  (`sozlesmeler/{kvkk,gizlilik,saklama-imha,kullanici,aracilik}`, `/hesap-silme`,
+  kayıt formu onay satırları) `main`'le birlikte canlıya çıkar; ama canlıya çıkan her
+  cümle YAYIN GÜNÜ DOĞRU olmalı — bitmemiş hukuki adım (imza, Kurum bildirimi,
+  süre rakamı, avukat yanıtı, sözleşme tarafı) metne olmuş gibi yazılmaz, sayfaya
+  sağlayıcı başına durum yazılmaz. "Yayın günü" `production` merge anıdır: yeni
+  kod gerektirmeyen adımlar (SS-2 talepleri, DPA kabulleri, GA model doğrulaması,
+  saklama anahtarları…) merge'den ÖNCE biter, duyuru gibi canlı metni gerektirenler
+  merge'den hemen sonra aynı gün yapılır (`docs/kvkk-uyum.md` "Yayın sonrası açık
+  adımlar", A-ÖNCE / A-SONRA). Bir adım bitince yükseltilecek cümle (B tablosu),
+  sayfanın `updatedAt`'i ve o liste AYNI değişiklikte güncellenir.
 
 ## Staging verisi
 

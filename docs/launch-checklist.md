@@ -8,17 +8,34 @@ Servis fail davranışları [dış servis envanteri](#dış-servis-fail-davranı
 tablosunda özetlendi — **hangi eksik sessizce geçer, hangisi app'i boot ettirmez**
 ayrımı kritik.
 
-> **KVKK METİN KAPISI (2026-10-16, BLOKLAYICI):** yeni KVKK Aydınlatma, Gizlilik,
-> Saklama ve İmha Politikası, Kullanıcı Sözleşmesi m.8, `/hesap-silme` metinleri ve
-> kayıt formu onay satırları, `docs/kvkk-uyum.md` "Canlı kapısı"ndaki her madde
-> bitip `docs/legal/dpa/README.md`'ye işlenmeden canlıya çıkmaz
-> (`docs/release-process.md` Kurallar).
+> **KVKK METİNLERİ — YAYIN GÜNÜ DOĞRU (2026-10-22 sahip kararı; 16 Ekim'deki
+> BLOKLAYICI "Canlı kapısı" kuralının yerine):** KVKK Aydınlatma, Gizlilik, Saklama
+> ve İmha Politikası, Kullanıcı ve Aracılık sözleşmeleri, `/hesap-silme` ve kayıt
+> formu onay satırları `main`'le canlıya çıkar; her cümle canlıya çıktığı anda
+> (`production` merge'ü) doğru olmalı, bitmemiş hukuki adım metne olmuş gibi
+> yazılmaz. Açık adımlar yayından sonra sürer, biri bitince ilgili cümle yükseltilir
+> (`docs/kvkk-uyum.md` "Yayın sonrası açık adımlar" B tablosu;
+> `docs/release-process.md` Kurallar). Kanıt ve tarihler `docs/legal/dpa/README.md`'ye.
 >
-> - [ ] SS-2: sağlayıcılarla imza + 5 iş günü içinde Kurum bildirimi (kvkk-uyum 1–4)
-> - [ ] Trafik kayıtları kapalı R2 kovasına akıyor, yaşam döngüsü 400 gün (kvkk-uyum 6)
-> - [ ] Apple (APNs) ve yurt dışı karşı taraf için avukat yanıtı metne işlendi (kvkk-uyum §10 soru 3, 5)
-> - [ ] Kurul yeterlilik kararı kontrolü (karar çıktıysa m.4 dayanağı değişir)
-> - [ ] Kullanıcı Sözleşmesi m.8 değişikliği mevcut kullanıcılara bildirildi (uygulama içi + e-posta)
+> **Merge'den ÖNCE (A-ÖNCE; biri bitmezse merge beklenir ya da cümle önce düzeltilir):**
+>
+> - [ ] `docs/legal/dpa/README.md` iskeleti oluşturuldu (A0)
+> - [ ] SS-2 talepleri yedi sağlayıcıya tarihli gönderildi — Google'da Cloud / Vertex, Firebase, Workspace tek kayıtta (A1)
+> - [ ] Sentry DPA + Data Scrubber + IP saklamama; Google Cloud ve Workspace CDPA, Firebase şartları kabul (A2)
+> - [ ] Grounding with Google Search CDPA kapsamında mı okundu, kanıt README'de (A2b; değilse B14 merge'den önce)
+> - [ ] Render production model id'leri Model Garden'da GA olarak doğrulandı (`gemini-3.5-flash` dahil; GA yazmıyorsa değiştir), `CONTENT_TRANSLATION_MODEL` GA; yedek `gemini-flash-lite-latest` Vertex'te denendi (A3; ön-sürümse B15)
+> - [ ] Kurul yeterlilik kararı kontrolü kaydedildi (A4)
+> - [ ] kvkk@ / support@ deneme e-postası ve sahipler (A6)
+> - [ ] `DATA_RETENTION_PURGE_ENABLED` ve `UNVERIFIED_SIGNUP_PURGE_ENABLED` tanımsız ya da `true`; önizleme için `false` yapıldıysa ikisi de aynı gün geri açılacak (A8)
+> - [ ] `ADMIN_2FA_REQUIRED_ROLES` `none` değil (A9); eski düz metin 2FA sırrı sayımı (A10)
+> - [ ] `[KVKK-SILME-BEKLIYOR]` Sentry uyarısının sahibi (A11); api / cdn `__cf_bm` çerez kontrolü (A12); Supabase sözleşme tarafı okundu (A13)
+>
+> **Merge'den hemen sonra, aynı gün (A-SONRA):**
+>
+> - [ ] Kullanıcı Sözleşmesi m.7 + m.8 değişikliği mevcut kullanıcılara duyuruldu (uygulama içi + e-posta, `#madde-7` ve `#madde-8`) (A5)
+> - [ ] Canlı R2 nesne kilidi + deneme firma silmesi (A7); SUPER_ADMIN'ler 2FA kurdu (A9b)
+> - [ ] Ertesi sabah: ilk gecenin `system.retention_purge` ve `company.signup_expired` kayıtları (A8)
+> - [ ] Mağaza gönderimi yalnız `/en/account-deletion` canlıda 200 dönünce (A14)
 
 > **En tehlikeli tek nokta:** `SENTRY_DSN`. Diğer tüm çekirdek servisler (Supabase,
 > R2, Resend) env'i eksikse app **boot etmez** (fail-closed, hatayı hemen görürsün).

@@ -183,11 +183,18 @@ services:
         sync: false
       - key: AI_PROVIDER
         value: gemini
+      # Model id'leri PANELDEN (2026-10-22): production'da ön-sürüm (-preview /
+      # -exp) id API'yi AÇMAZ (ai.config.ts isPreGaModelId, KVKK: Google DPA
+      # yalnız GA'yı kapsar) ve `-latest` takma adları Vertex'te 404. Sabit
+      # değer blueprint eşitlemesinde paneldeki GA sabitlemesini ezerdi.
+      # Bugünkü değer üçü için gemini-3.5-flash (Google belgelerine göre GA,
+      # 19.05.2026; DEFAULT_PRICING'de). Vertex'te çalıştığı staging'de denenir
+      # (docs/kvkk-uyum.md A3).
       - key: AI_MODEL_DEFAULT
-        value: gemini-flash-latest
+        sync: false
       - key: AI_MODEL_VISION
-        value: gemini-flash-latest
+        sync: false
       - key: AI_MODEL_PREMIUM
-        value: gemini-pro-latest
+        sync: false
       - key: AI_MAX_PAGES
         value: "20"

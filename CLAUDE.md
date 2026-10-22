@@ -5157,8 +5157,10 @@ Kullanıcı kararı: "mağazalar ve KVKK kabul etsin". Operatör listesi (DPA, S
   `RETENTION_CATEGORY_LABEL` (admin `audit-format.test` API kaynağını okur). Sözleşme
   `test/unit/data-retention-policy.spec.ts`, `test/integration/data-retention.spec.ts`.
 - **Ekipten çıkarma = hesap verisinin sonu (politika satır 1):** `CompanyUsersService.remove` aynı işlemde
-  telefon, 2FA, bildirim tercihleri, izinler, bekleyen bağlantı/kod, bildirimler, asistan sohbetleri ve
-  adresi (AI kullanım kaydı, ekip daveti) siler; AD kalır (firma kaydıyla, firma imhasında gider).
+  telefon, 2FA, bildirim tercihleri, bekleyen bağlantı/kod, bildirimler, asistan sohbetleri ve adresi (AI
+  kullanım kaydı, ekip daveti) siler; AD kalır (firma kaydıyla, firma imhasında gider). İzinler / roller hesap
+  kaydında kalır — `remove`, `scrubAccount` ve firma anonimleştirmesi temizlemez; politika satır 1 bunu yazar,
+  temizlenecekse üçü birlikte ve iki alan birlikte: kvkk-uyum B9.
 - **Kişisel veri taşıyan YENİ tablo / kolon** politikaya satır almadan eklenmez (veri, süre, sebep, imha yöntemi)
   ve süresi bir işe ya da "elle, en geç 6 ayda bir gözden geçirme" kaydına bağlanır. Satırı olmayan eski
   tablolar `docs/kvkk-uyum.md` "Açık işler"de.
@@ -5169,10 +5171,18 @@ Kullanıcı kararı: "mağazalar ve KVKK kabul etsin". Operatör listesi (DPA, S
   sağlayıcı ya da rıza sözü eklenmez (`consent-rows.test`). Yeni yurt dışı sağlayıcı (günlük toplayıcı dahil)
   = önce SS-2 + 5 iş günü içinde Kurum bildirimi, sonra Aydınlatma m.4 listesine unvan + ülke + veri yeri + veri
   ve `docs/kvkk-uyum.md` sağlayıcı tablosuna satır. **Apple (APNs) listede DEĞİL** (SS imzalamıyor; ayrı
-  paragraf, dayanak avukat yanıtıyla). Metin mekanizmayı ŞİMDİKİ zamanla yazar ("imzalanır ve bildirilir");
-  **canlıya çıkış `docs/kvkk-uyum.md` "Canlı kapısı"na bağlı** (`docs/release-process.md` Kurallar).
+  paragraf, dayanak avukat yanıtıyla). **YAYIN GÜNÜ DOĞRU (2026-10-22 sahip kararı; eski "Canlı kapısı"
+  kuralının yerine):** metinler `main`'le canlıya çıkar, her cümle o gün (= `production` merge anı; yeni kod
+  gerektirmeyen operatör adımları merge'den ÖNCE, kvkk-uyum "A-ÖNCE") doğru olmalı — bitmemiş adım (SS-2
+  imzası, Kurum bildirimi, 5651 süre rakamı, avukat yanıtı, Google sözleşme tarafı) olmuş gibi yazılmaz, sayfaya
+  sağlayıcı başına durum yazılmaz (bugün m.4: standart sözleşme "kullanılır … imzaya sunulur", trafik kaydı "en
+  fazla 2 yıl"). Adım bitince yükseltilecek cümle `docs/kvkk-uyum.md` "Yayın sonrası açık adımlar"da; metin,
+  `updatedAt` ve o liste AYNI değişiklikte (`docs/release-process.md` Kurallar).
 - **Yapay zekâ: production'da ön-sürüm model YOK** (Google DPA yalnız GA): `loadAiConfig` `-preview`/`-exp`
-  model id'sinde açılışı keser (`isPreGaModelId`), içerik çevirisi yedeklerinde ön-sürüm yok.
+  model id'sinde açılışı keser (`isPreGaModelId`), içerik çevirisi yedeklerinde ön-sürüm yok. İki boşluk:
+  `-preview` eki taşımayan ön-sürüm id'si (`isPreGaModelId` adından yargılar) ve sağlayıcının kapasite / 400
+  yedeği `gemini.provider.ts` `FALLBACK_MODELS` → `gemini-flash-lite-latest` takma adı — GA durumu Model
+  Garden'da doğrulanır (kvkk-uyum A3), yedeğin sabitlenmesi B15.
 - "Anonim" YAZILMAZ: hesap kaydı da kapanan firmanın firma kaydı da ticari kayıtlara bağlı kalır (takma adlı) —
   kişisel veri SİLİNİR, kayıt "Silinmiş Kullanıcı" / "Silinmiş Firma" adıyla kalır. Anonim hâle getirme yalnız
   gerçekten geri döndürülemeyen sonuç için (politika m.6). Sözleşme tablosu `LegalSection.table` (telefonda
