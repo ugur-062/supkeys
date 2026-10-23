@@ -5,24 +5,20 @@
  *
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-demo-fill.ts
  * Idempotent: her koşuda @demofill.local firmaları silinip yeniden kurulur.
+ *
+ * ESKİ betik: yerini `seed-marketplace-demo` aldı (aynı `@demofill.local` işareti).
+ * GİZLİ SEGMENT (2026-10-09): kategori havuzu yalnız GÖRÜNÜR segmentlerden
+ * (`visibleActiveFamilyWhere`, kod sırasıyla) seçilir ve yazımdan önce bir kez
+ * daha denetlenir. Süzgeçsiz ve sırasız hâliyle havuzun 24 ailesinin tamamı
+ * gizli segment 10'du (canlı bitki/hayvan) ve firma beyanına, talebe yazılıyordu.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-// .env'i manuel yükle (tsx otomatik yüklemez).
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient, type CompanyRole, type CompanyTier } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { permissionsForRoles } from "@rothern/shared";
+import { assertVisibleSeedCategories, visibleActiveFamilyWhere } from "./lib/seed-category-guard";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-demo-fill") });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -38,6 +34,12 @@ const genCode = () => {
   return `${p()}-${p()}`;
 };
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
+// Kayıt akışı üç zorunlu onayı birden yazar; demo hesaplar da onaylı doğar,
+// yoksa panel onay penceresi açılır (derin denetim MU-04).
+const ACCEPTED = () => {
+  const now = new Date();
+  return { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now };
+};
 
 async function findAuthUser(email: string): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
@@ -158,9 +160,10 @@ async function main() {
     console.log(`🧹 ${prevIds.length} eski demo firma silindi`);
   }
 
-  // 1) Kategori havuzu (geçerli UNSPSC kodları).
-  const cats = (await prisma.category.findMany({ where: { level: 2, isActive: true }, select: { code: true }, take: 24 })).map((c) => c.code);
+  // 1) Kategori havuzu: GÖRÜNÜR segmentlerin aileleri, kod sırasıyla (kararlı).
+  const cats = (await prisma.category.findMany({ where: visibleActiveFamilyWhere(), select: { code: true }, orderBy: { code: "asc" }, take: 24 })).map((c) => c.code);
   if (!cats.length) throw new Error("Kategori bulunamadı — önce kategori seed'ini çalıştırın.");
+  assertVisibleSeedCategories("seed-demo-fill", cats.map((code) => ({ source: "category pool", code })));
   const cat = (idx: number) => cats[idx % cats.length]!;
 
   // 2) Firmalar + owner + auth.
@@ -183,7 +186,7 @@ async function main() {
     });
     const firstName = d.name.split(" ")[0] ?? d.name;
     const user = await prisma.companyUser.create({
-      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date() },
+      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date(), ...ACCEPTED() },
     });
     await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
     id[d.key] = { companyId: company.id, ownerId: user.id };
@@ -209,10 +212,10 @@ async function main() {
       const authId = await ensureAuthUser(email);
       await prisma.companyUser.upsert({
         where: { email },
-        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null },
+        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null, ...ACCEPTED() },
         create: {
           email, authId, firstName: t.label, lastName: COMPANIES.find((c) => c.key === key)!.name,
-          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(),
+          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(), ...ACCEPTED(),
         },
       });
       teamCount++;

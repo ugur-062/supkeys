@@ -74,17 +74,45 @@ function hostOf(url: string | undefined): string | null {
 }
 
 // Süreç env'i öncelikli (jest globalSetup açıkça geçiriyor), yoksa .env.
-const url = process.env.DATABASE_URL ?? envFromFile("DATABASE_URL");
-const host = hostOf(url);
+// Boş dize "tanımsız" sayılır (Prisma `env()` boş değeri kullanamaz).
+function envOf(key: string): string | undefined {
+  const v = process.env[key] ?? envFromFile(key);
+  return v && v.trim() ? v : undefined;
+}
 
-if (!host) {
+// Derin denetim LU-09 (S047): Prisma migrate komutları datasource'taki
+// `directUrl = env("DIRECT_URL")` tanımlıysa ONA bağlanır, DATABASE_URL'e
+// değil. Nöbetçi yalnız DATABASE_URL'e bakınca `DATABASE_URL=localhost…`
+// verilip DIRECT_URL `.env`'den (uzak) okunduğunda kapı açılıyor ve migration
+// uzağa gidiyordu. Artık İKİSİ de denetlenir; biri uzaksa açık izin şart.
+const targets = [
+  { key: "DATABASE_URL", url: envOf("DATABASE_URL") },
+  { key: "DIRECT_URL", url: envOf("DIRECT_URL") },
+].filter((t): t is { key: string; url: string } => t.url !== undefined);
+
+if (!targets.some((t) => t.key === "DATABASE_URL")) {
   console.error(
     "\n[migration-nöbetçisi] DATABASE_URL okunamadı — migration uygulanmıyor.\n",
   );
   process.exit(1);
 }
 
-if (LOCAL_HOSTS.has(host)) {
+const unparsable = targets.filter((t) => !hostOf(t.url));
+if (unparsable.length > 0) {
+  console.error(
+    `\n[migration-guard] Cannot parse host of ${unparsable.map((t) => t.key).join(", ")} — not migrating.\n`,
+  );
+  process.exit(1);
+}
+
+const remoteHosts = [
+  ...new Set(
+    targets.map((t) => hostOf(t.url)!).filter((h) => !LOCAL_HOSTS.has(h)),
+  ),
+];
+const host = remoteHosts.join(", ");
+
+if (remoteHosts.length === 0) {
   process.exit(0); // lokal: serbest
 }
 

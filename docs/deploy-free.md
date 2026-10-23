@@ -18,13 +18,14 @@ Demo/ilk yayın için ücretsiz stack. Sıra önemli: **Supabase → Render (API
    - **DATABASE_URL** = Transaction pooler (port 6543, `?pgbouncer=true&connection_limit=10&pool_timeout=20`)
    - **DIRECT_URL** = Session pooler (port 5432, `?sslmode=require`)
 3. Settings → API: **SUPABASE_URL**, **SUPABASE_ANON_KEY**, **SUPABASE_SERVICE_ROLE_KEY**. (SUPABASE_JWT_SECRET kodda KULLANILMIYOR — girmeye gerek yok.)
-4. Authentication → Sign In/Up: **"Allow new users to sign up" KAPAT** (kayıt yalnız API'nin admin createUser'ı ile; anon key + GoTrue `/signup` yetim auth.users üretmesin) + Rate Limits sıkılaştır.
+4. Authentication → Sign In/Up: **"Allow new users to sign up" KAPAT** (kayıt yalnız API'nin admin createUser'ı ile; anon key + GoTrue `/signup` yetim auth.users üretmesin).
+5. Authentication → Rate Limits: **"Sign-ups and sign-ins" kotasını sunucu trafiğine yetecek kadar YÜKSELT** (sıkılaştırma — girişler API sunucusundan gider, düşük kota herkesi kilitler) **ve** Settings → API Keys → **Secret key** (`sb_secret_…`) oluşturup Render'a `SUPABASE_SECRET_KEY` olarak gir: kota `Sb-Forwarded-For` ile istemci IP'si başına uygulanır (`sb_secret_` önekli olmayan değer yok sayılır). Staging'de doğrula: doğru şifre girer, yanlış şifre 401; tek IP'den kota aşılınca yalnız o IP 429 alır (bkz. `docs/launch-checklist.md` Parça 1).
 
 ## 2. API → Render (Docker, free)
 1. render.com → New → **Blueprint** → bu repo'yu bağla → `render.yaml` okunur, `rothern-api` servisi oluşur.
 2. Servis → Environment → `sync:false` işaretli env'leri doldur:
    - DB: DATABASE_URL, DIRECT_URL
-   - JWT_SECRET (min 32 rastgele), SUPABASE_* (4 anahtar)
+   - JWT_SECRET (min 32 rastgele), SUPABASE_* (4 anahtar) + `SUPABASE_SECRET_KEY` (`sb_secret_…`, bkz. aşama 1 adım 5)
    - R2_*: Cloudflare R2 (bkt oluştur, S3 API token al) — 6 anahtar
    - RESEND_API_KEY (+ EMAIL_FROM_ADDRESS: aşama 5'te doğrulanmış domain)
    - INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD (≥12 karakter)

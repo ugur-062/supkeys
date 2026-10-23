@@ -43,14 +43,14 @@ describe("SeoIndexService", () => {
     await svc.flush();
   }
 
-  it("yayındaki ürün: ürün + firma + kategori sayfası IndexNow'a, dizin/sitemap web'e", async () => {
+  it("yayındaki ürün: ürün + firma + kategori + şehir + ülke sayfası IndexNow'a, dizin/sitemap web'e", async () => {
     const prisma = makePrisma();
     (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
       slug: "celik-boru",
       isPublic: true,
       isActive: true,
       categoryId: "39121004",
-      company: { slug: "acme-metal", city: "İstanbul", publicEnabled: true },
+      company: { slug: "acme-metal", cityId: -1034, country: "TR", publicEnabled: true },
     });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.productChanged("item1");
@@ -68,7 +68,10 @@ describe("SeoIndexService", () => {
         "/urunler",
         "/urunler/kategori/39000000-elektrik-malzemeleri",
         "/urunler/sehir/istanbul",
+        "/urunler/ulke/tr-turkiye",
         SITEMAP_PATHS.products,
+        SITEMAP_PATHS.cities,
+        SITEMAP_PATHS.countries,
         SITEMAP_PATHS.index,
       ]),
     );
@@ -95,11 +98,86 @@ describe("SeoIndexService", () => {
        olmalı. Kök olduğu için bu her zaman sağlanır. */
     const kapsam = inBody.keyLocation.slice(0, inBody.keyLocation.lastIndexOf("/") + 1);
     for (const u of inBody.urlList) expect(u.startsWith(kapsam)).toBe(true);
+    // Her adres ÜÇ dilde (i18n SEO 2026-09-25, `localizedIndexNowUrls`).
     expect(inBody.urlList).toEqual([
       "https://www.rothern.com/firma/acme-metal/urun/celik-boru",
+      "https://www.rothern.com/en/companies/acme-metal/products/celik-boru",
+      "https://www.rothern.com/ru/kompanii/acme-metal/tovary/celik-boru",
       "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
       "https://www.rothern.com/urunler/kategori/39000000-elektrik-malzemeleri",
+      "https://www.rothern.com/en/products/category/39000000-elektrik-malzemeleri",
+      "https://www.rothern.com/ru/tovary/kategoriya/39000000-elektrik-malzemeleri",
+      // Şehir/ülke açılış sayfaları da ürün listesidir (2026-09-27 SEO denetimi).
+      "https://www.rothern.com/urunler/sehir/istanbul",
+      "https://www.rothern.com/en/products/city/istanbul",
+      "https://www.rothern.com/ru/tovary/gorod/istanbul",
+      "https://www.rothern.com/urunler/ulke/tr-turkiye",
+      "https://www.rothern.com/en/products/country/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turtsiya",
     ]);
+  });
+
+  it.each([
+    // Tümüyle gizli segment: kategori sayfası web'de 404.
+    ["gizli segment", "10101500"],
+    // GÖRÜNÜR segmentin (46) gizli ailesi / sınıfı (2026-10-10): segmentin sayfası
+    // var ama ürün orada listelenmez → o sayfa da tazelenmez / bildirilmez.
+    ["görünür segmentin gizli ailesi", "46101500"],
+    ["görünür ailenin gizli sınıfı", "46182501"],
+  ])("%s altındaki eski ürün: kategori sayfası ne tazelenir ne bildirilir; ürün ve firma gider", async (_level, categoryId) => {
+    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "İş Güvenliği ve Yangın Ekipmanları" });
+    const prisma = makePrisma({ category: { findUnique: categoryFind } });
+    (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
+      slug: "balistik-yelek",
+      isPublic: true,
+      isActive: true,
+      categoryId,
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.productChanged("item1");
+    await flushSoon(svc);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [revalidateCall, indexNowCall] = fetchMock.mock.calls;
+    const body = JSON.parse(revalidateCall[1].body);
+    expect(body.paths).toEqual(expect.arrayContaining(["/firma/acme-metal/urun/balistik-yelek", "/firma/acme-metal", "/urunler"]));
+    expect(body.paths.filter((p: string) => p.includes("/kategori/"))).toEqual([]);
+    const inBody = JSON.parse(indexNowCall[1].body);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/firma/acme-metal/urun/balistik-yelek",
+      "https://www.rothern.com/en/companies/acme-metal/products/balistik-yelek",
+      "https://www.rothern.com/ru/kompanii/acme-metal/tovary/balistik-yelek",
+      "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
+    ]);
+    // Gizli dalın (ve onun görünür segmentinin) adı için kategori tablosuna hiç gidilmez.
+    expect(categoryFind).not.toHaveBeenCalled();
+  });
+
+  it("46 altındaki GÖRÜNÜR kategorideki ürün: 46 segmentinin sayfası tazelenir ve bildirilir (sıradan kategori)", async () => {
+    const categoryFind = jest.fn().mockResolvedValue({ nameTr: "Elektrik Malzemeleri" });
+    const prisma = makePrisma({ category: { findUnique: categoryFind } });
+    (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
+      slug: "is-elbisesi",
+      isPublic: true,
+      isActive: true,
+      categoryId: "46181500",
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.productChanged("item1");
+    await flushSoon(svc);
+
+    expect(categoryFind).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "46000000" } }));
+    const [revalidateCall, indexNowCall] = fetchMock.mock.calls;
+    expect(JSON.parse(revalidateCall[1].body).paths).toContain("/urunler/kategori/46000000-elektrik-malzemeleri");
+    expect(JSON.parse(indexNowCall[1].body).urlList).toContain(
+      "https://www.rothern.com/urunler/kategori/46000000-elektrik-malzemeleri",
+    );
   });
 
   it("vitrinden çekilen ürün: IndexNow'a GİTMEZ, web yine tazelenir", async () => {
@@ -109,7 +187,7 @@ describe("SeoIndexService", () => {
       isPublic: false,
       isActive: true,
       categoryId: null,
-      company: { slug: "acme-metal", city: null, publicEnabled: true },
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
     });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.productChanged("item1");
@@ -127,7 +205,9 @@ describe("SeoIndexService", () => {
         status: "OPEN",
         visibility: "PUBLIC",
         publicIndexable: true,
-        company: { publicListingsEnabled: true, city: "Ankara" },
+        publishedAt: new Date("2026-09-01T00:00:00Z"),
+        bidsOpenAt: null,
+        company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: "Ankara" },
       })
       .mockResolvedValueOnce({
         number: "ROT-000043",
@@ -135,7 +215,9 @@ describe("SeoIndexService", () => {
         status: "OPEN",
         visibility: "CONNECTIONS",
         publicIndexable: true,
-        company: { publicListingsEnabled: true, city: null },
+        publishedAt: new Date("2026-09-01T00:00:00Z"),
+        bidsOpenAt: null,
+        company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
       });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.listingChanged("l1");
@@ -144,16 +226,101 @@ describe("SeoIndexService", () => {
     // İKİ değişiklik, TEK IndexNow + TEK revalidate isteği (toplu).
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const inBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(inBody.urlList).toEqual(["https://www.rothern.com/talep/rot-000042-celik-boru-alimi"]);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/talep/rot-000042-celik-boru-alimi",
+      "https://www.rothern.com/en/buying-requests/rot-000042-celik-boru-alimi",
+      "https://www.rothern.com/ru/zayavki/rot-000042-celik-boru-alimi",
+    ]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000042"), SEO_TAGS.listing("ROT-000043")]));
+  });
+
+  it("embargolu / indekse kapalı / kapanmış / yayımlanmamış talep IndexNow'a GİTMEZ, web yine tazelenir (derin denetim LU-19)", async () => {
+    const base = {
+      number: "ROT-000050",
+      title: "Gizli Başlık",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      publicIndexable: true,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      bidsOpenAt: null as Date | null,
+      company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
+    };
+    const variants = [
+      { ...base, bidsOpenAt: new Date(Date.now() + 86_400_000) },
+      { ...base, publicIndexable: false },
+      { ...base, status: "CLOSED" },
+      { ...base, publishedAt: null },
+      { ...base, company: { ...base.company, isBlocked: true } },
+    ];
+    for (const v of variants) {
+      fetchMock.mockClear();
+      const prisma = makePrisma();
+      (prisma.listing.findUnique as jest.Mock).mockResolvedValue(v);
+      const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+      svc.listingChanged("lx");
+      await flushSoon(svc);
+      // Yalnız revalidate isteği; IndexNow çağrısı yok.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000050")]));
+    }
+  });
+
+  it("embargosu GEÇMİŞ talep IndexNow'a gider", async () => {
+    const prisma = makePrisma();
+    (prisma.listing.findUnique as jest.Mock).mockResolvedValue({
+      number: "ROT-000051",
+      title: "Acik",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      publicIndexable: true,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      bidsOpenAt: new Date(Date.now() - 60_000),
+      company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.listingChanged("ly");
+    await flushSoon(svc);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("yayındaki firma: profil + şehir + ülke sayfası IndexNow'a (üç dilde)", async () => {
+    const prisma = makePrisma();
+    (prisma.company.findUnique as jest.Mock).mockResolvedValue({
+      slug: "acme-metal",
+      cityId: -1035, // İzmir
+      country: "TR",
+      publicEnabled: true,
+      isActive: true,
+      isBlocked: false,
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.companyChanged("c1");
+    await flushSoon(svc);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.paths).toEqual(expect.arrayContaining([SITEMAP_PATHS.cities, SITEMAP_PATHS.countries]));
+    const inBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
+      "https://www.rothern.com/urunler/sehir/izmir",
+      "https://www.rothern.com/en/products/city/izmir",
+      "https://www.rothern.com/ru/tovary/gorod/izmir",
+      "https://www.rothern.com/urunler/ulke/tr-turkiye",
+      "https://www.rothern.com/en/products/country/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turtsiya",
+    ]);
   });
 
   it("askıya alınan firma: profil IndexNow'a gitmez; ürün sayfaları etiketle tazelenir", async () => {
     const prisma = makePrisma();
     (prisma.company.findUnique as jest.Mock).mockResolvedValue({
       slug: "acme-metal",
-      city: "İzmir",
+      cityId: -1035, // İzmir (dünya şehir listesi, 2026-09-27)
+      country: "TR",
       publicEnabled: true,
       isActive: true,
       isBlocked: true,
@@ -164,7 +331,9 @@ describe("SeoIndexService", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toContain(SEO_TAGS.company("acme-metal"));
-    expect(body.paths).toEqual(expect.arrayContaining(["/firmalar/sehir/izmir", "/urunler/sehir/izmir"]));
+    // Firma şehir sayfası 2026-09-22'de kalktı (308) → yalnız ürün şehir sayfası + ülke sayfası.
+    expect(body.paths).toEqual(expect.arrayContaining(["/urunler/sehir/izmir", "/urunler/ulke/tr-turkiye"]));
+    expect(body.paths).not.toContain("/firmalar/sehir/izmir");
   });
 
   it("anahtar yoksa kanal atlanır; NODE_ENV=test'te hiç çağrı yok; hata yutulur", async () => {

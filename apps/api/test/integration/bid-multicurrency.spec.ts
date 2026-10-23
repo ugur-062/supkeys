@@ -6,6 +6,12 @@
  * (sipariş tutarı KENDİ biriminde, çevrimsiz kesin Σ); (3) yalnız kapalı zarf
  * ALIM — açık eksiltme reddeder; (4) kur alınamazsa fail-closed.
  */
+import ExcelJS from "exceljs";
+import { CompanyReportsService } from "../../src/modules/company-reports/company-reports.service";
+import {
+  ReportsExcelService,
+  currencyNumFmt,
+} from "../../src/modules/company-reports/reports-excel.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -78,6 +84,36 @@ describe("kalem bazlı para birimi — placeBid", () => {
     const tryRow = bid.items.find((i) => i.itemId === item1.id)!;
     expect(tryRow.currency).toBeNull();
     expect(tryRow.fxToBase).toBeNull();
+  });
+
+  it("zayıf birim → güçlü ana birim: damga 12 ondalıkla saklanır, toplam 6 ondalık yuvarlamasıyla sapmaz (derin denetim LU-09)", async () => {
+    const { service, mocks, bidder, listing, item1, item2 } = await setup({
+      primaryCurrency: "EUR",
+      allowedCurrencies: ["EUR", "KRW"],
+    });
+    // KRW→EUR çaprazı = 0,036207 / 48,5 = 0,000746536082…
+    mocks.exchangeRates.getFreshRate.mockImplementation(
+      async (c: string) => (c === "EUR" ? 48.5 : c === "KRW" ? 0.036207 : 34),
+    );
+
+    await service.placeBid(bidder.auth, listing.id, {
+      ...bidBase,
+      currency: "EUR",
+      items: [
+        { itemId: item1.id, unitPrice: 100 }, // 100×2 = 200 EUR
+        { itemId: item2.id, unitPrice: 1_000_000, currency: "KRW" }, // 3.000.000 KRW
+      ],
+    } as never);
+
+    const bid = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
+      include: { items: true },
+    });
+    expect(bid.currency).toBe("EUR");
+    const krwRow = bid.items.find((i) => i.itemId === item2.id)!;
+    expect(krwRow.fxToBase?.toString()).toBe("0.000746536082");
+    // 3.000.000 × 0,000746536082 = 2239,61 (6 ondalıklı 0,000747 damgası 2241,00 verirdi).
+    expect(bid.amount.toString()).toBe("2439.61");
   });
 
   it("kur alınamazsa FAIL-CLOSED reddedilir; açık eksiltmede kalem birimi yasak", async () => {
@@ -166,5 +202,87 @@ describe("kalem bazlı para birimi — award: para birimi başına AYRI sipariş
     });
     expect(b.status).toBe("WON");
     if (res.orders) expect(res.orders).toHaveLength(2);
+  });
+});
+
+describe("kalem bazlı para birimi — sahip kıyası/rapor kalem birimini taşır (derin denetim Y-14)", () => {
+  async function mixedBid() {
+    const ctx = await setup();
+    ctx.mocks.exchangeRates.getFreshRate.mockImplementation(
+      async (c: string) => (c === "EUR" ? 48 : 34),
+    );
+    await ctx.service.placeBid(ctx.bidder.auth, ctx.listing.id, {
+      ...bidBase,
+      items: [
+        { itemId: ctx.item1.id, unitPrice: 100 },
+        { itemId: ctx.item2.id, unitPrice: 10, currency: "EUR" },
+      ],
+    } as never);
+    return ctx;
+  }
+
+  it("sahip detayı kalem currency + fxToBase döner (TRY karşılığı istemcide hesaplanabilsin)", async () => {
+    const { service, owner, listing, item1, item2 } = await mixedBid();
+    const res = (await service.getOne(owner.auth, listing.id)) as {
+      bids: {
+        currency: string;
+        items: { itemId: string; currency: string | null; fxToBase: string | null }[];
+      }[];
+    };
+    expect(res.bids).toHaveLength(1);
+    const b = res.bids[0]!;
+    expect(b.currency).toBe("TRY");
+    const eur = b.items.find((i) => i.itemId === item2.id)!;
+    expect(eur.currency).toBe("EUR");
+    expect(Number(eur.fxToBase)).toBe(48);
+    const tr = b.items.find((i) => i.itemId === item1.id)!;
+    expect(tr.currency).toBeNull();
+    expect(tr.fxToBase).toBeNull();
+  });
+
+  // Arayüz testi son tur S-SELL: kapalı zarftan pazarlığa taşınan karma
+  // birimli teklifte form yabancı kalemi bu damgayla ana birime çevirir —
+  // teklifçinin kendi projeksiyonu da damgayı taşımalı.
+  it("teklifçi detayı (myBid) kalem currency + fxToBase döner", async () => {
+    const { service, bidder, listing, item1, item2 } = await mixedBid();
+    const res = (await service.getOne(bidder.auth, listing.id)) as {
+      myBid: {
+        items: { itemId: string; currency: string | null; fxToBase: string | null }[];
+      } | null;
+    };
+    const eur = res.myBid!.items.find((i) => i.itemId === item2.id)!;
+    expect(eur.currency).toBe("EUR");
+    expect(Number(eur.fxToBase)).toBe(48);
+    const tr = res.myBid!.items.find((i) => i.itemId === item1.id)!;
+    expect(tr.fxToBase).toBeNull();
+  });
+
+  it("teklif karşılaştırma raporu: itemPrices kalemin birimini, totalCurrency ana birimi taşır; Excel hücresi birimle biçimlenir", async () => {
+    const { owner, listing, item1, item2 } = await mixedBid();
+    const reports = new CompanyReportsService(prisma as never);
+    const r = await reports.bidComparison(owner.company.id, {
+      listingId: listing.id,
+      criteria: "PRICE",
+    });
+    const p = r.parties[0]!;
+    expect(p.totalCurrency).toBe("TRY");
+    const ip2 = p.itemPrices.find((x) => x.itemId === item2.id)!;
+    expect(ip2.unitPrice).toBe(10);
+    expect(ip2.currency).toBe("EUR");
+    const ip1 = p.itemPrices.find((x) => x.itemId === item1.id)!;
+    expect(ip1.currency).toBe("TRY");
+
+    const buf = await new ReportsExcelService().bidComparison(r);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as never);
+    const ws = wb.worksheets[0]!;
+    const fmts: string[] = [];
+    ws.eachRow((row) =>
+      row.eachCell((cell) => {
+        if (typeof cell.value === "number" && cell.numFmt) fmts.push(cell.numFmt);
+      }),
+    );
+    expect(fmts).toContain(currencyNumFmt("EUR"));
+    expect(fmts).toContain(currencyNumFmt("TRY"));
   });
 });

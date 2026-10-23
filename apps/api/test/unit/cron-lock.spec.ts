@@ -42,6 +42,46 @@ describe("CronLockService", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
+  it("aynı süreçte önceki koşu bitmeden gelen tetik ATLANIR (advisory lock oturumda yeniden alınabilir)", async () => {
+    // Gerçek Postgres gibi: aynı oturumda pg_try_advisory_lock her seferinde true.
+    const svc = makeLock(true);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const first = jest.fn(() => gate);
+    const second = jest.fn(async () => undefined);
+    const other = jest.fn(async () => undefined);
+    const p1 = svc.runExclusive("emailPrograms.tick", first);
+    await new Promise((r) => setImmediate(r));
+    await expect(svc.runExclusive("emailPrograms.tick", second)).resolves.toBe(false);
+    expect(second).not.toHaveBeenCalled();
+    // Başka iş etkilenmez.
+    await expect(svc.runExclusive("iş.başka", other)).resolves.toBe(true);
+    release();
+    await expect(p1).resolves.toBe(true);
+    // Koşu bitince iş yeniden koşabilir.
+    await expect(svc.runExclusive("emailPrograms.tick", second)).resolves.toBe(true);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("süreç içi koruma fail-open yolunda da geçerli; hata koruma kaydını bırakır", async () => {
+    const svc = new CronLockService();
+    (svc as unknown as { disabled: boolean }).disabled = true;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const p1 = svc.runExclusive("iş.e", () => gate);
+    const dup = jest.fn(async () => undefined);
+    await expect(svc.runExclusive("iş.e", dup)).resolves.toBe(false);
+    expect(dup).not.toHaveBeenCalled();
+    release();
+    await p1;
+    await expect(
+      svc.runExclusive("iş.e", async () => {
+        throw new Error("patladı");
+      }),
+    ).rejects.toThrow("patladı");
+    await expect(svc.runExclusive("iş.e", dup)).resolves.toBe(true);
+  });
+
   it("kilit servisi hiç yoksa davranış eskisiyle aynı", async () => {
     const fn = jest.fn(async () => undefined);
     await trackCronRun(undefined, "iş.c", fn);

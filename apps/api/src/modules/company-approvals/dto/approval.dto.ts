@@ -14,6 +14,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { MAX_MONEY } from "../../../common/constants/money";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export enum ApprovalTypeDto {
   LISTING_PUBLISH = "LISTING_PUBLISH",
@@ -76,7 +77,9 @@ export class CreateApprovalFlowDto {
   initiatorRoles?: CompanyRoleDto[];
 
   @IsArray()
-  @ArrayMinSize(1, { message: "En az bir onay adımı ekleyin" })
+  @ArrayMinSize(1, {
+    message: () => tApi("api.dto.approval.enAzBirOnayAdimiEkleyin"),
+  })
   @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => ApprovalFlowStepDto)

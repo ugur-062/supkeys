@@ -38,9 +38,15 @@ export function isListingVisibleToViewer(
  *   firma bağlantı düşünce kendi teklifinin talebini yine açar (Tekliflerim
  *   zaten listeliyor; geçerliliği uzatma/yeni tur akışları 403 arkasında kalmasın).
  *   (404 değil — pazar yerinde teaser'ı zaten herkese açık, varlığı sır değil;
- *   derin bağlantıdan gelen üye paket ekranı görmeli). Eski "maskeli önizleme"
- *   KALDIRILDI (2026-09-06, kullanıcı kararı "premium çekmek için"): ücretsiz
- *   üye yalnız kilitli SAYI + bulanık örnek görür (`lockedPublicSummary`).
+ *   derin bağlantıdan gelen üye paket ekranı görmeli).
+ *   MASKELİ SATIR (2026-10-03, kullanıcı kararı): `hidden` talep ücretsiz üyenin
+ *   TAM listesine (`sellerTenders`) ve tam detayına (`getOne`) yine girmez; ama
+ *   Açık Talepler'de davetli/bağlantılı taleplerin ALTINDA alıcı kimliği GİZLİ
+ *   normal satır olarak durur (`maskedPublicTenders` / `maskedPublicTender`).
+ *   Maskeli satırın ve görünümün tek veri kaynağı herkese açık yansıtmadır
+ *   (`public-listing.projection.ts`); teklif/belge kapıları `canBid`/`hidden`
+ *   üzerinden değişmeden kapalıdır. (2026-09-06 – 10-03 arası yalnız kilitli
+ *   sayı gösteriliyordu.)
  */
 export function listingBidEligibility(
   visibility: string,
@@ -103,7 +109,7 @@ export function visibleOwnerListingWhere(
  */
 
 /** Yayımlanmış ve pazar yerinde gösterilebilir durumlar. */
-const MARKETPLACE_STATUSES = [
+export const MARKETPLACE_STATUSES = [
   "OPEN",
   "IN_AWARD",
   "IN_AWARD_APPROVAL",
@@ -125,6 +131,9 @@ export function marketplaceListingWhere(now: Date): Prisma.ListingWhereInput {
     // Açılış embargosu: gelecek tarihli açılışta ilanı sahibi dışında kimse
     // göremez (bkz. bidsOpenAt). NOT(gt) NULL tuzağı: `bidsOpenAt: { lte: now }`
     // yazmak NULL satırları da ELERDİ — bu yüzden açık OR.
+    // DİKKAT: bu üst düzey `OR` anahtarı kapıya aittir. Çağıran kendi OR/AND
+    // koşulunu kapının YANINA spread ile yazarsa embargoyu sessizce ezer
+    // (derin denetim Y-10) — süzgeçleri `AND: [kapı, ...süzgeçler]` ile katın.
     OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
     company: {
       publicListingsEnabled: true,

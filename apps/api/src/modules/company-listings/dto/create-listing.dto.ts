@@ -18,13 +18,18 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
-import { MAX_MONEY } from "../../../common/constants/money";
+import { MAX_MONEY, MONEY_DECIMALS } from "../../../common/constants/money";
 import {
   COMPANY_ACTIVITY_CODES,
+  CURRENCY_ENUM,
   MAX_COMPANY_ACTIVITIES,
+  MAX_LISTING_INVITATIONS,
+  REQUEST_ALLOWED_CURRENCIES_MAX,
   UNITS,
+  type CurrencyCode,
 } from "@rothern/shared";
 import { Trim } from "../../../common/decorators/trim.decorator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** DTO `@IsIn` için kod listesi — TEK KAYNAK UNITS. */
 const UNIT_CODES = UNITS.map((u) => u.code);
@@ -45,17 +50,13 @@ export enum ListingFormatDto {
   ENGLISH_AUCTION = "ENGLISH_AUCTION",
 }
 
-export enum CurrencyDto {
-  TRY = "TRY",
-  USD = "USD",
-  EUR = "EUR",
-  GBP = "GBP",
-  CHF = "CHF",
-  JPY = "JPY",
-  AED = "AED",
-  CNY = "CNY",
-  RUB = "RUB",
-}
+/**
+ * Para birimi — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (Prisma enum'ıyla
+ * birebir). Elle yazılmış 9'luk liste 2026-09-27'de eskidi: web formu 21 birim
+ * sunarken AZN/SEK… seçilen talep yayında 400 alıyordu.
+ */
+export const CurrencyDto = CURRENCY_ENUM;
+export type CurrencyDto = CurrencyCode;
 
 export enum DeliveryTermDto {
   DOMESTIC_DELIVERED = "DOMESTIC_DELIVERED",
@@ -158,7 +159,9 @@ export class ListingItemDto {
    */
   @IsOptional()
   @IsString()
-  @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsIn(UNIT_CODES, {
+    message: () => tApi("api.dto.createListing.gecersizOlcuBirimi"),
+  })
   unitCode?: string;
 
   // ── Faz 3: kalem detayları (hepsi opsiyonel) ─────────────────────────
@@ -307,7 +310,9 @@ export class LogisticsDto {
 }
 
 export class CreateListingDto {
-  @IsEnum(ListingTypeDto, { message: "Geçersiz ilan tipi" })
+  @IsEnum(ListingTypeDto, {
+    message: () => tApi("api.dto.createListing.gecersizIlanTipi"),
+  })
   type!: ListingTypeDto;
 
   // true → taslak olarak kaydet (yayınlama); false/undefined → yayınla.
@@ -327,6 +332,19 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   targetCountries?: string[];
 
+  /**
+   * Yayınlanınca AI yurt içi + yurt dışında tedarikçi arasın (2026-09-27);
+   * sonuç talep sayfasında tek tık davet önerisi olur. Maliyet platformun.
+   */
+  @IsOptional()
+  @IsBoolean()
+  aiDiscovery?: boolean;
+
+  /** Kayıtsız tedarikçiye giden davette firma adı görünsün (varsayılan açık). */
+  @IsOptional()
+  @IsBoolean()
+  inviteShowName?: boolean;
+
   // Teslimat / fatura adresi (CompanyAddress id).
   @IsOptional()
   @IsString()
@@ -337,16 +355,24 @@ export class CreateListingDto {
   billingAddressId?: string;
 
   @IsOptional()
-  @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
+  @IsEnum(ListingFormatDto, {
+    message: () => tApi("api.dto.createListing.gecersizFormat"),
+  })
   format?: ListingFormatDto;
 
   @IsOptional()
-  @IsEnum(ListingVisibilityDto, { message: "Geçersiz görünürlük" })
+  @IsEnum(ListingVisibilityDto, {
+    message: () => tApi("api.dto.createListing.gecersizGorunurluk"),
+  })
   visibility?: ListingVisibilityDto;
 
   @IsString()
-  @MinLength(3, { message: "Başlık en az 3 karakter olmalı" })
-  @MaxLength(200, { message: "Başlık en fazla 200 karakter" })
+  @MinLength(3, {
+    message: () => tApi("api.dto.createListing.baslikEnAz3KarakterOlmali"),
+  })
+  @MaxLength(200, {
+    message: () => tApi("api.dto.createListing.baslikEnFazla200Karakter"),
+  })
   title!: string;
 
   @IsOptional()
@@ -355,11 +381,17 @@ export class CreateListingDto {
   description?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz tarih" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.createListing.gecersizTarih") },
+  )
   closesAt?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz tarih" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.createListing.gecersizTarih") },
+  )
   bidsOpenAt?: string;
 
   // ── Kalemler / davet / kategori ──
@@ -375,8 +407,22 @@ export class CreateListingDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @ArrayMaxSize(200)
+  // Web formuyla tek kaynak: "Bağlantılarım" kipinde tüm bağlantılar tek
+  // gövdede gelir (derin denetim S083/S095, MU-26 gözden geçirme).
+  @ArrayMaxSize(MAX_LISTING_INVITATIONS)
   invitations?: string[];
+
+  /**
+   * DÜZENLEME: formun davetli listesini OKUDUĞU an — sahip detayının
+   * `invitationsAsOf` alanı aynen geri gönderilir (gözden geçirme AI-3).
+   * Davetler fark olarak uygulanır (gövdede olmayan davetli silinir); form
+   * açıkken yayın sonrası keşif turunun davet ettiği üye gövdede YOKTUR, ama
+   * alıcı onu çıkarmadı — formun bilemeyeceği AI daveti silinmez. Göndermeyen
+   * (eski) istemcide davranış eskisi gibi. Oluşturmada yok sayılır.
+   */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  invitationsAsOf?: string;
 
   // İhale kategorisi ana konuyu tanımlar (detay kalemlerde) — AI önerisi
   // tavanıyla hizalı: en fazla 3. Fazla kategori PUBLIC ihalede alakasız
@@ -438,7 +484,7 @@ export class CreateListingDto {
   @IsOptional()
   @IsArray()
   @IsEnum(CurrencyDto, { each: true })
-  @ArrayMaxSize(8)
+  @ArrayMaxSize(REQUEST_ALLOWED_CURRENCIES_MAX)
   allowedCurrencies?: CurrencyDto[];
 
   // ── Teslim / ödeme ──
@@ -506,10 +552,13 @@ export class CreateListingDto {
   @IsEnum(BidVisibilityDto)
   bidVisibility?: BidVisibilityDto;
 
+  // Birim fiyat hane sayısı — teklif DTO'su (`maxDecimalPlaces: 2`) ve DB
+  // (`Decimal(18,2)`) ile AYNI tavan (derin denetim 2026-09-29 S028): 3-4 kabul
+  // edilince pazarlık masası 4 haneli fiyat üretip gönderimde 400 alıyordu.
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(4)
+  @Max(MONEY_DECIMALS)
   decimalPlaces?: number;
 
   // Kapanış hatırlatması artık her ilanda otomatik — client kontrol etmez.

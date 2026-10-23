@@ -306,7 +306,7 @@ describe("F2 changeClosingTime — koşullu-atomik durum guard'ı (INV-SM-1 kard
     // Taze okuma: ownerOpenListing status!==OPEN → BadRequest (ön-kontrol).
     await expect(
       service.changeClosingTime(owner.auth, listing.id, FAR),
-    ).rejects.toThrow(/açık ilanda/i);
+    ).rejects.toThrow(/açık talepte/i);
 
     const after = await prisma.listing.findUniqueOrThrow({
       where: { id: listing.id },

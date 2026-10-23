@@ -92,4 +92,30 @@ describe("teklif gönderimi audit'i", () => {
     });
     expect(count).toBe(0);
   });
+
+  it("iki taslak + gönderim → İLK gönderim: submitCount 1, resubmission false (arayüz testi O-036)", async () => {
+    const { service, bidder, listing, item } = await rig();
+
+    await service.placeBid(bidder.auth, listing.id, bidDto(item.id, { asDraft: true }));
+    await service.placeBid(bidder.auth, listing.id, bidDto(item.id, { asDraft: true }));
+    const res = (await service.placeBid(
+      bidder.auth,
+      listing.id,
+      bidDto(item.id),
+    )) as { id: string; status: string };
+    expect(res.status).toBe("SUBMITTED");
+
+    const bid = await prisma.listingBid.findUniqueOrThrow({ where: { id: res.id } });
+    // version eşzamanlılık sayacı — her yazımda artar; revizyon DEĞİL.
+    expect(bid.version).toBe(3);
+    expect(bid.submitCount).toBe(1);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.bid.submitted", entityId: res.id },
+    });
+    expect(row.metadata).toMatchObject({ submitCount: 1, resubmission: false });
+
+    // Tekliflerim kartı "Revizyon" göstermez (submitCount 1).
+    const mine = await service.listMyBids(bidder.company.id);
+    expect(mine.items[0]).toMatchObject({ id: res.id, submitCount: 1 });
+  });
 });

@@ -1,4 +1,5 @@
 import { categoryAncestors, foldSearchText, isCategoryCode, tokenizeQuery } from "@rothern/shared";
+import { tApi } from "../i18n/i18n.service";
 
 /**
  * SATICININ ÜRÜNLERİ ↔ AÇIK TALEP eşleşmesi (2026-09-05, kullanıcı: "ilgili
@@ -83,6 +84,6 @@ export function buildProductMatcher(products: SellerProductLite[]) {
 export function productMatchReason(r: ProductMatchResult): string | null {
   if (!r.matched || !r.product) return null;
   return r.via === "category"
-    ? `Ürününüz bu kategoride: ${r.product}`
-    : `Ürününüzle eşleşiyor: ${r.product}`;
+    ? tApi("api.companyListings.productMatch.category", { product: r.product })
+    : tApi("api.companyListings.productMatch.text", { product: r.product });
 }

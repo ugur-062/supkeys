@@ -30,6 +30,8 @@ test("canlı admin: giriş, çerez alanı, onay kuyruğu", async ({ browser }) =
   const page = await ctx.newPage();
 
   // ── 1. Giriş ────────────────────────────────────────────────────────
+  // Canlı SUPER_ADMIN'de 2FA kurulu (O-27): kod `E2E_ADMIN_TOTP_SECRET`ten
+  // (.env.prod.local) üretilir; yardımcı kod alanını kendisi doldurur.
   await adminUiLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // ── 2. Çerezler ANA alan adında mı ─────────────────────────────────

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -6,12 +7,43 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
+import type { Prisma } from "@rothern/db";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { appRoutes } from "../../common/company/app-routes";
+import { appRoutes, localizeAppPath } from "../../common/company/app-routes";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
+import type { EmailTemplateData } from "@rothern/email";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { localeOf, viewPermissionForPortal } from "../notifications/notification.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@rothern/i18n";
+
+/** `notification` şablonunun veri şekli — paket `NotificationData`yı dışa
+ *  aktarmıyor, tip birleşiminden türetiyoruz. */
+type NotificationData = Extract<
+  EmailTemplateData,
+  { template: "notification" }
+>["data"];
+
+/**
+ * Satıcı tarafı talep süzgeci: engel ilişkisindeki KAYITLI alıcının
+ * (`claimedCompanyId`) talepleri satıcıya görünmez; misafir talepleri
+ * (`claimedCompanyId` null) etkilenmez — `notIn` NULL'ı da eleyeceği için
+ * açık OR. Gelen kutusu (`listForCompany`) ve Aksiyon Merkezi'nin
+ * `unansweredInquiries` satırı AYNI kuralı kullanır: kutuda görünmeyen ve
+ * yanıtı 404 dönen talep panoda "yanıt bekliyor" diye asılı kalmasın
+ * (derin denetim LU-18).
+ */
+export function inquiryNotFromBlockedWhere(
+  blocked: string[],
+): Prisma.PublicInquiryWhereInput {
+  return blocked.length
+    ? { OR: [{ claimedCompanyId: null }, { claimedCompanyId: { notIn: blocked } }] }
+    : {};
+}
 
 /**
  * MİSAFİR BİLGİ TALEBİ — hesabı OLMAYAN ziyaretçinin ürün sayfasından
@@ -46,6 +78,8 @@ export class PublicInquiryService {
   private static readonly MAX_PER_EMAIL_DAY = 3;
   /** Kayıtlı firmadan günlük tavan — misafir tavanı burada geçersiz. */
   private static readonly MAX_PER_COMPANY_DAY = 30;
+  /** Satıcı bildirimi en fazla bu kadar yetkili üyeye (e-posta fırtınası olmasın). */
+  private static readonly MAX_SELLER_RECIPIENTS = 5;
 
   async create(input: {
     companySlug: string;
@@ -77,6 +111,11 @@ export class PublicInquiryService {
     );
 
     const token = randomBytes(32).toString("hex");
+    // DİL: ziyaretçi misafir (hesabı yok) → isteğin dili, yani formu hangi
+    // dilde doldurduysa o (`Accept-Language`). Satıra da yazılır: satıcının
+    // yanıt bildirimi (başka bir istekte, satıcının dilinde doğar) misafire
+    // yine bu dilde gitsin.
+    const locale = currentLocale();
     const inquiry = await this.prisma.publicInquiry.create({
       data: {
         companyId: product.companyId,
@@ -90,6 +129,7 @@ export class PublicInquiryService {
         tokenHash: hashToken(token),
         expiresAt: new Date(Date.now() + PublicInquiryService.TOKEN_TTL_MS),
         createdIp: input.ip ?? null,
+        locale,
       },
       select: { id: true },
     });
@@ -98,21 +138,26 @@ export class PublicInquiryService {
     // ulaşmadığı için hiç doğrulanamaz, ama satır kullanıcının günlük
     // kotasını yer (3/gün → üç başarısız deneme kullanıcıyı bir gün kilitler).
     // Bu yüzden başarısızlıkta satırı SİLİP dürüst hata döndürüyoruz.
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
     const result = await this.email.send({
       to: { email, name: input.name.trim() },
+      locale,
       templateData: {
         template: "notification",
         data: {
-          subject: "Talebinizi onaylayın",
-          heading: "Tek adım kaldı",
+          subject: t("api.notifications.publicInquiry.verify.subject"),
+          heading: t("api.notifications.publicInquiry.verify.heading"),
           paragraphs: [
-            `${product.name} ürünü hakkındaki talebiniz henüz gönderilmedi.`,
-            "Aşağıdaki bağlantıya tıklayarak e-posta adresinizi doğrulayın; talebiniz o an satıcıya iletilecek.",
+            t("api.notifications.publicInquiry.verify.intro", {
+              product: product.name,
+            }),
+            t("api.notifications.publicInquiry.verify.action"),
           ],
-          ctaLabel: "Talebimi onayla",
-          ctaUrl: `${webBase()}/talep-onayla?t=${token}`,
-          footerNote:
-            "Bu talebi siz göndermediyseniz bu e-postayı yok sayabilirsiniz — onaylanmayan talep satıcıya iletilmez.",
+          ctaLabel: t("api.notifications.publicInquiry.verify.cta"),
+          // Doğrulama sayfası da e-postanın dilinde açılsın.
+          ctaUrl: appRoutes.inquiryVerify(webBase(), token, locale),
+          footerNote: t("api.notifications.publicInquiry.verify.footer"),
         },
       },
       context: { type: "public_inquiry_verify", id: inquiry.id },
@@ -122,7 +167,7 @@ export class PublicInquiryService {
         `Doğrulama e-postası gönderilemedi — inquiry silindi: ${String(e)}`,
       );
       throw new ServiceUnavailableException(
-        "Talebiniz şu an gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+        i18nMessage("api.publicInquiry.talebinizSuAnGonderilemediLutfenBirkac"),
       );
     });
 
@@ -132,7 +177,7 @@ export class PublicInquiryService {
     if (!result.sent) {
       await this.discard(inquiry.id);
       throw new BadRequestException(
-        "Bu e-posta adresine gönderim yapılamıyor. Farklı bir adres deneyin.",
+        i18nMessage("api.publicInquiry.buEPostaAdresineGonderimYapilamiyor"),
       );
     }
     return { ok: true };
@@ -186,11 +231,18 @@ export class PublicInquiryService {
     // talepler" kendi satırıyla kirlenir.
     if (product.companyId === input.companyId) {
       throw new BadRequestException(
-        "Kendi ürününüz için bilgi talebi gönderemezsiniz",
+        i18nMessage("api.publicInquiry.kendiUrununuzIcinBilgiTalebiGonderemezsiniz"),
       );
     }
 
-    await this.assertCompanyWithinLimits(input.companyId, product.id);
+    // Engel (iki yönlü): bilgi talebi mesaj sınıfından bir eylem —
+    // mesajlaşmadaki gibi 404 (engel varlığı sızmasın). Eskiden engellenen
+    // firma satıcının her ürününe talep açıp e-posta yağdırabiliyordu
+    // (derin denetim MU-10). `CompanyBlocksService.blockedCompanyIds` ile aynı
+    // iki yönlü kural; tablo RLS'li olduğu için bypass istemcisiyle okunur.
+    if (await this.isBlockedBetween(input.companyId, product.companyId)) {
+      throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
+    }
 
     // Alıcı firma adı OTURUMDAN değil VERİTABANINDAN: JWT'de yok ve olsaydı
     // bile bayatlardı — satıcının gördüğü ad her zaman güncel olmalı.
@@ -199,32 +251,66 @@ export class PublicInquiryService {
       select: { name: true },
     });
 
-    const inquiry = await this.prisma.publicInquiry.create({
-      data: {
-        companyId: product.companyId,
-        productId: product.id,
-        name: input.fullName,
-        email: input.email.trim().toLowerCase(),
-        companyName: buyer?.name ?? null,
-        message: input.message.trim(),
-        quantity: input.quantity?.trim() || null,
-        // Jeton hiç kullanılmaz — satır doğrulanmış doğuyor.
-        tokenHash: hashToken(randomBytes(32).toString("hex")),
-        expiresAt: new Date(),
-        verifiedAt: new Date(),
-        claimedCompanyId: input.companyId,
-        claimedAt: new Date(),
-      },
-      select: { id: true, name: true },
+    // Tavan sayımı ve yazma alıcı firma bazlı danışma kilidi altında (arayüz
+    // testi FX-00 O-031): "aynı ürüne 24 saatte tek talep" kuralı say-sonra-yaz
+    // olduğu için eşzamanlı çift gönderimde iki talep ve satıcıya iki e-posta
+    // çıkıyordu.
+    const inquiry = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`inquiry:${input.companyId}`}))`;
+      await this.assertCompanyWithinLimits(input.companyId, product.id, tx);
+      return tx.publicInquiry.create({
+        data: {
+          companyId: product.companyId,
+          productId: product.id,
+          name: input.fullName,
+          email: input.email.trim().toLowerCase(),
+          companyName: buyer?.name ?? null,
+          message: input.message.trim(),
+          quantity: input.quantity?.trim() || null,
+          // Jeton hiç kullanılmaz — satır doğrulanmış doğuyor.
+          tokenHash: hashToken(randomBytes(32).toString("hex")),
+          expiresAt: new Date(),
+          verifiedAt: new Date(),
+          claimedCompanyId: input.companyId,
+          claimedAt: new Date(),
+          // Yedek dil: yanıt bildirimi önce alıcının KAYITLI dilini okur.
+          locale: currentLocale(),
+        },
+        select: { id: true, name: true },
+      });
     });
 
     // Misafir yolundaki İLETİM adımının aynısı — tek fark, doğrulamayı
     // beklemeden burada olması.
-    void this.notifySeller(product.companyId, product.name, inquiry.name, {
+    this.notifySellerInBackground(product.companyId, product.name, inquiry.name, {
       quantity: input.quantity?.trim() || null,
     });
 
     return { id: inquiry.id };
+  }
+
+  /**
+   * `companyId` ile herhangi yönde engel ilişkisi olan firmalar
+   * (`CompanyBlocksService.blockedCompanyIds` ile aynı kural; bypass istemcisi).
+   */
+  private async blockedIdsOf(companyId: string): Promise<string[]> {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return [...new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)))];
+  }
+
+  private async isBlockedBetween(a: string, b: string): Promise<boolean> {
+    const n = await this.prisma.companyBlock.count({
+      where: {
+        OR: [
+          { blockerCompanyId: a, blockedCompanyId: b },
+          { blockerCompanyId: b, blockedCompanyId: a },
+        ],
+      },
+    });
+    return n > 0;
   }
 
   /**
@@ -238,24 +324,28 @@ export class PublicInquiryService {
    *    gönderir; doğru yol mevcut talebe bakmak),
    *  · firma başına günlük tavan — hesap ele geçirilirse zarar sınırlı kalsın.
    */
-  private async assertCompanyWithinLimits(companyId: string, productId: string) {
+  private async assertCompanyWithinLimits(
+    companyId: string,
+    productId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const [sameProduct, dayTotal] = await Promise.all([
-      this.prisma.publicInquiry.count({
+      db.publicInquiry.count({
         where: { claimedCompanyId: companyId, productId, createdAt: { gte: dayAgo } },
       }),
-      this.prisma.publicInquiry.count({
+      db.publicInquiry.count({
         where: { claimedCompanyId: companyId, createdAt: { gte: dayAgo } },
       }),
     ]);
     if (sameProduct > 0) {
       throw new BadRequestException(
-        "Bu ürün için zaten bir talep gönderdiniz — yanıtı Bilgi Taleplerim sayfasından takip edebilirsiniz",
+        i18nMessage("api.publicInquiry.buUrunIcinZatenBirTalep"),
       );
     }
     if (dayTotal >= PublicInquiryService.MAX_PER_COMPANY_DAY) {
       throw new BadRequestException(
-        "Bugün için talep sınırına ulaştınız — yarın tekrar deneyebilirsiniz",
+        i18nMessage("api.publicInquiry.bugunIcinTalepSinirinaUlastinizYarin"),
       );
     }
   }
@@ -290,9 +380,19 @@ export class PublicInquiryService {
   ) {
     const viewerPaid = opts.viewerPaid ?? true;
     const pageSize = 20;
-    const where = { companyId, verifiedAt: { not: null } } as const;
-    const [total, rows] = await Promise.all([
+    // Engel ilişkisindeki KAYITLI alıcının talepleri gelen kutusunda görünmez
+    // (mesaj kutusuyla aynı karşılıklı görünmezlik; derin denetim LU-18).
+    const blocked = await this.blockedIdsOf(companyId);
+    const where: Prisma.PublicInquiryWhereInput = {
+      companyId,
+      verifiedAt: { not: null },
+      ...inquiryNotFromBlockedWhere(blocked),
+    };
+    // `openCount` = yanıt bekleyen TOPLAM (sayfadan bağımsız): web süzgeç
+    // sayacı eskiden yalnız yüklü 20 satırdan hesaplanıyordu.
+    const [total, openCount, rows] = await Promise.all([
       this.prisma.publicInquiry.count({ where }),
+      this.prisma.publicInquiry.count({ where: { ...where, replies: { none: {} } } }),
       this.prisma.publicInquiry.findMany({
         where,
         select: {
@@ -304,7 +404,9 @@ export class PublicInquiryService {
           verifiedAt: true,
           claimedAt: true,
           claimedCompanyId: true,
-          product: { select: { name: true, slug: true } },
+          // `id`: firmanın KENDİ ürünü — panelde ürünü doğrudan açan bağlantı
+          // için (arayüz testi D-131/D-284).
+          product: { select: { id: true, name: true, slug: true } },
           replies: {
             select: { id: true, body: true, createdAt: true },
             orderBy: { createdAt: "asc" },
@@ -353,6 +455,7 @@ export class PublicInquiryService {
         };
       }),
       total,
+      openCount,
       page: Math.max(1, page),
       pageSize,
     };
@@ -380,11 +483,18 @@ export class PublicInquiryService {
         email: true,
         // Talebi KAYITLI bir alıcı mı gönderdi — bildirimin dili buna bağlı.
         claimedCompanyId: true,
+        // Talebin açıldığı dil (misafirin tek dil bilgisi).
+        locale: true,
         product: { select: { name: true } },
         company: { select: { name: true } },
       },
     });
-    if (!inquiry) throw new NotFoundException("Talep bulunamadı");
+    if (!inquiry) throw new NotFoundException(i18nMessage("api.publicInquiry.talepBulunamadi"));
+    // Engel (iki yönlü): engellenen/engelleyen kayıtlı alıcıya yanıt ve yanıt
+    // e-postası gitmez; engel varlığı sızmasın diye 404 (derin denetim LU-18).
+    if (inquiry.claimedCompanyId && (await this.isBlockedBetween(companyId, inquiry.claimedCompanyId))) {
+      throw new NotFoundException(i18nMessage("api.publicInquiry.talepBulunamadi"));
+    }
 
     const reply = await this.prisma.publicInquiryReply.create({
       data: { inquiryId, authorId, body: body.trim() },
@@ -400,7 +510,8 @@ export class PublicInquiryService {
       inquiry.name,
       inquiry.product.name,
       inquiry.company.name,
-      inquiry.claimedCompanyId != null,
+      inquiry.claimedCompanyId,
+      inquiry.locale,
     );
 
     return {
@@ -428,27 +539,61 @@ export class PublicInquiryService {
     name: string,
     productName: string,
     companyName: string,
-    claimed: boolean,
+    claimedCompanyId: string | null,
+    inquiryLocale: string | null,
   ) {
     try {
+      const claimed = claimedCompanyId != null;
+      // DİL: bildirim SATICININ isteğinde doğar ama ALICIYA gider → istek dili
+      // YANLIŞ olurdu. Talep kayıtlı bir alıcıya bağlıysa o kişinin kayıtlı
+      // dilini okuruz (e-posta + firma ile tek satır); misafirde talebin
+      // AÇILDIĞI dil (satıra yazılır, 2026-09-27 — eskiden hep Türkçeydi).
+      const userLocale = claimed
+        ? (
+            await this.prisma.companyUser.findFirst({
+              where: { companyId: claimedCompanyId, email, deletedAt: null },
+              select: { locale: true },
+            })
+          )?.locale
+        : null;
+      const locale = isLocale(userLocale)
+        ? userLocale
+        : isLocale(inquiryLocale)
+          ? inquiryLocale
+          : DEFAULT_LOCALE;
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
       const res = await this.email.send({
         to: { email, name },
+        locale,
         templateData: {
           template: "notification",
           data: {
-            subject: "Talebinize yanıt geldi",
-            heading: "Yanıtınız hazır",
+            subject: t("api.notifications.publicInquiry.reply.subject"),
+            heading: t("api.notifications.publicInquiry.reply.heading"),
             paragraphs: [
-              `${companyName}, "${productName}" hakkındaki talebinizi yanıtladı.`,
+              t("api.notifications.publicInquiry.reply.intro", {
+                company: companyName,
+                product: productName,
+              }),
               // İÇERİK BİLİNÇLİ OLARAK YOK.
-              claimed
-                ? "Yanıtı Bilgi Taleplerim sayfanızdan okuyabilirsiniz."
-                : "Yanıtı okumak için ücretsiz hesabınızı oluşturun; bu talebiniz ve gelen yanıtlar hesabınıza bağlanacak.",
+              t(
+                claimed
+                  ? "api.notifications.publicInquiry.reply.claimedRead"
+                  : "api.notifications.publicInquiry.reply.guestRead",
+              ),
             ],
-            ctaLabel: claimed ? "Yanıtı oku" : "Hesabımı oluştur ve yanıtı oku",
+            ctaLabel: t(
+              claimed
+                ? "api.notifications.publicInquiry.reply.claimedCta"
+                : "api.notifications.publicInquiry.reply.guestCta",
+            ),
             ctaUrl: claimed
-              ? appRoutes.inquiriesSent(webBase())
-              : `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
+              ? appRoutes.inquiriesSent(webBase(), locale)
+              : localizeAppPath(
+                  `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
+                  locale,
+                ),
           },
         },
         context: { type: "public_inquiry_reply", id: replyId },
@@ -506,38 +651,62 @@ export class PublicInquiryService {
    * aynı kutuya gelen 6 haneli kod girildi. Doğrulanmamış e-postayla login
    * zaten engelli, yani bu sayfaya ulaşan herkes adresini kanıtlamıştır.
    */
-  async listClaimed(companyId: string, email: string) {
+  async listClaimed(companyId: string, email: string, page = 1, pageSize = 20) {
     await this.claimForCompany(companyId, email);
-    const rows = await this.prisma.publicInquiry.findMany({
-      where: { claimedCompanyId: companyId },
-      select: {
-        id: true,
-        message: true,
-        quantity: true,
-        verifiedAt: true,
-        company: { select: { name: true, slug: true } },
-        product: { select: { name: true, slug: true } },
-        replies: {
-          select: { id: true, body: true, createdAt: true },
-          orderBy: { createdAt: "asc" },
+    // SAYFALI (listForCompany ile aynı desen): eskiden `take: 50` ile sessizce
+    // kırpılıyordu — 50'den fazla talep gönderen alıcı en eskilerini ve
+    // onlara gelen yanıtları hiç göremiyordu. `openCount` = yanıt bekleyen
+    // TOPLAM (web süzgeç sayacı sayfadan bağımsız).
+    const current = Math.max(1, page);
+    // Engel ilişkisindeki satıcıya gönderilmiş talepler de gizlenir (LU-18).
+    const blocked = await this.blockedIdsOf(companyId);
+    const where: Prisma.PublicInquiryWhereInput = {
+      claimedCompanyId: companyId,
+      ...(blocked.length ? { companyId: { notIn: blocked } } : {}),
+    };
+    const [total, openCount, rows] = await Promise.all([
+      this.prisma.publicInquiry.count({ where }),
+      this.prisma.publicInquiry.count({ where: { ...where, replies: { none: {} } } }),
+      this.prisma.publicInquiry.findMany({
+        where,
+        select: {
+          id: true,
+          message: true,
+          quantity: true,
+          verifiedAt: true,
+          company: { select: { name: true, slug: true } },
+          product: { select: { name: true, slug: true } },
+          replies: {
+            select: { id: true, body: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+          },
         },
-      },
-      orderBy: { verifiedAt: "desc" },
-      take: 50,
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      message: r.message,
-      quantity: r.quantity,
-      sentAt: r.verifiedAt?.toISOString() ?? null,
-      seller: r.company,
-      product: r.product,
-      replies: r.replies.map((x) => ({
-        id: x.id,
-        body: x.body,
-        createdAt: x.createdAt.toISOString(),
+        // `id` ikincil anahtar: aynı verifiedAt'li satırlar sayfa sınırında
+        // kararlı sıralansın (atlama/çift gelme olmasın).
+        orderBy: [{ verifiedAt: "desc" }, { id: "desc" }],
+        skip: (current - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        message: r.message,
+        quantity: r.quantity,
+        sentAt: r.verifiedAt?.toISOString() ?? null,
+        seller: r.company,
+        product: r.product,
+        replies: r.replies.map((x) => ({
+          id: x.id,
+          body: x.body,
+          createdAt: x.createdAt.toISOString(),
+        })),
       })),
-    }));
+      total,
+      openCount,
+      page: current,
+      pageSize,
+    };
   }
 
   /**
@@ -570,24 +739,28 @@ export class PublicInquiryService {
         product: { select: { name: true, slug: true } },
       },
     });
-    if (!row) throw new NotFoundException("Bağlantı geçersiz");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicInquiry.baglantiGecersiz"));
     if (row.verifiedAt) {
       return this.verifiedPayload(row);
     }
     if (row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException(
-        "Bağlantının süresi doldu — talebi yeniden gönderin",
+        i18nMessage("api.publicInquiry.baglantininSuresiDolduTalebiYenidenGonderin"),
       );
     }
 
-    await this.prisma.publicInquiry.update({
-      where: { id: row.id },
+    // Koşullu damga (derin denetim LU-18): eşzamanlı iki tıklama (ön-yükleyen
+    // e-posta tarayıcısı + kullanıcı) ikisi de `verifiedAt=null` görse bile
+    // yalnız biri count=1 alır; satıcıya TEK bildirim gider.
+    const claimed = await this.prisma.publicInquiry.updateMany({
+      where: { id: row.id, verifiedAt: null },
       data: { verifiedAt: new Date() },
     });
+    if (claimed.count === 0) return this.verifiedPayload(row);
 
     // Satıcıya bildirim. Ziyaretçinin E-POSTASI/TELEFONU GEÇMEZ — iletişim
     // platform üzerinden yürüsün (model notu).
-    void this.notifySeller(row.company.id, row.product.name, row.name);
+    this.notifySellerInBackground(row.company.id, row.product.name, row.name);
 
     return this.verifiedPayload(row);
   }
@@ -609,6 +782,19 @@ export class PublicInquiryService {
     };
   }
 
+  /**
+   * Fire-and-forget satıcı bildirimi: talep zaten yazıldı, bildirim hatası
+   * (DB havuzu, geçici kesinti) isteği düşürmez ve bağlamsız
+   * `unhandledRejection` yerine burada kayda geçer (derin denetim LU-18).
+   */
+  private notifySellerInBackground(...args: Parameters<PublicInquiryService["notifySeller"]>): void {
+    this.notifySeller(...args).catch((err: unknown) => {
+      this.logger.warn(
+        `seller notification failed (company=${args[0]}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  }
+
   /** Satıcının firma kullanıcılarına "yeni bilgi talebi" bildirimi. */
   /**
    * Satıcı e-postası. ÜCRETSİZ satıcıya (efektif STANDART) ziyaretçi ADI
@@ -621,49 +807,76 @@ export class PublicInquiryService {
     visitorName: string,
     extra: { quantity?: string | null } = {},
   ) {
-    const [users, seller] = await Promise.all([
+    // Alıcılar İZİNDEN (derin denetim MU-10): talebi görmek `sell:view`
+    // ister (panel ucu da öyle) — satın almacı/onaylayıcı-only üye ziyaretçi
+    // adını almaz. Sıra sabit (en eski üye önce), kurucu örtük izinli.
+    // Eskiden izinsiz, sırasız ilk 5 aktif kullanıcıya gidiyordu.
+    const [candidates, seller] = await Promise.all([
       this.prisma.companyUser.findMany({
-        where: { companyId, isActive: true },
-        select: { email: true, firstName: true },
-        take: 5,
+        where: { companyId, isActive: true, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, email: true, firstName: true, locale: true, permissions: true, roles: true },
       }),
       this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { tier: true, membershipEndAt: true },
+        select: { tier: true, membershipEndAt: true, companyVerificationStatus: true, ownerUserId: true },
       }),
     ]);
+    const required = [viewPermissionForPortal("satis")];
+    const users = candidates
+      .filter((u) =>
+        hasCompanyPermission(
+          { isOwner: seller?.ownerUserId === u.id, permissions: u.permissions, roles: u.roles },
+          required,
+        ),
+      )
+      .slice(0, PublicInquiryService.MAX_SELLER_RECIPIENTS);
     const sellerPaid = seller
-      ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt), PAID_TIER)
+      ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt, seller.companyVerificationStatus), PAID_TIER)
       : true;
-    const qty = extra.quantity ? ` (${extra.quantity})` : "";
-    const data = sellerPaid
-      ? {
-          subject: "Ürününüz için yeni bilgi talebi",
-          heading: "Yeni bilgi talebi",
+    const quantity = extra.quantity ?? null;
+    // Metin ALICI BAŞINA, o kişinin diliyle (dil başına bir kez üretilir).
+    const ns = sellerPaid
+      ? ("seller" as const)
+      : ("sellerFree" as const);
+    const byLocale = new Map<Locale, NotificationData>();
+    const dataFor = (locale: Locale): NotificationData => {
+      let data = byLocale.get(locale);
+      if (!data) {
+        const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+          tApi(key, values, locale);
+        data = {
+          subject: t(`api.notifications.publicInquiry.${ns}.subject`),
+          heading: t(`api.notifications.publicInquiry.${ns}.heading`),
           paragraphs: [
-            `${visitorName}, "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
-            "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
+            quantity
+              ? t(`api.notifications.publicInquiry.${ns}.introWithQuantity`, {
+                  visitor: visitorName,
+                  product: productName,
+                  quantity,
+                })
+              : t(`api.notifications.publicInquiry.${ns}.intro`, {
+                  visitor: visitorName,
+                  product: productName,
+                }),
+            t(`api.notifications.publicInquiry.${ns}.action`),
           ],
-          ctaLabel: "Talebi görüntüle",
-          ctaUrl: appRoutes.inquiriesReceived(webBase()),
-        }
-      : {
-          subject: "Ürününüz için yeni bilgi talebi — yanıtlamak için Silver",
-          heading: "Bir alıcı ürününüzü sordu",
-          paragraphs: [
-            `Bir alıcı "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
-            "Ücretsiz üyelikte soruyu görürsünüz; alıcının kimliği, iletişim bilgileri ve yanıt Silver paketiyle açılır.",
-          ],
-          ctaLabel: "Talebi görüntüle",
-          ctaUrl: appRoutes.inquiriesReceived(webBase()),
+          ctaLabel: t(`api.notifications.publicInquiry.${ns}.cta`),
+          ctaUrl: appRoutes.inquiriesReceived(webBase(), locale),
         };
+        byLocale.set(locale, data);
+      }
+      return data;
+    };
     for (const u of users) {
+      const locale = localeOf(u.locale);
       await this.email
         .send({
           to: { email: u.email, name: u.firstName ?? "" },
+          locale,
           templateData: {
             template: "notification",
-            data,
+            data: dataFor(locale),
           },
           context: { type: "public_inquiry_received", id: companyId },
         })
@@ -689,10 +902,11 @@ export class PublicInquiryService {
         isBlocked: true,
         tier: true,
         membershipEndAt: true,
+        companyVerificationStatus: true, // ücretsiz dönem: efektif kademe girdisi
       },
     });
     if (!company || !hasPublicProfile(company)) {
-      throw new NotFoundException("Ürün bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
     }
     const product = await this.prisma.companyItem.findFirst({
       where: {
@@ -703,7 +917,7 @@ export class PublicInquiryService {
       },
       select: { id: true, name: true, companyId: true },
     });
-    if (!product) throw new NotFoundException("Ürün bulunamadı");
+    if (!product) throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
     return product;
   }
 
@@ -720,7 +934,7 @@ export class PublicInquiryService {
     });
     if (emailCount >= PublicInquiryService.MAX_PER_EMAIL_DAY) {
       throw new BadRequestException(
-        "Bu e-posta adresinden bugün çok fazla talep gönderildi — yarın tekrar deneyin",
+        i18nMessage("api.publicInquiry.buEPostaAdresindenBugunCok"),
       );
     }
 
@@ -738,7 +952,7 @@ export class PublicInquiryService {
       ipPending >= PublicInquiryService.MAX_PENDING_PER_IP
     ) {
       throw new BadRequestException(
-        "Çok fazla talep gönderildi — bir süre sonra tekrar deneyin",
+        i18nMessage("api.publicInquiry.cokFazlaTalepGonderildiBirSure"),
       );
     }
   }

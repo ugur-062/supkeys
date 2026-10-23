@@ -80,7 +80,11 @@ export class ListingScheduler implements OnModuleInit {
     let closed = 0;
     for (const l of due) {
       const claimed = await this.prisma.listing.updateMany({
-        where: { id: l.id, status: "OPEN" },
+        // closesAt claim anında YENİDEN denetlenir (derin denetim 2026-09-29
+        // X14/S029): findMany ile claim arasında kapanış ileri alındıysa
+        // (placeBid auto-extend, changeClosingTime) ilan uzatılmış hâliyle açık
+        // kalır — "uzatıldı" bildiriminden hemen sonra kapanmaz.
+        where: { id: l.id, status: "OPEN", closesAt: { not: null, lte: new Date() } },
         // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
         data: { status: "IN_AWARD", evaluationReminderSentAt: null },
       });
@@ -190,20 +194,43 @@ export class ListingScheduler implements OnModuleInit {
     );
   }
 
+  /** Geçerlilik hatırlatması taramasında sayfa boyu (testte küçültülür). */
+  private readonly validityReminderPageSize = 200;
+
   private async doEvaluationValidityReminders(): Promise<void> {
     const HORIZON_MS = 3 * 86_400_000;
     const now = Date.now();
-    const candidates = await this.prisma.listing.findMany({
-      where: { status: "IN_AWARD", evaluationReminderSentAt: null },
-      select: {
-        id: true,
-        bids: {
-          where: { status: "SUBMITTED" },
-          select: { submittedAt: true, validityDays: true },
+    // Derin denetim MU-14: eskiden sırasız `take: 200` + JS süzgeci vardı;
+    // hatırlatmaya hiç uymayan (teklifsiz / geçerlilik süresiz) IN_AWARD
+    // ilanlar damgalanmadan pencereyi dolduruyor, 200'ü aşınca yenilere hiç
+    // sıra gelmiyordu. Uygunluk sorguda süzülür ve TÜM adaylar imleçle gezilir.
+    const candidates: Array<{
+      id: string;
+      bids: Array<{ submittedAt: Date | null; validityDays: number | null }>;
+    }> = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await this.prisma.listing.findMany({
+        where: {
+          status: "IN_AWARD",
+          evaluationReminderSentAt: null,
+          bids: { some: { status: "SUBMITTED", submittedAt: { not: null }, validityDays: { not: null } } },
         },
-      },
-      take: 200,
-    });
+        select: {
+          id: true,
+          bids: {
+            where: { status: "SUBMITTED" },
+            select: { submittedAt: true, validityDays: true },
+          },
+        },
+        orderBy: { id: "asc" },
+        take: this.validityReminderPageSize,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      candidates.push(...page);
+      if (page.length < this.validityReminderPageSize) break;
+      cursor = page[page.length - 1]!.id;
+    }
     let sent = 0;
     for (const l of candidates) {
       const expiring = l.bids.filter(
@@ -239,25 +266,55 @@ export class ListingScheduler implements OnModuleInit {
   }
 
   private async doAnnounceOpened(): Promise<void> {
+    const now = new Date();
     const due = await this.prisma.listing.findMany({
       where: {
         status: "OPEN",
         openNotifiedAt: null,
-        bidsOpenAt: { not: null, lte: new Date() },
+        AND: [
+          // Kapanışı geçmiş talep duyurulmaz (claim aynı kuralı uygular, X08);
+          // burada da süzülür ki take penceresini doldurmasın.
+          { OR: [{ closesAt: null }, { closesAt: { gt: now } }] },
+          {
+            OR: [
+              // Embargosu biten talep (açılış saati geldi).
+              { bidsOpenAt: { not: null, lte: now } },
+              // ANONİM DUYURUSU OTOMATİK DAVETİ BEKLEYEN talep (gözden geçirme
+              // AI-4, `CompanyListingsService.holdForDiscovery`): açılış
+              // tarihsiz, ilk turda, yayın turu yazılmış ama damgasız. Yayın
+              // turu satırı damgadan ÖNCE yalnız bu yolda yazılır — eski
+              // kayıtlarda bu şekil oluşmaz. Bekleme bellekte tutulmadığı için
+              // süreç yeniden başlasa da duyuru buradan salınır: tur bittiyse
+              // ya da 10 dakikayı aştıysa `announceListingOpen` claim'i alır;
+              // tur sürüyorsa çağrı hiçbir şey göndermeden döner.
+              {
+                bidsOpenAt: null,
+                currentRound: 1,
+                discoveryRuns: { some: { trigger: { in: ["PUBLISH", "SECOND_ROUND"] } } },
+              },
+            ],
+          },
+        ],
       },
-      select: { id: true, currentRound: true },
+      select: { id: true, currentRound: true, bidsOpenAt: true },
+      // Bekleyenler pencereyi doldurup embargosu biteni geciktirmesin.
+      orderBy: [{ bidsOpenAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
       take: 100,
     });
     if (due.length === 0) return;
     let announced = 0;
     for (const l of due) {
       try {
-        await this.listings.announceListingOpen(
+        const out = await this.listings.announceListingOpen(
           l.id,
           l.currentRound > 1 ? "newRound" : "invitation",
         );
+        // Bekleyen talep bu turda salınmadı: sayılmaz (dakikada bir "duyuruldu"
+        // günlüğü olmasın). Arama motoru bildirimi yalnız embargosu biten
+        // talep için (bekleyen talep yayınlandığı an zaten bildirildi).
+        if (out?.status === "held") continue;
         announced++;
-        this.seo?.listingChanged(l.id);
+        if (l.bidsOpenAt) this.seo?.listingChanged(l.id);
       } catch (err) {
         this.logger.error(
           `Açılış duyurusu gönderilemedi (${l.id}): ${

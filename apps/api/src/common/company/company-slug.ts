@@ -19,17 +19,59 @@ export async function ensureUniqueCompanySlug(
   name: string,
   selfId: string,
 ): Promise<string> {
-  const base = generateSlug(name).slice(0, 60) || "firma";
-  let candidate = base;
-  for (let i = 2; i < 50; i++) {
-    const clash = await db.company.findFirst({
-      where: { slug: candidate, id: { not: selfId } },
-      select: { id: true },
+  // Çeviriyazısı olmayan ad (Çince, Arapça …) boş slug üretir → Türkçe
+  // "firma" yerine Rothern ID'ye düş: dilden bağımsız, tekil ve anlamlı.
+  const base = trimSlug(generateSlug(name).slice(0, 60)) || (await fallbackBase(db, selfId));
+  return pickFreeSlug(base, async (candidates) => {
+    const rows = await db.company.findMany({
+      where: { slug: { in: candidates }, id: { not: selfId } },
+      select: { slug: true },
     });
-    if (!clash) return candidate;
-    candidate = `${base}-${i}`;
-  }
-  // 48 deneme tükendiyse ada değil zamana düş — kullanıcıyı hata ile
-  // karşılamaktan iyidir, slug zaten kalıcı ve görünürlüğü düşük.
-  return `${base}-${Date.now().toString(36)}`;
+    return [
+      ...rows.map((r) => r.slug).filter((s): s is string => !!s),
+      ...candidates.filter((c) => RESERVED_COMPANY_SLUGS.has(c)),
+    ];
+  });
+}
+
+/**
+ * `public/companies` altında `:slug`dan ÖNCE tanımlı statik rotalar. Bu
+ * slug'ı alan firmanın profili gölgelenir ("Summary Ltd." → `summary` →
+ * `GET /public/companies/summary` dizin özetini döner, profil hiç açılmaz).
+ * Dolu sayılır, `summary-2`ye düşülür. Controller'a yeni statik rota
+ * eklenirse buraya da eklenmeli.
+ */
+export const RESERVED_COMPANY_SLUGS: ReadonlySet<string> = new Set([
+  "sitemap",
+  "directory",
+  "summary",
+  "products",
+]);
+
+/** Kesimden sonra uçta kalan tireyi atar ("abc-" → "abc"). */
+function trimSlug(s: string): string {
+  return s.replace(/-+$/, "");
+}
+
+async function fallbackBase(db: Prisma.TransactionClient | PrismaService, selfId: string): Promise<string> {
+  const row = await db.company.findUnique({ where: { id: selfId }, select: { rothernId: true } });
+  const code = generateSlug(row?.rothernId ?? "") || selfId.slice(-8).toLowerCase();
+  return `company-${code}`;
+}
+
+/**
+ * ÇAKIŞMASIZ SLUG — TEK SORGU. `base`, `base-2` … `base-50` adaylarının
+ * doluluğu tek `IN` sorgusuyla okunur (eskiden aday başına bir sorgu, en
+ * kötü 48 gidiş-dönüş). Hepsi doluysa zamana düşülür.
+ */
+export async function pickFreeSlug(
+  base: string,
+  takenAmong: (candidates: string[]) => Promise<string[]>,
+): Promise<string> {
+  const candidates = [base, ...Array.from({ length: 49 }, (_, i) => `${base}-${i + 2}`)];
+  const taken = new Set(await takenAmong(candidates));
+  const free = candidates.find((c) => !taken.has(c));
+  // Tükendiyse ada değil zamana düş — kullanıcıyı hata ile karşılamaktan
+  // iyidir, slug zaten kalıcı ve görünürlüğü düşük.
+  return free ?? `${base}-${Date.now().toString(36)}`;
 }

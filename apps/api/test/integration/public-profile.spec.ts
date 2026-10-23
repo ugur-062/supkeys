@@ -4,8 +4,10 @@
  * membershipEndAt iç hesap alanı yanıtta sızmamalı.
  */
 import { prisma, truncateAll } from "./test-db";
-import { makeCompany } from "./factories";
+import { makeCompany, makeCompanyWithUser } from "./factories";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
+import { buildDirectory } from "../../src/common/company/company-directory";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
 
 const svc = new PublicProfileService(prisma as never);
 
@@ -35,13 +37,43 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
     await expect(svc.getBySlug(slug)).resolves.toBeTruthy();
   });
 
-  it("süresi DOLMUŞ PAKET profili GÖRÜNÜR kalır (paket şartı yok, 2026-09-06) ama Gold rozeti düşer (efektif STANDART)", async () => {
-    const slug = await publicCompany({
-      tier: "GOLD",
-      membershipEndAt: new Date(Date.now() - 86_400_000),
+  describe("saklı paket süresi (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Üyelik süresi makinesi anahtar kapalıyken geçerlidir; açıkken doğrulanmış firma hep en üst kademede.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
     });
-    const res = (await svc.getBySlug(slug)) as { goldMember: boolean };
-    expect(res.goldMember).toBe(false);
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("süresi DOLMUŞ PAKET profili GÖRÜNÜR kalır (paket şartı yok, 2026-09-06) ama Gold rozeti düşer (efektif STANDART)", async () => {
+      const slug = await publicCompany({
+        tier: "GOLD",
+        membershipEndAt: new Date(Date.now() - 86_400_000),
+      });
+      const res = (await svc.getBySlug(slug)) as { goldMember: boolean };
+      expect(res.goldMember).toBe(false);
+    });
+  });
+
+  it("ücretsiz dönem: rozet alanı efektif kademeyi izler — doğrulanmış firmada saklı paket dolsa da düşmez; doğrulanmamış firmada süresi dolmuş saklı paket düşer, profil GÖRÜNÜR kalır", async () => {
+    const expired = { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) };
+    const verified = (await svc.getBySlug(await publicCompany(expired))) as {
+      goldMember: boolean;
+      verified: boolean;
+    };
+    expect(verified).toMatchObject({ goldMember: true, verified: true });
+    for (const status of ["UNVERIFIED", "PENDING", "REJECTED"]) {
+      const res = (await svc.getBySlug(
+        await publicCompany({ ...expired, companyVerificationStatus: status }),
+      )) as { goldMember: boolean; verified: boolean };
+      expect(res).toMatchObject({ goldMember: false, verified: false });
+    }
+    // Saklı kademesi STANDART olan doğrulanmamış firma da aynı (sınırlı firma).
+    const limited = (await svc.getBySlug(
+      await publicCompany({ tier: "STANDART", companyVerificationStatus: "UNVERIFIED" }),
+    )) as { goldMember: boolean };
+    expect(limited.goldMember).toBe(false);
   });
 
   it("yanıtta membershipEndAt / tier iç alanları sızmaz", async () => {
@@ -151,6 +183,72 @@ describe("PublicProfile publicDirectory — listelenme koşulu", () => {
     });
     // 11 alanın 6'sı dolu (Hakkında sayılmadı) → %55 < 60 → listelenmez.
     expect((await svc.publicDirectory({})).total).toBe(0);
+  });
+
+  it("Rothern ID ile arama public dizinde eşleşmez (kimlik kâhini yok), panelde eşleşir", async () => {
+    await publicCompany({
+      name: "Kimlik Firma",
+      rothernId: "QZX-4821",
+      aboutText: PROSE,
+      logoUrl: "l.png",
+      coverImageUrl: "c.png",
+      services: ["Montaj"],
+      photos: ["p.png"],
+      foundedYear: 1998,
+      employeeCount: "10-50",
+      city: "İzmir",
+      industry: "Elektrik",
+    });
+    expect((await svc.publicDirectory({ q: "QZX-4821" })).total).toBe(0);
+    expect((await svc.publicDirectoryFacets({ q: "QZX-4821" })).total).toBe(0);
+    expect((await svc.publicDirectory({ q: "Kimlik" })).total).toBe(1);
+    const panel = await buildDirectory(prisma as never, { q: "QZX-4821" }, { matchRothernId: true });
+    expect(panel.items.map((i) => i.name)).toEqual(["Kimlik Firma"]);
+  });
+});
+
+describe("Firma dizini ürün önizlemesi — firma başına (arayüz testi O-060)", () => {
+  async function companyWithProducts(name: string, n: number, score: number) {
+    const { company, user } = await makeCompanyWithUser(prisma, { name });
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { slug: `onizleme-${Math.floor(Math.random() * 1e9)}`, publicEnabled: true },
+    });
+    for (let i = 0; i < n; i++) {
+      await prisma.companyItem.create({
+        data: {
+          companyId: company.id,
+          createdById: user.id,
+          name: `${name} urun ${i}`,
+          unit: "adet",
+          slug: `${name.toLowerCase().replace(/\s+/g, "-")}-${i}`,
+          isPublic: true,
+          publishedAt: new Date(),
+          images: ["x.webp"],
+          searchText: `${name.toLowerCase()} urun`,
+          completionScore: score,
+        },
+      });
+    }
+  }
+
+  it("çok ürünlü firma önizleme bütçesini tüketmez: her firma kendi ilk 4 ürününü alır", async () => {
+    await companyWithProducts("Buyuk Firma", 9, 90);
+    await companyWithProducts("Kucuk Firma", 2, 10);
+    const res = await svc.publicDirectory({});
+    const byName = new Map(res.items.map((i) => [i.name, i]));
+    expect(byName.get("Buyuk Firma")?.productPreview).toHaveLength(4);
+    // Eski tek sorgu `take: 2 × 4 = 8` satırın hepsini Büyük Firma'dan alıyordu.
+    expect(byName.get("Kucuk Firma")?.productPreview).toHaveLength(2);
+  });
+
+  it("'aramanıza uyan' şeridi de firma başına", async () => {
+    await companyWithProducts("Buyuk Firma", 9, 90);
+    await companyWithProducts("Kucuk Firma", 2, 10);
+    const res = await buildDirectory(prisma as never, { q: "urun" });
+    const byName = new Map(res.items.map((i) => [i.name, i]));
+    expect(byName.get("Buyuk Firma")?.matchedProducts).toHaveLength(3);
+    expect(byName.get("Kucuk Firma")?.matchedProducts).toHaveLength(2);
   });
 });
 

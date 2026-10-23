@@ -11,6 +11,7 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { MAX_MONEY } from "../../src/common/constants/money";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
+import { LC_PAYMENT_METHOD, parseSystemText } from "@rothern/shared";
 
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
@@ -841,7 +842,7 @@ describe("taraf ve durum guard'ları", () => {
     const w = await byId(won.id);
     expect(w.status).toBe("LOST");
     expect(w.eliminatedAt).not.toBeNull();
-    expect(w.eliminationReason).toContain("reddedildi");
+    expect(parseSystemText(w.eliminationReason).code).toBe("ORDER_REJECTED");
     expect((await byId(lostByAward.id)).status).toBe("SUBMITTED");
     const e = await byId(lostByBuyer.id);
     expect(e.status).toBe("LOST");
@@ -1210,7 +1211,8 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
     });
     expect(pay.status).toBe("CONFIRMED");
     expect(Number(pay.amount)).toBe(1000);
-    expect(pay.method).toBe("Akreditif");
+    expect(pay.method).toBe(LC_PAYMENT_METHOD);
+    expect(parseSystemText(pay.note).code).toBe("LC_PAID_VIA_BANK");
   });
 
   it("LC'de alıcının manuel ödeme kaydı REDDEDİLİR (banka kanalı)", async () => {
@@ -1254,7 +1256,7 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
 
     // Banka ödemesi yalnız kalanı (600) yazdı — tam tutarı (1000) DEĞİL.
     const lcPayment = await prisma.companyOrderPayment.findFirstOrThrow({
-      where: { orderId: order.id, method: "Akreditif" },
+      where: { orderId: order.id, method: LC_PAYMENT_METHOD },
     });
     expect(Number(lcPayment.amount)).toBe(600);
     // Toplam onaylı = tam tutar; fazla-tahsilat yok.

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { CountUp } from "./count-up";
 import type { PublicStats } from "@/lib/public/marketplace-api";
 
@@ -12,17 +13,18 @@ import type { PublicStats } from "@/lib/public/marketplace-api";
 export const STATS_MIN = { products: 50, companies: 20 } as const;
 
 export function StatsStrip({ stats }: { stats: PublicStats }) {
+  const t = useTranslations("web.marketing.stats");
   if (stats.products < STATS_MIN.products || stats.companies < STATS_MIN.companies) return null;
   const items = [
-    { n: stats.productsThisWeek, l: "Bu hafta eklenen ürün" },
-    { n: stats.bidsLast24h, l: "Son 24 saatte verilen teklif" },
-    { n: stats.openDemands, l: "Açık alım talebi" },
-    { n: stats.verifiedCompanies, l: "Doğrulanmış firma" },
+    { n: stats.productsThisWeek, l: t("productsThisWeek") },
+    { n: stats.bidsLast24h, l: t("bidsLast24h") },
+    { n: stats.openDemands, l: t("openDemands") },
+    { n: stats.verifiedCompanies, l: t("verifiedCompanies") },
   ].filter((i) => i.n > 0);
   if (items.length < 2) return null;
 
   return (
-    <section aria-label="Pazar yeri hareketi" className="border-b border-zinc-950/5 bg-white">
+    <section aria-label={t("label")} className="border-b border-zinc-950/5 bg-white">
       <dl className={`mx-auto grid max-w-7xl grid-cols-2 gap-6 px-6 py-8 lg:px-8 ${items.length >= 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         {items.map((i) => (
           <div key={i.l}>

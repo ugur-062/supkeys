@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
+import { paymentDueDate, type PaymentCategory } from "@rothern/shared";
+import { PENDING_AI_SUGGESTION_RUN_WHERE } from "../../common/company/ai-suggestions";
+import { isOrderFullyPaid } from "../../common/company/order-payments";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { OWNER_VISIBLE_BID_STATUSES } from "../../common/company/bid-items";
+import { inquiryNotFromBlockedWhere } from "../public-inquiry/public-inquiry.service";
 
 /**
  * Aksiyon Merkezi — "bugün ne yapmalıyım" tek uyarı sistemi (pano refactor
@@ -93,15 +99,19 @@ export class ActionCenterService {
     const in2d = new Date(now.getTime() + 2 * DAY_MS);
     const in3d = new Date(now.getTime() + 3 * DAY_MS);
 
-    const [openListings, decisionListings, approvals, orders, payments] =
+    const [openListings, decisionListings, approvals, orders, payments, aiRuns] =
       await Promise.all([
         // Açık ihaleler: kapanış + teklif varlığı (bugün/yarın + 0-teklif satırları).
         this.prisma.listing.findMany({
           where: { companyId, type: "ALIM", status: "OPEN" },
           select: {
             closesAt: true,
+            // Teklif varlığı Taleplerim listesinin `bidCount`'uyla AYNI
+            // kümeden (sahibin gördüğü teklifler): geri çekilen teklif
+            // "teklifli" saymaz — satırın bağlandığı `?closing=` süzgeci
+            // listeyle aynı sayıyı versin (arayüz testi O-035).
             bids: {
-              where: { status: { not: "DRAFT" } },
+              where: { status: { in: [...OWNER_VISIBLE_BID_STATUSES] } },
               select: { id: true },
               take: 1,
             },
@@ -143,36 +153,60 @@ export class ActionCenterService {
             createdAt: true,
             amount: true,
             expectedDeliveryDate: true,
+            paymentCategory: true,
             paymentDays: true,
             deliveredAt: true,
-            completedAt: true,
           },
         }),
         this.prisma.companyOrderPayment.findMany({
           where: { order: { buyerCompanyId: companyId }, status: "CONFIRMED" },
           select: { orderId: true, amount: true },
         }),
+        // AI tedarikçi önerisi bekleyen açık talepler (2026-09-27, Faz 1):
+        // bitmiş, kapatılmamış tur + henüz davet edilmemiş aday.
+        this.prisma.supplierDiscoveryRun.findMany({
+          // Tanım Taleplerim `aiSuggestionsPending` ile ORTAK (satırın hedefi
+          // `?status=OPEN&ai=1`; arayüz testi O-035).
+          where: {
+            ...PENDING_AI_SUGGESTION_RUN_WHERE,
+            companyId,
+            listing: { status: "OPEN" },
+          },
+          select: { listingId: true, finishedAt: true },
+        }),
       ]);
 
-    // ── Ödeme vadesi (S7 kuralı: vade kolonu yok → teslim + paymentDays) ──
-    const confirmedByOrder = new Map<string, number>();
+    // ── Ödeme vadesi ve "ödenmedi" — sipariş listesiyle ORTAK kural ──
+    // Vade `paymentDueDate` (cron hatırlatması + liste `paymentDueDate` ile
+    // aynı: vadeli kategori + teslim + paymentDays), ödendi `isOrderFullyPaid`
+    // (liste `paymentSettled`, tam Decimal). Satırlar Siparişlerim
+    // `?payment=overdue|open` süzgecine bağlanır (web `derived-filters.ts`);
+    // eskiden burada `deliveredAt ?? completedAt` + kategorisiz vade ve 0,01
+    // toleranslı Number karşılaştırması vardı → "1 siparişin ödemesi gecikti"
+    // satırı listede 49 sipariş açıyordu (arayüz testi O-035).
+    const confirmedByOrder = new Map<string, Prisma.Decimal>();
     for (const p of payments) {
       confirmedByOrder.set(
         p.orderId,
-        (confirmedByOrder.get(p.orderId) ?? 0) + Number(p.amount),
+        (confirmedByOrder.get(p.orderId) ?? new Prisma.Decimal(0)).plus(p.amount),
       );
     }
     const unpaid = (o: (typeof orders)[number]) =>
-      Number(o.amount) - (confirmedByOrder.get(o.id) ?? 0) > 0.01;
-    const dueDateOf = (o: (typeof orders)[number]): Date | null => {
-      const base = o.deliveredAt ?? o.completedAt;
-      if (!base || o.paymentDays == null) return null;
-      return new Date(base.getTime() + o.paymentDays * DAY_MS);
-    };
+      !isOrderFullyPaid(
+        new Prisma.Decimal(o.amount),
+        confirmedByOrder.get(o.id) ?? new Prisma.Decimal(0),
+      );
+    const dueDateOf = (o: (typeof orders)[number]): Date | null =>
+      paymentDueDate(o.paymentCategory as PaymentCategory, o.paymentDays, o.deliveredAt);
+    // Ödeme satırlarının evreni: teslim edilmiş (DELIVERED) ya da teslim alınıp
+    // kapanmış (COMPLETED) sipariş — borç operasyonel bitişten bağımsız.
+    const paymentPhase = (o: (typeof orders)[number]) =>
+      o.status === "DELIVERED" || o.status === "COMPLETED";
 
     const overduePay = orders.filter((o) => {
+      if (!paymentPhase(o) || !unpaid(o)) return false;
       const due = dueDateOf(o);
-      return due && due < now && unpaid(o);
+      return !!due && due < now;
     });
     const overdueDel = orders.filter(
       (o) =>
@@ -198,12 +232,7 @@ export class ActionCenterService {
     const paymentWindow = orders.filter((o) => {
       // Madde 17: teslim alma siparişi COMPLETED yapıyor → yalnız DELIVERED'a
       // bakmak bu satırı ölü bırakıyordu (P8 HIGH ile aynı kök).
-      if (
-        (o.status !== "DELIVERED" && o.status !== "COMPLETED") ||
-        !unpaid(o)
-      ) {
-        return false;
-      }
+      if (!paymentPhase(o) || !unpaid(o)) return false;
       const due = dueDateOf(o);
       return !due || due >= now; // vadesi geçenler kırmızı satırda
     });
@@ -224,6 +253,11 @@ export class ActionCenterService {
       }),
       row("closingSoon", "warning", closingSoon.length, {
         dueAt: minDate(closingSoon.map((l) => l.closesAt)),
+      }),
+      row("aiSuggestions", "info", new Set(aiRuns.map((r) => r.listingId)).size, {
+        waitingDays: aiRuns.length
+          ? Math.max(...aiRuns.map((r) => (r.finishedAt ? daysAgo(r.finishedAt, now) : 0)))
+          : null,
       }),
       row("awaitingDecision", "warning", decisionListings.length, {
         waitingDays: oldestSubmitted ? daysAgo(oldestSubmitted, now) : null,
@@ -254,8 +288,18 @@ export class ActionCenterService {
 
     const [invitations, myBids, submittedBids, orders, inquiries] = await Promise.all([
       // Açık davetler (teklif verilmemişleri frontend değil BURADA süzüyoruz).
+      // Sahibi askıdaki/pasif talep panelde görünmez (sellerVisibleWhere,
+      // getOne 404) — davet de sayılmaz (derin denetim MU-20).
       this.prisma.listingInvitation.findMany({
-        where: { invitedCompanyId: companyId, listing: { status: "OPEN" } },
+        where: {
+          invitedCompanyId: companyId,
+          // Açılış embargosundaki talep davetliye de görünmez (derin denetim LU-07).
+          listing: {
+            status: "OPEN",
+            company: { isActive: true, isBlocked: false },
+            OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+          },
+        },
         select: {
           listingId: true,
           listing: { select: { closesAt: true } },
@@ -290,11 +334,21 @@ export class ActionCenterService {
       }),
       // Yanıtsız bilgi talepleri: ürünlerime gelen, DOĞRULANMIŞ (satıcıya
       // iletilmiş) ve henüz hiç yanıtlanmamış sorular. Doğrulanmamış satır
-      // satıcı için var değildir (public-inquiry spam kapısı).
-      this.prisma.publicInquiry.findMany({
-        where: { companyId, verifiedAt: { not: null }, replies: { none: {} } },
-        select: { verifiedAt: true },
-      }),
+      // satıcı için var değildir (public-inquiry spam kapısı). Engel
+      // ilişkisindeki kayıtlı alıcının talebi gelen kutusunda görünmez ve
+      // yanıtı 404 döner → burada da sayılmaz, yoksa satır hiç kapanamaz
+      // (derin denetim LU-18). RLS `company_blocks` iki yönü de gösterir.
+      this.blockedIdsOf(companyId).then((blocked) =>
+        this.prisma.publicInquiry.findMany({
+          where: {
+            companyId,
+            verifiedAt: { not: null },
+            replies: { none: {} },
+            ...inquiryNotFromBlockedWhere(blocked),
+          },
+          select: { verifiedAt: true },
+        }),
+      ),
     ]);
 
     const bidListingIds = new Set(myBids.map((b) => b.listingId));
@@ -348,5 +402,14 @@ export class ActionCenterService {
     ].filter((r): r is ActionCenterRow => r !== null);
 
     return { rows: sortRows(rows) };
+  }
+
+  /** `companyId` ile herhangi yönde engel ilişkisi olan firmalar (`CompanyBlocksService.blockedCompanyIds` ile aynı kural). */
+  private async blockedIdsOf(companyId: string): Promise<string[]> {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return [...new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)))];
   }
 }

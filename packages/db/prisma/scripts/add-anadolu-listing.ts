@@ -3,21 +3,17 @@
  * YENİ bir PUBLIC ALIM ihalesi ekler — hiçbir şeyi silmez (re-seed değil).
  *
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/add-anadolu-listing.ts
+ *
+ * GİZLİ SEGMENT (2026-10-09): kategori yalnız GÖRÜNÜR segmentlerden seçilir
+ * (`visibleActiveFamilyWhere`, kod sırasıyla) ve yazımdan önce denetlenir.
+ * Süzgeçsiz hâliyle ad eşleşmesi gizli 82160000 / 85320000'e, yedek ise
+ * gizli 10100000'e düşebiliyordu.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
+import { assertVisibleSeedCategory, visibleActiveFamilyWhere } from "./lib/seed-category-guard";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("add-anadolu-listing") });
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
 
 async function nextNumber(): Promise<string> {
@@ -41,24 +37,26 @@ async function main() {
   });
   if (!owner) throw new Error("anadolu@demofill.local bulunamadı — önce seed-demo-fill çalıştırılmalı.");
 
-  // İnşaat/yapı ile ilgili bir kategori seç, yoksa herhangi aktif L2.
+  // İnşaat/yapı ile ilgili GÖRÜNÜR bir kategori seç, yoksa herhangi aktif görünür L2.
   const cat =
     (await prisma.category.findFirst({
       where: {
-        level: 2,
-        isActive: true,
+        ...visibleActiveFamilyWhere(),
         OR: [
           { nameTr: { contains: "İnşaat", mode: "insensitive" } },
           { nameTr: { contains: "Yapı", mode: "insensitive" } },
         ],
       },
       select: { code: true, nameTr: true },
+      orderBy: { code: "asc" },
     })) ??
     (await prisma.category.findFirst({
-      where: { level: 2, isActive: true },
+      where: visibleActiveFamilyWhere(),
       select: { code: true, nameTr: true },
+      orderBy: { code: "asc" },
     }));
   if (!cat) throw new Error("Kategori bulunamadı — seed-categories çalıştırılmalı.");
+  assertVisibleSeedCategory("add-anadolu-listing", "listing category", cat.code);
 
   const number = await nextNumber();
   const listing = await prisma.listing.create({

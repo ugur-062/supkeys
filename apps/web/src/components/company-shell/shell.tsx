@@ -1,23 +1,35 @@
 "use client";
 
-import { useCompanyAuth, useCompanyMe } from "@/hooks/use-company-auth";
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
+import {
+  useCompanyAuth,
+  useCompanyMe,
+  useCompanyPermissionsSynced,
+} from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   COMPANY_AREA,
   PORTALS,
   accessiblePortals,
-  activePortalFromPath,
   isCompanyAreaPath,
   type PortalKey,
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import * as Headless from "@headlessui/react";
 import { X } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname } from "@/i18n/navigation";
+import { useEffect, useState } from "react";
+import { noteNavigation } from "@/lib/nav-history";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
-import { CompanySidebarContent } from "./sidebar";
+import {
+  CompanySidebarContent,
+  resolveActivePortal,
+  viewablePortals,
+} from "./sidebar";
 import { CompanyTopbar } from "./topbar";
+import { ServiceNotice } from "./service-notice";
+import { useCompanyDocumentTitle } from "./document-title";
 import { ButtonAccentProvider, accentForPortal } from "@/components/ui/button-accent";
 
 /** Ray genişlikleri — içerik payı raya EŞLİK eder (hover'da da itilir, 2026-09-10). */
@@ -25,23 +37,41 @@ const RAIL = "4.5rem"; // 72px
 const RAIL_EXPANDED = "16rem"; // 256px
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("web.panel.shell.shell");
+  const tn = useNavLabel();
   // Login sonrası /me ile firma + roller tazelenir.
-  useCompanyMe();
+  const me = useCompanyMe();
   const pathname = usePathname();
+  // Sekme başlığı "<sayfa adı> · Rothern" — rota etiketinden, arayüz dilinde.
+  useCompanyDocumentTitle(pathname);
   const { company, user } = useCompanyAuth();
   const pinned = usePortalStore((s) => s.sidebarPinned);
   const lastPortal = usePortalStore((s) => s.lastPortal);
   const [hovered, setHovered] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // D-299: sayfa içeriği izinler /me ile tazelenince çizilir — kalıcı anlık
+  // görüntüdeki BAYAT izinlerle (ör. az önce kaldırılan satış izni) izinli
+  // sorgular atılıp 403 tostları çıkıyordu. Kabuk (üst çubuk, menü) anlık
+  // görüntüyle hemen boyanır; yalnız içerik bir /me turu bekler (SPA
+  // gezinmesinde bayrak zaten true). /me hata verirse beklenmez.
+  const permissionsSynced = useCompanyPermissionsSynced();
   const available = accessiblePortals(user, company?.tier);
-  const activePortal: PortalKey =
-    activePortalFromPath(pathname) ??
-    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
-    available[0] ??
-    "satis";
+  // Etkin portal sol menüyle AYNI kuraldan (D-159).
+  const activePortal: PortalKey = resolveActivePortal(
+    pathname,
+    viewablePortals(user),
+    available,
+    lastPortal,
+  );
 
   const expanded = pinned || hovered;
+
+  // "Geri" bağlantıları için uygulama içi gezinme izi (D-156): referrer SPA
+  // gezinmede değişmez, adres değişimini burada kaydederiz.
+  useEffect(() => {
+    noteNavigation();
+  }, [pathname]);
 
   return (
     /* Birincil düğme rengi aktif portaldan (satınalma mavi, satış emerald);
@@ -62,7 +92,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? RAIL_EXPANDED : RAIL }}
-        className="fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
+        className="fixed top-(--topbar-h) bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
       >
         <CompanySidebarContent expanded={expanded} />
       </aside>
@@ -79,18 +109,21 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         />
         <Headless.DialogPanel
           transition
-          className="fixed inset-y-0 left-0 z-50 w-full max-w-72 bg-white shadow-xl transition duration-300 ease-in-out data-closed:-translate-x-full"
+          // Güvenli alan: başlık durum çubuğunun, menü sonu ana ekran
+          // çizgisinin altında kalmaz; yatay telefonda çentik tarafı pay alır
+          // (genişlik payı kadar artar, içerik daralmaz). Pay 0 iken aynı.
+          className="fixed inset-y-0 left-0 z-50 w-full max-w-[calc(18rem+var(--safe-left))] bg-white pt-(--safe-top) pb-(--safe-bottom) pl-(--safe-left) shadow-xl transition duration-300 ease-in-out data-closed:-translate-x-full"
         >
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
               {isCompanyAreaPath(pathname)
-                ? COMPANY_AREA.label
+                ? tn(COMPANY_AREA.label)
                 : available.length === 0
-                  ? "Menü"
-                  : PORTALS[activePortal].label}
+                  ? t("menu")
+                  : tn(PORTALS[activePortal].label)}
             </span>
             <Headless.CloseButton
-              aria-label="Menüyü kapat"
+              aria-label={t("menuyuKapat")}
               className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             >
               <X className="size-5" aria-hidden />
@@ -111,11 +144,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           Beyaz kart deseni korunur: sayfalar önceki görünümüyle aynı kalır. */}
       <main
         className={cn(
-          /* `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
+          /* Üst pay = üst çubuğun yüksekliği (`--topbar-h`, güvenli alan
+             dahil); alt pay ana ekran çizgisi — `#icerik`teki `pb-24` AI
+             düğmesinin nefes payı olarak aynen kalır, düğme de aynı pay kadar
+             yukarıda durur. `@container/panel`: içerik alanı bir KAPSAYICI. Tek container
              1320px ile sınırlı; hero bandı gibi tam genişlik isteyen bir
              bölüm bu sınırı ancak kapsayıcı sorgusuyla aşabilir
-             (`100cqw`) — `100vw` sol menünün altına taşardı. */
-          "@container/panel flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
+             (`100cqw`) — `100vw` sol menünün altına taşardı. DİKKAT: eski
+             WebView/Safari kapsayıcıya yerleşim kapsaması da uygular, `main`
+             içindeki `fixed` öğe ekrana değil `main`e göre konumlanır →
+             sayfa içeriğindeki her `fixed` öğe `ViewportLayer` ile `body`ye
+             taşınır (alt yapışkan çubuklar). */
+          "@container/panel flex min-h-svh flex-col pt-(--topbar-h) pb-(--safe-bottom) transition-[padding] duration-200 ease-out",
           expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >
@@ -126,7 +166,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           id="icerik"
           className="mx-auto w-full max-w-[1320px] grow px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 xl:px-10"
         >
-          {children}
+          {/* API yanıt vermiyorsa iskelet/içerik MESAJSIZ kalmaz: "ulaşılamıyor,
+              yeniden deneniyor" notu + "Tekrar dene" (`service-notice.tsx`). */}
+          <ServiceNotice me={me} pending={!permissionsSynced} />
+          {permissionsSynced ? (
+            children
+          ) : (
+            <div className="space-y-4" aria-hidden data-testid="shell-permissions-pending">
+              <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+              <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" />
+              <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+            </div>
+          )}
         </div>
       </main>
 

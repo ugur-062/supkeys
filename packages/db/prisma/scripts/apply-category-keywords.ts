@@ -16,14 +16,18 @@
  * seed'in yazdığı düşen adları ("Hazır Beton" → 30111505) sessizce silerdi.
  *
  * Çalıştırma: `pnpm --filter @rothern/db apply-category-keywords`
+ *   --dry   yalnız ne değişeceğini yazar, DB'ye dokunmaz (kardeş betikler
+ *           `apply-category-translations` / `apply-category-names-i18n` ile aynı;
+ *           2026-10-09'a kadar bu bayrak YOKTU: `-- --dry` yok sayılıp hemen yazıyordu)
  * Idempotent; TSV'de olmayan kategorilere dokunmaz, DEĞİŞMEYEN satırı yazmaz.
  */
 import { PrismaClient, Prisma } from "@prisma/client";
-import { foldSearchText } from "@rothern/shared";
+import { prepareScriptDatabase } from "./lib/script-env";
+import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { buildKeywordsByCode } from "./lib/category-keywords";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-keywords") });
 
 /**
  * Toplu yazım grubu. Eskiden her satır için ayrı findUnique+update atılıyordu;
@@ -34,6 +38,7 @@ const prisma = new PrismaClient();
 const CHUNK = 500;
 
 async function main() {
+  const dry = process.argv.includes("--dry");
   const dir = path.resolve(__dirname, "../../src/seeds");
   const {
     byCode: entries,
@@ -50,7 +55,7 @@ async function main() {
 
   const cats = await prisma.category.findMany({
     where: { code: { in: [...entries.keys()] } },
-    select: { code: true, nameTr: true, keywords: true },
+    select: { code: true, nameTr: true, keywords: true, nameEn: true, nameRu: true },
   });
   const byCode = new Map(cats.map((c) => [c.code, c]));
 
@@ -67,9 +72,15 @@ async function main() {
     const cat = byCode.get(code);
     if (!cat) continue;
     if (cat.keywords === kw) continue;
-    rows.push({ code, kw, st: foldSearchText(`${cat.nameTr} ${kw}`) });
+    rows.push({ code, kw, st: categorySearchText({ ...cat, keywords: kw }) });
   }
   console.log(`   ${rows.length} satır değişiyor, ${cats.length - rows.length} zaten güncel\n`);
+
+  if (dry) {
+    rows.slice(0, 20).forEach((r) => console.log(`   ${r.code}  -> ${r.kw.slice(0, 100)}`));
+    console.log(`\n(--dry) ${rows.length} row(s) would change; nothing written to the database.`);
+    return;
+  }
 
   let done = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {

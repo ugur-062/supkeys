@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -5,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import type { AdminRole } from "@rothern/db";
+import type { AdminRole, Prisma } from "@rothern/db";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -52,7 +53,8 @@ export class AdminStaffService {
   /**
    * Personel ekle — Supabase hesabı geçici parolayla açılır; parola YALNIZ
    * bu yanıtın içinde bir kez görünür (loglanmaz), personel ilk girişte
-   * "şifre değiştir" ile kendisininkini koyar.
+   * "şifre değiştir" ile kendisininkini koyar — `mustChangePassword` bunu
+   * zorunlu kılar (AdminRolesGuard, arayüz testi D-025).
    */
   async create(
     input: {
@@ -69,7 +71,7 @@ export class AdminStaffService {
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta ile zaten bir yönetici var");
+      throw new ConflictException(i18nMessage("api.adminAuth.buEPostaIleZatenBir"));
     }
     const password = tempPassword();
     const { authId } = await this.supabase.createUser(email, password, {
@@ -82,6 +84,8 @@ export class AdminStaffService {
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
         role: input.role,
+        // Geçici parola → ilk girişte kendi şifresini koymaya zorlanır (D-025).
+        mustChangePassword: true,
       },
       select: { id: true, email: true, role: true },
     });
@@ -102,21 +106,14 @@ export class AdminStaffService {
   async setRole(id: string, role: AdminRole, actorId: string) {
     const target = await this.requireStaff(id);
     if (id === actorId && role !== "SUPER_ADMIN") {
-      throw new BadRequestException("Kendi rolünüzü düşüremezsiniz");
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiRolunuzuDusuremezsiniz"));
     }
     if (target.role === "SUPER_ADMIN" && role !== "SUPER_ADMIN") {
       // Dalga B: sayım + yazım ayrıydı — eşzamanlı iki düşürme ikisi de
       // "benden başka biri var" görüp sistemi 0 SUPER_ADMIN'le bırakabiliyordu.
-      // Sayım ve yazım tek transaction'da serileşir.
+      // Sayım ve yazım kilit altında tek transaction'da (bkz. guardLastSuperAdmin).
       await this.prisma.$transaction(async (tx) => {
-        const others = await tx.platformAdmin.count({
-          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
-        });
-        if (others === 0) {
-          throw new BadRequestException(
-            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
-          );
-        }
+        await this.guardLastSuperAdmin(tx, id);
         await tx.platformAdmin.update({ where: { id }, data: { role } });
       });
     } else {
@@ -138,29 +135,22 @@ export class AdminStaffService {
   async setActive(id: string, active: boolean, actorId: string) {
     const target = await this.requireStaff(id);
     if (id === actorId && !active) {
-      throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiniziPasiflestiremezsiniz"));
     }
+    // Derin denetim LU-02: pasifleştirme oturumları da iptal eder (firma
+    // tarafıyla aynı) — aksi halde yeniden aktifleştirmede süresi dolmamış
+    // eski JWT'ler (tv hâlâ eşleşir) tekrar geçerli olurdu.
+    const data = active
+      ? { isActive: true }
+      : { isActive: false, tokenVersion: { increment: 1 } };
     if (target.role === "SUPER_ADMIN" && !active) {
-      // Dalga B: bkz. setRole — sayım + yazım tek transaction'da.
+      // Dalga B: bkz. setRole — sayım + yazım kilit altında tek transaction'da.
       await this.prisma.$transaction(async (tx) => {
-        const others = await tx.platformAdmin.count({
-          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
-        });
-        if (others === 0) {
-          throw new BadRequestException(
-            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
-          );
-        }
-        await tx.platformAdmin.update({
-          where: { id },
-          data: { isActive: false },
-        });
+        await this.guardLastSuperAdmin(tx, id);
+        await tx.platformAdmin.update({ where: { id }, data });
       });
     } else {
-      await this.prisma.platformAdmin.update({
-        where: { id },
-        data: { isActive: active },
-      });
+      await this.prisma.platformAdmin.update({ where: { id }, data });
     }
     await this.audit.log({
       action: active ? "admin.staff.activated" : "admin.staff.deactivated",
@@ -175,9 +165,15 @@ export class AdminStaffService {
 
   /** Personel şifresini sıfırla — yeni geçici parola bir kez gösterilir. */
   async resetPassword(id: string, actorId: string) {
+    // Derin denetim MU-21: kendi hesabını sıfırlamak parolayı bilinmeyen bir
+    // değere çevirip 2FA'yı siler ve oturumu düşürür — tek SUPER_ADMIN panele
+    // geri dönemez. Kendi şifresi için change-password akışı var.
+    if (id === actorId) {
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiSifreniziSifirlayamazsiniz"));
+    }
     const target = await this.requireStaff(id);
     if (!target.authId) {
-      throw new BadRequestException("Hesap Supabase köprüsüne bağlı değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.hesapSupabaseKoprusuneBagliDegil"));
     }
     const password = tempPassword();
     await this.supabase.updatePassword(target.authId, password);
@@ -186,7 +182,13 @@ export class AdminStaffService {
     await this.prisma.platformAdmin.update({
       where: { id },
       // Oturum iptali: reset sonrası eski oturumlar düşer (denetim 2026-08-23 #3).
-      data: { twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 } },
+      // Yeni geçici parola → bir sonraki girişte zorunlu değişim (D-025).
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        tokenVersion: { increment: 1 },
+        mustChangePassword: true,
+      },
     });
     await this.audit.log({
       action: "admin.staff.password_reset",
@@ -200,12 +202,32 @@ export class AdminStaffService {
     return { ok: true, tempPassword: password };
   }
 
+  /**
+   * Son aktif SUPER_ADMIN kapısı — çağıran transaction içinde. Derin denetim
+   * LU-02: READ COMMITTED'da düz `count` satır kilitlemez; A↔B'yi aynı anda
+   * düşüren iki tx ikisi de "benden başka 1 var" görüp 0 SUPER_ADMIN
+   * bırakıyordu (write-skew). Önce tüm SUPER_ADMIN satırları FOR UPDATE ile
+   * kilitlenir → ikinci tx birinci commit edene kadar bekler; sonraki `count`
+   * yeni snapshot'la birincinin yazımını görür ve reddeder.
+   */
+  private async guardLastSuperAdmin(tx: Prisma.TransactionClient, id: string) {
+    await tx.$queryRaw`SELECT id FROM platform_admins WHERE role = 'SUPER_ADMIN' FOR UPDATE`;
+    const others = await tx.platformAdmin.count({
+      where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
+    });
+    if (others === 0) {
+      throw new BadRequestException(
+        i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
+      );
+    }
+  }
+
   private async requireStaff(id: string) {
     const admin = await this.prisma.platformAdmin.findUnique({
       where: { id },
       select: { id: true, role: true, authId: true, isActive: true },
     });
-    if (!admin) throw new NotFoundException("Yönetici bulunamadı");
+    if (!admin) throw new NotFoundException(i18nMessage("api.adminAuth.yoneticiBulunamadi"));
     return admin;
   }
 

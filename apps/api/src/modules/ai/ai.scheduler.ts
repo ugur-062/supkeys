@@ -5,6 +5,8 @@ import {
   trackCronRun,
 } from "../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { AI_CHAT_RETENTION_DAYS, AI_TEMP_UPLOAD_RETENTION_HOURS } from "../data-retention/retention-policy";
+import { RetentionRecordService } from "../data-retention/retention-record.service";
 import { StorageService } from "../storage/storage.service";
 import { AI_EXTRACT_KEY_PREFIX } from "./tender-extract/ai-extract-keys";
 
@@ -13,12 +15,16 @@ const STALE_RESERVATION_MS = 10 * 60 * 1000;
 
 /**
  * AI-1 — geçici belge ömrü: 24 saat ("yeniden dene" + refine penceresi),
- * sonrası KVKK/depolama gereği otomatik silinir.
+ * sonrası KVKK/depolama gereği otomatik silinir. Süre Saklama ve İmha
+ * Politikası tablosunun 20. satırı (`retention-policy.ts`).
  */
-const EXTRACT_FILE_TTL_MS = 24 * 60 * 60 * 1000;
+const EXTRACT_FILE_TTL_MS = AI_TEMP_UPLOAD_RETENTION_HOURS * 60 * 60 * 1000;
 
-/** AI-2 — dokunulmayan sohbet ömrü: 90 gün (araç sonuçları karşı-taraf içeriği taşır). */
-const CHAT_SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+/**
+ * AI-2 — dokunulmayan sohbet ömrü: 90 gün (araç sonuçları karşı-taraf içeriği
+ * taşır). Süre Saklama ve İmha Politikası tablosunun satırı (`retention-policy.ts`).
+ */
+const CHAT_SESSION_TTL_MS = AI_CHAT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
 /**
  * Faz AI-0 — rezervasyon reaper'ı: settle/fail hiç çalışmadıysa (process crash,
@@ -35,6 +41,8 @@ export class AiScheduler implements OnModuleInit {
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
     @Optional() private readonly cronRegistry?: CronRegistryService,
     @Optional() private readonly storage?: StorageService,
+    // İmha kaydı (Saklama ve İmha Politikası bölüm 10); elle kurulan testlerde yok.
+    @Optional() private readonly records?: RetentionRecordService,
   ) {}
 
   onModuleInit(): void {
@@ -109,6 +117,10 @@ export class AiScheduler implements OnModuleInit {
     );
     let deleted = 0;
     for (const o of objects) {
+      // Savunma hattı: silme YALNIZ geçici AI alanında. Liste çağrısı zaten
+      // önekle süzer; yine de önek dışı bir anahtar (depolama katmanı hatası,
+      // ileride değişen liste davranışı) kalıcı firma belgesini silemesin.
+      if (!o.key.startsWith(AI_EXTRACT_KEY_PREFIX)) continue;
       if (o.lastModified && o.lastModified.getTime() < cutoff) {
         await this.storage
           .deleteObject("private", o.key)
@@ -117,8 +129,9 @@ export class AiScheduler implements OnModuleInit {
       }
     }
     if (deleted > 0) {
-      this.logger.log(`${deleted} geçici AI belge dosyası silindi (24h TTL)`);
+      this.logger.log(`${deleted} geçici AI belge dosyası silindi (${AI_TEMP_UPLOAD_RETENTION_HOURS}h TTL)`);
     }
+    await this.records?.record("ai.cleanupExtractFiles", { aiTempFiles: deleted });
   }
 
   /** AI-2 — 90 gün dokunulmamış sohbetleri sil (mesajlar cascade). */
@@ -135,8 +148,9 @@ export class AiScheduler implements OnModuleInit {
       where: { lastMessageAt: { lt: cutoff } },
     });
     if (count > 0) {
-      this.logger.log(`${count} eski asistan sohbeti silindi (90 gün TTL)`);
+      this.logger.log(`${count} eski asistan sohbeti silindi (${AI_CHAT_RETENTION_DAYS} gün TTL)`);
     }
+    await this.records?.record("ai.cleanupChatSessions", { aiChats: count });
   }
 
   private async doReap(): Promise<void> {

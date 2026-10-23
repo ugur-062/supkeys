@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ── Dahili notlar ────────────────────────────────────────────
@@ -54,7 +55,6 @@ export interface GlobalSearchResult {
     name: string;
     rothernId: string | null;
     country: string;
-    tier: string;
     isBlocked: boolean;
   }[];
   users: {
@@ -77,6 +77,14 @@ export function useGlobalSearch(q: string) {
       return data;
     },
     staleTime: 10_000,
+    // 4xx (ör. 403) tekrar denenmez — interceptor toast'ı ikilenmesin.
+    retry: (count, e) =>
+      count < 1 &&
+      !(
+        axios.isAxiosError(e) &&
+        (e.response?.status ?? 0) >= 400 &&
+        (e.response?.status ?? 0) < 500
+      ),
   });
 }
 
@@ -95,7 +103,6 @@ export function useAnnounce() {
     mutationFn: async (input: {
       subject: string;
       message: string;
-      tier?: "STANDART" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
       /** Göndermeden gerçek hedef sayısını sor (onay ekranı — Dalga B). */

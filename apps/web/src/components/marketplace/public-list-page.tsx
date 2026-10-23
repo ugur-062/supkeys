@@ -1,7 +1,8 @@
+import { useTranslations } from "next-intl";
 import { FilterChip } from "./facets";
 import { SearchForm } from "./search-form";
 import { Heading } from "@/components/catalyst/heading";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**
@@ -37,6 +38,8 @@ export function PublicListPage({
     action: string;
     defaultValue?: string;
     placeholder?: string;
+    /** Telefonda kısa yer tutucu — bkz. `SearchForm.shortPlaceholder`. */
+    shortPlaceholder?: string;
     hidden?: Record<string, string | undefined>;
     hiddenList?: Record<string, string[]>;
   };
@@ -57,6 +60,7 @@ export function PublicListPage({
   tabs?: ReactNode;
   children: ReactNode;
 }) {
+  const tf = useTranslations("web.marketplace.filters");
   return (
     <>
       <header className="border-b border-zinc-950/5 bg-white pt-28 pb-10">
@@ -73,7 +77,10 @@ export function PublicListPage({
                 {title}
               </Heading>
               <p className="mt-4 max-w-2xl text-lg/8 text-zinc-500">{lead}</p>
-              <div className="mt-8 max-w-4xl">
+              {/* `data-float-avoid`: yüzen "Talep aç" köşesi bu satırla
+                  kesişince çekilir (`FloatingRequestDock`; klavye açıkken /
+                  yatay telefonda "Ara"nın üstüne biniyordu). */}
+              <div className="mt-8 max-w-4xl" data-float-avoid>
                 <SearchForm {...search} size="lg" />
               </div>
               {/* Sekmeler aramanın HEMEN ALTINDA: "aynı sorgu, öteki yüzey"
@@ -86,10 +93,9 @@ export function PublicListPage({
       </header>
 
       <div className="mx-auto max-w-7xl px-6 pt-8 pb-24 lg:px-8">
-        {chipsNode ?? null}
         {!chipsNode && chips.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-zinc-500">Süzgeçler:</span>
+            <span className="text-zinc-500">{tf("chipsLabel")}</span>
             {chips.map((c) => (
               <FilterChip key={c.key} href={c.href} label={c.label} />
             ))}
@@ -97,21 +103,28 @@ export function PublicListPage({
               href={clearHref}
               className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600"
             >
-              Tümünü temizle
+              {tf("clearAll")}
             </Link>
           </div>
         ) : null}
 
-        <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">
+        {/* Aktif süzgeç şeridi (`chipsNode`) SONUÇ sütununun başında (2. tur
+            g02, masaüstü): tam genişlikte yapışkan şerit süzgeç rayının
+            yapışkan üst kısmının ("Kategori" başlığı, Temizle) üstüne biniyordu.
+            Şerit varken ızgaranın üst boşluğu düşer (`has-[[data-chip-bar]]`):
+            şerit eskisi gibi başlık bandının 32 px altında başlar, ray yanına
+            hizalanır. Şerit yoksa (çip yok) yerleşim eskisiyle aynı. */}
+        <div className="mt-8 grid grid-cols-1 gap-10 has-[[data-chip-bar]]:mt-0 lg:grid-cols-[16rem_1fr]">
           {/* Sticky sidebar viewport'tan uzunsa kendi içinde kaydırılır —
               eskiden ~1450 px sabit kalıyor, alttaki gruplar görünmüyordu (A1). */}
           <aside
-            aria-label="Süzgeçler"
-            className={`${chipsNode ? "hidden lg:block" : ""} lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]`}
+            aria-label={tf("filtersTitle")}
+            className={`${chipsNode ? "hidden lg:block" : ""} lg:sticky lg:top-[calc(6rem+var(--safe-top))] lg:max-h-[calc(100vh-7rem-var(--safe-top))] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]`}
           >
             {sidebar}
           </aside>
-          <div>
+          <div className="min-w-0">
+            {chipsNode ?? null}
             {/* <div>: summary içinde <p aria-live> ve <div> (SortControl) var —
                 <p> içine koymak geçersiz HTML ve hydration hatasıydı (React #418). */}
             {summary ? <div className="mb-4 text-sm text-zinc-500">{summary}</div> : null}
@@ -134,7 +147,7 @@ export function PublicListPage({
  */
 export function ResultGrid({
   count,
-  heading = "Sonuçlar",
+  heading,
   layout = "grid",
   children,
 }: {
@@ -144,6 +157,8 @@ export function ResultGrid({
   layout?: "grid" | "list";
   children: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.index");
+  const title = heading ?? t("results");
   const cols =
     layout === "list"
       ? "grid-cols-1 gap-3"
@@ -157,7 +172,7 @@ export function ResultGrid({
       {/* Görsel olmayan h2: sayfa h1'inden kart h3'lerine atlamak başlık
           sırasını bozuyordu (Lighthouse heading-order, /urunler'de ölçüldü). */}
       <h2 id="sonuclar" className="sr-only">
-        {heading}
+        {title}
       </h2>
       <div className={`grid ${cols}`}>{children}</div>
     </section>

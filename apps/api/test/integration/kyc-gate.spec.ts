@@ -74,9 +74,16 @@ describe("INV-KYC-1 — para-taahhüdü kapıları VERIFIED ister", () => {
       owner.company.id,
       owner.user.id,
     );
-    await expect(
-      service.placeBid(bidder.auth, listing.id, bidInput(item.id, 100)),
-    ).rejects.toThrow(/doğrulamanız tamamlanmadan/i);
+    // Arayüz testi O-068: PENDING firmaya "belgeleri yükleyip onaya gönderin"
+    // denmez — ayrı metin ve kod.
+    const err = await service
+      .placeBid(bidder.auth, listing.id, bidInput(item.id, 100))
+      .catch((e: unknown) => e);
+    expect((err as Error).message).toMatch(/doğrulamanız inceleniyor.*teklif veremezsiniz/is);
+    expect((err as Error).message).not.toMatch(/yükleyip/i);
+    expect(
+      ((err as { getResponse(): { code?: string } }).getResponse()).code,
+    ).toBe("COMPANY_VERIFICATION_PENDING");
   });
 
   it("VERIFIED bidder: teklif SUBMIT geçer", async () => {

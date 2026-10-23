@@ -4,6 +4,7 @@ import { PublicProductQueryDto } from "./dto/public-product-query.dto";
 import { PublicDirectoryQueryDto } from "./dto/public-directory-query.dto";
 import { Throttle } from "@nestjs/throttler";
 import { PublicProfileService } from "./public-profile.service";
+import { DEFAULT_THROTTLE_PUBLIC_LIMIT, resolveThrottleLimit } from "../../common/http/throttle-limit";
 
 /**
  * Auth gerektirmeyen herkese açık profil — SEO sayfası + sitemap.
@@ -15,7 +16,7 @@ import { PublicProfileService } from "./public-profile.service";
 @Controller("public/companies")
 @Throttle({
   default: {
-    limit: Number(process.env.THROTTLE_PUBLIC_LIMIT ?? 600),
+    limit: resolveThrottleLimit("THROTTLE_PUBLIC_LIMIT", DEFAULT_THROTTLE_PUBLIC_LIMIT),
     ttl: 60_000,
   },
 })

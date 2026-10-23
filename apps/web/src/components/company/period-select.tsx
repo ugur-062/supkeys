@@ -1,16 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ViewDays } from "@/hooks/use-company-views";
 
 /** 7 / 30 / 90 gün — Ziyaret Edenler ve İş Analizi aynı seçici. */
 export function PeriodSelect({ value, onChange }: { value: ViewDays; onChange: (d: ViewDays) => void }) {
-  const opts: { d: ViewDays; l: string }[] = [
-    { d: 7, l: "7 gün" },
-    { d: 30, l: "30 gün" },
-    { d: 90, l: "90 gün" },
-  ];
+  const t = useTranslations("web.panel.trade.periodSelect");
+  const opts: { d: ViewDays; l: string }[] = ([7, 30, 90] as const).map((d) => ({ d, l: t("gun", { n: d }) }));
   return (
-    <div role="group" aria-label="Dönem" className="inline-flex rounded-full bg-zinc-100 p-0.5 text-xs">
+    <div role="group" aria-label={t("donem")} className="inline-flex rounded-full bg-zinc-100 p-0.5 text-xs">
       {opts.map((o) => (
         <button
           key={o.d}

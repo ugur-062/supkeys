@@ -3,6 +3,8 @@ import { CurrentCompanyUser, type AuthenticatedCompanyUser } from "../company-au
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyRequestDefaultsService } from "./company-request-defaults.service";
 
 /**
@@ -24,6 +26,11 @@ export class CompanyRequestDefaultsController {
 
   @Put()
   @RequireCompanyPermission("buy:listing:manage")
+  // Talep şartları satınalma paneli ayarı (Gold) — UI Gold duvarı çiziyordu,
+  // API ise Gold'dan düşen firmada kaydediyordu (arayüz testi T3, T-06).
+  // Okuma (GET) kademesiz: düşen firma mevcut şartlarını görür.
+  @RequireTier("GOLD")
+  @UseGuards(CompanyPaidTierGuard)
   save(@CurrentCompanyUser() user: AuthenticatedCompanyUser, @Body() body: unknown) {
     return this.service.save(user, body);
   }

@@ -10,6 +10,7 @@ import {
   type AiTokenUsage,
   type AiToolCall,
 } from "./ai-provider.interface";
+import { providerFailureReason } from "./ai-provider-reason";
 
 /** İstek arayüzündeki küçük-harf seviye → SDK enum eşlemesi. */
 const THINKING_LEVELS = {
@@ -40,6 +41,21 @@ function historyToContents(history: AiHistoryTurn[]): Content[] {
       };
     }),
   }));
+}
+
+/**
+ * Yanıt metni = ilk adayın `text` parçaları (düşünce parçaları hariç) —
+ * SDK'nin `resp.text` getter'ıyla aynı sonuç, ama functionCall parçası olan
+ * her turda "there are non-text parts functionCall…" uyarısını basmaz
+ * (canlı günlük gürültüsü, derin denetim canlı AI). functionCall/imza
+ * eşleştirmesi ayrı yapılır; bu yalnız metni okur.
+ */
+function textFromParts(parts: ReadonlyArray<{ text?: string; thought?: boolean }>): string {
+  let text = "";
+  for (const p of parts) {
+    if (typeof p.text === "string" && p.thought !== true) text += p.text;
+  }
+  return text;
 }
 
 /**
@@ -284,7 +300,7 @@ export class GeminiProvider extends BaseAiProvider {
       }
       const finishReason = resp.candidates?.[0]?.finishReason;
       return {
-        text: resp.text ?? "",
+        text: textFromParts(respParts),
         usage,
         ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
         ...(finishReason ? { finishReason: String(finishReason) } : {}),
@@ -298,7 +314,14 @@ export class GeminiProvider extends BaseAiProvider {
       if (err instanceof AiProviderError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
       // API anahtarı/istek gövdesi mesaja sızmasın diye sadece özet kod tutulur.
-      throw new AiProviderError(`Gemini hatası: ${msg}`, "provider_error");
+      // `reason`: kullanım kaydına yazılan temizlenmiş sebep (HTTP durumu +
+      // Google hata durumu) — günlüğe erişmeden teşhis için.
+      throw new AiProviderError(
+        `Gemini hatası: ${msg}`,
+        "provider_error",
+        undefined,
+        providerFailureReason(err),
+      );
     } finally {
       clearTimeout(timer);
     }

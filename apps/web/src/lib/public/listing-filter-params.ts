@@ -1,19 +1,25 @@
-import { getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { categoryParam, getParam as get, listParam, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { ListParams } from "./marketplace-api";
 
 /**
  * ALIM TALEBİ DİZİNİ URL ŞEMASI — TEK KAYNAK (PROMPT 4, 2026-09-06).
  *
- * `?q=&kategori=39000000&sehir=İstanbul,İzmir&ulke=DE
+ * `?q=&kategori=39000000&aliciUlke=TR,DE&ulke=DE
  *  &sure=3|7|30&sirala=yeni|kapanis&durum=hepsi&sayfa=2`
  *
- * Eski `il=` parametresi okunmaya devam eder (paylaşılmış bağlantılar).
+ * `aliciUlke` = ALICININ ülkesi (talebin açıldığı ülke); `ulke` = teklif
+ * verebilecek TEDARİKÇİNİN ülkesi (görünürlük) — iki ayrı soru, iki anahtar.
+ * ALICI ŞEHRİ SÜZGECİ YOK (2026-10-04 sahip kararı: talepte konum = ülke):
+ * eski `?sehir=` / `?il=` bağlantıları açılır ama parametre YOK SAYILIR
+ * (süzülmemiş liste; kanonik zaten süzgeçsiz taban) ve bir sonraki süzgeç
+ * değişikliğinde adresten düşer.
  * Türkçe URL ↔ İngilizce API sınırı burada; sayfalar ham `searchParams` görmez.
  */
 export interface ListingFilterState {
   q?: string;
   category?: string;
-  cities: string[];
+  /** Alıcı ülkeleri (ISO alpha-2, büyük harf, tekrarsız) — `?aliciUlke=TR,DE`. */
+  buyerCountries: string[];
   /** Görünürlük ülkesi (ISO alpha-2) — `?ulke=DE`. */
   country?: string;
   within?: "3" | "7" | "30";
@@ -23,7 +29,21 @@ export interface ListingFilterState {
   page: number;
 }
 
-export const EMPTY_LISTING_FILTERS: ListingFilterState = { cities: [], page: 1 };
+/**
+ * API doğrulama SINIRLARI (`PublicListQueryDto`) — ayrıştırma bunlara kırpar
+ * (ürün dizinindeki D-056 ile aynı kural; arayüz testi son tur webA-2).
+ * Eskiden `?sayfa=201` ya da 120 karakteri aşan arama uçtan 400 alıyor ve
+ * ziyaretçi "Alım talebi bulunamadı" görüyordu — oysa açık talepler var.
+ */
+export const LISTING_SEARCH_MAX_LENGTH = 120;
+export const LISTING_PAGE_LIMIT = 200;
+
+export const EMPTY_LISTING_FILTERS: ListingFilterState = { buyerCountries: [], page: 1 };
+
+/** `?aliciUlke=` değeri → geçerli ISO kodları (büyük harf, tekrarsız, ≤10; bozuk parça düşer). */
+export function buyerCountryParam(v?: string): string[] {
+  return [...new Set(listParam(v).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)))];
+}
 
 export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   const cat = get(sp, "kategori");
@@ -31,14 +51,15 @@ export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   const within = get(sp, "sure");
   const sort = get(sp, "sirala");
   return {
-    q: get(sp, "q")?.trim() || undefined,
-    category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
-    cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    q: get(sp, "q")?.trim().slice(0, LISTING_SEARCH_MAX_LENGTH).trim() || undefined,
+    // Gizli segment kodu süzgeç yokmuş gibi okunur (`categoryParam`).
+    category: categoryParam(cat),
+    buyerCountries: buyerCountryParam(get(sp, "aliciUlke")),
     country: country && /^[A-Z]{2}$/.test(country) ? country : undefined,
     within: within === "3" || within === "7" || within === "30" ? within : undefined,
     sort: sort === "yeni" || sort === "kapanis" ? sort : undefined,
     state: get(sp, "durum") === "hepsi" ? "hepsi" : undefined,
-    page: pageParam(get(sp, "sayfa")),
+    page: Math.min(pageParam(get(sp, "sayfa")), LISTING_PAGE_LIMIT),
   };
 }
 
@@ -47,7 +68,7 @@ export function toListingListParams(f: ListingFilterState): ListParams {
     type: "ALIM",
     q: f.q,
     category: f.category,
-    city: f.cities.length ? f.cities.join(",") : undefined,
+    buyerCountry: f.buyerCountries.length ? f.buyerCountries.join(",") : undefined,
     country: f.country,
     closesWithin: f.within,
     sort: f.sort === "kapanis" ? "closing" : f.sort === "yeni" ? "newest" : undefined,
@@ -61,7 +82,7 @@ export function buildListingFilterQuery(f: ListingFilterState): string {
   const sp = new URLSearchParams();
   if (f.q) sp.set("q", f.q);
   if (f.category) sp.set("kategori", f.category);
-  if (f.cities.length) sp.set("sehir", f.cities.join(","));
+  if (f.buyerCountries.length) sp.set("aliciUlke", f.buyerCountries.join(","));
   if (f.country) sp.set("ulke", f.country);
   if (f.within) sp.set("sure", f.within);
   if (f.sort) sp.set("sirala", f.sort);
@@ -73,7 +94,7 @@ export function buildListingFilterQuery(f: ListingFilterState): string {
 
 /** Aktif süzgeç sayısı (arama, sıralama, durum ve sayfa hariç). */
 export function activeListingFilterCount(f: ListingFilterState): number {
-  return (f.category ? 1 : 0) + f.cities.length + (f.country ? 1 : 0) + (f.within ? 1 : 0);
+  return (f.category ? 1 : 0) + f.buyerCountries.length + (f.country ? 1 : 0) + (f.within ? 1 : 0);
 }
 
 export function clearListingFilters(f: ListingFilterState): ListingFilterState {

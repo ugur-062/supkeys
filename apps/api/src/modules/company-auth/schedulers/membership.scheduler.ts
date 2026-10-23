@@ -1,16 +1,15 @@
 import { PAID_TIERS } from "@rothern/shared";
+import { isFreePeriod } from "../../../common/company/effective-tier";
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
 import {
   CronRegistryService,
   trackCronRun,
 } from "../../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
-import { EmailService } from "../../email/email.service";
-import { resolveWebUrl } from "../../../common/config/web-url";
-import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
+import { cancelOutgoingReferralInvites } from "../../../common/company/downgrade-invites";
+import { SeoIndexService } from "../../seo-index/seo-index.service";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -18,10 +17,11 @@ export class MembershipScheduler implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaBypassService,
-    private readonly email: EmailService,
-    private readonly config: ConfigService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
     @Optional() private readonly cronRegistry?: CronRegistryService,
+    // Paket düşünce herkese açık firma/ürün sayfaları tazelenir (Silver+
+    // medya: video + belgeler — arayüz testi D-192 yeniden doğrulama).
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
 
   /**
@@ -63,6 +63,13 @@ export class MembershipScheduler implements OnModuleInit {
   }
 
   private async doDowngradeExpired(): Promise<void> {
+    // ÜCRETSİZ DÖNEM: üyelik zamanlayıcısı HİÇBİR ŞEY yapmaz — satır yazmaz,
+    // davet iptal etmez, ürün kırpmaz, e-posta atmaz. Doğrulanmış firma zaten
+    // tam erişimli; doğrulanmamış firmanın süresi dolmuş saklı paketi
+    // `effectiveTier`'ın tembel kuralıyla anında düşer (erişim tarafı cron'a
+    // bağlı değil). Kalıcı düşürme, ücretli paketler dönünce (anahtar kapanınca)
+    // ilk koşuda yapılır.
+    if (isFreePeriod()) return;
     const expired = await this.prisma.company.findMany({
       where: {
         tier: { in: [...PAID_TIERS] },
@@ -72,13 +79,6 @@ export class MembershipScheduler implements OnModuleInit {
         id: true,
         name: true,
         membershipEndAt: true,
-        billingEmail: true,
-        users: {
-          where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
-          orderBy: { createdAt: "asc" },
-          take: 1,
-        },
       },
     });
     if (expired.length === 0) return;
@@ -90,7 +90,15 @@ export class MembershipScheduler implements OnModuleInit {
     const downgraded: typeof expired = [];
     for (const c of expired) {
       const claimed = await this.prisma.company.updateMany({
-        where: { id: c.id, tier: { in: [...PAID_TIERS] } },
+        // Süre dolumu claim anında YENİDEN denetlenir (derin denetim LU-06):
+        // findMany ile claim arasında admin uzatması/paket ataması ya da
+        // upgradeToPremium başarılı olduysa firma düşürülmez, yeni bitiş
+        // tarihi ezilmez.
+        where: {
+          id: c.id,
+          tier: { in: [...PAID_TIERS] },
+          membershipEndAt: { not: null, lt: new Date() },
+        },
         // Y3: membershipEndAt'i TEMİZLE — bayat geçmiş tarih kalırsa sonraki
         // cron bu firmayı yeniden eşleştirir + gelecekteki re-grant/upgrade bayat
         // tarihe takılır. Geçmiş EXPIRE event'inde (endBefore) korunur.
@@ -129,20 +137,16 @@ export class MembershipScheduler implements OnModuleInit {
       this.prisma.companyConnection.deleteMany({
         where: { inviterCompanyId: { in: ids }, status: "PENDING" },
       }),
-      this.prisma.companyReferralInvite.deleteMany({
-        where: { inviterCompanyId: { in: ids }, status: "PENDING" },
-      }),
+      ...cancelOutgoingReferralInvites(this.prisma, ids),
     ]);
     this.logger.log(
       `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,
     );
     // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
-    // taslağa çekilir (silinmez) — sayı e-postada söylenir.
-    const trimmed = new Map<string, number>();
+    // taslağa çekilir (silinmez).
     for (const c of downgraded) {
       try {
-        const r = await enforceProductLimit(this.prisma, c.id, "STANDART");
-        if (r.unpublished > 0) trimmed.set(c.id, r.unpublished);
+        await enforceProductLimit(this.prisma, c.id, "STANDART");
       } catch (err) {
         this.logger.warn(
           `Ürün tavanı uygulanamadı (${c.id}): ${err instanceof Error ? err.message : String(err)}`,
@@ -150,47 +154,16 @@ export class MembershipScheduler implements OnModuleInit {
       }
     }
 
-    // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
-    const baseUrl =
-      resolveWebUrl(this.config);
-    for (const c of downgraded) {
-      const email = c.billingEmail || c.users[0]?.email;
-      if (!email) continue;
-      const name = c.users[0]
-        ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
-        : c.name;
-      void this.email
-        .send({
-          to: { email, name },
-          subject: "Premium üyeliğiniz sona erdi",
-          templateData: {
-            template: "notification",
-            data: {
-              subject: "Premium üyeliğiniz sona erdi",
-              heading: "Premium üyeliğiniz sona erdi",
-              paragraphs: [
-                "Merhaba,",
-                "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-                ...(trimmed.get(c.id)
-                  ? [
-                      `Tavanı aşan ${trimmed.get(c.id)} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`,
-                    ]
-                  : []),
-                "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
-              ],
-              ctaLabel: "Premium'a Geç",
-              ctaUrl: appRoutes.premium(baseUrl),
-            },
-          },
-          context: { type: "membership_downgraded", id: c.id },
-        })
-        .catch((err: unknown) =>
-          this.logger.warn(
-            `Downgrade e-postası gönderilemedi (${c.id}): ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          ),
-        );
-    }
+    // Herkese açık sayfa önbelleği (arayüz testi D-192 yeniden doğrulama):
+    // ürün sayfası Silver+ medyayı (video, belgeler) ve Gold rozetini taşır;
+    // `company:<slug>` etiketi firmanın ürün sayfalarını da yeniler. Eskiden
+    // düşüş hiçbir tazeleme yaymıyordu, sayfa önbellek süresi boyunca bayat
+    // kalıyordu. En iyi çaba: servis kendi hatasını yutar.
+    for (const id of ids) this.seo?.companyChanged(id);
+
+    // BİLGİLENDİRME E-POSTASI YOK (ücretsiz dönem, sahip kararı 2026-10-07):
+    // "paketinizin süresi doldu" metni paket adı ve yükseltme çağrısı
+    // taşıyordu; hiçbir e-posta paket anamaz. Ücretli paketler dönünce bu blok
+    // ve `api.notifications.membership.*` metinleri git geçmişinden geri alınır.
   }
 }

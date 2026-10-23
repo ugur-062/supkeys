@@ -20,7 +20,11 @@ import { AuditModule } from "../audit/audit.module";
 import { ProfileEnrichController } from "./profile-enrich/profile-enrich.controller";
 import { ProfileEnrichService } from "./profile-enrich/profile-enrich.service";
 import { SupplierDiscoveryController } from "./supplier-discovery/supplier-discovery.controller";
+import { EmailModule } from "../email/email.module";
 import { SupplierDiscoveryService } from "./supplier-discovery/supplier-discovery.service";
+import { DiscoveryRunsService } from "./supplier-discovery/discovery-runs.service";
+import { DiscoveryRunsScheduler } from "./supplier-discovery/discovery-runs.scheduler";
+import { DiscoveryRunsController } from "./supplier-discovery/discovery-runs.controller";
 import { SearchIntentController } from "./search-intent/search-intent.controller";
 import { SearchIntentService } from "./search-intent/search-intent.service";
 import { SeoEnrichController } from "./seo-enrich/seo-enrich.controller";
@@ -30,6 +34,7 @@ import { AssistantService } from "./assistant/assistant.service";
 import { CompanyListingsModule } from "../company-listings/company-listings.module";
 import { CompanyOrdersModule } from "../company-orders/company-orders.module";
 import { CompanyConnectionsModule } from "../company-connections/company-connections.module";
+import { CompanyRequestDefaultsModule } from "../company-request-defaults/company-request-defaults.module";
 
 /**
  * Faz AI-0 — AI altyapısı: sağlayıcı adapteri + maliyet ölçümü + firma bütçesi
@@ -48,8 +53,12 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     CompanyListingsModule,
     CompanyOrdersModule,
     CompanyConnectionsModule,
+    // Asistan yayınında teslimat adresi (talep şartları profili).
+    CompanyRequestDefaultsModule,
+    // Yayın sonrası AI tedarikçi önerisi e-postası (DiscoveryRunsService).
+    EmailModule,
   ],
-  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, AssistantController, SupplierDiscoveryController, ProfileEnrichController, SearchIntentController, SeoEnrichController],
+  controllers: [AiUsageController, TenderExtractController, BidPriceExtractController, AssistantController, SupplierDiscoveryController, DiscoveryRunsController, ProfileEnrichController, SearchIntentController, SeoEnrichController],
   providers: [
     {
       provide: AI_CONFIG,
@@ -88,10 +97,13 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     AssistantService,
     AssistantActionsService,
     SupplierDiscoveryService,
+    DiscoveryRunsService,
+    DiscoveryRunsScheduler,
     ProfileEnrichService,
     SearchIntentService,
     SeoEnrichService,
   ],
-  exports: [AiService, AiBudgetService],
+  // İçerik çevirisi (ContentTranslationModule) sağlayıcıyı doğrudan kullanır — firma bütçesi dışı platform çağrısı.
+  exports: [AiService, AiBudgetService, AI_CONFIG, AI_PROVIDER_TOKEN],
 })
 export class AiModule {}

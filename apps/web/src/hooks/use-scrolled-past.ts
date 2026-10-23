@@ -1,5 +1,6 @@
 "use client";
 
+import { TOPBAR_BASE_PX, topbarHeightPx } from "@/lib/safe-area";
 import { useEffect, useState } from "react";
 
 /**
@@ -17,8 +18,19 @@ import { useEffect, useState } from "react";
  * başlık veri gelince render edildiğinden effect ilk koşumda ref'i boş bulur
  * ve bir daha koşmazdı — şerit hep görünür kalırdı (ilk doğrulamada yakalandı).
  */
-export function useScrolledPast(el: HTMLElement | null, topOffsetPx = 56): boolean {
+export function useScrolledPast(el: HTMLElement | null, topOffsetPxProp?: number): boolean {
   const [past, setPast] = useState(false);
+  // Üst çubuğun yüksekliği (56 px + güvenli alanın üst payı — mobil kabukta
+  // çentikli telefonda daha uzun); döndürmede pay değişir, yeniden ölçülür.
+  const [measuredOffset, setMeasuredOffset] = useState(TOPBAR_BASE_PX);
+  useEffect(() => {
+    if (topOffsetPxProp !== undefined) return;
+    const measure = () => setMeasuredOffset(Math.round(topbarHeightPx()));
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [topOffsetPxProp]);
+  const topOffsetPx = topOffsetPxProp ?? measuredOffset;
   useEffect(() => {
     if (!el) {
       setPast(false);

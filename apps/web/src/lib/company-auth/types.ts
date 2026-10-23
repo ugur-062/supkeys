@@ -1,3 +1,4 @@
+import type { Locale } from "@rothern/i18n";
 // Birleşik sistem — Company auth tipleri (backend /company-auth ile uyumlu).
 
 export type CompanyRole =
@@ -7,7 +8,12 @@ export type CompanyRole =
   | "SATISCI"
   | "ONAYLAYICI";
 
-/** Faz T: 4 kademe — STANDART paketsiz-pasif; sıra karşılaştırması @rothern/shared tierAtLeast. */
+/**
+ * Erişim kademesi — sıra karşılaştırması @rothern/shared `tierAtLeast`.
+ * ÜCRETSİZ DÖNEM (2026-10-07): API bu alanı EFEKTİF değerle doldurur
+ * (doğrulanmış firma tam erişim = GOLD; doğrulanmamış STANDART sınırları).
+ * Değerler yalnız kapı mantığında kullanılır, kullanıcıya ADIYLA gösterilmez.
+ */
 export type CompanyTier = "STANDART" | "SILVER" | "GOLD";
 
 export type CompanyVerificationStatus =
@@ -27,8 +33,21 @@ export interface CompanyUserDto {
   /** Efektif izinler (rol + override + sahiplik) — UI kapıları için. */
   permissions?: string[];
   twoFactorEnabled: boolean;
+  /**
+   * Açık 2FA'nın yöntemi (kapalıyken null). Ayarlar 2FA ekranı metni ve
+   * "E-postaya kod gönder" düğmesini buna göre seçer. Eski anlık görüntüde
+   * olmayabilir.
+   */
+  twoFactorMethod?: "AUTHENTICATOR" | "EMAIL" | null;
   notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;
+  /** Arayüz dili (tr/en/ru) — @rothern/i18n LOCALES; eski anlık görüntüde olmayabilir. */
+  locale?: Locale;
+  /**
+   * Sözleşme/KVKK onay izi eksik (admin eliyle açılan hesap) → panel onay
+   * kapısı (`TermsAcceptanceGate`). Eski anlık görüntüde olmayabilir.
+   */
+  needsTermsAcceptance?: boolean;
 }
 
 export interface CompanyProfile {
@@ -60,16 +79,19 @@ export interface CompanyLoginResponse {
 export interface CompanyMeResponse {
   user: CompanyUserDto;
   company: CompanyProfile;
-  /** Y2: self-servis premium yükseltme açık mı (backend flag — tek kaynak).
-   *  false ise "Premium'a Geç" CTA'sı gizlenir; premium manuel admin grant. */
+  /** Uyku hâlindeki backend bayrağı (ücretli paketler dönene dek web OKUMAZ);
+   *  alan adı API sözleşmesi olarak durur. */
   selfUpgradeEnabled: boolean;
 }
 
+/**
+ * Kayıt gövdesi. Telefon YOK (sahip kararı 2026-10-08): form sormaz, API
+ * alanı isteğe bağlı kabul eder (eski web paketi göndermeye devam edebilir).
+ */
 export interface CompanySignupInput {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
   password: string;
   termsAccepted: boolean;
   mediationAccepted: boolean;

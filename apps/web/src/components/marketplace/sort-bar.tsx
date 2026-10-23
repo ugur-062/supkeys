@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useFilters } from "./filter-shell";
 
 /**
@@ -13,10 +15,11 @@ export function SortBar<S extends { sort?: string; page: number }>({
   options: { value: S["sort"] | undefined; label: string }[];
 }) {
   const { state, update } = useFilters<S>();
+  const t = useTranslations("web.marketplace.sort");
   return (
     <>
       <div className="hidden items-center gap-1 text-xs sm:flex">
-        <span className="text-zinc-600">Sırala:</span>
+        <span className="text-zinc-600">{t("label")}</span>
         {options.map((o) => {
           const active = (o.value ?? "") === (state.sort ?? "");
           return (
@@ -33,7 +36,7 @@ export function SortBar<S extends { sort?: string; page: number }>({
         })}
       </div>
       <label className="text-xs text-zinc-500 sm:hidden">
-        <span className="sr-only">Sırala</span>
+        <span className="sr-only">{t("sr")}</span>
         <select
           value={state.sort ?? ""}
           onChange={(e) => update({ sort: (e.target.value || undefined) as S["sort"] } as Partial<S>)}

@@ -7,5 +7,7 @@ import { CompanyRequestDefaultsService } from "./company-request-defaults.servic
   imports: [CompanyAuthModule],
   controllers: [CompanyRequestDefaultsController],
   providers: [CompanyRequestDefaultsService],
+  // AI asistan yayininda teslimat adresi secimi (web hizli talep sirasi).
+  exports: [CompanyRequestDefaultsService],
 })
 export class CompanyRequestDefaultsModule {}

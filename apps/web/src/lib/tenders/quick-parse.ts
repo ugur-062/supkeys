@@ -1,4 +1,4 @@
-import { UNITS, normalizeUnit } from "@rothern/shared";
+import { UNITS, foldSearchText, normalizeUnit } from "@rothern/shared";
 
 /**
  * "NE LAZIM?" SATIR AYRIŞTIRICI — AI olmadan da çalışır (2026-09-09).
@@ -21,9 +21,10 @@ export interface ParsedLine {
 
 const UNIT_ALIASES = new Set<string>();
 for (const u of UNITS) {
-  UNIT_ALIASES.add(u.nameTr.toLocaleLowerCase("tr"));
-  UNIT_ALIASES.add(u.symbol.toLocaleLowerCase("tr"));
-  for (const a of u.aliases ?? []) UNIT_ALIASES.add(a.toLocaleLowerCase("tr"));
+  // Katlanmış (İngilizce "LITRE" `tr` küçültmeyle "lıtre" olup eşleşmiyordu).
+  UNIT_ALIASES.add(foldSearchText(u.nameTr));
+  UNIT_ALIASES.add(foldSearchText(u.symbol));
+  for (const a of u.aliases ?? []) UNIT_ALIASES.add(foldSearchText(a));
 }
 
 const NUM = "(\\d+(?:[.,]\\d+)?)";
@@ -40,7 +41,7 @@ function toNumber(raw: string): number {
 }
 
 function isUnit(token: string): boolean {
-  return UNIT_ALIASES.has(token.toLocaleLowerCase("tr").replace(/[.]/g, ""));
+  return UNIT_ALIASES.has(foldSearchText(token).replace(/[.]/g, ""));
 }
 
 export function parseLine(line: string): ParsedLine | null {
@@ -80,12 +81,19 @@ export function parseNeed(text: string, max = 50): ParsedLine[] {
     .slice(0, max);
 }
 
+/**
+ * Başlık sözcükleri — `web.panel.requests.quickParse.*` anahtarları:
+ * `andMoreItems` ("ve {n} kalem") ve `purchaseOf` ("{head} alımı"). Üretilen
+ * başlık talebin KAYNAK metnidir; kullanıcının arayüz dilinde doğar.
+ */
+export type TitleTranslate = (key: "andMoreItems" | "purchaseOf", values: Record<string, string | number>) => string;
+
 /** Kalemlerden talep başlığı: "Çelik boru, vida M8 alımı" (en fazla 80). */
-export function titleFromItems(items: { name: string }[]): string {
+export function titleFromItems(items: { name: string }[], t: TitleTranslate, locale = "tr"): string {
   const names = items.map((i) => i.name.trim()).filter(Boolean);
   if (!names.length) return "";
   const head = names.slice(0, 2).join(", ");
-  const rest = names.length > 2 ? ` ve ${names.length - 2} kalem` : "";
-  const t = `${head}${rest} alımı`;
-  return (t.charAt(0).toLocaleUpperCase("tr") + t.slice(1)).slice(0, 80);
+  const rest = names.length > 2 ? ` ${t("andMoreItems", { n: names.length - 2 })}` : "";
+  const title = t("purchaseOf", { head: `${head}${rest}` });
+  return (title.charAt(0).toLocaleUpperCase(locale) + title.slice(1)).slice(0, 80);
 }

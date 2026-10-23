@@ -1,6 +1,6 @@
 "use client";
 
-import { PremiumOnly } from "@/components/company-shell/premium-only";
+import { VerifiedOnly } from "@/components/company-shell/premium-only";
 import { ReportsRoleGate } from "@/components/company/reports-role-gate";
 
 /**
@@ -11,8 +11,8 @@ import { ReportsRoleGate } from "@/components/company/reports-role-gate";
  */
 export function PurchasingReportGate({ children }: { children: React.ReactNode }) {
   return (
-    <PremiumOnly minTier="GOLD">
+    <VerifiedOnly minTier="GOLD">
       <ReportsRoleGate portal="satinalma">{children}</ReportsRoleGate>
-    </PremiumOnly>
+    </VerifiedOnly>
   );
 }

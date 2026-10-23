@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, 2026-09-19 v3): detay oku EN SOLDA
- * ("Detayları göster", erişilebilir adı "Kalemleri göster"), "Teklif
+ * ("Detayları göster" — erişilebilir ad görünen metin, arayüz testi D-278), "Teklif
  * ver" EN SAĞDA, DÜĞME gibi dolgulu (portal rengi) ve daha büyük (text-sm). DOM sırası = görsel sıra (flex,
  * justify-between); Teklifim metriği ortada.
  */
@@ -33,7 +33,9 @@ const data: ListingCardData = {
 describe("ListingCard row — alt satır düzeni", () => {
   it("kalem oku solda, Teklifim ortada, Teklif ver en sağda ve büyük", () => {
     render(<ListingCard variant="row" data={data} />);
-    const kalemler = screen.getByRole("button", { name: "Kalemleri göster" });
+    // Erişilebilir ad = görünen metin (arayüz testi D-278; eskiden ayrı
+    // aria-label "Kalemleri göster" diyordu).
+    const kalemler = screen.getByRole("button", { name: "Detayları göster" });
     // v3 (2026-09-19 mockup): ok + "Detayları göster" yazısı.
     expect(kalemler.textContent).toBe("Detayları göster");
     expect(kalemler.querySelector("svg")?.getAttribute("class")).toMatch(/\bsize-5\b/);
@@ -60,7 +62,7 @@ describe("ListingCard row — alt satır düzeni", () => {
 
   it("eylem yoksa kalem oku yine durur", () => {
     render(<ListingCard variant="row" data={{ ...data, action: null, metric: null }} />);
-    expect(screen.getByRole("button", { name: "Kalemleri göster" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Detayları göster" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Teklif ver" })).toBeNull();
   });
 });

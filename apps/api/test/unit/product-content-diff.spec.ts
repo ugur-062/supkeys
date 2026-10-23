@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { showcaseContentChanged } from "../../src/common/company/product-content-diff";
+import { catalogContentChanged, showcaseContentChanged } from "../../src/common/company/product-content-diff";
 
 /**
  * Yayındaki ürün, DEĞİŞMEYEN kaydetmede yeniden incelemeye DÜŞMEMELİ
@@ -44,5 +44,31 @@ describe("showcaseContentChanged", () => {
     expect(showcaseContentChanged(before, { images: ["https://cdn/b.webp"] })).toBe(true);
     expect(showcaseContentChanged(before, { keywords: ["silindir", "pnömatik", "iso"] })).toBe(true);
     expect(showcaseContentChanged(before, { priceAmount: 12 })).toBe(false);
+  });
+});
+
+/** Derin denetim Y-07: katalog kalemi yaması şartname/marka/MPN'i de içerik sayar. */
+describe("catalogContentChanged", () => {
+  const before = {
+    name: "Vana", description: null, categoryId: null, specification: "PN16",
+    brand: null, mpn: "V-1", images: [], keywords: [], attributes: null,
+  };
+
+  it("aynı değerler (trim, null↔boş) → DEĞİŞMEDİ", () => {
+    expect(
+      catalogContentChanged(before, {
+        name: " Vana ", description: null, categoryId: null, specification: "PN16 ", brand: null, mpn: "V-1",
+      }),
+    ).toBe(false);
+  });
+
+  it("şartname / marka / MPN değişimi → DEĞİŞTİ", () => {
+    expect(catalogContentChanged(before, { specification: "PN25" })).toBe(true);
+    expect(catalogContentChanged(before, { brand: "X" })).toBe(true);
+    expect(catalogContentChanged(before, { mpn: null })).toBe(true);
+  });
+
+  it("ad değişimi (vitrin alanı) → DEĞİŞTİ", () => {
+    expect(catalogContentChanged(before, { name: "Küresel vana" })).toBe(true);
   });
 });

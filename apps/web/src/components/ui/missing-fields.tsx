@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,23 +13,24 @@ import { cn } from "@/lib/utils";
  */
 export function MissingFields({
   items,
-  label = "Eksik",
+  label,
   max,
   className,
 }: {
   items: string[];
-  /** Çiplerin önündeki etiket ("Eksik", "Puanını artırmak için"). */
+  /** Çiplerin önündeki etiket; verilmezse arayüz dilinde "Eksik" (derin denetim S086). */
   label?: string;
   /** En fazla bu kadar çip; kalan "+N" olarak. */
   max?: number;
   className?: string;
 }) {
+  const t = useTranslations("web.shared.ui");
   if (items.length === 0) return null;
   const shown = max ? items.slice(0, max) : items;
   const rest = items.length - shown.length;
   return (
     <p className={cn("flex flex-wrap items-center gap-1.5 text-xs text-zinc-500", className)}>
-      <span className="font-medium text-zinc-600">{label}:</span>
+      <span className="font-medium text-zinc-600">{label ?? t("missing")}:</span>
       {shown.map((item) => (
         <span
           key={item}

@@ -8,6 +8,7 @@
  * sekme grafiksiz. Ayrı dosya + `next/dynamic` ile grafik kodu ancak ilgili
  * sekme açıldığında iniyor. Sadece TAŞINDI — mantık değişmedi.
  */
+import { useLocale, useTranslations } from "next-intl";
 import {
   ChartCard,
   DashboardEmptyState,
@@ -26,9 +27,12 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
+import { axisScaleMax, useFormatMoney } from "@/components/ui/money";
+import { useFormatPercent } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { visibleBreakdownRows } from "@/lib/visible-categories";
 
 /** Gelir sekmesi — trend + kazanma yığını + TL pipeline. */
 export function SatisGelirTab({
@@ -38,6 +42,9 @@ export function SatisGelirTab({
   analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
   loading: boolean;
 }) {
+  const t = useTranslations("web.panel.shell.satisChartTabs");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const { money: formatMoney, axis, axisWidth } = useFormatMoney();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -49,16 +56,20 @@ export function SatisGelirTab({
   }
   const AXIS = { fontSize: 11, fill: "#94a3b8" };
   const hasRevenue = analytics.revenueTrend.some((p) => p.value > 0);
+  // Eksen tek gösterim: ölçek aylık + kümülatif serinin en büyüğünden.
+  const revenueScaleMax = axisScaleMax(
+    analytics.revenueTrend.flatMap((p) => [p.value, p.cumulative]),
+  );
   const hasWinLoss = analytics.winLoss.some(
     (w) => w.won + w.lost + w.pending > 0,
   );
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
-        title="Gelir Trendi"
-        rangeBadge="son 12 ay"
-        subtitle="Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — TRY satışlar"
-        ariaLabel="Aylık gelir trendi"
+        title={t("gelirTrendi")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("aylikGelirAlanYilbasindanBeriCur", { currency: analytics.currency ?? "TRY" })}
+        ariaLabel={t("aylikGelirTrendi")}
         href="/company/satis/siparisler"
         className="lg:col-span-2"
       >
@@ -68,11 +79,19 @@ export function SatisGelirTab({
               <ComposedChart data={analytics.revenueTrend}>
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
-                <RYAxis tickLine={false} axisLine={false} width={56} tick={AXIS} />
+                {/* Tutar ekseni KISALTILIR ("12 Mn ₺"): ham 8 haneli değer 56 px'e
+                    sığmayıp soldan kırpılıyordu ("2000000"). */}
+                <RYAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={axisWidth(analytics.currency, revenueScaleMax)}
+                  tick={AXIS}
+                  tickFormatter={(v: number) => axis(Number(v), analytics.currency, revenueScaleMax)}
+                />
                 <RTooltip
                   formatter={(v, n) => [
-                    formatMoney(Number(v ?? 0), "TRY"),
-                    n === "value" ? "Aylık" : "Kümülatif",
+                    formatMoney(Number(v ?? 0), analytics.currency ?? "TRY"),
+                    n === "value" ? t("aylik") : t("kumulatif"),
                   ]}
                 />
                 <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.12} isAnimationActive={false} />
@@ -82,19 +101,19 @@ export function SatisGelirTab({
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz gelir verisi yok"
-            body="İlk satışın siparişe dönüştüğünde aylık gelir burada birikecek."
-            ctaLabel="Açık Taleplere Göz At"
-            ctaHref="/company/satis/acik-talepler"
+            title={t("henuzGelirVerisiYok")}
+            body={t("ilkSatisinSipariseDonustugundeAylik")}
+            ctaLabel={t("acikTaleplereGozAt")}
+            ctaHref="/company/satis#acik-talepler"
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kazanma / Kaybetme Dağılımı"
-        rangeBadge="son 12 ay"
-        subtitle="Aylık karara bağlanan teklifler (kazanıldı · kaybedildi · beklemede)"
-        ariaLabel="Aylık kazanma kaybetme dağılımı"
+        title={t("kazanmaKaybetmeDagilimi")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("aylikKararaBaglananTekliflerKazanildi")}
+        ariaLabel={t("aylikKazanmaKaybetmeDagilimi")}
         href="/company/satis/tekliflerim"
       >
         {hasWinLoss ? (
@@ -107,7 +126,7 @@ export function SatisGelirTab({
                 <RTooltip
                   formatter={(v, n) => [
                     Number(v ?? 0),
-                    n === "won" ? "Kazanıldı" : n === "lost" ? "Kaybedildi" : "Beklemede",
+                    n === "won" ? t("kazanildi") : n === "lost" ? t("kaybedildi") : t("beklemede"),
                   ]}
                 />
                 <RBar dataKey="won" stackId="w" fill="#059669" />
@@ -118,17 +137,17 @@ export function SatisGelirTab({
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz karar verisi yok"
-            body="Tekliflerin karara bağlandıkça aylık kazanma/kaybetme dağılımı burada görünecek."
+            title={t("henuzKararVerisiYok")}
+            body={t("tekliflerinKararaBaglandikcaAylikKazanma")}
           />
         )}
       </ChartCard>
 
       {/* Faz 7.2: "Pipeline" → Satış Hunisi (tek dil). */}
       <ChartCard
-        title="Satış Hunisi"
-        subtitle="Davet adet; sonraki aşamalar TL (teklifsiz davetin tutarı bilinemez)"
-        ariaLabel="Satış hunisi"
+        title={t("satisHunisi")}
+        subtitle={t("davetAdetSonrakiAsamalarCur", { currency: analytics.currency ?? "TRY" })}
+        ariaLabel={t("satisHunisi2")}
       >
         {analytics.pipeline.some((p) => p.count > 0) ? (
           <FunnelChart
@@ -137,25 +156,57 @@ export function SatisGelirTab({
               key: p.key,
               label:
                 p.amountTry != null
-                  ? `${p.label} (${formatMoney(p.amountTry, "TRY")})`
+                  ? `${p.label} (${formatMoney(p.amountTry, analytics.currency ?? "TRY")})`
                   : p.label,
               count: p.count,
               // Davet → teklif farklı evren (kohort değil) — oran yanıltır
               // (%900 gibi); yalnız karşılaştırılabilir adımlarda oran çıkar.
               noConversion: p.key === "submitted",
+              // Değerlendirmede ve Kazanıldı, Teklif Verildi'nin AYRIK alt
+              // kümeleri — Kazanıldı oranı Teklif Verildi'ye göre (O-041).
+              conversionFrom: p.key === "won" ? "submitted" : undefined,
             }))}
           />
         ) : (
           <DashboardEmptyState
-            title="Satış hunisi boş"
-            body="Davet alıp teklif verdikçe aşamalar burada dolacak."
-            ctaLabel="Açık Taleplere Göz At"
-            ctaHref="/company/satis/acik-talepler"
+            title={t("satisHunisiBos")}
+            body={t("davetAlipTeklifVerdikceAsamalar")}
+            ctaLabel={t("acikTaleplereGozAt")}
+            ctaHref="/company/satis#acik-talepler"
           />
         )}
       </ChartCard>
     </div>
   );
+}
+
+/**
+ * Teklif yanıt süresi ekseni (mobil denetim g10-11, 2026-10-15): değerler SAAT
+ * (kesirli). Eksen eskiden sabit 34 px genişlikte ve biçimsizdi — Türkçe
+ * arayüzde "0.075" (nokta) basıyor, 5 karakterlik etiketin başı kırpılıyordu
+ * (".075"); 0,075 saat de süre olarak okunmuyordu. Kural: serinin en büyüğü
+ * 1 saatin altındaysa DAKİKAYA çevrilir (tam sayı tik), değilse saat (en çok
+ * 2 ondalık); sayılar arayüz dilinin ayracıyla, eksen genişliği en uzun
+ * etiketten, birim grafiğin altında yazılır.
+ */
+export function responseTimeAxis(
+  points: readonly { value: number | null }[],
+  locale: string,
+) {
+  let max = 0;
+  for (const p of points) if (p.value != null && p.value > max) max = p.value;
+  const minutes = max > 0 && max < 1;
+  const scale = minutes ? 60 : 1;
+  const tick = (v: number) =>
+    formatNumber(v, locale, { maximumFractionDigits: minutes ? 0 : 2 });
+  const tip = (v: number) => formatNumber(v, locale, { maximumFractionDigits: 1 });
+  // En uzun etiket: ölçeğin üstü (tam kısım) ya da saat ekseninde "0,25" gibi
+  // kesirli tik. ~6,6 px/karakter (11 px yazı) + kenar payı; masaüstüyle aynı
+  // en az 34 px.
+  const top = tick(Math.ceil(max * scale));
+  const chars = Math.max(top.length, minutes ? 0 : tick(0.25).length);
+  const width = Math.min(64, Math.max(34, Math.ceil((chars + 1) * 6.6 + 8)));
+  return { minutes, scale, tick, tip, width };
 }
 
 /** Müşteri sekmesi — Pareto + kategori kazanma + yanıt süresi + kaçırılan. */
@@ -166,6 +217,11 @@ export function SatisMusteriTab({
   analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
   loading: boolean;
 }) {
+  const t = useTranslations("web.panel.shell.satisChartTabs");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const locale = useLocale();
+  const { money: formatMoney } = useFormatMoney();
+  const pct = useFormatPercent();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -176,26 +232,35 @@ export function SatisMusteriTab({
     );
   }
   const AXIS = { fontSize: 11, fill: "#94a3b8" };
+  // Gizli segment satırı çizilmez (2026-10-09); asıl süzgeç API'de.
+  const categoryWinRate = visibleBreakdownRows(analytics.categoryWinRate);
+  const responseAxis = responseTimeAxis(analytics.responseTrend, locale);
+  const responseData =
+    responseAxis.scale === 1
+      ? analytics.responseTrend
+      : analytics.responseTrend.map((p) =>
+          p.value == null ? p : { ...p, value: p.value * responseAxis.scale },
+        );
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
-        title="Müşteri Konsantrasyonu"
-        rangeBadge="son 12 ay"
-        subtitle="En iyi 5 müşterinin gelir payı (son 12 ay, TRY)"
-        ariaLabel="Müşteri konsantrasyonu Pareto"
+        title={t("musteriKonsantrasyonu")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("enIyi5MusterininGelirCur", { currency: analytics.currency ?? "TRY" })}
+        ariaLabel={t("musteriKonsantrasyonuPareto")}
         right={
           analytics.pareto.concentrationWarning ? (
             /* Faz 7.5: uyarı aksiyonsuz kalmasın — müşteri tabanını
                genişletmenin yolu yeni ihalelere teklif vermek. */
             <span className="flex flex-col items-end gap-1">
               <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-                ⚠ Konsantrasyon riski
+                {t("konsantrasyonRiski")}
               </span>
               <Link
-                href="/company/satis/acik-talepler"
+                href="/company/satis#acik-talepler"
                 className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
               >
-                Açık satın alma taleplerine göz at
+                {t("acikSatinAlmaTaleplerineGoz")}
               </Link>
             </span>
           ) : undefined
@@ -210,14 +275,14 @@ export function SatisMusteriTab({
                     {r.name}
                   </span>
                   <span className="tabular-nums text-slate-900">
-                    {formatMoney(r.amount, "TRY")}
+                    {formatMoney(r.amount, analytics.currency ?? "TRY")}
                     <span
                       className={cn(
                         "ml-1.5 font-semibold",
                         r.sharePct > 40 ? "text-amber-600" : "text-slate-400",
                       )}
                     >
-                      %{r.sharePct}
+                      {pct(r.sharePct)}
                     </span>
                   </span>
                 </div>
@@ -235,30 +300,30 @@ export function SatisMusteriTab({
           </ul>
         ) : (
           <DashboardEmptyState
-            title="Henüz müşteri geliri yok"
-            body="Satışların tamamlandıkça müşteri dağılımı burada görünecek."
+            title={t("henuzMusteriGeliriYok")}
+            body={t("satislarinTamamlandikcaMusteriDagilimiBurada")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kategori Bazlı Kazanma Oranı"
-        rangeBadge="son 12 ay"
-        subtitle="Hangi kategorilerde güçlüyüz (karara bağlanan teklifler, son 12 ay)"
-        ariaLabel="Kategori bazlı kazanma oranı"
+        title={t("kategoriBazliKazanmaOrani")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("hangiKategorilerdeGucluyuzKararaBaglanan")}
+        ariaLabel={t("kategoriBazliKazanmaOrani2")}
       >
-        {analytics.categoryWinRate.length > 0 ? (
+        {categoryWinRate.length > 0 ? (
           <ul className="space-y-2.5">
-            {analytics.categoryWinRate.map((c) => (
+            {categoryWinRate.map((c) => (
               <li key={c.label}>
                 <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
                   <span className="truncate text-slate-600" title={c.label}>
                     {c.label}
                   </span>
                   <span className="tabular-nums text-slate-900">
-                    <strong>%{c.winPct}</strong>
+                    <strong>{pct(c.winPct)}</strong>
                     <span className="ml-1 text-slate-400">
-                      ({c.decided} teklif)
+                      {t("teklif", { decided: c.decided })}
                     </span>
                   </span>
                 </div>
@@ -273,62 +338,80 @@ export function SatisMusteriTab({
           </ul>
         ) : (
           <DashboardEmptyState
-            title="Henüz karar verisi yok"
-            body="Tekliflerin sonuçlandıkça kategori bazlı gücün burada görünecek."
+            title={t("henuzKararVerisiYok")}
+            body={t("tekliflerinSonuclandikcaKategoriBazliGucun")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Teklif Yanıt Süresi"
-        rangeBadge="son 12 ay"
-        subtitle="Davetten teklife geçen ortalama süre (saat, aylık)"
-        ariaLabel="Teklif yanıt süresi trendi"
+        title={t("teklifYanitSuresi")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("davettenTeklifeGecenOrtalamaSureAylik")}
+        ariaLabel={t("teklifYanitSuresiTrendi")}
       >
         {analytics.responseTrend.some((p) => p.value != null) ? (
-          <div className="h-48">
-            <RContainer width="100%" height="100%">
-              <AreaChart data={analytics.responseTrend}>
-                <CartesianGrid vertical={false} stroke="#e2e8f0" />
-                <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
-                <RYAxis tickLine={false} axisLine={false} width={34} tick={AXIS} />
-                <RTooltip formatter={(v) => [`${Number(v ?? 0)} sa`, "Ortalama"]} />
-                <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
-              </AreaChart>
-            </RContainer>
+          <div>
+            <div className="h-48">
+              <RContainer width="100%" height="100%">
+                <AreaChart data={responseData}>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" />
+                  <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
+                  <RYAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={responseAxis.width}
+                    tick={AXIS}
+                    allowDecimals={!responseAxis.minutes}
+                    tickFormatter={(v: number) => responseAxis.tick(Number(v))}
+                  />
+                  <RTooltip
+                    formatter={(v) => [
+                      responseAxis.minutes
+                        ? t("dakikaKisa", { n: responseAxis.tip(Number(v ?? 0)) })
+                        : t("saatKisa", { n: responseAxis.tip(Number(v ?? 0)) }),
+                      t("ortalama"),
+                    ]}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
+                </AreaChart>
+              </RContainer>
+            </div>
+            <p className="mt-1 text-right text-[11px] text-slate-500">
+              {responseAxis.minutes ? t("birimDakika") : t("birimSaat")}
+            </p>
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz yanıt verisi yok"
-            body="Davetlere teklif verdikçe ortalama yanıt süren burada görünecek."
+            title={t("henuzYanitVerisiYok")}
+            body={t("davetlereTeklifVerdikceOrtalamaYanit")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kaçırılan Fırsatlar"
-        rangeBadge="son 12 ay"
-        subtitle="Teklif verilmeden süresi dolan davetler (son 12 ay)"
-        ariaLabel="Kaçırılan fırsatlar"
-        href="/company/satis/acik-talepler"
+        title={t("kacirilanFirsatlar")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("teklifVerilmedenSuresiDolanDavetler")}
+        ariaLabel={t("kacirilanFirsatlar2")}
+        href="/company/satis#acik-talepler"
       >
         {analytics.missed.count > 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-1">
             <p className="text-4xl font-semibold tracking-tight tabular-nums text-rose-600">
               {analytics.missed.count}
             </p>
-            <p className="text-sm text-slate-500">davet teklifsiz kapandı</p>
+            <p className="text-sm text-slate-500">{t("davetTeklifsizKapandi", { n: analytics.missed.count })}</p>
             {/* TODO: toplam tutar bilinemez — teklif verilmedi, ihale toplam
                 değeri platformda tutulmuyor. */}
             <p className="text-xs text-slate-400">
-              Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri
-              bilinmez.
+              {t("tutarHesaplanamazTeklifVerilmedenKapanan")}
             </p>
           </div>
         ) : (
           <DashboardEmptyState
-            title="Kaçırılan fırsat yok"
-            body="Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor."
+            title={t("kacirilanFirsatYok")}
+            body={t("son12AydaTeklifsizKapanan")}
           />
         )}
       </ChartCard>

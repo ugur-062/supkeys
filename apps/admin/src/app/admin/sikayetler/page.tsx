@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink } from "@/components/ui/company-link";
 import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -25,13 +26,13 @@ import {
   type AdminComplaint,
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateInput } from "@/lib/date";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { Download } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const STATUS_META: Record<
   string,
@@ -44,7 +45,8 @@ const STATUS_META: Record<
 
 function exportComplaintsCsv(items: AdminComplaint[]) {
   downloadCsv(
-    `sikayetler-${new Date().toISOString().slice(0, 10)}.csv`,
+    // Yerel takvim günü — UTC gece yarısı-03:00 arası dünü veriyordu (D-142).
+    `sikayetler-${toDateInput()}.csv`,
     ["Tarih", "Şikayet Eden", "Hakkında", "Konu", "Detay", "Durum", "Yönetici Notu"],
     items.map((c) => [
       safeFormat(c.createdAt, "yyyy-MM-dd HH:mm"),
@@ -112,14 +114,21 @@ function SikayetlerView() {
       reason: c.reason,
     });
 
-  const runResolve = (adminNote?: string) => {
+  // Derin denetim MU-02: yönetici notu İÇ nottur; askı gerekçesi ayrı alandan
+  // `suspendReason` olarak gider (API artık notu firmaya gerekçe yapmaz).
+  const runResolve = (adminNote?: string, suspendReason?: string) => {
     if (!prompt) return;
     resolve.mutate(
-      { id: prompt.id, status: prompt.status, adminNote, suspend: prompt.suspend },
+      {
+        id: prompt.id,
+        status: prompt.status,
+        adminNote,
+        suspend: prompt.suspend,
+        ...(prompt.suspend && suspendReason ? { suspendReason } : {}),
+      },
       {
         onSuccess: () => toast.success(prompt.msg),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
     setPrompt(null);
@@ -136,7 +145,8 @@ function SikayetlerView() {
         <FilterSelect
           ariaLabel="Durum"
           value={status}
-          active={!!status}
+          // Varsayılan "Açık"; koyu görünüm yalnız varsayılandan sapınca (D-214).
+          active={status !== "OPEN"}
           onChange={(v) => {
             setStatus(v);
             setPage(1);
@@ -194,22 +204,24 @@ function SikayetlerView() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${c.complainant.id}`}
                         className="hover:underline"
                       >
                         {c.complainant.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
                     <TableCell className="text-admin-text font-medium">
-                      <Link
+                      <CompanyLink
                         href={`/admin/firmalar/${c.against.id}?tab=sikayetler`}
                         className="hover:underline"
                       >
                         {c.against.name}
-                      </Link>
+                      </CompanyLink>
                     </TableCell>
-                    <TableCell className="text-admin-text max-w-[280px]">
+                    {/* Tablo kapsayıcısı whitespace-nowrap — uzun konu Durum
+                        rozetinin ve düğmelerin üstüne taşıyordu (O-125). */}
+                    <TableCell className="text-admin-text max-w-[280px] min-w-[180px] whitespace-normal break-words">
                       <div className="font-medium">{c.reason}</div>
                       {c.detail ? (
                         <div
@@ -301,11 +313,21 @@ function SikayetlerView() {
               }`
             : undefined
         }
-        label="Yönetici notu (opsiyonel)"
+        label="Yönetici notu (opsiyonel, iç not — firmalara gösterilmez)"
         placeholder="Karar gerekçesi"
         maxLength={2000}
+        secondary={
+          prompt?.suspend
+            ? {
+                label: "Askı gerekçesi (opsiyonel — askıya alınan firmaya iletilir)",
+                hint: "E-posta ve bildirimle firmaya gider; şikayetçinin adını yazmayın. Boşsa genel \"Şikayet üzerine askıya alındı\" metni gider.",
+                placeholder: "Örn. tekrarlanan teslimat ihlali",
+                maxLength: 500,
+              }
+            : undefined
+        }
         confirmLabel={prompt?.actionLabel ?? "Onayla"}
-        onConfirm={(v) => runResolve(v || undefined)}
+        onConfirm={(v, reason) => runResolve(v || undefined, reason || undefined)}
         onClose={() => setPrompt(null)}
       />
     </div>

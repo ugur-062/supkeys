@@ -1,7 +1,8 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 export interface CatalogItem {
   id: string;
@@ -42,6 +43,8 @@ export interface CatalogCounts {
   /** Onay bekleyen — yayında olup yeniden incelenenler DAHİL. */
   pending: number;
   rejected: number;
+  /** Yayındayken yeniden incelenen (ücretsiz tavan göstergesi iki kez saymasın). */
+  publishedInReview?: number;
 }
 
 export interface CatalogListResult {
@@ -69,6 +72,42 @@ export function useCatalogItems(q: string, enabled = true) {
     },
     enabled,
     // Yazarken önceki sonuçlar ekranda kalsın (skeleton'a flaş atmasın).
+    placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Ürünlerim sekmesi — "all" dışındakiler SUNUCUDA süzülür (API `status`).
+ * `archived` = arşivlenmiş ürünler (API `archived=1`; arayüz testi O-039).
+ */
+export type ShowcaseListTab = "all" | "published" | "pending" | "rejected" | "draft" | "archived";
+const SHOWCASE_PAGE = 50;
+
+/**
+ * ÜRÜNLERİM LİSTESİ (yayın denetimi 2026-09-28 Bölüm 6): sekme süzgeci ve "en
+ * yeni üstte" SUNUCUDA, 50'şer sayfa. Eskiden katalog seçicisiyle aynı çağrı
+ * (ilk 50, kullanım sıklığı) istemcide süzülüyordu → 50'den fazla ürünü olan
+ * firmada "Onay bekliyor (1)" boş, yeni eklenen ürün görünmüyordu. Katalog
+ * seçicisi (`useCatalogItems`) kullanım sıralamasında kalır.
+ */
+export function useShowcaseItems(q: string, tab: ShowcaseListTab) {
+  return useInfiniteQuery<CatalogListResult>({
+    queryKey: [...CATALOG_KEY, "showcase", q, tab],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data } = await companyApi.get<CatalogListResult>("/company/items", {
+        params: {
+          sort: "recent",
+          take: SHOWCASE_PAGE,
+          skip: pageParam,
+          ...(q ? { q } : {}),
+          ...(tab === "archived" ? { archived: 1 } : tab !== "all" ? { status: tab } : {}),
+        },
+      });
+      return data;
+    },
+    getNextPageParam: (last, all) =>
+      last.truncated ? all.reduce((n, p) => n + p.items.length, 0) : undefined,
     placeholderData: (prev) => prev,
   });
 }
@@ -132,6 +171,9 @@ export interface AttributeDef {
   nameTr: string;
   type: "SINGLE_SELECT" | "MULTI_SELECT" | "NUMBER" | "TEXT";
   options: string[];
+  /** Seçenek GÖSTERİMİ okuyucunun dilinde (kanonik değer → etiket; tr'de yok).
+   *  Kaydedilen değer her zaman kanonik `options` öğesidir. */
+  optionLabels?: Record<string, string>;
   unit: string | null;
   isRequired: boolean;
   /** Hangi kategori düğümünden MİRAS alındı (formda rozet olarak gösterilir). */
@@ -172,6 +214,13 @@ export interface ProductShowcase {
   /** Satış birimi — vitrin formundan düzenlenir. */
   unit: string;
   unitCode: string | null;
+  /**
+   * Kalemin kimlik alanları (API `serializeShowcase`). Önizleme bunları
+   * buradan okur: `?urun=` derin bağlantısında elde liste kalemi olmayabilir.
+   */
+  brand: string | null;
+  mpn: string | null;
+  specification: string | null;
   /** 0-100 + eksik maddeler. Sunucunun son kayıttaki hesabı; form canlı hesaplar. */
   completion: {
     score: number;
@@ -287,6 +336,24 @@ export function usePublishProduct() {
 }
 
 /**
+ * ARŞİVLE / GERİ AL (arayüz testi O-039) — kalıcı silme bilinçli YOK; uç
+ * `PATCH :id/active`. Vitrine dokunmuş ürün yalnız satış izniyle arşivlenir,
+ * geri almada ücretsiz paket tavanı yeniden sayılır (API).
+ */
+export function useSetProductActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { data } = await companyApi.patch<CatalogItem>(`/company/items/${id}/active`, { isActive });
+      return data;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: CATALOG_KEY });
+    },
+  });
+}
+
+/**
  * Ürün görseli yükleme — İKİ adım.
  *
  * Tarayıcı R2'ye DOĞRUDAN yükler (sunucudan geçmez → gövde sınırına takılmaz),
@@ -294,6 +361,7 @@ export function usePublishProduct() {
  * şart: presigned PUT ne boyutu ne içerik tipini imzalayabiliyor.
  */
 export function useUploadProductImage() {
+  const t = useTranslations("web.panel.trade.companyItems");
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
       const { data: signed } = await companyApi.post<{
@@ -308,7 +376,7 @@ export function useUploadProductImage() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Görsel yüklenemedi");
+      if (!put.ok) throw new Error(t("gorselYuklenemedi"));
       const { data } = await companyApi.post<{ url: string }>(
         "/company/items/images/resolve",
         { key: signed.key },
@@ -320,6 +388,7 @@ export function useUploadProductImage() {
 
 /** Ürün belgesi (PDF) — görselle aynı iki adım, ayrı allowlist. */
 export function useUploadProductDocument() {
+  const t = useTranslations("web.panel.trade.companyItems");
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
       const { data: signed } = await companyApi.post<{ url: string; key: string }>(
@@ -331,7 +400,7 @@ export function useUploadProductDocument() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Belge yüklenemedi");
+      if (!put.ok) throw new Error(t("belgeYuklenemedi"));
       const { data } = await companyApi.post<{ url: string }>(
         "/company/items/documents/resolve",
         { key: signed.key },

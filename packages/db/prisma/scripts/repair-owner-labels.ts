@@ -7,9 +7,10 @@
  * Çalıştırma: `pnpm --filter @rothern/db repair-owner-labels`
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { permissionsForRoles } from "@rothern/shared";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("repair-owner-labels") });
 
 async function main() {
   const companies = await prisma.company.findMany({

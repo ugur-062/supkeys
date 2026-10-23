@@ -1,6 +1,7 @@
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { AdminEmailLogsService } from "../../src/modules/email/admin-email-logs.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany } from "./factories";
 
@@ -45,7 +46,7 @@ async function clearMarker(email: string, at: Date) {
       template: "suppression_clear",
       toEmail: email,
       subject: "clear",
-      provider: "resend",
+      provider: "internal",
       status: "SENT",
       queuedAt: at,
     },
@@ -105,6 +106,67 @@ describe("EmailSuppressionService.getSuppressionStatus", () => {
   it("boş liste → boş Map", async () => {
     const map = await svc.getSuppressionStatus([]);
     expect(map.size).toBe(0);
+  });
+});
+
+describe("iç engel kaldırma kaydı (arayüz testi O-078)", () => {
+  it("aynı şablonlu ama başarısız/iç olmayan satır işaret SAYILMAZ — adres engelli kalır", async () => {
+    await bounce("a@x.com", { at: D.t1 });
+    // Eski "Yeniden Gönder" akışının bıraktığı satır: suppression_clear
+    // şablonu, gerçek sağlayıcı, FAILED.
+    await prisma.emailLog.create({
+      data: {
+        template: "suppression_clear",
+        toEmail: "a@x.com",
+        subject: "suppression clear (admin)",
+        provider: "resend",
+        status: "FAILED",
+        queuedAt: D.t2,
+      },
+    });
+    const map = await svc.getSuppressionStatus(["a@x.com"]);
+    expect(map.get("a@x.com")?.status).toBe("BOUNCED");
+  });
+
+  it("iç kayıt yeniden gönderilemez: 400, gönderim ve yeni kayıt yok", async () => {
+    const targets = await svc.clear("a@x.com", "admin-1");
+    expect(targets).toContain("a@x.com");
+    const marker = await prisma.emailLog.findFirstOrThrow({
+      where: { toEmail: "a@x.com", template: "suppression_clear" },
+    });
+    const send = jest.fn();
+    const audit = { log: jest.fn() };
+    const admin = new AdminEmailLogsService(
+      prisma as never,
+      { send } as never,
+      audit as never,
+    );
+    await expect(admin.resend(marker.id, "admin-1")).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(audit.log).not.toHaveBeenCalled();
+    expect(await prisma.emailLog.count({ where: { toEmail: "a@x.com" } })).toBe(1);
+  });
+});
+
+describe("EmailSuppressionService.clear (derin denetim LU-04)", () => {
+  it("büyük harfli kayıtlı adres: küçük harfle girilse de aklanır (marker her yazıma)", async () => {
+    await bounce("Info@Firma.com", { at: D.t1 });
+    expect((await svc.getSuppressionStatus(["Info@Firma.com"])).size).toBe(1);
+
+    const targets = await svc.clear("  info@firma.com ", "admin-1");
+    expect(targets).toEqual(expect.arrayContaining(["info@firma.com", "Info@Firma.com"]));
+    expect((await svc.getSuppressionStatus(["Info@Firma.com"])).size).toBe(0);
+    expect(await svc.listSuppressed()).toHaveLength(0);
+  });
+
+  it("listede görünen ham adresle aklama da çalışır; başka adrese dokunmaz", async () => {
+    await bounce("Info@Firma.com", { at: D.t1 });
+    await bounce("other@firma.com", { at: D.t1 });
+    await svc.clear("Info@Firma.com", "admin-1");
+    const left = await svc.listSuppressed();
+    expect(left.map((r) => r.email)).toEqual(["other@firma.com"]);
   });
 });
 

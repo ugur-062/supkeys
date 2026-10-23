@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   CanActivate,
   ExecutionContext,
@@ -18,9 +19,10 @@ import { reportToSentry } from "../../../instrument";
  * set edilmiş + non-production ortamda devre dışı kalır. Production'da
  * `NODE_ENV` set edilmesi unutulsa bile secret yoksa 401 döner.
  *
- * IMPORTANT: Bu guard `request.rawBody`'ye erişmek zorunda; main.ts
- * `/webhooks/resend` için raw body parser ayarlanmış olmalı (`rawBody:
- * true` + body buffer saklama).
+ * IMPORTANT: Bu guard `request.rawBody`'ye erişmek zorunda; ham gövdeyi
+ * YALNIZ bu uç için `common/http/body-parser.ts` `configureBodyParser`
+ * saklar (main.ts çağırır; Nest'in `rawBody: true` seçeneği KULLANILMAZ).
+ * Uçtan uca sözleşme: test/integration/resend-webhook-e2e.spec.ts.
  */
 @Injectable()
 export class WebhookSignatureGuard implements CanActivate {
@@ -63,7 +65,7 @@ export class WebhookSignatureGuard implements CanActivate {
         tags: { webhook: "misconfig" },
         extra: { nodeEnv: nodeEnv ?? null, allowInsecure },
       });
-      throw new UnauthorizedException("Webhook secret yapılandırılmamış");
+      throw new UnauthorizedException(i18nMessage("api.resendWebhook.webhookSecretYapilandirilmamis"));
     }
 
     const svixId = request.headers["svix-id"] as string | undefined;
@@ -71,12 +73,12 @@ export class WebhookSignatureGuard implements CanActivate {
     const svixSignature = request.headers["svix-signature"] as string | undefined;
 
     if (!svixId || !svixTimestamp || !svixSignature) {
-      throw new UnauthorizedException("Eksik webhook header'ları");
+      throw new UnauthorizedException(i18nMessage("api.resendWebhook.eksikWebhookHeaderLari"));
     }
 
     if (!request.rawBody) {
       throw new UnauthorizedException(
-        "Raw body yok — body parser config hatası",
+        i18nMessage("api.resendWebhook.rawBodyYokBodyParserConfig"),
       );
     }
 
@@ -97,7 +99,7 @@ export class WebhookSignatureGuard implements CanActivate {
         tags: { webhook: "bad-signature" },
         extra: { svixId: svixId ?? null, reason },
       });
-      throw new UnauthorizedException("Geçersiz webhook imzası");
+      throw new UnauthorizedException(i18nMessage("api.resendWebhook.gecersizWebhookImzasi"));
     }
   }
 }

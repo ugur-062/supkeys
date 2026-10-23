@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import {
   CanActivate,
   Injectable,
@@ -30,7 +31,7 @@ export function isMarketplaceLive(): boolean {
 export class MarketplaceLiveGuard implements CanActivate {
   canActivate(): boolean {
     if (!isMarketplaceLive()) {
-      throw new NotFoundException("Bulunamadı");
+      throw new NotFoundException(i18nMessage("api.http.bulunamadi"));
     }
     return true;
   }

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CompanyAuthModule } from "../company-auth/company-auth.module";
+import { CompanyListingsModule } from "../company-listings/company-listings.module";
 import { EmailModule } from "../email/email.module";
 import { NotificationModule } from "../notifications/notification.module";
 import { PasswordResetModule } from "../password-reset/password-reset.module";
@@ -21,6 +22,8 @@ import { AdminProductsService } from "./admin-products.service";
     PasswordResetModule,
     CompanyAuthModule,
     SupabaseAuthModule,
+    // Admin talep müdahaleleri katılımcılara firma tarafının tek yolundan bildirir.
+    CompanyListingsModule,
   ],
   controllers: [
     AdminCompaniesController,

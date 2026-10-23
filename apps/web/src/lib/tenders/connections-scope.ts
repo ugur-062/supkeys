@@ -19,5 +19,6 @@ export function applyConnectionsScope<T extends { visibility: "PUBLIC" | "CONNEC
   const invited = new Set(values.invitedSupplierIds ?? []);
   const excluded = connectionIds.some((id) => !invited.has(id));
   if (!excluded) return values;
-  return { ...values, visibility: "PRIVATE", invitedSupplierIds: [...invited].filter((id) => connectionIds.includes(id)) };
+  const connected = new Set(connectionIds);
+  return { ...values, visibility: "PRIVATE", invitedSupplierIds: [...invited].filter((id) => connected.has(id)) };
 }

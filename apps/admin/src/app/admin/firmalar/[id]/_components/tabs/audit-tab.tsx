@@ -1,26 +1,17 @@
 "use client";
 
 import { TableStateRow } from "@/components/list/table-state";
-import { Badge } from "@/components/catalyst/badge";
+import { AuditLogRow } from "@/components/audit/audit-log-row";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/catalyst/table";
 import { Pagination } from "@/components/list";
 import { useAuditLogs } from "@/hooks/use-audit-logs";
-import { safeFormat } from "@/lib/date";
 import { useState } from "react";
-
-const ACTOR_COLORS: Record<string, "amber" | "blue" | "green" | "zinc"> = {
-  admin: "amber",
-  tenant: "blue",
-  supplier: "green",
-  system: "zinc",
-};
 
 /** Denetim — bu firmaya (entity id) dokunan audit kayıtları. */
 export function AuditTab({ companyId }: { companyId: string }) {
@@ -50,28 +41,9 @@ export function AuditTab({ companyId }: { companyId: string }) {
                 empty="Bu firmayla ilgili denetim kaydı yok"
               />
           ) : (
+            // Genel Denetim Kaydı'yla aynı satır: etiketli eylem/aktör/detay (O-047).
             items.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
-                  {safeFormat(r.createdAt, "d MMM yyyy HH:mm")}
-                </TableCell>
-                <TableCell>
-                  <Badge color={ACTOR_COLORS[r.actorType] ?? "zinc"}>
-                    {r.actorType}
-                  </Badge>
-                  {r.actorEmail ? (
-                    <span className="text-admin-text-muted ml-2 text-xs">
-                      {r.actorEmail}
-                    </span>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-admin-text font-mono text-xs">
-                  {r.action}
-                </TableCell>
-                <TableCell className="text-admin-text-muted max-w-[300px] truncate text-xs">
-                  {r.metadata ? JSON.stringify(r.metadata) : "—"}
-                </TableCell>
-              </TableRow>
+              <AuditLogRow key={r.id} item={r} showEntity={false} />
             ))
           )}
         </TableBody>

@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 /**
@@ -33,8 +34,11 @@ export function Chip({
   className?: string;
   disabled?: boolean;
 }) {
+  const t = useTranslations("web.shared.ui");
   const base = cn(
-    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition",
+    // `max-w-full min-w-0`: uzun etiket kapsayıcıyı taşırmasın, içteki
+    // `truncate` çalışsın (arayüz testi O-114: mobilde × ekran dışına düşüyordu).
+    "inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition",
     selected
       ? "border-zinc-950 bg-zinc-950 text-white"
       : "border-zinc-300 bg-white text-zinc-800 hover:border-zinc-500",
@@ -43,7 +47,9 @@ export function Chip({
   );
   const inner = (
     <>
-      <span className="truncate">{children}</span>
+      <span className="min-w-0 truncate" title={typeof children === "string" ? children : undefined}>
+        {children}
+      </span>
       {count != null ? (
         <span className={cn("tnum text-xs", selected ? "text-zinc-300" : "text-zinc-500")}>{count}</span>
       ) : null}
@@ -56,9 +62,14 @@ export function Chip({
         <button
           type="button"
           onClick={onRemove}
-          aria-label={removeLabel ?? "Kaldır"}
+          aria-label={removeLabel ?? t("remove")}
           className={cn(
-            "-mr-1.5 flex size-5 items-center justify-center rounded-full",
+            // Görünen daire 20 px kalır; dokunma alanı görünmez katmanla 44×36 px
+            // (mobil denetim 2026-10 g05: 20×20 px idi). Sağa çipin kenarını
+            // 6 px aşar — yandaki çipe (8 px boşluk) ve alt satırın çipine
+            // (çipler 28 px, satır arası 8 px) taşmaz.
+            "relative -mr-1.5 flex size-5 shrink-0 items-center justify-center rounded-full",
+            "after:absolute after:-inset-x-3 after:-inset-y-2",
             selected ? "hover:bg-white/15" : "hover:bg-zinc-100",
           )}
         >

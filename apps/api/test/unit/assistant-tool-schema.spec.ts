@@ -37,17 +37,21 @@ function problems(schema: Schema, path: string): string[] {
 describe("asistan araç şemaları", () => {
   const kombinasyonlar: Array<Array<"satinalma" | "satis">> = [[], ["satinalma"], ["satis"], ["satinalma", "satis"]];
 
-  it.each(kombinasyonlar.map((k) => [k.join("+") || "portalsız", k] as const))(
+  it.each(
+    kombinasyonlar.flatMap((k) =>
+      (["GOLD", "SILVER"] as const).map((tier) => [`${k.join("+") || "portalsız"} ${tier}`, k, tier] as const),
+    ),
+  )(
     "%s: her zorunlu alan tanımlı, enum dolu, dizi öğesi belirli",
-    (_ad, portals) => {
-      const defs = toolDefsForUser(new Set(portals));
+    (_ad, portals, tier) => {
+      const defs = toolDefsForUser(new Set(portals), tier);
       const hatalar = defs.flatMap((d) => problems(d.parameters as Schema, d.name));
       expect(hatalar).toEqual([]);
     },
   );
 
   it("araç adları tekil", () => {
-    const defs = toolDefsForUser(new Set(["satinalma", "satis"]));
+    const defs = toolDefsForUser(new Set(["satinalma", "satis"]), "GOLD");
     const adlar = defs.map((d) => d.name);
     expect(new Set(adlar).size).toBe(adlar.length);
   });

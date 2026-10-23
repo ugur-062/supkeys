@@ -1,3 +1,5 @@
+import { entitlementForbidden } from "../../common/company/entitlement-required";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   ForbiddenException,
   Inject,
@@ -15,6 +17,7 @@ import {
   type AiModelPricing,
 } from "./ai.config";
 import type { AiTokenUsage } from "./providers/ai-provider.interface";
+import { sanitizeProviderReason } from "./providers/ai-provider-reason";
 
 /**
  * Faz AI-0 — bütçe motoru. PARA (USD) sayar, token değil.
@@ -52,14 +55,17 @@ export interface ReserveResult {
 
 type BudgetDenial = "request_cap" | "pool" | "user_cap" | "daily_cap" | "premium_cap";
 
-const DENIAL_MESSAGES: Record<Exclude<BudgetDenial, "premium_cap">, string> = {
-  request_cap:
-    "Bu istek tek başına izin verilen AI kullanım sınırını aşıyor — belgeyi bölerek deneyin.",
-  pool: "Firmanızın aylık AI bütçesi doldu — AI özellikleri gelecek ay yeniden açılır.",
-  user_cap:
-    "Kişisel AI kullanım tavanınıza ulaştınız (firma havuzunun %50'si) — firma yöneticinize başvurun.",
-  daily_cap: "Günlük AI kullanım tavanına ulaşıldı — yarın tekrar deneyin.",
-};
+/**
+ * Ret mesajı KATALOG ANAHTARI — her bütçe reddinde toast olarak görünür;
+ * istek dilinde çevrilir (2026-09-27: eskiden sabit Türkçeydi). Gövde
+ * `i18nMessage` biçiminde (`code` web'in ayırt etmesi için).
+ */
+const DENIAL_KEYS = {
+  request_cap: "api.ai.budget.requestCap",
+  pool: "api.ai.budget.pool",
+  user_cap: "api.ai.budget.userCap",
+  daily_cap: "api.ai.budget.dailyCap",
+} as const satisfies Record<Exclude<BudgetDenial, "premium_cap">, string>;
 
 export function monthStartUtc(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -110,16 +116,34 @@ export class AiBudgetService {
     companyId: string,
     db: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<number | null> {
+    return (await this.limitsFor(companyId, db)).pool;
+  }
+
+  /** Havuz + istek başı/günlük pay (paket bazında override: `caps.*ByTier`). */
+  private async limitsFor(
+    companyId: string,
+    db: Prisma.TransactionClient | PrismaService,
+  ): Promise<{
+    pool: number | null;
+    requestShare: number;
+    dailyShare: number;
+    verificationStatus: string;
+  }> {
     const company = await db.company.findUnique({
       where: { id: companyId },
-      select: { tier: true, membershipEndAt: true },
+      select: { tier: true, membershipEndAt: true, companyVerificationStatus: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
-    const pool =
-      this.config.monthlyBudgetUsd[
-        effectiveTier(company.tier, company.membershipEndAt)
-      ];
-    return pool != null && pool > 0 ? pool : null;
+    if (!company) throw new NotFoundException(i18nMessage("api.ai.firmaBulunamadi"));
+    const tier = effectiveTier(company.tier, company.membershipEndAt, company.companyVerificationStatus);
+    const pool = this.config.monthlyBudgetUsd[tier];
+    return {
+      verificationStatus: company.companyVerificationStatus,
+      pool: pool != null && pool > 0 ? pool : null,
+      requestShare:
+        this.config.caps.requestShareByTier?.[tier] ?? this.config.caps.requestShare,
+      dailyShare:
+        this.config.caps.dailyShareByTier?.[tier] ?? this.config.caps.dailyShare,
+    };
   }
 
   private async sumCost(
@@ -158,11 +182,14 @@ export class AiBudgetService {
       // penceresi firma bazında serileşir (TOCTOU kapalı).
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${args.companyId} FOR UPDATE`;
 
-      const pool = await this.poolFor(args.companyId, tx);
+      const { pool, requestShare, dailyShare, verificationStatus } = await this.limitsFor(
+        args.companyId,
+        tx,
+      );
       if (pool == null) {
-        throw new ForbiddenException(
-          "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
-        );
+        throw entitlementForbidden(verificationStatus, {
+          key: "api.ai.aiOzellikleriIcinDogrulama",
+        });
       }
       const poolD = new Prisma.Decimal(pool);
       const scopeMonth = { companyId: args.companyId, createdAt: { gte: monthStartUtc(now) } };
@@ -176,18 +203,18 @@ export class AiBudgetService {
         this.sumCost(tx, { ...scopeMonth, model: premiumModel }),
       ]);
 
-      let firstDenial: BudgetDenial | null = null;
+      let lastDenial: BudgetDenial | null = null;
       for (let i = 0; i < args.candidates.length; i++) {
         const cand = args.candidates[i]!;
         const est = cand.estimatedCostUsd;
         const denial: BudgetDenial | null =
-          est.gt(poolD.mul(caps.requestShare))
+          est.gt(poolD.mul(requestShare))
             ? "request_cap"
             : monthSpend.add(est).gt(poolD)
               ? "pool"
               : userSpend.add(est).gt(poolD.mul(caps.userShare))
                 ? "user_cap"
-                : daySpend.add(est).gt(poolD.mul(caps.dailyShare))
+                : daySpend.add(est).gt(poolD.mul(dailyShare))
                   ? "daily_cap"
                   : cand.isPremium &&
                       premiumSpend.add(est).gt(poolD.mul(caps.premiumShare))
@@ -210,14 +237,16 @@ export class AiBudgetService {
           });
           return { id: row.id, model: cand.model, downgraded: i > 0 };
         }
-        firstDenial ??= denial;
+        lastDenial = denial;
       }
 
-      // Tüm adaylar düştü. premium_cap tek başına buraya gelmez (fallback
-      // denendi) — mesaj son/genel sebepten üretilir.
-      const reason = firstDenial === "premium_cap" ? "pool" : (firstDenial ?? "pool");
+      // Tüm adaylar düştü. Mesaj SON adayın (ucuz fallback) sebebinden üretilir
+      // (derin denetim LU-04): premium request_cap ile, Flash havuz/gün/kullanıcı
+      // tavanıyla düşünce kullanıcı "belgeyi bölün" görüp boşuna küçültüyordu.
+      // premium_cap yalnız tek adaylı premium çağrıda son sebep olabilir.
+      const reason = lastDenial === "premium_cap" ? "pool" : (lastDenial ?? "pool");
       throw new AiBudgetExceededException(
-        DENIAL_MESSAGES[reason as Exclude<BudgetDenial, "premium_cap">],
+        i18nMessage(DENIAL_KEYS[reason as Exclude<BudgetDenial, "premium_cap">], undefined, "AI_BUDGET_EXCEEDED"),
       );
     });
   }
@@ -232,7 +261,7 @@ export class AiBudgetService {
       where: { id },
       select: { model: true, companyId: true },
     });
-    if (!row) throw new NotFoundException("AI kullanım kaydı bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.ai.aiKullanimKaydiBulunamadi"));
     const pricing = this.config.pricing[row.model];
     if (!pricing) {
       // loadAiConfig boot'ta doğrular — buraya düşmek config regresyonudur.
@@ -278,17 +307,44 @@ export class AiBudgetService {
    */
   async fail(
     id: string,
-    opts: { errorCode: string; keepEstimate?: boolean; usage?: AiTokenUsage },
+    opts: {
+      errorCode: string;
+      keepEstimate?: boolean;
+      usage?: AiTokenUsage;
+      /**
+       * Sağlayıcının temizlenmiş sebep kodu (ör. `http_400:FAILED_PRECONDITION:
+       * location_not_supported`). `metadata.providerReason` olarak saklanır —
+       * `errorCode` genel sınıf (`provider_error`) olarak KALIR (mevcut
+       * tüketiciler değişmez), yeni sütun/göç yok. Serbest metin/sır YAZILMAZ:
+       * değer burada bir kez daha süzülür.
+       */
+      reason?: string;
+    },
   ): Promise<void> {
+    const reason = sanitizeProviderReason(opts.reason);
     let costData: { costUsd?: Prisma.Decimal } = {};
-    if (opts.usage) {
+    let metadataData: { metadata?: Prisma.InputJsonValue } = {};
+    if (opts.usage || reason) {
       const row = await this.prisma.aiUsage.findUnique({
         where: { id },
-        select: { model: true },
+        select: { model: true, metadata: true },
       });
-      const pricing = row ? this.config.pricing[row.model] : undefined;
-      if (pricing) costData = { costUsd: costFromUsage(opts.usage, pricing) };
-    } else if (!opts.keepEstimate) {
+      if (opts.usage) {
+        const pricing = row ? this.config.pricing[row.model] : undefined;
+        if (pricing) costData = { costUsd: costFromUsage(opts.usage, pricing) };
+      }
+      if (reason) {
+        // Özellik bağlamı (route, sayfa sayısı…) KORUNUR; sebep yanına eklenir.
+        const existing =
+          row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+            ? (row.metadata as Record<string, Prisma.JsonValue>)
+            : {};
+        metadataData = {
+          metadata: { ...existing, providerReason: reason } as Prisma.InputJsonValue,
+        };
+      }
+    }
+    if (!opts.usage && !opts.keepEstimate) {
       costData = { costUsd: new Prisma.Decimal(0) };
     }
     await this.prisma.aiUsage.update({
@@ -298,6 +354,7 @@ export class AiBudgetService {
         errorCode: opts.errorCode,
         settledAt: new Date(),
         ...costData,
+        ...metadataData,
       },
     });
   }
@@ -335,6 +392,10 @@ export class AiBudgetService {
       premiumPercentUsed: pctOf(premiumSpend, pool * caps.premiumShare),
       myPercentOfCap: pctOf(userSpend, pool * caps.userShare),
       warned: monthSpend.gte(new Prisma.Decimal(pool).mul(caps.warnShare)),
+      // Havuz / kişisel tavan doldu → `reserve` her yeni isteği reddeder
+      // (AI fiilen kapalı). Ekran %80 uyarısından AYRI söylesin (arayüz testi D-172).
+      poolExhausted: monthSpend.gte(new Prisma.Decimal(pool)),
+      userCapExhausted: userSpend.gte(new Prisma.Decimal(pool).mul(caps.userShare)),
       byUser: byUser.map((r) => ({
         userId: r.userId,
         userEmail: r.userEmail,

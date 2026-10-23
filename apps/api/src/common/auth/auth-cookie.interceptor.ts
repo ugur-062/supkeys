@@ -7,7 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { Request, Response } from "express";
-import { type Observable, map } from "rxjs";
+import { type Observable, mergeMap } from "rxjs";
 import {
   isAuthCleared,
   readAuthCookie,
@@ -16,6 +16,7 @@ import {
   slideAuthCookies,
   type Realm,
 } from "./cookie";
+import { SessionRevocationService, newSessionId } from "./session-revocation.service";
 
 /** Yeniden imzalarken düşürülen zaman claim'leri (sign yenilerini üretir). */
 type TimeClaims = { iat?: number; exp?: number; nbf?: number };
@@ -33,19 +34,27 @@ type TimeClaims = { iat?: number; exp?: number; nbf?: number };
  *    doğrulanır; ömrünün yarısı geçtiyse aynı claim'lerle taze token basılıp
  *    cookie yenilenir. Aktif kullanıcı hiç düşmez; TTL boyunca hiç istek
  *    atmayan düşer. CSRF değeri korunur (bkz. slideAuthCookies).
+ *    Oturum kimliği (`jti`) yenilemede KORUNUR — çıkışta iptal edilen şey o
+ *    kimliktir. İPTAL EDİLMİŞ oturum YENİLENMEZ (H2, 2026-10-07): bu
+ *    interceptor kapısız (herkese açık) uçlarda da çalışır, strateji orada
+ *    devrede değildir; denetlenmeseydi çıkış yapılmış çerezin kopyası herkese
+ *    açık bir uca istek atarak taze jeton alır, iptal kaydının ömrünü aşardı.
+ *    jti'siz eski jeton ilk yenilemede jti kazanır (o andan sonra iptal
+ *    edilebilir).
  */
 @Injectable()
 export class AuthCookieInterceptor implements NestInterceptor {
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
+    private readonly sessions: SessionRevocationService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== "http") return next.handle();
 
     return next.handle().pipe(
-      map((body: unknown) => {
+      mergeMap(async (body: unknown) => {
         const http = context.switchToHttp();
         const req = http.getRequest<Request>();
         const response = http.getResponse<Response>();
@@ -74,7 +83,7 @@ export class AuthCookieInterceptor implements NestInterceptor {
         }
 
         for (const realm of ["company", "admin"] as const) {
-          if (!issued.has(realm)) this.maybeSlide(req, response, realm);
+          if (!issued.has(realm)) await this.maybeSlide(req, response, realm);
         }
         // Denetim 2026-08-26 Parça 10: token cookie'ye yazıldıktan sonra
         // GÖVDEDEN ÇIKARILIR. Eskiden gövdede kalıyordu; ön yüz onu hiçbir
@@ -142,7 +151,7 @@ export class AuthCookieInterceptor implements NestInterceptor {
     }
   }
 
-  private maybeSlide(req: Request, res: Response, realm: Realm): void {
+  private async maybeSlide(req: Request, res: Response, realm: Realm): Promise<void> {
     // @Res() ile doğrudan yazan uçlar (PDF export vb.): header'lar gitmişse
     // Set-Cookie eklenemez — sessizce atla (bir sonraki istek yeniler).
     if (res.headersSent) return;
@@ -159,7 +168,23 @@ export class AuthCookieInterceptor implements NestInterceptor {
     }
     if (decoded?.type !== realm) return;
     if (!shouldSlide(decoded.iat, decoded.exp)) return;
+    // İptal edilmiş oturuma taze jeton BASILMAZ (bkz. sınıf yorumu). Sorgu
+    // yalnız yenileme eşiği geçilmişken koşar (oturum başına ömür yarısında
+    // bir kez), her istekte değil. Sorgu düşerse yenileme ATLANIR — yanıtı
+    // bozmaz, bir sonraki istek yeniden dener.
+    try {
+      if (await this.sessions.isRevoked(decoded.jti)) return;
+    } catch {
+      return;
+    }
+    // Sorgu sırasında yanıt gitmiş / çerez silinmiş olabilir.
+    if (res.headersSent || isAuthCleared(res, realm)) return;
     const { iat: _i, exp: _e, nbf: _n, ...claims } = decoded;
+    // jti'siz eski jeton (bu sürümden önce verilmiş) burada oturum kimliği
+    // kazanır → o oturum da artık çıkışta iptal edilebilir.
+    if (typeof claims.jti !== "string" || claims.jti.length === 0) {
+      claims.jti = newSessionId();
+    }
     // Kayan oturum da kalıcı ömrü KORUR. Korumasaydı ilk tazelemede jeton
     // 1 saate düşer ve hata sessizce geri gelirdi.
     const kalici = decoded.persistent !== false;

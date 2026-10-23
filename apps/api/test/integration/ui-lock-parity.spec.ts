@@ -171,7 +171,7 @@ describe("kullanımdaki adresin yeri değiştirilemez", () => {
     const { buyer, addr } = await setupAddressInOpenListing();
     await expect(
       svc().update(buyer.auth, addr.id, dto({ city: "Erzurum" }) as never),
-    ).rejects.toThrow(/aktif ilanda kullanılıyor/);
+    ).rejects.toThrow(/aktif talepte kullanılıyor/);
     const row = await prisma.companyAddress.findUniqueOrThrow({
       where: { id: addr.id },
     });
@@ -186,7 +186,7 @@ describe("kullanımdaki adresin yeri değiştirilemez", () => {
         addr.id,
         dto({ addressLine: "Bambaşka cad. No:99" }) as never,
       ),
-    ).rejects.toThrow(/aktif ilanda kullanılıyor/);
+    ).rejects.toThrow(/aktif talepte kullanılıyor/);
   });
 
   it("iletişim alanları (başlık/ilgili kişi/telefon) SERBEST kalır", async () => {
@@ -328,7 +328,7 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
   it("DRAFT ilanın belgeleri sahibi dışında 404", async () => {
     const { owner, other, listing } = await setup({ status: "DRAFT" });
     await expect(svc().list(other.auth, listing.id)).rejects.toThrow(
-      /İlan bulunamadı/,
+      /Talep bulunamadı/,
     );
     // Sahip görebilir.
     await expect(svc().list(owner.auth, listing.id)).resolves.toEqual([]);
@@ -340,7 +340,7 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
       bidsOpenAt: FUTURE,
     });
     await expect(svc().list(other.auth, listing.id)).rejects.toThrow(
-      /İlan bulunamadı/,
+      /Talep bulunamadı/,
     );
   });
 
@@ -359,5 +359,42 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
       items: [{ itemId: item.id, unitPrice: 50 }],
     });
     await expect(svc().list(other.auth, listing.id)).resolves.toEqual([]);
+  });
+
+  // Denetim MU-19 (S027): Faz O taraf kapısı — getOne ile birebir.
+  it("sahip firmada yalnız sell:view taşıyan Satışçı talep belgelerini göremez (404)", async () => {
+    const { owner, listing } = await setup({ status: "OPEN" });
+    const satisci = {
+      ...owner.auth,
+      isOwner: false,
+      roles: ["SATISCI"],
+      permissions: ["sell:view", "sell:bid:submit"],
+    } as never;
+    await expect(svc().list(satisci, listing.id)).rejects.toThrow(/Talep bulunamadı/);
+    const satinAlmaci = {
+      ...owner.auth,
+      isOwner: false,
+      roles: ["SATIN_ALMACI"],
+      permissions: ["buy:view", "buy:listing:manage"],
+    } as never;
+    await expect(svc().list(satinAlmaci, listing.id)).resolves.toEqual([]);
+  });
+
+  it("başka firmada yalnız buy:view taşıyan Satın Almacı açık talebin belgelerini göremez (404)", async () => {
+    const { other, listing } = await setup({ status: "OPEN" });
+    const satinAlmaci = {
+      ...other.auth,
+      isOwner: false,
+      roles: ["SATIN_ALMACI"],
+      permissions: ["buy:view", "buy:listing:manage"],
+    } as never;
+    await expect(svc().list(satinAlmaci, listing.id)).rejects.toThrow(/Talep bulunamadı/);
+    const satisci = {
+      ...other.auth,
+      isOwner: false,
+      roles: ["SATISCI"],
+      permissions: ["sell:view", "sell:bid:submit"],
+    } as never;
+    await expect(svc().list(satisci, listing.id)).resolves.toEqual([]);
   });
 });

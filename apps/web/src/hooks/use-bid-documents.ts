@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 export type BidDocKind =
   | "TEKLIF_MEKTUBU"
@@ -11,17 +12,20 @@ export type BidDocKind =
   | "TEMINAT"
   | "DIGER";
 
-/** Teklif belgesi bölümü etiketleri (UI). TEMINAT: eski kayıtlar görünsün diye
- * etikette kalır ama teklifte SEÇİLEMEZ (teminat ihale sonrası sipariş aşaması). */
-export const BID_DOC_KIND_LABELS: Record<BidDocKind, string> = {
-  TEKLIF_MEKTUBU: "Teklif Mektubu",
-  TEKNIK_DOKUMAN: "Teknik Doküman",
-  REFERANS: "Referans / İş Bitirme",
-  KATALOG: "Katalog / Broşür",
-  TEMINAT: "Teminat Mektubu",
-  DIGER: "Diğer",
-};
-export const BID_DOC_KINDS = Object.keys(BID_DOC_KIND_LABELS) as BidDocKind[];
+/**
+ * Teklif belgesi bölümü sırası. TEMINAT: eski kayıtlar görünsün diye listede
+ * kalır ama teklifte SEÇİLEMEZ (teminat ihale sonrası sipariş aşaması).
+ * Etiketler katalogda — `web.domain.bidDocKind.<KOD>`, hook
+ * `useBidDocKindLabel()` (`@/i18n/domain`).
+ */
+export const BID_DOC_KINDS: BidDocKind[] = [
+  "TEKLIF_MEKTUBU",
+  "TEKNIK_DOKUMAN",
+  "REFERANS",
+  "KATALOG",
+  "TEMINAT",
+  "DIGER",
+];
 /** Teklif aşamasında SEÇİLEBİLİR kategoriler — teminat hariç (o, sipariş aşaması). */
 export const BID_DOC_SELECTABLE_KINDS: BidDocKind[] = BID_DOC_KINDS.filter(
   (k) => k !== "TEMINAT",
@@ -53,6 +57,7 @@ export function useBidDocuments(listingId: string) {
 
 export function useUploadBidDoc(listingId: string) {
   const qc = useQueryClient();
+  const t = useTranslations("web.panel.requests.bidDocuments");
   return useMutation({
     mutationFn: async ({ file, kind }: { file: File; kind: BidDocKind }) => {
       const { data } = await companyApi.post<{ url: string; key: string }>(
@@ -64,7 +69,7 @@ export function useUploadBidDoc(listingId: string) {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+      if (!put.ok) throw new Error(t("dosyaYuklenemedi"));
       await companyApi.post(`/company/listings/${listingId}/bid-documents`, {
         key: data.key,
         fileName: file.name,

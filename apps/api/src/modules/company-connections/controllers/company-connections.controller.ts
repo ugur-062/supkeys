@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -20,12 +21,17 @@ import { ExternalTenderInviteDto,
   InviteByEmailDto,
 } from "../dto/invite-by-email.dto";
 import { InviteConnectionDto } from "../dto/invite-connection.dto";
+import { ListingEmailInvitesQueryDto } from "../dto/listing-email-invites-query.dto";
 import { CompanyConnectionsService } from "../services/company-connections.service";
+import { ListingEmailInvitesService } from "../services/listing-email-invites.service";
 
 @Controller("company/connections")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyConnectionsController {
-  constructor(private readonly service: CompanyConnectionsService) {}
+  constructor(
+    private readonly service: CompanyConnectionsService,
+    private readonly emailInvites: ListingEmailInvitesService,
+  ) {}
 
   @Get()
   @RequireCompanyPermission(["connections:manage", "buy:view", "sell:view"])
@@ -90,7 +96,24 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ExternalTenderInviteDto,
   ) {
-    return this.service.inviteExternalForListing(user, dto.listingId, dto.emails);
+    // Yeni istemci alıcı başına dil/ülke (`invites`), eski istemci düz adres.
+    return this.service.inviteExternalForListing(user, dto.listingId, dto.invites ?? dto.emails ?? [], dto.source);
+  }
+
+  /**
+   * E-mail invitations of ONE request with their outcome (round 5, D3) - the
+   * request page shows whom the buyer invited by e-mail and what happened
+   * (sent / queued / not sent + reason). Read-only: every `buy:view` member of
+   * the request's owner company, no package tier; another company's request
+   * is 404 (in the service).
+   */
+  @Get("external-tender-invites")
+  @RequireCompanyPermission("buy:view")
+  externalTenderInvites(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query() query: ListingEmailInvitesQueryDto,
+  ) {
+    return this.emailInvites.forListing(user, query.listingId);
   }
 
   @Post("invite-by-email")
@@ -101,7 +124,7 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteByEmailDto,
   ) {
-    return this.service.inviteByEmail(user, dto.email);
+    return this.service.inviteByEmail(user, dto.email, dto.locale);
   }
 
   /** Toplu e-posta daveti — 50'ye kadar; sonuç sınıflandırılmış döner. */
@@ -113,7 +136,7 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteByEmailBatchDto,
   ) {
-    return this.service.inviteByEmailBatch(user, dto.emails);
+    return this.service.inviteByEmailBatch(user, dto.invites ?? dto.emails ?? []);
   }
 
   @Post(":id/accept")

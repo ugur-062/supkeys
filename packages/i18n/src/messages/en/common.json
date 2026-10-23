@@ -1,0 +1,19 @@
+{
+  "errors": {
+    "forbidden": "You do not have permission for this action",
+    "notFound": "Record not found",
+    "badRequest": "Invalid request",
+    "conflict": "This action is not possible in the current state",
+    "unprocessable": "Invalid data",
+    "server": "Server error, please try again",
+    "network": "The server could not be reached. Check your connection and try again.",
+    "moreFields": "{n, plural, one {+# more field} other {+# more fields}}",
+    "uploadFailed": "The file could not be uploaded — please try again",
+    "fileReadFailed": "The file could not be read"
+  },
+  "globalError": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred. Please refresh the page.",
+    "retry": "Try again"
+  }
+}

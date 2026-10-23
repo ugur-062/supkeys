@@ -11,12 +11,14 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   useAdminCompanyConnections,
   useRevokeInvite,
 } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
 import Link from "next/link";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -24,6 +26,7 @@ import {
   metaOf,
   REFERRAL_STATUS_META,
 } from "@/lib/terms";
+import { toastApiError } from "@/lib/api";
 
 /** Bağlantılar + referans davetleri — bekleyen davetler iptal edilebilir. */
 export function ConnectionsTab({ companyId }: { companyId: string }) {
@@ -32,8 +35,20 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
   const connections = query.data?.connections ?? [];
   const referrals = query.data?.referralInvites ?? [];
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
+  // Davet iptali tek tıkla uygulanıyordu — kısa onay (arayüz testi D-209).
+  const [pending, setPending] = useState<
+    { kind: "connection" | "referral"; id: string; label: string } | null
+  >(null);
+  const runRevoke = () => {
+    if (!pending) return;
+    return revoke
+      .mutateAsync({ kind: pending.kind, id: pending.id })
+      .then(() => {
+        toast.success("Davet iptal edildi");
+        setPending(null);
+      }, err);
+  };
 
   return (
     <div className="space-y-4">
@@ -58,6 +73,8 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
               <TableStateRow
                 colSpan={5}
                 loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
                 empty="Bağlantı yok"
               />
             ) : (
@@ -92,14 +109,11 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
                           size="sm"
                           disabled={revoke.isPending}
                           onClick={() =>
-                            revoke.mutate(
-                              { kind: "connection", id: c.id },
-                              {
-                                onSuccess: () =>
-                                  toast.success("Davet iptal edildi"),
-                                onError: err,
-                              },
-                            )
+                            setPending({
+                              kind: "connection",
+                              id: c.id,
+                              label: c.other.name,
+                            })
                           }
                         >
                           Daveti İptal Et
@@ -134,6 +148,8 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
               <TableStateRow
                 colSpan={4}
                 loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
                 empty="Referans daveti yok"
               />
             ) : (
@@ -157,14 +173,11 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
                         size="sm"
                         disabled={revoke.isPending}
                         onClick={() =>
-                          revoke.mutate(
-                            { kind: "referral", id: r.id },
-                            {
-                              onSuccess: () =>
-                                toast.success("Davet iptal edildi"),
-                              onError: err,
-                            },
-                          )
+                          setPending({
+                            kind: "referral",
+                            id: r.id,
+                            label: r.email,
+                          })
                         }
                       >
                         Daveti İptal Et
@@ -177,6 +190,22 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
           </TableBody>
         </Table>
       </section>
+
+      <ConfirmDialog
+        open={!!pending}
+        title="Daveti iptal et"
+        confirmLabel="Daveti İptal Et"
+        danger
+        onConfirm={runRevoke}
+        onClose={() => setPending(null)}
+      >
+        <p>
+          <strong>{pending?.label}</strong>{" "}
+          {pending?.kind === "referral"
+            ? "adresine gönderilen referans daveti iptal edilir; davet bağlantısı artık çalışmaz."
+            : "ile bekleyen bağlantı daveti iptal edilir; karşı taraf daveti artık kabul edemez."}
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }

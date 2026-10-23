@@ -103,3 +103,52 @@ describe("S8 — order kalem precision", () => {
     expect(itemOrder.amount.toString()).toBe(fullOrder.amount.toString());
   });
 });
+
+describe("arayüz testi D-104 — kalem miktarını aşan kısmi miktar", () => {
+  it("önizleme ve kazandırma 400 verir (sessiz kırpma yok), sipariş doğmaz", async () => {
+    const { service, owner, listing, item, bid } = await setup("100", "300");
+    const over = [{ itemId: item.id, bidId: bid.id, awardedQuantity: 400 }];
+    await expect(
+      service.awardByItemPreview(owner.auth, listing.id, over),
+    ).rejects.toMatchObject({
+      response: { code: "AWARD_QUANTITY_EXCEEDS_ITEM" },
+    });
+    await expect(service.awardByItem(owner.auth, listing.id, over)).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(await prisma.companyOrder.count({ where: { listingId: listing.id } })).toBe(0);
+  });
+
+  it("kalem miktarına eşit ya da küçük kısmi miktar kabul edilir", async () => {
+    const { service, owner, listing, item, bid } = await setup("100", "300");
+    const res = (await service.awardByItem(owner.auth, listing.id, [
+      { itemId: item.id, bidId: bid.id, awardedQuantity: 120 },
+    ])) as { orders: { id: string }[] };
+    const order = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: res.orders[0]!.id },
+      include: { items: true },
+    });
+    expect(order.items[0]!.quantity.toString()).toBe("120");
+  });
+});
+
+describe("arayüz testi O-028 — sahip detayında reddedilen sipariş", () => {
+  it("orders satıcıyı, kalem adlarını ve yalnız REJECTED'da gerekçeyi taşır", async () => {
+    const { service, owner, listing, item, bid } = await setup("100", "3");
+    const res = (await service.awardByItem(owner.auth, listing.id, [
+      { itemId: item.id, bidId: bid.id },
+    ])) as { orders: { id: string }[] };
+    const orderId = res.orders[0]!.id;
+    await prisma.companyOrder.update({
+      where: { id: orderId },
+      data: { status: "REJECTED", rejectedReason: "Stok yok" },
+    });
+    const d = (await service.getOne(owner.auth, listing.id)) as {
+      orders: { id: string; sellerCompanyId: string; rejectedReason: string | null; itemNames: string[] }[];
+    };
+    const o = d.orders.find((x) => x.id === orderId)!;
+    expect(o.sellerCompanyId).toBe(bid.bidderCompanyId);
+    expect(o.rejectedReason).toBe("Stok yok");
+    expect(o.itemNames).toEqual([item.name]);
+  });
+});

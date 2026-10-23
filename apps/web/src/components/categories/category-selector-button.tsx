@@ -1,10 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChevronRight, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import type { CategoryCatalog } from "@rothern/shared";
+import { isHiddenCategory, type CategoryCatalog } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
+import { resolvedCategoryIds } from "@/lib/visible-categories";
+import { plainBreadcrumb } from "./category-breadcrumb";
+import { LoadError } from "./category-load-error";
 
 // Performans audit P-4 — Modal 808 satır, kullanıcı açana kadar bundle'a
 // girmesin. dynamic + ssr:false ile route'un First Load JS'i ~30KB azalır.
@@ -29,11 +33,46 @@ interface Props {
    * backend'de (`company-listings.service.ts`).
    */
   catalog?: CategoryCatalog;
+  /**
+   * "Önceki kategori artık kullanılmıyor" notunu çağıran ister. Not normalde
+   * `value`daki gizli koddan türer; gizli kodu değere HİÇ koymayan form (talep
+   * formu: kod tohumda düşer) alanı boş bırakır ve nedenini alan kendi başına
+   * bilemez — kaydın eski kategori taşıdığını bilen çağıran söyler.
+   */
+  retiredHint?: boolean;
+  /**
+   * Not "güncel bir kategori seçin" diye İSTEMEZ, "seçebilirsiniz; seçmeden de
+   * kaydedebilirsiniz" der. Kategorinin zorunlu OLMADIĞI formda (yayındaki
+   * talebin düzenlemesi) çağıran verir: eski not seçim isterken formun kendi
+   * notu "gerekmez" diyordu — aynı durum için çelişen iki cümle (canlı
+   * doğrulama CP-04). Durumu tek cümle anlatır, o cümle de burada yazılır.
+   */
+  retiredOptional?: boolean;
+  /**
+   * `false`: seçim KALDIRILAMAZ, yalnız DEĞİŞTİRİLİR — çipte "kaldır" (×) çizilmez,
+   * pencerede boş seçim onaylanmaz (pencere açık kalır, nedenini söyler).
+   * Varsayılan `true` (talep formu: kategori kaldırılabilir).
+   *
+   * Ürün formu `false` verir (kapanış kontrolü CL-PF-2): sunucu ürünün kayıtlı
+   * kategorisini boş değerle SİLMEZ (`null` = "olduğu gibi bırak"; gizli
+   * segmentteki eski ürün bilerek null gönderir ve kodunu korur). Çip × ile
+   * kaldırılıp taslak kaydedilince form "kaydedildi" deyip kategorisiz görünüyor,
+   * sayfa yenilenince kayıtlı kategori geri geliyordu.
+   */
+  clearable?: boolean;
 }
 
 /**
  * V2-6 — Form alanı kategori seçici. Boşken dashed CTA; doluyken chip listesi
  * + "Değiştir" linki. Modal'ı tetikler. value/onChange controlled state.
+ *
+ * ÇİZİLEN = ADI ÇÖZÜLEN (2026-10-09): `value`daki gizli segment kodu (eski
+ * kayıt) ve ad cevabı geldiği hâlde satırı olmayan kod HİÇ çizilmez — çip,
+ * ham kod ya da bitmeyen "…" yok; geriye çizilecek seçim kalmadıysa alan boş
+ * durumuyla (kesikli "kategori seçin" kutusu) açılır. Çipi kaldırmak ve
+ * pencereyi onaylamak değeri çizilenlerden yeniden kurar: kullanıcı kategori
+ * alanına dokunduğunda görmediği kod değerde kalmaz. Dokunmadıysa `onChange`
+ * çağrılmaz — değişmeyen eski değer ilgisiz bir düzenlemeyi engellemez.
  */
 export function CategorySelectorButton({
   value,
@@ -42,23 +81,44 @@ export function CategorySelectorButton({
   maxSelection = 20,
   placeholder,
   error,
-  modalTitle = "Kategori Seç",
+  modalTitle,
   modalDescription,
   disabled,
   catalog = "full",
+  retiredHint = false,
+  retiredOptional = false,
+  clearable = true,
 }: Props) {
+  const t = useTranslations("web.shared.categorySelectorButton");
+  // Ad hatası metni pencereyle ortak (aynı durum, aynı cümle).
+  const tm = useTranslations("web.shared.categorySelectorModal");
   const [isOpen, setIsOpen] = useState(false);
-  const { data: selectedCategories } = useCategoriesByIds(value);
+  const {
+    data: selectedCategories,
+    isPlaceholderData,
+    isError: namesError,
+    isFetching: namesFetching,
+    refetch: refetchNames,
+  } = useCategoriesByIds(value, { inlineError: true });
+  // Yeniden deneme yoldayken hata sayılmaz (çip "…" gösterir).
+  const namesFailed = !!namesError && !namesFetching;
+  // Cevap önceki seçiminse (placeholder) yeni eklenen kimlik "yok" değil,
+  // yükleniyordur → o sırada yalnız gizli kodlar düşer, diğerleri "…" kalır.
+  const shown = resolvedCategoryIds(value, isPlaceholderData ? undefined : selectedCategories);
+  // Kayıtlı değer artık sunulmayan (gizli segment) bir kategori taşıyor: alan
+  // boş görünür ama kullanıcı NEDENİNİ bilmeli — kategorinin adını anmadan.
+  // Değerde gizli kod yoksa (çağıran onu hiç koymadıysa) çağıranın işareti geçerli.
+  const retired = retiredHint || value.some((id) => isHiddenCategory(id));
 
   const defaultPlaceholder =
     mode === "single"
-      ? "Satın Alma Talebi kategorisini seçin"
-      : "Tedarik kategorilerinizi seçin";
+      ? t("satinAlmaTalebiKategorisiniSecin")
+      : t("tedarikKategorileriniziSecin");
 
   return (
     <>
       <div>
-        {value.length === 0 ? (
+        {shown.length === 0 ? (
           <button
             type="button"
             onClick={() => !disabled && setIsOpen(true)}
@@ -87,8 +147,8 @@ export function CategorySelectorButton({
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {mode === "single"
-                    ? "Tek kategori seçin"
-                    : `En fazla ${maxSelection} kategori seçebilirsiniz`}
+                    ? t("tekKategoriSecin")
+                    : t("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection })}
                 </p>
               </div>
             </div>
@@ -97,24 +157,28 @@ export function CategorySelectorButton({
         ) : (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              {value.map((id) => {
+              {shown.map((id) => {
                 const cat = selectedCategories?.find((c) => c.id === id);
-                const label = cat?.nameTr ?? "…";
-                const breadcrumb = cat?.breadcrumb ?? "";
+                // Ad isteği düştüyse "…" kalıcı kalmasın — kod gösterilir.
+                const label = cat?.nameTr ?? (namesFailed ? id : "…");
+                // Baştaki segment harfi ("P. ") iç koddur, gösterilmez.
+                const breadcrumb = plainBreadcrumb(cat?.breadcrumb);
                 return (
                   <div
                     key={id}
-                    className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
-                    title={breadcrumb}
+                    className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
+                    title={breadcrumb || undefined}
                   >
-                    <Tag className="h-3 w-3" />
-                    <span className="max-w-[220px] truncate">{label}</span>
-                    {!disabled ? (
+                    <Tag className="h-3 w-3 shrink-0" />
+                    {/* Adın tamamı: sabit piksel tavanı yok, uzun ad sarılır. */}
+                    <span className="min-w-0 break-words">{label}</span>
+                    {!disabled && clearable ? (
+                      // Dokunma hedefi 32 px; eksi kenar boşluğu çipi büyütmez.
                       <button
                         type="button"
-                        onClick={() => onChange(value.filter((x) => x !== id))}
-                        className="ml-1 rounded hover:text-rose-600"
-                        aria-label={`${label} kategorisini kaldır`}
+                        onClick={() => onChange(shown.filter((x) => x !== id))}
+                        className="-my-2 -mr-2 -ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded hover:text-rose-600"
+                        aria-label={t("kategorisiniKaldir", { label: cat?.nameTr ?? id })}
                       >
                         <XIcon className="h-3 w-3" />
                       </button>
@@ -123,21 +187,34 @@ export function CategorySelectorButton({
                 );
               })}
             </div>
+            {namesFailed ? (
+              <LoadError
+                compact
+                message={tm("secimAdlariYuklenemedi")}
+                retryLabel={tm("yenidenDene")}
+                onRetry={() => void refetchNames?.()}
+              />
+            ) : null}
             {!disabled ? (
               <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
+                className="inline-flex min-h-8 items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
               >
                 <Plus className="h-4 w-4" />
                 {mode === "single"
-                  ? "Değiştir"
-                  : "Kategori Ekle / Düzenle"}
+                  ? t("degistir")
+                  : t("kategoriEkleDuzenle")}
               </button>
             ) : null}
           </div>
         )}
 
+        {retired ? (
+          <p className="mt-1.5 text-xs text-amber-700">
+            {retiredOptional ? t("oncekiKategoriKullanilmiyorIstegeBagli") : t("oncekiKategoriKullanilmiyor")}
+          </p>
+        ) : null}
         {error ? (
           <p className="mt-1.5 text-xs text-rose-600">{error}</p>
         ) : null}
@@ -154,11 +231,18 @@ export function CategorySelectorButton({
         <CategorySelectorModal
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
+          // Ham değer: pencere gizli kodları kendisi düşürür. `shown` ad
+          // cevabına bağlı — o geçseydi adlar her yenilendiğinde dizi kimliği
+          // değişir, açık pencere taslağını kayıtlı değere sıfırlardı.
           value={value}
           onConfirm={onChange}
+          // Kaldırılamayan seçimde boş onay reddedilir: pencere açık kalır ve boş
+          // seçim için kendi cümlesini uyarı satırında gösterir. Seçim yokken onay
+          // zaten kapalıdır.
+          validate={clearable ? undefined : (ids) => (ids.length === 0 ? tm("listedenSecimYapin") : null)}
           mode={mode}
           maxSelection={maxSelection}
-          title={modalTitle}
+          title={modalTitle ?? t("kategoriSec")}
           description={modalDescription}
           catalog={catalog}
         />

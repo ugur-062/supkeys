@@ -12,6 +12,7 @@ import {
 } from "class-validator";
 import { MAX_MONEY } from "../../../common/constants/money";
 import { Trim } from "../../../common/decorators/trim.decorator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** Çek ödemesi için method değeri — UI ve DTO bu sabiti paylaşır. */
 export const CHEQUE_METHOD = "Çek";
@@ -20,8 +21,8 @@ export class RecordPaymentDto {
   // Decimal(18,2) sütununa yazılır — 2 ondalıktan fazlası kap kontrolüyle
   // saklanan değer arasında yuvarlama sapması yaratmasın.
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive({ message: "Tutar 0'dan büyük olmalı" })
-  @Max(MAX_MONEY, { message: "Tutar çok büyük" })
+  @IsPositive({ message: () => tApi("api.dto.orderPayment.tutar0danBuyukOlmali") })
+  @Max(MAX_MONEY, { message: () => tApi("api.dto.orderPayment.tutarCokBuyuk") })
   amount!: number;
 
   @IsOptional()
@@ -40,7 +41,7 @@ export class RecordPaymentDto {
   @ValidateIf((o) => o.method === CHEQUE_METHOD)
   @Trim()
   @IsString()
-  @IsNotEmpty({ message: "Çek numarası zorunludur" })
+  @IsNotEmpty({ message: () => tApi("api.dto.orderPayment.cekNumarasiZorunludur") })
   @MaxLength(100)
   chequeNo?: string;
 
@@ -51,7 +52,7 @@ export class RecordPaymentDto {
   chequeBank?: string;
 
   @ValidateIf((o) => o.method === CHEQUE_METHOD)
-  @IsDateString({}, { message: "Geçersiz vade tarihi" })
+  @IsDateString({}, { message: () => tApi("api.dto.orderPayment.gecersizVadeTarihi") })
   chequeDueDate?: string;
 }
 
@@ -59,8 +60,8 @@ export class RecordPaymentDto {
 export class OrderReasonDto {
   @Trim()
   @IsString()
-  @IsNotEmpty({ message: "Gerekçe zorunludur" })
-  @MinLength(10, { message: "Gerekçe en az 10 karakter olmalı" })
+  @IsNotEmpty({ message: () => tApi("api.dto.orderPayment.gerekceZorunludur") })
+  @MinLength(10, { message: () => tApi("api.dto.orderPayment.gerekceEnAz10KarakterOlmali") })
   @MaxLength(1000)
   reason!: string;
 }
@@ -69,8 +70,8 @@ export class OrderReasonDto {
 export class RejectPaymentReasonDto {
   @Trim()
   @IsString()
-  @IsNotEmpty({ message: "Red sebebi zorunludur" })
-  @MinLength(10, { message: "Red sebebi en az 10 karakter olmalı" })
+  @IsNotEmpty({ message: () => tApi("api.dto.orderPayment.redSebebiZorunludur") })
+  @MinLength(10, { message: () => tApi("api.dto.orderPayment.redSebebiEnAz10KarakterOlmali") })
   @MaxLength(1000)
   reason!: string;
 }

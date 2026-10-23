@@ -1,5 +1,6 @@
 // jest-dom DOM matcher'larını vitest expect'ine ekler (toBeInTheDocument vb.).
 import "@testing-library/jest-dom/vitest";
+import { beforeEach, vi } from "vitest";
 
 // jsdom'da ResizeObserver yok — Headless UI Listbox (FilterSelect) kapanırken
 // çağırıyor ve "3 unhandled errors" üretiyordu; no-op stub yeter.
@@ -43,3 +44,117 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
     thresholds = [];
   } as unknown as typeof IntersectionObserver;
 }
+
+// ---------------------------------------------------------------------------
+// i18n Faz 0 — next-intl SAHTESİ (docs/plan-i18n.md). Testler Türkçe kaynak
+// katalogla, sağlayıcı sarmalamadan koşar: `useTranslations`/`getTranslations`
+// gerçek use-intl çevirmenini (ICU dahil) TR mesajlarla kurar. Böylece 139
+// test dosyasındaki Türkçe metin beklentileri değişmeden geçerli kalır.
+// ---------------------------------------------------------------------------
+vi.mock("next-intl", async () => {
+  const { createFormatter, createTranslator } = await import("use-intl/core");
+  const { messagesFor, WEB_NAMESPACES } = await import("@rothern/i18n/messages");
+  const MESSAGES = messagesFor("tr", WEB_NAMESPACES);
+  const TZ = "Europe/Istanbul";
+  const makeT = (namespace?: string) =>
+    createTranslator({
+      locale: "tr",
+      messages: MESSAGES,
+      namespace: namespace as never,
+      timeZone: TZ,
+      onError: () => {},
+      getMessageFallback: ({ namespace: ns, key }) => (ns ? `${ns}.${key}` : key),
+    });
+  return {
+    useTranslations: (namespace?: string) => makeT(namespace),
+    useLocale: () => "tr",
+    useMessages: () => MESSAGES,
+    useFormatter: () => createFormatter({ locale: "tr", timeZone: TZ }),
+    useNow: () => new Date(),
+    useTimeZone: () => TZ,
+    hasLocale: (locales: readonly string[], candidate: unknown) =>
+      typeof candidate === "string" && locales.includes(candidate),
+    NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => children,
+  };
+});
+
+vi.mock("next-intl/server", async () => {
+  const { createFormatter, createTranslator } = await import("use-intl/core");
+  const { messagesFor, WEB_NAMESPACES } = await import("@rothern/i18n/messages");
+  const MESSAGES = messagesFor("tr", WEB_NAMESPACES);
+  const TZ = "Europe/Istanbul";
+  const makeT = (namespace?: string) =>
+    createTranslator({
+      locale: "tr",
+      messages: MESSAGES,
+      namespace: namespace as never,
+      timeZone: TZ,
+      onError: () => {},
+      getMessageFallback: ({ namespace: ns, key }) => (ns ? `${ns}.${key}` : key),
+    });
+  return {
+    getTranslations: async (arg?: string | { namespace?: string }) =>
+      makeT(typeof arg === "string" ? arg : arg?.namespace),
+    getLocale: async () => "tr",
+    getMessages: async () => MESSAGES,
+    getFormatter: async () => createFormatter({ locale: "tr", timeZone: TZ }),
+    getNow: async () => new Date(),
+    getTimeZone: async () => TZ,
+    setRequestLocale: () => {},
+    getRequestConfig: (fn: unknown) => fn,
+  };
+});
+
+// Dil farkında gezinme sahtesi: testler Next'in kendi hook'larını (dosya
+// bazında sıkça sahtelenir) görsün; ön ek mantığı derleme/e2e ile sınanır.
+vi.mock("@/i18n/navigation", async () => {
+  const nav = await import("next/navigation");
+  const NextLink = (await import("next/link")).default;
+  return {
+    Link: NextLink,
+    useRouter: () => nav.useRouter(),
+    usePathname: () => nav.usePathname(),
+    redirect: (args: { href: string }) => nav.redirect(args.href),
+    permanentRedirect: (args: { href: string }) => nav.permanentRedirect(args.href),
+    getPathname: (args: { href: string }) => args.href,
+  };
+});
+
+// `server-only` paketi RSC dışında import edilince fırlatır; sunucu yardımcıları
+// (lib/seo/entities, og/content) testlerde de çalışsın.
+vi.mock("server-only", () => ({}));
+
+// `unstable_cache` Next çalışma zamanı dışında (artımlı önbellek yok) fırlatır;
+// pazar yeri veri katmanı (`loadPublicJson`) onunla sarılı. Testte önbelleksiz
+// geçiş: fonksiyon her çağrıda koşar. Dosya kendi `vi.mock("next/cache")`ını
+// tanımlarsa o geçerli (ör. `seo/revalidate` rota testi).
+vi.mock("next/cache", async (orig) => ({
+  ...(await orig<typeof import("next/cache")>()),
+  unstable_cache:
+    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+    (...args: A) =>
+      fn(...args),
+}));
+
+// API okumasındaki "kısa bekle–yeniden dene" (`lib/public/upstream-retry.ts`)
+// testlerde GERÇEK bekleme yapmaz ve süreç düzeyindeki durum (tek deneme kipi,
+// paylaşılan uçuşlar, "aynı okumanın az önceki hatası" penceresi) testler
+// arasında ve aynı testin art arda okumaları arasında taşınmaz — yoksa kesinti
+// senaryoları (5xx / ağ hatası) her çağrıda saniyelerce bekler, önce 5xx sonra
+// 404 deneyen test ikinci okumada ilk hatayı geri alırdı. İki katman: modül
+// fabrikası (`vi.resetModules` sonrası TAZE örnek de böyle doğar) + her testten
+// önce yeniden kurulum (dosyanın `vi.restoreAllMocks()`u gerçek beklemeyi geri
+// getirir). Bekleme, bütçe ve pencere mantığının kendi testi
+// (`upstream-retry.test.ts`) gerçek değerleri sahte zamanlayıcıyla sınar.
+vi.mock("@/lib/public/upstream-retry", async (orig) => {
+  const actual = await orig<typeof import("@/lib/public/upstream-retry")>();
+  vi.spyOn(actual.upstreamClock, "sleep").mockResolvedValue(undefined);
+  actual.upstreamTuning.sameFailureWindowMs = 0;
+  return actual;
+});
+beforeEach(async () => {
+  const { resetUpstreamCooldown, upstreamClock, upstreamTuning } = await import("@/lib/public/upstream-retry");
+  resetUpstreamCooldown();
+  upstreamTuning.sameFailureWindowMs = 0;
+  vi.spyOn(upstreamClock, "sleep").mockResolvedValue(undefined);
+});

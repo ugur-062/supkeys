@@ -1,4 +1,5 @@
 import { Prisma } from "@rothern/db";
+import { listingSlug, visibleCategoryIds } from "@rothern/shared";
 
 /**
  * HERKESE AÇIK İLAN YANSITMASI — kapalı zarfın YAPISAL güvencesi.
@@ -40,9 +41,11 @@ import { Prisma } from "@rothern/db";
  *   İlanı KİMİN açtığı herkese açık sayfada gösterilmez. Bir alım talebinde
  *   bu bilgi doğrudan rekabet istihbaratıdır ("X firması 40 ton çelik boru
  *   arıyor" = X'in üretim planı); satış ilanında da müşteri listesini açık
- *   eder. Panelde ücretsiz (STANDART) üye bağsız PUBLIC talebi HİÇ görmez
- *   (2026-09-06, `listingBidEligibility.hidden`; eski maskeli önizleme kalktı).
- *   Anonim ziyaretçi teaser'ı görür (başlık, açıklama, kalem sayısı) ama
+ *   eder. Panelde ücretsiz (STANDART) üye bağsız PUBLIC talebi tam görmez
+ *   (`listingBidEligibility.hidden`); Açık Talepler'de onu ALICI GİZLİ satır
+ *   olarak görür — o satır ve maskeli görünüm BU dosyanın kart/detay
+ *   yansıtmasından üretilir (`toPublicListingCard`/`toPublicListingDetail`,
+ *   2026-10-03), yani ziyaretçiden fazlasını taşıyamaz. Anonim ziyaretçi teaser'ı görür (başlık, açıklama, kalem sayısı) ama
  *   sahibi asla — sahip kimliği hiçbir yüzeyde ücretsiz/anonim tarafa açılmaz.
  *
  *   Firma adının herkese açık göründüğü tek yer `/firma/<slug>` profilidir:
@@ -50,8 +53,10 @@ import { Prisma } from "@rothern/db";
  *   İlan sayfasından oraya bağlantı da verilmez — bağlantının kendisi kimliği
  *   ele verirdi.
  *
- *   Kalan alanlar (şehir, ülke, sektör, faaliyet tipi) kimlik değil nitelik:
- *   teklif verecek tarafın lojistik ve uygunluk kararı için gerekli.
+ *   Kalan alanlar (ülke, sektör, faaliyet tipi) kimlik değil nitelik:
+ *   teklif verecek tarafın lojistik ve uygunluk kararı için gerekli. Alıcının
+ *   ŞEHRİ 2026-10-04'ten beri talep yüzeylerinde YOK (sahip kararı: konum =
+ *   ülke; süzgeç de şehir değil alıcı ülkesi).
  *
  * `internalNotes` — tanımı gereği yalnız sahip.
  * `createdById` — kişi kimliği (KVKK).
@@ -60,6 +65,8 @@ import { Prisma } from "@rothern/db";
  * `auctionRateSnapshot` / `bidVisibility` / `autoExtend*` — teklif mekaniği.
  */
 export const PUBLIC_LISTING_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   number: true,
   type: true,
   title: true,
@@ -114,7 +121,11 @@ export const PUBLIC_LISTING_SELECT = {
       // "İLAN SAHİBİ ANONİM" notu). Select'ten çıkarılmalarının sebebi
       // yalnız gizlemek değil: Prisma'dan hiç dönmedikleri için mapper,
       // JSON-LD veya ileride eklenecek bir alan onları kazara yazamaz.
-      city: true,
+      // `id` YALNIZ iç kullanım (sektör çevirisi için firma çevirisi aranır); `toPublicCompany` yazmaz.
+      id: true,
+      // ŞEHİR YOK (2026-10-04 sahip kararı): talepte alıcının konumu
+      // yalnız ÜLKE olarak gösterilir ve süzülür; şehir hiçbir talep
+      // yüzeyinde (liste, detay, maskeli satır, süzgeç) yok — sorguya da girmez.
       country: true,
       industry: true,
       activities: true,
@@ -129,12 +140,12 @@ export type PublicListingRow = Prisma.ListingGetPayload<{
 
 /**
  * İlan sahibinin ANONİM tarifi. Ad/slug/logo YOK — bkz. "İLAN SAHİBİ ANONİM".
- * Kalanlar kimlik değil NİTELİK: alıcının hangi şehirde, hangi sektörde ve ne
+ * Kalanlar kimlik değil NİTELİK: alıcının hangi ülkede, hangi sektörde ve ne
  * tür bir firma olduğu, teklif verecek tarafın işine yarar ve tek başına
  * firmayı işaret etmez.
  */
 export interface PublicListingCompany {
-  city: string | null;
+  /** Talebin açıldığı ülke (alıcı firmanın ülkesi, ISO alpha-2). Şehir YOK (2026-10-04). */
   country: string | null;
   industry: string | null;
   activities: string[];
@@ -167,6 +178,9 @@ export interface PublicListingItemSummary {
 
 export interface PublicListing {
   number: string;
+  /** Dilden bağımsız adres parçası — KAYNAK başlığın slug'ı (`listingSlug`). Çevrilmiş
+   *  başlıktan slug üretilmez: `/en/talep/<slug>` = `/talep/<slug>` (i18n Faz 1e). */
+  slug: string;
   type: "ALIM";
   title: string;
   description: string | null;
@@ -206,14 +220,22 @@ export interface PublicListing {
   /** Satırlar: sıra + miktar + birim; AD YOK. */
   items: PublicListingItemRow[];
   company: PublicListingCompany;
-  /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
+  /** Kategori kodlarının çözülmüş adları (kod → ad); eksik ve GİZLİ segment kodu atlanır. */
   categories: { id: string; name: string; level: number }[];
+  /**
+   * Dil durumu (i18n SEO, 2026-09-27) — YALNIZ detay yanıtında: talebin kendi
+   * dilinde gösterilebildiği diller (hreflang) ve özgün metnin dili ("und" =
+   * henüz bilinmiyor). Kimlik değil, içerik niteliği.
+   */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 /** Liste kartı — detayın DAR alt kümesi (kalem/şartname gövdesi taşımaz). */
 export type PublicListingCard = Pick<
   PublicListing,
   | "number"
+  | "slug"
   | "type"
   | "title"
   | "status"
@@ -255,7 +277,6 @@ export function toPublicCompany(
   c: PublicListingRow["company"],
 ): PublicListingCompany {
   return {
-    city: c.city,
     country: c.country,
     industry: c.industry,
     activities: c.activities,
@@ -278,6 +299,99 @@ export function deriveCover(row: {
     if (item.images.length > 0) return item.images[0];
   }
   return null;
+}
+
+/** Çözülmüş kategori (kod → ad, okuyucunun dilinde) — kart ve detay aynı haritayı okur. */
+export type PublicCategoryMap = Map<string, { id: string; name: string; level: number }>;
+
+/**
+ * GİZLİ SEGMENT BURADA DÜŞER (2026-10-09, sahip kuralı: "anasayfada olmayan
+ * kategori talepte, üründe ya da başka yerde de gösterilmesin"). Süzgeç HARİTADA
+ * değil KODDA: haritayı üç ayrı çağıran kuruyor (herkese açık liste/detay,
+ * panelin maskeli satırı ve maskeli görünümü) ve biri süzmeyi unutsa bile eski
+ * talebin gizli kategorisi ada/çipe/bağlantıya dönüşemez. Kayıt (`Listing.
+ * categoryIds`) değişmez; eşleştirme ve bildirim kodların tamamını okur.
+ */
+const categoriesOf = (row: PublicListingRow, cats: PublicCategoryMap) =>
+  visibleCategoryIds(row.categoryIds)
+    .map((id) => cats.get(id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+
+/**
+ * KART YANSITMASI — TEK KAYNAK. Herkese açık liste (`PublicMarketplaceService.list`)
+ * ve panelde ücretsiz üyenin MASKELİ talep satırı (`CompanyListingsService.
+ * maskedPublicTenders`, 2026-10-03) aynı fonksiyonu okur: maskeli satır
+ * ziyaretçinin gördüğünden FAZLASINI taşıyamasın diye ayrı mapper yazılmadı.
+ */
+export function toPublicListingCard(row: PublicListingRow, cats: PublicCategoryMap): PublicListingCard {
+  return {
+    number: row.number ?? "",
+    slug: listingSlug(row.number ?? "", row.title),
+    type: row.type,
+    title: row.title,
+    status: row.status,
+    closesAt: row.closesAt?.toISOString() ?? null,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    primaryCurrency: row.primaryCurrency,
+    isInternational: row.isInternational,
+    targetCountries: row.targetCountries,
+    itemCount: row.items.length,
+    coverImageUrl: deriveCover(row),
+    excerpt: excerptOf(row.description),
+    itemSummary: itemSummaryOf(row.items),
+    company: toPublicCompany(row.company),
+    categories: categoriesOf(row, cats),
+  };
+}
+
+/**
+ * DETAY YANSITMASI — TEK KAYNAK. Herkese açık `/talep/<slug>` (`getByNumber`)
+ * ve panelin maskeli talep görünümü (`maskedPublicTender`) aynı çıktıyı verir;
+ * sahip/teklifçi serileştiricisi (`getOne`) bu yola HİÇ girmez.
+ */
+export function toPublicListingDetail(row: PublicListingRow, cats: PublicCategoryMap): PublicListing {
+  return {
+    number: row.number ?? "",
+    slug: listingSlug(row.number ?? "", row.title),
+    type: row.type,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    format: row.format,
+    primaryCurrency: row.primaryCurrency,
+    allowedCurrencies: row.allowedCurrencies,
+    isInternational: row.isInternational,
+    targetCountries: row.targetCountries,
+    // Ham kod da gizlenir: istemci ton/ikon/bağlantıyı koddan türetebiliyor.
+    categoryIds: visibleCategoryIds(row.categoryIds),
+    preferredActivities: row.preferredActivities,
+    keywords: row.keywords,
+    requireAllItems: row.requireAllItems,
+    requireBidDocument: row.requireBidDocument,
+    requireGuaranteeLetter: row.requireGuaranteeLetter,
+    isSealedBid: row.isSealedBid,
+    isLogistics: row.isLogistics,
+    deliveryTerm: row.deliveryTerm,
+    paymentCategory: row.paymentCategory,
+    paymentTiming: row.paymentTiming,
+    advancePercent: row.advancePercent,
+    paymentDays: row.paymentDays,
+    lcType: row.lcType,
+    lcConfirmed: row.lcConfirmed,
+    closesAt: row.closesAt?.toISOString() ?? null,
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    updatedAt: row.updatedAt.toISOString(),
+    coverImageUrl: deriveCover(row),
+    // `marketplaceIndexableWhere` ile AYNI mantık: ilan bazlı izin ∧ hâlâ
+    // teklife açık. Sahip izin vermiş olsa bile kapanmış ilan dizinlenmez.
+    // Sayfa bunu okuyup `noindex` basar; sitemap zaten sorguda süzüyor.
+    indexable: row.publicIndexable && row.status === "OPEN",
+    itemCount: row.items.length,
+    itemSummary: itemSummaryOf(row.items),
+    items: itemRowsOf(row.items),
+    company: toPublicCompany(row.company),
+    categories: categoriesOf(row, cats),
+  };
 }
 
 export function excerptOf(description: string | null, max = 200): string | null {

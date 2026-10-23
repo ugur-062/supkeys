@@ -1,28 +1,45 @@
-import { COUNTRIES } from "./countries";
+import { COUNTRIES, isValidCountryCode } from "./countries";
+import { countryHasIban } from "./iban-countries";
 
 /**
  * ÜLKE PROFİLLERİ — kayıt kapısının ve belge kümesinin TEK KAYNAĞI.
  *
- * Sorun: kayıt 98 ülkeye açıktı ve belge kümesi İKİLİYDİ (TR → 6 belge,
- * "yabancı" → 3 belge). Yani Çinli bir firmadan da Rus bir firmadan da aynı
- * üç belge isteniyordu; oysa ikisinin sicil/vergi sistemi tamamen farklı.
+ * KAYIT TÜM ÜLKELERE AÇIK (2026-09-27, kullanıcı: "tüm ülkeler kayıt
+ * olabilsin, Amerika hariç"). 2026-09-01'den beri yalnız sekiz ülke açıktı.
+ * Kapı artık "açık liste" değil "KAPALI liste": `REGISTRATION_BLOCKED`
+ * dışındaki her geçerli ülke kodu kayıt olabilir.
  *
- * Karar (2026-09-01): kayıt SEKİZ ülkeye açılır — Türkiye + yakın ticaret
- * çemberi. Gerekçe `docs/plan-country-registration.md`. Özet: sekizinde de
- * "Türk alıcı ↔ bölgesel tedarikçi" akışı gerçek, belge sistemi tanımlanabilir
- * ve ciddi bir uyum sorusu yok.
+ * Kapalılar (kullanıcı kararı aynı gün):
+ *  · ABD ve ABD hukukuna tabi topraklar (PR, GU, VI, AS, MP).
+ *  · Kapsamlı yaptırım ülkeleri İran, Kuzey Kore, Suriye, Küba — kullandığımız
+ *    ABD'li altyapı sağlayıcılarının (Vercel, Cloudflare, Supabase, Resend)
+ *    kullanım koşulları bu ülkelerden kullanımı yasaklıyor.
  *
- * AB ve Afrika BİLİNÇLİ olarak dışarıda:
- *  · AB — Rusya ile aynı pazar yerinde olması hukuk görüşü ister; ertelemenin
- *    maliyeti YOK çünkü VIES 27 ülkede aynı doğrulamayı yapar, sonradan tek
- *    seferde eklenir.
- *  · Afrika — AB'nin tersi: ortak doğrulama altyapısı yok, 54 ayrı sicil
- *    sistemi. Toptan değil, talep geldikçe tek tek eklenir.
- *
- * ÖNEMLİ: `COUNTRIES` (98 ülke) KISALTILMADI. Kapı yalnız YENİ KAYDA
- * uygulanır; mevcut firmaların ülkesi gösterilebilmeli ve adres defterinde
- * her ülke seçilebilmeli (teslimat adresi kayıt kapısına tabi değil).
+ * Belge kümesi: aşağıdaki ÖZEL profiller (TR, KKTC, sekiz ülkenin bölgesel
+ * sistemi) aynen; profili olmayan her ülke VARSAYILAN yabancı profili alır —
+ * sicil + vergi kaydı + yetkili kimliği/pasaportu (kullanıcı kararı: 3 belge),
+ * banka biçimi IBAN kaydından (`iban-countries.ts`), AB üyeleri VIES grubunda.
+ * Doğrulama yine İSTİSNASIZ manuel (admin `setVerification`).
  */
+
+/** Yeni kayıt ALINMAYAN ülkeler (bkz. dosya başı). Mevcut kayıtlara dokunmaz. */
+export const REGISTRATION_BLOCKED: ReadonlySet<string> = new Set([
+  "US", "PR", "GU", "VI", "AS", "MP",
+  "IR", "KP", "SY", "CU",
+]);
+
+/** AB üyeleri — KDV numarası VIES ile doğrulanabilir. */
+export const EU_VAT_COUNTRIES: ReadonlySet<string> = new Set([
+  "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HR", "HU",
+  "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK",
+]);
+
+const AFRICA = new Set([
+  "DZ", "AO", "BJ", "BW", "BF", "BI", "CV", "CM", "CF", "TD", "KM", "CD", "CG", "CI", "DJ",
+  "EG", "GQ", "ER", "SZ", "ET", "GA", "GM", "GH", "GN", "GW", "KE", "LS", "LR", "LY", "MG",
+  "MW", "ML", "MR", "MU", "YT", "MA", "MZ", "NA", "NE", "NG", "RE", "RW", "SH", "ST", "SN",
+  "SC", "SL", "SO", "ZA", "SS", "SD", "TZ", "TG", "TN", "UG", "EH", "ZM", "ZW",
+]);
 
 export type CountryGroup =
   | "TR"
@@ -59,10 +76,16 @@ export interface CountryProfile {
   /** AB KDV numarası VIES ile doğrulanabilir mi (Faz 4). */
   viesSupported: boolean;
   /**
-   * Vergi/sicil numarasının o ülkedeki RESMÎ adı — kullanıcı formda ne
-   * gireceğini bilsin ("Vergi No" demek Çinli kullanıcıya yardımcı olmaz).
+   * Vergi/sicil numarasının o ülkedeki RESMÎ adı, YEREL yazımıyla ("ИНН",
+   * "统一社会信用代码", "TRN") — dilden bağımsız veri. Kullanıcıya gösterilen
+   * etiket ve biçim ipucu katalogdadır (`web.domain.taxId.<taxIdLabelKey>`);
+   * bu ad orada parantez içinde basılır.
+   *
+   * 2026-09-27: eskiden burada Türkçe/karışık TAM etiket duruyordu ("БИН (BIN)
+   * — 12 hane") ve olduğu gibi gösterildiği için İngilizce arayüzde "12 hane",
+   * Çince firma için "18 karakter" yazıyordu.
    */
-  taxIdLabel: string;
+  taxIdLocalName?: string;
   /**
    * Ülke IBAN sistemini kullanıyor mu.
    *
@@ -104,7 +127,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     ],
     taxIdRule: "TR_VKN",
     viesSupported: false,
-    taxIdLabel: "Vergi Kimlik No (VKN) / TC Kimlik No",
+    taxIdLocalName: "VKN / TCKN",
     usesIban: true,
   },
   {
@@ -120,7 +143,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "taxPlate", "signatureCircular", "idFront"],
     taxIdRule: "GENERIC",
     viesSupported: false,
-    taxIdLabel: "Vergi No (KKTC)",
     usesIban: true,
   },
   {
@@ -130,7 +152,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "RU_INN",
     viesSupported: false,
-    taxIdLabel: "ИНН (INN) / ОГРН (OGRN)",
+    taxIdLocalName: "ИНН / ОГРН",
     usesIban: false,
   },
   {
@@ -140,7 +162,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "AZ_TIN",
     viesSupported: false,
-    taxIdLabel: "VÖEN (Vergi Ödəyicisinin Eyniləşdirmə Nömrəsi)",
+    taxIdLocalName: "VÖEN",
     usesIban: true,
   },
   {
@@ -150,7 +172,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "KZ_BIN",
     viesSupported: false,
-    taxIdLabel: "БИН (BIN) — 12 hane",
+    taxIdLocalName: "БИН",
     usesIban: true,
   },
   {
@@ -160,7 +182,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "UZ_INN",
     viesSupported: false,
-    taxIdLabel: "СТИР / ИНН — 9 hane",
+    taxIdLocalName: "СТИР",
     usesIban: false,
   },
   {
@@ -172,7 +194,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "idFront"],
     taxIdRule: "CN_USCC",
     viesSupported: false,
-    taxIdLabel: "统一社会信用代码 (USCC) — 18 karakter",
+    taxIdLocalName: "统一社会信用代码",
     usesIban: false,
   },
   {
@@ -184,7 +206,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "idFront"],
     taxIdRule: "AE_TRN",
     viesSupported: false,
-    taxIdLabel: "TRN (Tax Registration Number) — 15 hane",
+    taxIdLocalName: "TRN",
     usesIban: true,
   },
 ] as const;
@@ -196,32 +218,87 @@ const EXTRA_NAMES: Record<string, string> = {
   XN: "Kuzey Kıbrıs Türk Cumhuriyeti",
 };
 
+/**
+ * Numaranın ÖNÜNE yazılan etiketler ("ИНН 7707083893", "VAT: DE811…",
+ * "TRN 100…"). Kullanıcı belgeden olduğu gibi kopyalıyor; etiket numaranın
+ * parçası değil. Büyük harfle karşılaştırılır; ardından harf gelmemeli
+ * ("VATAN…" gibi bir sicil adı kırpılmasın). Tüketici `normalizeTaxId`
+ * (`helpers/company-identity.ts`); uzun önek kısadan ÖNCE durmalı.
+ */
+export const TAX_ID_LABEL_PREFIXES = [
+  "ИНН", "ИИН", "БИН", "ОГРНИП", "ОГРН", "КПП", "СТИР", "УНП", "ЄДРПОУ",
+  "VÖEN", "VOEN", "TRN", "USCC", "VAT NO", "VAT NUMBER", "VAT ID", "VAT",
+  "TAX ID", "TIN", "UST-IDNR", "UST-ID", "USTIDNR", "N° TVA", "TVA", "IVA",
+  "NIF", "CIF", "BTW", "MOMS", "MWST", "UID", "EIN", "GSTIN", "CNPJ",
+];
+
+/**
+ * Vergi/sicil no ETİKET ANAHTARI — katalog `web.domain.taxId.{label,hint}.<anahtar>`.
+ * Özel kurallı ülkeler kural adıyla, KKTC ve AB üyeleri kendi anahtarıyla,
+ * kalan her ülke GENERIC. Etiketi ve biçim ipucunu arayüz dilinde verir.
+ */
+export type TaxIdLabelKey = TaxIdRule | "XN" | "EU";
+
+export function taxIdLabelKey(code: string | null | undefined): TaxIdLabelKey {
+  const p = getCountryProfile(code);
+  if (!p) return "GENERIC";
+  if (p.code === "XN") return "XN";
+  if (p.taxIdRule !== "GENERIC") return p.taxIdRule;
+  return p.viesSupported ? "EU" : "GENERIC";
+}
+
+/**
+ * Profili OLMAYAN geçerli ülke için varsayılan yabancı profil (2026-09-27):
+ * 3 belge, genel vergi/sicil etiketi, IBAN kaydından banka biçimi, AB → VIES.
+ */
+function defaultProfile(code: string): CountryProfile {
+  const eu = EU_VAT_COUNTRIES.has(code);
+  return {
+    code,
+    group: eu ? "EU" : AFRICA.has(code) ? "AFRICA" : "OTHER",
+    registrationOpen: !REGISTRATION_BLOCKED.has(code),
+    requiredDocs: BASE_FOREIGN,
+    taxIdRule: "GENERIC",
+    viesSupported: eu,
+    usesIban: countryHasIban(code),
+  };
+}
+
+/**
+ * Ülkenin profili: özel profil ya da (geçerli ülke koduysa) varsayılan yabancı
+ * profil. Bilinmeyen/boş kod → null.
+ */
 export function getCountryProfile(
   code: string | null | undefined,
 ): CountryProfile | null {
   if (!code) return null;
-  return BY_CODE.get(code.toUpperCase()) ?? null;
+  const c = code.toUpperCase();
+  return BY_CODE.get(c) ?? (isValidCountryCode(c) ? defaultProfile(c) : null);
 }
 
-/** Kayıt formunda gösterilecek ülkeler (kod + ad), profil sırasıyla. */
+/** Banka alanı IBAN mı (değilse hesap no + SWIFT). Bilinmeyen ülke → IBAN'sız. */
+export function countryUsesIban(code: string | null | undefined): boolean {
+  return getCountryProfile(code)?.usesIban ?? false;
+}
+
+/** Kayıt formunda gösterilecek ülkeler (kod + Türkçe ad): TR başta, sonra alfabetik. */
 export function registrationCountries(): { code: string; name: string }[] {
-  return COUNTRY_PROFILES.filter((p) => p.registrationOpen).map((p) => ({
-    code: p.code,
-    name:
-      EXTRA_NAMES[p.code] ??
-      COUNTRIES.find((c) => c.code === p.code)?.name ??
-      p.code,
+  return COUNTRIES.filter((c) => !REGISTRATION_BLOCKED.has(c.code)).map((c) => ({
+    code: c.code,
+    name: EXTRA_NAMES[c.code] ?? c.name,
   }));
 }
 
-/** Yeni kayıt bu ülkeden alınıyor mu. */
+/** Yeni kayıt bu ülkeden alınıyor mu: geçerli kod ∧ kapalı listede değil. */
 export function isRegistrationOpen(code: string | null | undefined): boolean {
-  return getCountryProfile(code)?.registrationOpen === true;
+  if (!code) return false;
+  const c = code.toUpperCase();
+  return isValidCountryCode(c) && !REGISTRATION_BLOCKED.has(c);
 }
 
 /**
- * Ülkenin zorunlu belge kümesi. Profili olmayan (kapalı ama MEVCUT) ülkeler
- * için ortak yabancı temeli — eski kayıtlar belgesiz kalmasın.
+ * Ülkenin zorunlu belge kümesi. Profili olmayan ülke (ve bilinmeyen kod)
+ * ortak yabancı temelini alır — eski kayıtlar belgesiz kalmasın.
  */
 export function requiredDocsForCountry(
   code: string | null | undefined,

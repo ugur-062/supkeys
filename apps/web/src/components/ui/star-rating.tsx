@@ -1,6 +1,7 @@
 "use client";
 
 import { StarIcon } from "@heroicons/react/20/solid";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 /**
@@ -8,16 +9,10 @@ import { useState } from "react";
  * dolu renk --color-rating (amber, yalnız yıldızlarda); role="radiogroup" +
  * ok tuşları; seçimde sözlü etiket ("4 / 5 — İyi").
  */
-const RATING_LABELS: Record<number, string> = {
-  1: "Çok kötü",
-  2: "Kötü",
-  3: "Orta",
-  4: "İyi",
-  5: "Çok iyi",
-};
-
-export function ratingLabel(n: number): string {
-  return RATING_LABELS[n] ?? "";
+/** Puan sözcüğü (`web.shared.starRating.level.<1-5>`); listede yoksa boş. */
+export function useRatingLabel(): (n: number) => string {
+  const t = useTranslations("web.shared.starRating");
+  return (n) => (t.has(`level.${n}` as never) ? t(`level.${n}` as never) : "");
 }
 
 export function StarRating({
@@ -31,6 +26,8 @@ export function StarRating({
   readOnly?: boolean;
   size?: "sm" | "md";
 }) {
+  const t = useTranslations("web.shared.starRating");
+  const ratingLabel = useRatingLabel();
   const [hover, setHover] = useState(0);
   const active = hover || value;
   const px = size === "sm" ? "size-5" : "size-7";
@@ -40,7 +37,7 @@ export function StarRating({
       <span
         className="inline-flex items-center gap-1"
         role="img"
-        aria-label={`${value} / 5 yıldız`}
+        aria-label={t("yildizAria", { value })}
       >
         {[1, 2, 3, 4, 5].map((n) => (
           <StarIcon
@@ -56,7 +53,7 @@ export function StarRating({
   return (
     <div
       role="radiogroup"
-      aria-label="Puan"
+      aria-label={t("puan")}
       className="inline-flex items-center gap-1"
       onMouseLeave={() => setHover(0)}
     >
@@ -66,7 +63,7 @@ export function StarRating({
           type="button"
           role="radio"
           aria-checked={value === n}
-          aria-label={`${n} yıldız — ${RATING_LABELS[n]}`}
+          aria-label={t("yildizSecAria", { n, label: ratingLabel(n) })}
           onClick={() => onChange?.(n)}
           onMouseEnter={() => setHover(n)}
           onKeyDown={(e) => {

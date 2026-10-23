@@ -3,8 +3,11 @@
 // Lojistik İhalesi — taşıma bilgisi görüntüleme bloğu.
 // Alıcı + tedarikçi ihale detayı ve wizard özetinde kullanılır.
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { formatDate } from "@/lib/tenders/date";
-import { TRANSPORT_MODE_LABELS } from "@/lib/tenders/labels";
+import { intlLocale } from "@/i18n/format";
+import { useTransportModeLabel } from "@/i18n/domain";
 import type { TenderLogisticsDetails } from "@/lib/tenders/types";
 import {
   ArrowRight,
@@ -13,8 +16,8 @@ import {
   Truck,
 } from "lucide-react";
 
-function fmtDate(iso: string | null | undefined): string | null {
-  return iso ? formatDate(iso) : null;
+function fmtDate(iso: string | null | undefined, locale: Locale): string | null {
+  return iso ? formatDate(iso, locale) : null;
 }
 
 function Cell({ label, value }: { label: string; value: React.ReactNode }) {
@@ -33,11 +36,14 @@ export function LogisticsInfoCard({
   details: TenderLogisticsDetails;
   className?: string;
 }) {
+  const t = useTranslations("web.panel.requests.logisticsInfo");
+  const locale = useLocale();
+  const transportModeLabel = useTransportModeLabel();
   const flags = [
-    details.hazardous ? "Tehlikeli Madde (ADR)" : null,
-    details.refrigerated ? "Soğuk Zincir" : null,
-    details.fragile ? "Kırılabilir" : null,
-    details.stackable ? "İstiflenebilir" : null,
+    details.hazardous ? t("tehlikeliMaddeAdr") : null,
+    details.refrigerated ? t("sogukZincir") : null,
+    details.fragile ? t("kirilabilir") : null,
+    details.stackable ? t("istiflenebilir") : null,
   ].filter((f): f is string => f !== null);
 
   const origin = [details.originCity, details.originDistrict]
@@ -47,8 +53,8 @@ export function LogisticsInfoCard({
     .filter(Boolean)
     .join(" / ");
 
-  const loading = fmtDate(details.loadingDate);
-  const delivery = fmtDate(details.deliveryDate);
+  const loading = fmtDate(details.loadingDate, locale);
+  const delivery = fmtDate(details.deliveryDate, locale);
 
   return (
     <section
@@ -62,13 +68,10 @@ export function LogisticsInfoCard({
           <Truck className="w-4 h-4 text-teal-700" />
         </div>
         <h3 className="font-display font-bold text-base text-zinc-900">
-          Lojistik Bilgileri
+          {t("lojistikBilgileri")}
         </h3>
         <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700">
-          {details.transportMode
-            ? (TRANSPORT_MODE_LABELS[details.transportMode] ??
-              details.transportMode)
-            : "—"}
+          {details.transportMode ? transportModeLabel(details.transportMode) : "—"}
         </span>
       </div>
 
@@ -90,34 +93,34 @@ export function LogisticsInfoCard({
       </div>
 
       <dl className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Cell label="Kargo Cinsi" value={details.cargoType} />
+        <Cell label={t("kargoCinsi")} value={details.cargoType} />
         {details.weightKg != null ? (
           <Cell
-            label="Ağırlık"
-            value={`${details.weightKg.toLocaleString("tr-TR")} kg`}
+            label={t("agirlik")}
+            value={`${details.weightKg.toLocaleString(intlLocale(locale))} kg`}
           />
         ) : null}
         {details.volumeM3 != null ? (
           <Cell
-            label="Hacim"
-            value={`${details.volumeM3.toLocaleString("tr-TR")} m³`}
+            label={t("hacim")}
+            value={`${details.volumeM3.toLocaleString(intlLocale(locale))} m³`}
           />
         ) : null}
         {details.packageCount != null ? (
-          <Cell label="Kap / Palet" value={details.packageCount} />
+          <Cell label={t("kapPalet")} value={details.packageCount} />
         ) : null}
         {details.vehicleType ? (
-          <Cell label="Araç / Ekipman" value={details.vehicleType} />
+          <Cell label={t("aracEkipman")} value={details.vehicleType} />
         ) : null}
-        {loading ? <Cell label="Yükleme Tarihi" value={loading} /> : null}
-        {delivery ? <Cell label="Teslim Tarihi" value={delivery} /> : null}
+        {loading ? <Cell label={t("yuklemeTarihi")} value={loading} /> : null}
+        {delivery ? <Cell label={t("teslimTarihi")} value={delivery} /> : null}
       </dl>
 
       {details.originAddress || details.destinationAddress ? (
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-teal-200/60">
           {details.originAddress ? (
             <Cell
-              label="Çıkış Adresi"
+              label={t("cikisAdresi")}
               value={
                 <span className="whitespace-pre-wrap">
                   {details.originAddress}
@@ -127,7 +130,7 @@ export function LogisticsInfoCard({
           ) : null}
           {details.destinationAddress ? (
             <Cell
-              label="Varış Adresi"
+              label={t("varisAdresi")}
               value={
                 <span className="whitespace-pre-wrap">
                   {details.destinationAddress}
@@ -155,7 +158,7 @@ export function LogisticsInfoCard({
       {details.notes ? (
         <div className="rounded-xl bg-white border border-surface-border p-3">
           <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">
-            Lojistik Notu
+            {t("lojistikNotu")}
           </p>
           <p className="text-sm text-slate-700 whitespace-pre-wrap">
             {details.notes}
@@ -168,6 +171,7 @@ export function LogisticsInfoCard({
 
 /** Liste/başlık için küçük "Lojistik" rozeti. */
 export function LogisticsBadge({ className }: { className?: string }) {
+  const t = useTranslations("web.panel.requests.logisticsInfo");
   return (
     <span
       className={
@@ -176,7 +180,7 @@ export function LogisticsBadge({ className }: { className?: string }) {
       }
     >
       <Truck className="w-3 h-3" />
-      Lojistik
+      {t("lojistik")}
     </span>
   );
 }

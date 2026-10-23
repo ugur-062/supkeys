@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, type EmailStatus } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  INTERNAL_EMAIL_PROVIDER,
+  SUPPRESSION_CLEAR_MARKER_WHERE,
+  SUPPRESSION_CLEAR_TEMPLATE,
+} from "./suppression-marker";
 
 export interface SuppressionInfo {
   email: string;
@@ -38,6 +43,45 @@ export class EmailSuppressionService {
   }
 
   /**
+   * Adresi akla — append-only marker (tarih yeniden yazılmaz). Döner: marker
+   * yazılan adres yazımları.
+   *
+   * Eşleşme (türetme ve `EmailService` gönderim kapısı) `toEmail` üzerinde
+   * BİREBİR ve indeksli; EmailLog ise gönderimdeki ham adresi tutar (eski
+   * `billingEmail` "Info@Firma.com" olabilir). Marker yalnız küçük harfle
+   * yazılınca büyük harfli tetikleyici aklanmıyor, uç yine `{ok:true}`
+   * dönüyordu (derin denetim LU-04). Bu yüzden kayıtlardaki TÜM büyük/küçük
+   * harf yazımları (seyrek admin işlemi — duyarsız arama burada kabul) ve
+   * girilen adresin kendisi için marker yazılır.
+   */
+  async clear(rawEmail: string, adminId: string): Promise<string[]> {
+    const email = rawEmail.trim();
+    const variants = await this.prisma.emailLog.findMany({
+      where: { toEmail: { equals: email, mode: "insensitive" } },
+      distinct: ["toEmail"],
+      select: { toEmail: true },
+    });
+    const targets = [
+      ...new Set([email, email.toLowerCase(), ...variants.map((v) => v.toEmail)]),
+    ];
+    const now = new Date();
+    await this.prisma.emailLog.createMany({
+      data: targets.map((toEmail) => ({
+        template: SUPPRESSION_CLEAR_TEMPLATE,
+        toEmail,
+        subject: "suppression clear (admin)",
+        provider: INTERNAL_EMAIL_PROVIDER,
+        status: "SENT" as const,
+        sentAt: now,
+        queuedAt: now,
+        contextType: "suppression_clear",
+        contextId: adminId,
+      })),
+    });
+    return targets;
+  }
+
+  /**
    * Ortak türetme. Adres suppressed = son `suppression_clear` marker'ından SONRA
    * `COMPLAINED` veya `BOUNCED+bounceType=hard` kaydı var. Soft/undetermined
    * bounce GEÇİCİ → suppress etmez.
@@ -70,7 +114,9 @@ export class EmailSuppressionService {
         ...(limit ? { take: limit } : {}),
       }),
       this.prisma.emailLog.findMany({
-        where: { ...scope, template: "suppression_clear" },
+        // Yalniz gecerli isaret (provider=internal, SENT) — ayni sablonlu
+        // FAILED bir satir aklamaz (arayuz testi O-078).
+        where: { ...scope, ...SUPPRESSION_CLEAR_MARKER_WHERE },
         select: { toEmail: true, queuedAt: true },
         orderBy: { queuedAt: "desc" },
       }),

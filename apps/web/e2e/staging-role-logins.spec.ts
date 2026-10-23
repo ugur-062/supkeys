@@ -24,12 +24,22 @@ const USERS: Array<{ slug: string; email: string; ad: string; firma: string; own
 
 for (const u of USERS) {
   test(`giriş — ${u.slug}`, async ({ page }) => {
-    test.setTimeout(120_000);
-    await gotoRetry(page, "/company/login");
-    await page.locator('input[type="email"]').fill(u.email);
-    await page.locator('input[type="password"]').fill(PASSWORD);
-    await page.getByRole("button", { name: "Giriş Yap" }).click();
-    await page.waitForURL(/\/company(?!\/login)/, { timeout: 45_000 });
+    test.setTimeout(300_000);
+    // Giriş ucu IP başına 10/dk; 12 hesap tek IP'den ardışık girer → 429'da
+    // form yerinde kalır ("Çok fazla deneme"). Ürün hatası değil: bekle, yinele.
+    for (let attempt = 0; ; attempt++) {
+      await gotoRetry(page, "/company/login");
+      await page.locator('input[type="email"]').fill(u.email);
+      await page.locator('input[type="password"]').fill(PASSWORD);
+      await page.getByRole("button", { name: "Giriş Yap" }).click();
+      const outcome = await Promise.race([
+        page.waitForURL(/\/company(?!\/login)/, { timeout: 45_000 }).then(() => "ok" as const),
+        page.getByText(/Çok fazla deneme/).first().waitFor({ timeout: 45_000 }).then(() => "throttled" as const),
+      ]);
+      if (outcome === "ok") break;
+      if (attempt >= 2) throw new Error(`${u.slug}: giriş hız sınırına takıldı (3 deneme)`);
+      await page.waitForTimeout(62_000); // pencere (60 sn) tamamen dolsun
+    }
 
     // Üst çubuk kimliği: kişi + firma.
     await expect(page.getByText(u.ad).first(), `${u.slug}: ad`).toBeVisible({ timeout: 30_000 });

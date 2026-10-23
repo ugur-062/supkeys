@@ -1,8 +1,14 @@
 "use client";
 
-import { canSendMessages } from "@/lib/company/portals";
+import { useLocale, useTranslations } from "next-intl";
+import { useRoleLabel } from "@/i18n/domain";
+import { formatDate } from "@/lib/format-date";
+import { canSendMessages, messagingDirectionOpen } from "@/lib/company/portals";
+import { buyingGate } from "@/lib/public/member-gate";
+import { VerificationLink } from "@/components/company/verification-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   useSendMessage,
   useThreadMessages,
@@ -11,20 +17,57 @@ import {
 } from "@/hooks/use-company-messages";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { format, isToday, isYesterday } from "date-fns";
-import { tr } from "date-fns/locale";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Lock, Send } from "lucide-react";
 import {
   type KeyboardEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { enterSendsMessage, useCoarsePointer } from "@/components/messaging/use-coarse-pointer";
+import { useToastBottomClearance } from "@/components/providers/app-toaster";
 
-function formatTimestamp(date: Date): string {
-  if (isToday(date)) return format(date, "HH:mm", { locale: tr });
-  if (isYesterday(date)) return `Dün ${format(date, "HH:mm", { locale: tr })}`;
-  return format(date, "d MMM HH:mm", { locale: tr });
+/**
+ * Mesaj zamanı — bugün "HH:mm", dün "Dün HH:mm", eskisi tarih + saat okuyucunun
+ * dilinde (`formatDate`). Bugün/dün ayrımı tarayıcı gününe göre (sohbet yalnız istemcide çizilir).
+ */
+function useFormatTimestamp(): (date: Date) => string {
+  const t = useTranslations("web.panel.inbox.companyMessageThread");
+  const locale = useLocale();
+  return (date) => {
+    if (isToday(date)) return format(date, "HH:mm");
+    if (isYesterday(date)) return t("dun", { time: format(date, "HH:mm") });
+    return formatDate(date, "datetime", locale);
+  };
+}
+
+/** Mesaj gövdesi tavanı — API `SendMessageDto` `@MaxLength(5000)` aynası (D-356). */
+export const MESSAGE_MAX_LENGTH = 5000;
+/** Sayaç bu uzunluktan sonra görünür (kısa mesajda gürültü olmasın). */
+const COUNTER_FROM = 4000;
+
+/**
+ * Yazma kutusu İÇERİĞİNE göre büyür (mobil denetim g04): dokunmatikte Enter
+ * yeni satır açtığı için çok satırlı mesaj olağan; kutu tek satırda kalınca
+ * önceki satırlar yukarı kayıyor, kullanıcı göndermeden önce mesajını
+ * okuyamıyordu. Tavan sınıftaki `max-h-32`; üstünde kutu kendi içinde kayar.
+ * Gönderimden sonra (içerik boş) tek satıra iner. Ölçülemeyen kutuya (gizli /
+ * jsdom: scrollHeight 0) dokunulmaz. `field-sizing: content` iOS WebView'da
+ * yok — ölçüm her yerde aynı çalışır.
+ */
+export function fitComposer(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = "auto";
+  const content = el.scrollHeight;
+  if (content <= 0) {
+    el.style.height = "";
+    return;
+  }
+  // scrollHeight kenarlığı saymaz; kutu `border-box`.
+  el.style.height = `${content + (el.offsetHeight - el.clientHeight)}px`;
 }
 
 interface Props {
@@ -45,44 +88,92 @@ export function CompanyMessageThread({
   otherPartyName,
   bare = false,
 }: Props) {
-  const { data, isLoading } = useThreadMessages(portal, otherPartyId);
+  const t = useTranslations("web.panel.inbox.companyMessageThread");
+  const roleLabel = useRoleLabel();
+  // LİSTE DURUMLARI: `isPending` bekleme (çevrimdışı duraklama dahil); konuşma
+  // HİÇ okunamadıysa hata kartı — eskiden hata dalı yoktu, kesintide "Henüz
+  // mesaj yok · İlk mesajı sen gönder" çiziliyordu. 5 sn'lik yoklama düşerse
+  // eldeki mesajlar kalır.
+  const { data, isPending, isError, refetch } = useThreadMessages(portal, otherPartyId);
   const sendMutation = useSendMessage(portal, otherPartyId);
   // F7: gönderme portal-yönlü işlem rolü ister (backend send() birebir:
   // satinalma→Satın Almacı, satis→Satışçı) — rolsüz okur, composer gizli.
-  const { user } = useCompanyAuth();
-  const canSend = canSendMessages(user, portal);
+  // O-123: alıcı yönü ayrıca Gold ister (paket kapısı rolün DIŞINDA): paketi
+  // düşen firma eski konuşmayı okur, composer yerine doğru CTA'yı görür
+  // (doğrulanmamışsa önce doğrulama, değilse Gold'a geçiş).
+  const { user, company } = useCompanyAuth();
+  // Süren sipariş istisnası (sunucu bildirir): paketi düşen alıcı o
+  // satıcıya yazmaya devam eder — Gold çağrısı gösterilmez.
+  const sendOpenByOrder = data?.sendOpenByOrder === true;
+  const tierOpen =
+    messagingDirectionOpen(portal, company?.tier) || sendOpenByOrder;
+  const tierGate = tierOpen ? null : buyingGate(user, company, "listing");
+  const canSend = canSendMessages(
+    user,
+    portal,
+    company?.tier,
+    sendOpenByOrder,
+  );
 
   const [content, setContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const messages = data?.messages ?? [];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  const handleSend = async () => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    try {
-      await sendMutation.mutateAsync(trimmed);
-      setContent("");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Mesaj gönderilemedi"));
-    }
-  };
+  // Enter'a art arda basmak / çift tık aynı mesajı iki kez göndermesin
+  // (arayüz testi FX-00 D-067, O-031).
+  const sendLock = useSubmitLock();
+  const handleSend = () =>
+    sendLock.run(async () => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+      try {
+        await sendMutation.mutateAsync(trimmed);
+        setContent("");
+      } catch (err) {
+        toast.error(extractErrorMessage(err, t("mesajGonderilemedi")));
+      }
+    });
 
+  useLayoutEffect(() => {
+    fitComposer(inputRef.current);
+  }, [content, canSend]);
+  // Genişlik değişince (telefonu yan çevirme, pencere boyutu) satırlar
+  // yeniden sarar → yükseklik yeniden ölçülür.
+  useEffect(() => {
+    const refit = () => fitComposer(inputRef.current);
+    window.addEventListener("resize", refit);
+    return () => window.removeEventListener("resize", refit);
+  }, []);
+
+  // Toast'lar yazma kutusunun üstünde çıkar (gönderim hatası Gönder'i
+  // örtmesin — mobil denetim g04, masaüstü).
+  useToastBottomClearance(composerRef, canSend && !isPending);
+
+  // Dokunmatik cihazda (telefon, tablet) Enter yeni satır açar; gönderim
+  // yalnız Gönder düğmesiyle (mobil denetim g04, kullanıcı kararı). Masaüstü
+  // değişmedi: Enter gönderir, Shift+Enter yeni satır; IME bileşimindeki
+  // Enter göndermez (arayüz testi D-356) — kural `enterSendsMessage`te.
+  const coarsePointer = useCoarsePointer();
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
+    if (!enterSendsMessage(e)) return;
+    e.preventDefault();
+    void handleSend();
   };
 
+  // `dvh` (vh değil): iOS tarayıcı araç çubuğu açıkken yazma kutusu
+  // ekranın altında kalmasın (mobil denetim g04). Güvenli alanın üst/alt payı
+  // (mobil kabuk) da düşülür; pay 0 iken aynı.
   const wrapperCls = bare
     ? "flex flex-col h-full min-h-0 bg-white overflow-hidden"
-    : "flex flex-col h-[calc(100vh-200px)] max-h-[700px] min-h-[400px] bg-white ring-1 ring-zinc-950/5 rounded-2xl overflow-hidden";
+    : "flex flex-col h-[calc(100dvh-200px-var(--safe-top)-var(--safe-bottom))] max-h-[700px] min-h-[400px] bg-white ring-1 ring-zinc-950/5 rounded-2xl overflow-hidden";
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className={`${wrapperCls} items-center justify-center`}>
         <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
@@ -93,10 +184,12 @@ export function CompanyMessageThread({
   return (
     <div className={wrapperCls}>
       {/* Chat header */}
-      <div className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3">
+      {/* Telefonda ad kırpılmaz, iki satıra sarar; başlık daha ince (mesaj
+          listesine yer kalsın — mobil denetim g04). */}
+      <div className="flex items-center gap-3 border-b border-zinc-950/5 bg-white px-4 py-3 max-sm:py-2">
         <AvatarInitials name={otherPartyName} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-zinc-950">
+          <p className="text-sm font-semibold text-zinc-950 max-sm:line-clamp-2 max-sm:break-words sm:truncate">
             {otherPartyName}
           </p>
         </div>
@@ -104,13 +197,15 @@ export function CompanyMessageThread({
 
       {/* Mesaj listesi */}
       <div className="flex-1 overflow-y-auto bg-zinc-50 px-4 py-4">
-        {messages.length === 0 ? (
+        {data === undefined && isError ? (
+          <ErrorState onRetry={() => void refetch()} />
+        ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200">
               <Send className="h-5 w-5 text-zinc-400" />
             </div>
-            <p className="text-sm font-medium text-zinc-600">Henüz mesaj yok</p>
-            <p className="mt-1 text-xs text-zinc-400">İlk mesajı sen gönder</p>
+            <p className="text-sm font-medium text-zinc-600">{t("henuzMesajYok")}</p>
+            <p className="mt-1 text-xs text-zinc-400">{t("ilkMesajiSenGonder")}</p>
           </div>
         ) : (
           <MessageList messages={messages} />
@@ -118,38 +213,79 @@ export function CompanyMessageThread({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input — yalnız portal-yönlü işlem rolüne görünür */}
-      {!canSend ? (
+      {/* Input — paket (alıcı yönü Gold) + portal-yönlü işlem rolü */}
+      {tierGate === "verify" || tierGate === "upgrade" ? (
+        <div
+          role="note"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900"
+        >
+          <Lock aria-hidden className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            {t("aliciYonuDogrulamaGerektirir")}
+            <VerificationLink className="hover:text-amber-950" />
+          </span>
+        </div>
+      ) : !canSend ? (
         <div className="border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
-          Mesaj göndermek {portal === "satis" ? "Satışçı" : "Satın Almacı"}{" "}
-          rolü gerektirir — konuşmayı görüntülüyorsunuz.
+          {t("mesajGondermekRoluGerektirir", { role: roleLabel(portal === "satis" ? "SATISCI" : "SATIN_ALMACI") })}
         </div>
       ) : (
-      <div className="border-t border-zinc-200 bg-white px-3 py-3">
+      <div ref={composerRef} className="border-t border-zinc-200 bg-white px-3 py-3">
         <div className="flex items-end gap-2">
           <div className="flex-1">
             <textarea
+              ref={inputRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={onKey}
-              placeholder="Mesaj yaz… (Enter: gönder, Shift+Enter: yeni satır)"
+              maxLength={MESSAGE_MAX_LENGTH}
+              // Kısa yer tutucu (D-008): uzun "Enter/Shift+Enter" metni 390 px'te
+              // iki satıra bölünüp kesiliyordu; klavye ipucu yalnız geniş ekranda alt satırda.
+              placeholder={t("mesajYaz")}
+              // Ekran klavyesinin dönüş tuşu: dokunmatikte "yeni satır", masaüstünde "gönder".
+              enterKeyHint={coarsePointer ? "enter" : "send"}
+              aria-describedby={coarsePointer ? undefined : "company-message-enter-hint"}
               rows={1}
               className="max-h-32 w-full resize-none rounded-lg border border-surface-border bg-white px-3.5 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
           </div>
+          {/* Telefonda gönderimin TEK yolu bu düğme → 44 px dokunma alanı.
+              Basış odağı kutudan ALMAZ (`mousedown` varsayılanı): ekran
+              klavyesi açık kalır, sonraki mesaj hemen yazılır ve klavye
+              kapanırken düzen kayıp dokunuş boşa düşmez. Klavyeyle (Tab)
+              odaklanıp basma etkilenmez. */}
           <button
             type="button"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => void handleSend()}
-            disabled={sendMutation.isPending || !content.trim()}
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
-            aria-label="Gönder"
+            disabled={sendMutation.isPending || sendLock.locked || !content.trim()}
+            className="inline-flex h-11 min-w-11 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 sm:h-9 sm:min-w-0"
+            aria-label={t("gonder")}
           >
-            {sendMutation.isPending ? (
+            {sendMutation.isPending || sendLock.locked ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
           </button>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-2 px-0.5">
+          {/* Klavye kısayolu ipucu yalnız fiziksel klavyeli (ince işaretçili)
+              cihazda — dokunmatikte Enter yeni satırdır. */}
+          {coarsePointer ? null : (
+            <p id="company-message-enter-hint" className="hidden text-xs text-zinc-500 sm:block">
+              {t("enterIpucu")}
+            </p>
+          )}
+          {content.length >= COUNTER_FROM ? (
+            <span
+              className={`ml-auto text-xs tabular-nums ${
+                content.length >= MESSAGE_MAX_LENGTH ? "text-rose-700" : "text-zinc-500"
+              }`}
+            >
+              {t("karakterSayaci", { n: content.length, max: MESSAGE_MAX_LENGTH })}
+            </span>
+          ) : null}
         </div>
       </div>
       )}
@@ -158,6 +294,7 @@ export function CompanyMessageThread({
 }
 
 function MessageList({ messages }: { messages: ChatMessage[] }) {
+  const formatTimestamp = useFormatTimestamp();
   return (
     <div className="space-y-2">
       {messages.map((msg) => {

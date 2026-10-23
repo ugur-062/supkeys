@@ -55,8 +55,10 @@ export class ExchangeRateScheduler implements OnModuleInit {
   }
 
   /**
-   * Boot'ta DB'de hiç kur yoksa bir kez fetch dene. Her boot'ta TCMB'yi
-   * gereksiz yere yormamak için DB'de kayıt varsa atlar.
+   * HER açılıştan 30 sn sonra TCMB'den bir kez çeker (tabloda kayıt olsa da):
+   * kaçırılmış bir cron ya da boş tablo bir sonraki deploy/yeniden başlatmada
+   * kapanır. Yan etkisi: aynı günün MANUAL satırı varsa TCMB değeri üzerine
+   * yazar (elle kur yalnız TCMB o günü yayınlamadıysa kalıcıdır).
    */
   async onApplicationBootstrap(): Promise<void> {
     setTimeout(() => {

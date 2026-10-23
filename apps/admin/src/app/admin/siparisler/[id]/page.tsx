@@ -1,5 +1,6 @@
 "use client";
 
+import { CompanyLink, useCanOpenCompany } from "@/components/ui/company-link";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -12,11 +13,13 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { isNotFoundError, NotFoundState } from "@/components/ui/not-found-state";
 import {
   useAdminOrderDetail,
   useCancelOrder,
 } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
+import { paymentMethodTr, systemTextTr } from "@/lib/system-text";
 import {
   fmtMoney,
   orderStatusMeta,
@@ -28,9 +31,12 @@ import {
 } from "@/lib/payment-plan-label";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -44,15 +50,36 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 const CANCELABLE = new Set(["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"]);
 
 function OrderInspection({ id }: { id: string }) {
-  const { data: o, isLoading, isError, refetch } = useAdminOrderDetail(id);
+  const { data: o, isLoading, isError, error, refetch } = useAdminOrderDetail(id);
+  // Geri bağlantı gelinen yere döner (`?from=<firma id>` | `listing`);
+  // önceden her zaman ALICI firmaya gidiyordu (arayüz testi D-217).
+  const from = useSearchParams()?.get("from") ?? null;
   const cancel = useCancelOrder(id);
   const [dialog, setDialog] = useState(false);
+  // İptal SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
+  const { admin } = useAdminAuth();
+  const canCancel = canAdminDo(admin?.role, "cancelOrder");
+  // Firma detayı Destek rolüne kapalı → 403'e giden geri bağlantı verilmez (T-09).
+  const canOpenCompany = useCanOpenCompany();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
       </div>
+    );
+  }
+  // Var olmayan sipariş: "Tekrar dene" yine 404 verir (arayüz testi D-215).
+  // Ayrı liste sayfası yok — siparişe firma detayından gelinir; firma
+  // detayını göremeyen rol (Destek) panele döner (T-09).
+  if (isError && isNotFoundError(error)) {
+    return (
+      <NotFoundState
+        title="Sipariş bulunamadı."
+        message="Bağlantı hatalı olabilir ya da sipariş silinmiş olabilir."
+        backHref={canOpenCompany ? "/admin/firmalar" : "/admin/dashboard"}
+        backLabel={canOpenCompany ? "Firmalar listesine dön" : "Panele dön"}
+      />
     );
   }
   if (isError || !o) {
@@ -70,17 +97,30 @@ function OrderInspection({ id }: { id: string }) {
   // F5: onaylı toplam backend'in DECIMAL değerinden (INV-MONEY-1) — float re-sum
   // yerine tek kaynak (kuruş sapması yok).
   const confirmed = Number(o.paymentConfirmed);
+  // Backend onaylı (CONFIRMED) ödemesi olan siparişi her durumda reddeder →
+  // düğme yerine not gösterilir; iade ayrı yürütülür (derin denetim LU-12).
+  const hasConfirmedPayment = o.payments.some((p) => p.status === "CONFIRMED");
+  const back =
+    from === "listing" && o.listing
+      ? { href: `/admin/ilanlar/${o.listing.id}`, label: o.listing.number ?? "İlan" }
+      : !canOpenCompany
+        ? null
+        : from === o.seller.id
+          ? { href: `/admin/firmalar/${o.seller.id}?tab=siparisler`, label: `${o.seller.name} · Siparişler` }
+          : { href: `/admin/firmalar/${o.buyer.id}?tab=siparisler`, label: `${o.buyer.name} · Siparişler` };
 
   return (
     <div className="max-w-[1100px] space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
-            href={`/admin/firmalar/${o.buyer.id}?tab=siparisler`}
-            className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Siparişler
-          </Link>
+          {back ? (
+            <Link
+              href={back.href}
+              className="text-admin-text-muted hover:text-admin-text mb-2 inline-flex items-center gap-1 text-xs font-medium"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {back.label}
+            </Link>
+          ) : null}
           <h1 className="text-admin-text text-2xl font-bold">
             {o.number ?? "Sipariş"}
           </h1>
@@ -100,14 +140,21 @@ function OrderInspection({ id }: { id: string }) {
           </div>
           {o.cancelReason ? (
             <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700">
-              İptal gerekçesi: {o.cancelReason}
+              İptal gerekçesi: {systemTextTr(o.cancelReason)}
             </p>
           ) : null}
         </div>
-        {CANCELABLE.has(o.status) ? (
-          <Button variant="danger" size="sm" onClick={() => setDialog(true)}>
-            Siparişi İptal Et
-          </Button>
+        {canCancel && CANCELABLE.has(o.status) ? (
+          hasConfirmedPayment ? (
+            <p className="max-w-xs rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+              Onaylı ödeme var — sipariş iptal edilemez, iade süreci ayrı
+              yürütülür.
+            </p>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => setDialog(true)}>
+              Siparişi İptal Et
+            </Button>
+          )
         ) : null}
       </div>
 
@@ -117,23 +164,23 @@ function OrderInspection({ id }: { id: string }) {
           <Row
             label="Alıcı"
             value={
-              <Link
+              <CompanyLink
                 href={`/admin/firmalar/${o.buyer.id}`}
                 className="hover:underline"
               >
                 {o.buyer.name}
-              </Link>
+              </CompanyLink>
             }
           />
           <Row
             label="Satıcı"
             value={
-              <Link
+              <CompanyLink
                 href={`/admin/firmalar/${o.seller.id}`}
                 className="hover:underline"
               >
                 {o.seller.name}
-              </Link>
+              </CompanyLink>
             }
           />
           <Row
@@ -222,7 +269,7 @@ function OrderInspection({ id }: { id: string }) {
                       {fmtMoney(p.amount, o.currency)}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs">
-                      {p.method ?? "—"}
+                      {paymentMethodTr(p.method) ?? "—"}
                     </TableCell>
                     <TableCell>
                       <Badge color={pm.color}>{pm.label}</Badge>
@@ -238,8 +285,8 @@ function OrderInspection({ id }: { id: string }) {
         </Table>
       </section>
 
-      {/* Kalemler + belgeler */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Kalemler */}
+      <div className="grid grid-cols-1 gap-4">
         <section className="admin-card overflow-hidden">
           <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
@@ -279,22 +326,18 @@ function OrderInspection({ id }: { id: string }) {
       <PromptDialog
         open={dialog}
         title="Siparişi İptal Et (yönetici)"
-        description={
-          confirmed > 0
-            ? `DİKKAT: Bu siparişte ${fmtMoney(confirmed, o.currency)} onaylı ödeme var — iptal sonrası iade süreci gerekebilir.`
-            : undefined
-        }
         label="Gerekçe (en az 10 karakter — iki tarafa da bildirilir)"
         placeholder="Örn. taraflar anlaşamadı, destek talebi #123"
         required
+        minLength={10}
+        maxLength={500}
         confirmLabel="İptal Et"
         onConfirm={(v) => {
           cancel.mutate(
             { reason: (v || "").trim() },
             {
               onSuccess: () => toast.success("Sipariş iptal edildi"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           );
           setDialog(false);
@@ -309,7 +352,9 @@ export default function AdminOrderPage() {
   const params = useParams<{ id: string }>();
   return (
     <AdminShell>
-      {params?.id ? <OrderInspection id={params.id} /> : null}
+      <Suspense fallback={null}>
+        {params?.id ? <OrderInspection id={params.id} /> : null}
+      </Suspense>
     </AdminShell>
   );
 }

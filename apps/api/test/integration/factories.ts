@@ -10,6 +10,7 @@ import {
 } from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { permissionsForRoles } from "@rothern/shared";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 let counter = 0;
 const uniq = () => `${Date.now().toString(36)}-${counter++}`;
@@ -40,7 +41,12 @@ export async function makeCompany(
       // değişiklik oluşmaz ve kilit hiç tetiklenmez.
       iban: "TR120006100519786457841399",
       ibanHolder: "Test Firma A.Ş.",
+      // SWIFT doğrulamada her ülkede zorunlu (2026-09-27) — "kimliği tam" fikstür.
+      bankSwiftBic: "TGBATRIS",
       ...over,
+      // Gerçek yazma yolu gibi şehir metninden dünya şehir listesi kaydı
+      // (2026-09-27): süzgeç/facet `cityId` okur.
+      cityId: over.cityId !== undefined ? over.cityId : resolveCityId(over.country ?? "TR", over.city ?? null),
     },
   });
 }
@@ -67,6 +73,23 @@ export async function makeUser(
       isActive: true,
       ...over,
     },
+  });
+}
+
+/**
+ * Marks every account of the given companies as having a PROVEN e-mail
+ * address (`emailVerifiedAt`). `makeUser` creates accounts unverified, like a
+ * fresh self sign-up; a spec that needs a real member stamps it.
+ *
+ * Needed wherever a company must be INVITABLE to a request: a company without
+ * a proven account is a sign-up placeholder for the paths that write request
+ * invitations (automatic invitation of connections, manual invitation, AI
+ * member invitation - `src/common/company/proven-account.ts`) and gets no row.
+ */
+export async function proveAccounts(prisma: PrismaClient, ...companyIds: string[]) {
+  await prisma.companyUser.updateMany({
+    where: { companyId: { in: companyIds }, emailVerifiedAt: null },
+    data: { emailVerifiedAt: new Date() },
   });
 }
 

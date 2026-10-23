@@ -1,16 +1,21 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { formatNumber } from "@/i18n/format";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { VisitsVisibilityCard } from "@/components/company/visits-visibility-card";
+import { VerificationActions } from "@/components/company/verification-gate";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { PeriodSelect } from "@/components/company/period-select";
 import { MiniBars } from "@/components/company/ui/mini-bars";
 import { StatTile } from "@/components/company/ui/stat-tile";
 import { EmptyState, Pagination } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { useVisitors, type ViewDays, type VisitorItem } from "@/hooks/use-company-views";
 import { pctChange } from "@/lib/dashboard/delta";
 import { formatDate } from "@/lib/format-date";
-import { companyActivityLabel } from "@rothern/shared";
 import {
   BuildingOffice2Icon,
   CubeIcon,
@@ -19,7 +24,8 @@ import {
   LockClosedIcon,
   UserGroupIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useState } from "react";
 
 /**
@@ -31,20 +37,23 @@ import { useState } from "react";
  * ziyaret sayısı; eylemler profilde.
  */
 export function VisitorsView() {
+  const t = useTranslations("web.panel.trade.visitorsView");
+  const locale = useLocale() as Locale;
   const [days, setDays] = useState<ViewDays>(30);
   const [page, setPage] = useState(1);
   const q = useVisitors(days, page);
+  const canEditProfile = useHasCompanyPermission("company:manage");
   const d = q.data;
   const totalPages = d ? Math.max(1, Math.ceil(d.totalItems / d.pageSize)) : 1;
-  const deltaLabel = `Önceki ${days} güne göre`;
+  const deltaLabel = t("oncekiGuneGore", { days: days });
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Ziyaret Edenler</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{t("ziyaretEdenler")}</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Profilinizi ve ürünlerinizi inceleyen firmalar. Giriş yapmış üyeler adıyla, herkese açık sayfadan gelenler yalnız sayı olarak görünür.
+            {t("profiliniziVeUrunleriniziInceleyenFirmalar")}
           </p>
         </div>
         <PeriodSelect value={days} onChange={(v) => { setDays(v); setPage(1); }} />
@@ -54,34 +63,38 @@ export function VisitorsView() {
           görünür" ayarı, başkalarının ziyaretini gördüğünüz sayfada. */}
       <VisitsVisibilityCard />
 
-      {q.isLoading ? (
+      {/* LİSTE DURUMLARI: iskelet `isPending`e bağlı (çevrimdışı duraklamada
+          hata kartı değil bekleme); hata kartı yalnız hiç veri yokken — eldeki
+          sayılar ve ziyaretçi satırları arka plan yenilemesi düşünce KALIR
+          (eskiden `isError` tek başına bütün sayfayı hata kartına çeviriyordu). */}
+      {q.isPending ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-hidden>
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-2xl bg-zinc-100" />)}
         </div>
-      ) : q.isError || !d ? (
-        <EmptyState icon={EyeIcon} title="Ziyaretçi verisi alınamadı." description="Bir hata oluştu — tekrar deneyin." variant="no-results" />
+      ) : !d ? (
+        <ErrorState title={t("ziyaretciVerisiAlinamadi")} message={t("birHataOlustuTekrarDeneyin")} onRetry={() => void q.refetch()} />
       ) : (
         <>
-          <section aria-label="Özet" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatTile icon={EyeIcon} tone="blue" label="Toplam görüntülenme" value={d.total.toLocaleString("tr-TR")} deltaPct={pctChange(d.total, d.previous.total)} deltaLabel={deltaLabel} />
-            <StatTile icon={IdentificationIcon} tone="zinc" label="Profil görüntülenmesi" value={d.profileViews.toLocaleString("tr-TR")} />
-            <StatTile icon={CubeIcon} tone="emerald" label="Ürün görüntülenmesi" value={d.productViews.toLocaleString("tr-TR")} />
+          <section aria-label={t("ozet")} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatTile icon={EyeIcon} tone="blue" label={t("toplamGoruntulenme")} value={formatNumber(d.total, locale)} deltaPct={pctChange(d.total, d.previous.total)} deltaLabel={deltaLabel} />
+            <StatTile icon={IdentificationIcon} tone="zinc" label={t("profilGoruntulenmesi")} value={formatNumber(d.profileViews, locale)} />
+            <StatTile icon={CubeIcon} tone="emerald" label={t("urunGoruntulenmesi")} value={formatNumber(d.productViews, locale)} />
             <StatTile
               icon={UserGroupIcon}
               tone="violet"
-              label="Kimliği bilinen firma"
-              value={d.identified.toLocaleString("tr-TR")}
+              label={t("kimligiBilinenFirma")}
+              value={formatNumber(d.identified, locale)}
               deltaPct={pctChange(d.identified, d.previous.identified)}
               deltaLabel={deltaLabel}
-              hint={d.anonymous > 0 ? `+ ${d.anonymous} anonim ziyaret` : undefined}
+              hint={d.anonymous > 0 ? t("anonimZiyaret", { anonymous: d.anonymous }) : undefined}
             />
           </section>
 
           {d.total > 0 ? (
-            <section aria-label="Günlük görüntülenme" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+            <section aria-label={t("gunlukGoruntulenme")} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-zinc-600">Günlük görüntülenme</p>
-                <p className="text-xs text-zinc-500">Son {days} gün</p>
+                <p className="text-sm font-medium text-zinc-600">{t("gunlukGoruntulenme")}</p>
+                <p className="text-xs text-zinc-500">{t("sonGun", { days: days })}</p>
               </div>
               <div className="mt-3">
                 <MiniBars data={d.daily} height={72} accent="blue" />
@@ -94,25 +107,29 @@ export function VisitorsView() {
           ) : d.items.length === 0 ? (
             <EmptyState
               icon={EyeIcon}
-              title="Bu dönemde kimliği bilinen ziyaretçi yok."
-              description="Profilinizi tamamlayıp ürün ekledikçe daha çok firma sizi bulur."
+              title={t("buDonemdeKimligiBilinenZiyaretci")}
+              description={t("profiliniziTamamlayipUrunEkledikceDaha")}
               variant="no-data"
               action={
-                <Link href="/company/sirketim/profil" className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
-                  Profili tamamla
-                </Link>
+                // Profili yalnız düzenleme yetkisi olan tamamlar; yalnız
+                // "Ziyaret edenler" tikli kişiyi profil kapısına götürme (O-062).
+                canEditProfile ? (
+                  <Link href="/company/sirketim/profil" className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                    {t("profiliTamamla")}
+                  </Link>
+                ) : undefined
               }
             />
           ) : (
-            <section aria-label="Ziyaretçi firmalar" className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+            <section aria-label={t("ziyaretciFirmalar")} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
               <div className="hidden grid-cols-[1fr_minmax(0,1.1fr)_7rem_7rem_7rem] gap-4 border-b border-zinc-950/5 px-5 py-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase md:grid">
-                <span>Firma</span>
-                <span>Baktığı</span>
-                <span className="text-right">Ziyaret</span>
-                <span className="text-right">Son ziyaret</span>
+                <span>{t("firma")}</span>
+                <span>{t("baktigi")}</span>
+                <span className="text-right">{t("ziyaret")}</span>
+                <span className="text-right">{t("sonZiyaret")}</span>
                 <span />
               </div>
-              <ul className="divide-y divide-zinc-950/5" aria-label="Ziyaretçi firmalar">
+              <ul className="divide-y divide-zinc-950/5" aria-label={t("ziyaretciFirmalar")}>
                 {d.items.map((v) => <VisitorRow key={v.company.id} v={v} />)}
               </ul>
               {totalPages > 1 ? (
@@ -129,10 +146,15 @@ export function VisitorsView() {
 }
 
 function LockedList({ count }: { count: number }) {
+  const t = useTranslations("web.panel.trade.visitorsView");
   return (
-    <section aria-label="Kimlikli ziyaretçi listesi (kilitli)" className="relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      <ul className="divide-y divide-zinc-950/5 select-none blur-[3px]" aria-hidden>
-        {["Anadolu Metal San.", "Ege Tekstil A.Ş.", "Karadeniz Enerji Ltd."].map((n, i) => (
+    // Bulanık satırlar ve kilit kartı AYNI ızgara hücresinde üst üste: bölüm
+    // yüksekliği ikisinin büyüğü. Kart eskiden `absolute inset-0` ile üç satırın
+    // (~218px) içine sıkışıyor, doğrulama notu + iki eylem eklenince mobilde
+    // başlık ve düğmeler kırpılıyordu (arayüz testi D-194, yeniden doğrulama).
+    <section aria-label={t("kimlikliZiyaretciListesiKilitli")} className="grid overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <ul className="divide-y divide-zinc-950/5 select-none blur-[3px] col-start-1 row-start-1" aria-hidden>
+        {["Anadolu Metal San.", t("egeTekstilAS"), "Karadeniz Enerji Ltd."].map((n, i) => (
           <li key={n} className="flex items-center gap-4 px-5 py-4">
             <span className="size-10 rounded-xl bg-zinc-200" />
             <span className="flex-1">
@@ -144,16 +166,16 @@ function LockedList({ count }: { count: number }) {
           </li>
         ))}
       </ul>
-      <div className="absolute inset-0 flex items-center justify-center bg-white/70 p-6">
-        <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+      {/* `relative`: bulanık liste (filter) kendi katmanını açar; kart onun üstünde çizilsin. */}
+      <div data-testid="visitors-lock-overlay" className="relative flex items-center justify-center bg-white/70 p-4 col-start-1 row-start-1 sm:p-6">
+        <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center shadow-sm sm:p-6">
           <LockClosedIcon aria-hidden className="mx-auto mb-2 size-7 text-amber-500" />
           <p className="font-semibold text-amber-900">
-            {count > 0 ? `${count} firma profilinizi inceledi` : "Kimlikli ziyaretçi listesi Silver ve üzeri paketlerde"}
+            {count > 0 ? t("firmaProfiliniziInceledi", { n: count }) : t("kimlikliZiyaretciListesiDogrulama")}
           </p>
-          <p className="mt-1 text-sm text-amber-800">Firma adı, şehir, faaliyet tipi ve hangi ürünlere baktıkları paketle açılır.</p>
-          <Link href="/company/premium" className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-            Paketleri gör
-          </Link>
+          <p className="mt-1 text-sm text-amber-800">{t("firmaAdiSehirFaaliyetTipi")}</p>
+          {/* Tek eylem doğrulama akışı; not ve etiket doğrulama durumunu izler. */}
+          <VerificationActions className="justify-center" />
         </div>
       </div>
     </section>
@@ -161,6 +183,10 @@ function LockedList({ count }: { count: number }) {
 }
 
 function VisitorRow({ v }: { v: VisitorItem }) {
+  const t = useTranslations("web.panel.trade.visitorsView");
+  const locale = useLocale() as Locale;
+  const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const c = v.company;
   const href = c.rothernId ? `/company/firma/${c.rothernId}` : undefined;
   return (
@@ -181,22 +207,22 @@ function VisitorRow({ v }: { v: VisitorItem }) {
             {href ? <Link href={href} className="hover:underline">{c.name}</Link> : <span>{c.name}</span>}
             {c.verified ? (
               <Badge tone="verified" size="sm" className="px-1">
-                <span className="sr-only">Doğrulanmış firma</span>
+                <span className="sr-only">{t("dogrulanmisFirma")}</span>
               </Badge>
             ) : null}
-            {v.connected ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">Bağlantılı</span> : null}
+            {v.connected ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">{t("baglantili")}</span> : null}
           </p>
           <p className="mt-0.5 truncate text-xs text-zinc-500">
-            {[c.city, ...c.activities.slice(0, 2).map((a) => companyActivityLabel(a))].filter(Boolean).join(" · ") || "—"}
+            {[c.city ? cityLabel(c.city) : null, ...c.activities.slice(0, 2).map((a) => activityLabel(a))].filter(Boolean).join(" · ") || "—"}
           </p>
         </div>
       </div>
       <p className="flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="sr-only">Baktığı: </span>
+        <span className="sr-only">{t("baktigi2")} </span>
         {v.profileViews > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700">
             <IdentificationIcon aria-hidden className="size-3.5 text-zinc-500" />
-            Profil
+            {t("profil")}
           </span>
         ) : null}
         {v.products.map((p) => (
@@ -207,13 +233,16 @@ function VisitorRow({ v }: { v: VisitorItem }) {
         ))}
       </p>
       <p className="text-sm font-semibold tabular-nums text-zinc-950 md:text-right">
-        {v.visits} <span className="text-xs font-normal text-zinc-500">ziyaret</span>
+        {t.rich("ziyaretBirim", {
+          n: v.visits,
+          unit: (chunks) => <span className="text-xs font-normal text-zinc-500">{chunks}</span>,
+        })}
       </p>
-      <p className="text-xs text-zinc-500 md:text-right">{formatDate(v.lastViewedAt, "short")}</p>
+      <p className="text-xs text-zinc-500 md:text-right">{formatDate(v.lastViewedAt, "short", locale)}</p>
       <div className="md:text-right">
         {href ? (
           <Link href={href} className="inline-flex rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-50">
-            Profili gör
+            {t("profiliGor")}
           </Link>
         ) : null}
       </div>

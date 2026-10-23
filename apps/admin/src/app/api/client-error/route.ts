@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { scrubUrl } from "@/lib/sentry-scrub";
 
 /**
  * Tarayıcıdan gelen hata bildirimini SUNUCUDA Sentry'e yazar.
@@ -12,7 +13,14 @@ export const dynamic = "force-dynamic";
 const MAX_BODY = 16_000;
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 30;
+/**
+ * Süreç başına toplam tavan (derin denetim LU-13; web'deki B5-9 düzeltmesinin
+ * admin karşılığı): IP başına tavan tek başına Sentry kotasını korumaz — çok
+ * kaynaklı sel kotayı bitirir ve gerçek hatalar düşer.
+ */
+const MAX_GLOBAL_PER_WINDOW = 600;
 const hits = new Map<string, { n: number; until: number }>();
+let global = { n: 0, until: 0 };
 
 function throttled(ip: string): boolean {
   const now = Date.now();
@@ -26,12 +34,29 @@ function throttled(ip: string): boolean {
   return cur.n > MAX_PER_WINDOW;
 }
 
+function globallyThrottled(): boolean {
+  const now = Date.now();
+  if (global.until < now) global = { n: 0, until: now + WINDOW_MS };
+  global.n += 1;
+  return global.n > MAX_GLOBAL_PER_WINDOW;
+}
+
+/**
+ * İstemci IP'si Vercel'in yazdığı başlıklardan. Admin Cloudflare arkasında
+ * DEĞİL: `cf-connecting-ip`i istemci istediği gibi gönderip her istekte yeni
+ * "IP" ile tavanı aşıyordu (derin denetim LU-13). Vercel `x-real-ip` ve
+ * `x-forwarded-for`u kendisi yazar (istemcininkini ezer).
+ */
+function clientIp(req: Request): string {
+  return (
+    req.headers.get("x-real-ip")?.trim() ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "bilinmiyor"
+  );
+}
+
 export async function POST(req: Request): Promise<Response> {
-  const ip =
-    req.headers.get("cf-connecting-ip") ??
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "bilinmiyor";
-  if (throttled(ip)) return new Response(null, { status: 429 });
+  if (throttled(clientIp(req)) || globallyThrottled()) return new Response(null, { status: 429 });
 
   const raw = await req.text();
   if (raw.length > MAX_BODY) return new Response(null, { status: 413 });
@@ -54,14 +79,20 @@ export async function POST(req: Request): Promise<Response> {
   Sentry.captureException(err, {
     tags: { source: "browser", kind: str(body.kind, 40) ?? "window" },
     extra: {
-      url: str(body.url, 500),
+      // İstemci zaten süzer; sunucu yeniden süzer (eski istemci/elle gönderim).
+      url: (() => {
+        const u = str(body.url, 500);
+        return u ? scrubUrl(u) : undefined;
+      })(),
       digest: str(body.digest, 100),
       componentStack: str(body.componentStack, 2_000),
       userAgent: str(req.headers.get("user-agent"), 200),
     },
   });
-  // DSN yoksa Sentry no-op → en azından sunucu günlüğüne yaz.
-  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  // Sentry istemcisi başlamadıysa (DSN yok ya da kanca çalışmadı) capture
+  // no-op → en azından sunucu günlüğüne yaz. DSN'e bakmak yetmez: DSN tanımlıyken
+  // `register()` hiç çağrılmayınca hatalar iz bırakmadan kayboluyordu (Y-12).
+  if (!Sentry.getClient()) {
     console.error("[istemci-hatası]", err.name, message, str(body.url, 200));
   }
   return new Response(null, { status: 204 });

@@ -1,11 +1,17 @@
 /**
- * Kademe görünürlüğü — 2026-09-06 revizyonu ("premium çekmek için"):
- * STANDART, bağlı/davetli OLMADIĞI PUBLIC talebi HİÇ görmez (listede yok,
- * detay 403 TIER_REQUIRED, teklif 403); kilit özeti (`lockedPublicSummary`)
- * yalnız gerçek SAYI + örnek satır verir. Davet/bağlantı → tam görünüm + teklif.
- * SILVER+ → PUBLIC tam + teklif. Eski "maskeli önizleme" KALKTI. Formüllerin
+ * Kademe görünürlüğü — STANDART, bağlı/davetli OLMADIĞI PUBLIC talebi TAM
+ * görmez (tam listede yok, detay 403 TIER_REQUIRED, teklif 403); onu Açık
+ * Talepler'de ALICI GİZLİ maskeli satır olarak görür (`maskedPublicTenders`,
+ * 2026-10-03 — eski kilitli sayı kartının yerine; ayrıntılı sözleşme
+ * `masked-public-tenders.spec.ts`). Davet/bağlantı → tam görünüm + teklif,
+ * maskelenmez. SILVER+ → PUBLIC tam + teklif, maskeli liste boş. Formüllerin
  * tek kaynağı listingBidEligibility (listing-visibility.ts) —
  * getOne/sellerTenders/placeBid aynı kuralı okur.
+ *
+ * ÜCRETSİZ DÖNEM (2026-10-07): SINIRLI ("STANDART") firma = DOĞRULANMAMIŞ
+ * firma (saklı kademesi STANDART). Doğrulanmış firma saklı kademesinden
+ * bağımsız tam erişimlidir (JWT efektif kademe GOLD taşır). Ret metni paket
+ * değil doğrulama ister.
  */
 import { prisma, truncateAll } from "./test-db";
 import {
@@ -16,6 +22,10 @@ import {
   makeListing,
 } from "./factories";
 import { makeService } from "./make-service";
+import { FREE_PERIOD } from "../../src/common/company/effective-tier";
+
+const LIMITED = { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" } as const;
+const PACKAGE_WORDS = /silver|gold|paket|premium|üyelik/i;
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
@@ -26,6 +36,7 @@ const bid = (itemId: string, unitPrice = 100) =>
     validityDays: 30,
   }) as never;
 
+let seq = 0;
 async function publicListing() {
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {
@@ -35,6 +46,10 @@ async function publicListing() {
     status: "OPEN",
     visibility: "PUBLIC",
     closesAt: FUTURE,
+    // Maskeli küme vitrin kapısıyla kesişir (yayımlanmış olmalı).
+    publishedAt: new Date(),
+    // Maskeli satır numarayla açılır; numarasız kayıt maskeli listeye girmez.
+    number: `ROT-${String(600000 + ++seq)}`,
   });
   const item = await makeItem(prisma, listing.id);
   return { owner, listing, item };
@@ -48,14 +63,11 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlantı açar", () => {
-  it("STANDART: bağsız PUBLIC listede YOK; detay 403 TIER_REQUIRED; kilit özeti gerçek sayı verir", async () => {
+describe("Kademe görünürlüğü — STANDART PUBLIC'i yalnız maskeli görür, davet/bağlantı açar", () => {
+  it("STANDART: bağsız PUBLIC tam listede YOK; detay 403 TIER_REQUIRED; maskeli satırda alıcı gizli", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
-    const std = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
+    const std = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
 
     const rows = (await service.sellerTenders(std.auth)) as { id: string }[];
     expect(rows.find((r) => r.id === listing.id)).toBeUndefined();
@@ -66,39 +78,57 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     );
     expect(err).not.toBeNull();
     expect(err!.getStatus()).toBe(403);
-    expect(err!.getResponse()).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER" });
+    expect(err!.getResponse()).toMatchObject({
+      code: "TIER_REQUIRED",
+      minTier: "SILVER",
+      verificationStatus: "UNVERIFIED",
+      verifyPath: "/company/ayarlar/dogrulama",
+    });
+    const denial = String((err!.getResponse() as { message: unknown }).message);
+    expect(denial).toMatch(/doğrula/i);
+    expect(denial).not.toMatch(PACKAGE_WORDS);
 
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked).toBe(true);
-    if (summary.locked) {
-      expect(summary.total).toBe(1);
-      expect(summary.samples[0]?.title).toBe(listing.title);
-      expect(summary.samples[0]).not.toHaveProperty("id");
-      expect(JSON.stringify(summary)).not.toContain(listing.id);
-    }
-    // Sektör sayaçları da aynı kapıyı okur: ücretsize 0.
+    const masked = await service.maskedPublicTenders(std.auth);
+    expect(masked).toHaveLength(1);
+    expect(masked[0]?.title).toBe(listing.title);
+    expect(masked[0]).not.toHaveProperty("id");
+    expect(masked[0]).not.toHaveProperty("owner");
+    expect(JSON.stringify(masked)).not.toContain(listing.id);
+    // Pano keşif sayaçları TAM listeyle aynı kapıyı okur: ücretsize 0
+    // (maskeli satırlar sektör süzgecine web'de, kendi listesinden girer).
     expect((await service.discoverFacets(std.auth)).total).toBe(0);
   });
 
   it("STANDART bağlantısız PUBLIC'e placeBid → 403 (teklif kapısı)", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing(); // ALIM → teklifçi ST rolü ister
-    const std = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
-    await expect(
-      service.placeBid(std.auth, listing.id, bid(item.id)),
-    ).rejects.toThrow(/premium|paket|bağlantı/i);
+    const std = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
+    const err = await service.placeBid(std.auth, listing.id, bid(item.id)).catch((e: Error) => e);
+    expect(err).toMatchObject({ status: 403 });
+    expect((err as Error).message).toMatch(/doğrula/i);
+    expect((err as Error).message).not.toMatch(PACKAGE_WORDS);
+    expect(await prisma.listingBid.count({ where: { listingId: listing.id } })).toBe(0);
+    // İncelemedeki / reddedilmiş firma da teklif veremez; durumuna özel metni alır.
+    for (const [status, pattern] of [
+      ["PENDING", /inceleniyor/i],
+      ["REJECTED", /yeniden başvurun/i],
+    ] as const) {
+      const co = await makeCompanyWithUser(prisma, {
+        country: "TR",
+        tier: "STANDART",
+        companyVerificationStatus: status,
+      });
+      const e = await service.placeBid(co.auth, listing.id, bid(item.id)).catch((x: Error) => x);
+      expect(e).toMatchObject({ status: 403 });
+      expect((e as Error).message).toMatch(pattern);
+      expect((e as Error).message).not.toMatch(PACKAGE_WORDS);
+    }
   });
 
-  it("STANDART davet edilince TAM görür + teklif verir; kilit özeti onu SAYMAZ", async () => {
+  it("STANDART davet edilince TAM görür + teklif verir; maskelenmez", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
-    const std = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
+    const std = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     await invite(prisma, listing.id, std.company.id, owner.user.id);
 
     const rows = (await service.sellerTenders(std.auth)) as { id: string; canBid: boolean; owner: unknown }[];
@@ -115,17 +145,13 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
   it("STANDART bağlantısının talebini TAM görür + teklif verir", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
-    const std = await makeCompanyWithUser(prisma, {
-      country: "TR",
-      tier: "STANDART",
-    });
+    const std = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     await connect(prisma, owner.company.id, std.company.id, owner.user.id);
 
     const detail = (await service.getOne(std.auth, listing.id)) as { canBid: boolean };
@@ -133,14 +159,13 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     await expect(
       service.placeBid(std.auth, listing.id, bid(item.id)),
     ).resolves.toBeDefined();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
-  it("hasBid istisnası: teklif vermiş STANDART firma bağlantı düşse de kendi talebini görür, kilit özeti onu saymaz", async () => {
+  it("hasBid istisnası: teklif vermiş STANDART firma bağlantı düşse de kendi talebini görür, maskelenmez", async () => {
     const { service } = makeService();
     const { owner, listing, item } = await publicListing();
-    const std = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    const std = await makeCompanyWithUser(prisma, { country: "TR", ...LIMITED });
     await connect(prisma, owner.company.id, std.company.id, owner.user.id);
     await expect(service.placeBid(std.auth, listing.id, bid(item.id))).resolves.toBeDefined();
     // Bağlantı düştü (kuran taraf paketsiz kaldı / silindi).
@@ -152,16 +177,32 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     expect(detail.canBid).toBe(false); // görür ama yeniden teklif kapısı paketli
     const rows = (await service.sellerTenders(std.auth)) as { id: string }[];
     expect(rows.find((r) => r.id === listing.id)).toBeTruthy();
-    const summary = await service.lockedPublicSummary(std.auth);
-    expect(summary.locked && summary.total).toBe(0);
+    expect(await service.maskedPublicTenders(std.auth)).toEqual([]);
   });
 
-  it("SILVER aynı PUBLIC'i görür + teklif verir; kilit özeti locked:false", async () => {
+  it("doğrulanmış firma (saklı STANDART) aynı PUBLIC'i görür + teklif verir; maskeli liste boş", async () => {
+    const { service } = makeService();
+    const { listing, item } = await publicListing();
+    const verified = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+    // JWT strategy efektif kademe yazar: doğrulanmış firma ücretsiz dönemde GOLD.
+    const auth = { ...verified.auth, tier: "GOLD" } as typeof verified.auth;
+
+    const rows = (await service.sellerTenders(auth)) as { id: string; canBid: boolean }[];
+    const row = rows.find((r) => r.id === listing.id);
+    expect(row?.canBid).toBe(true);
+    const detail = (await service.getOne(auth, listing.id)) as { canBid: boolean };
+    expect(detail.canBid).toBe(true);
+    await expect(service.placeBid(auth, listing.id, bid(item.id))).resolves.toBeDefined();
+    expect(await service.maskedPublicTenders(auth)).toEqual([]);
+  });
+
+  it("doğrulanmamış ama süresi dolmamış saklı SILVER firma görünürlüğünü korur (kimse erişim yitirmez)", async () => {
     const { service } = makeService();
     const { listing, item } = await publicListing();
     const silver = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
     });
 
     const rows = (await service.sellerTenders(silver.auth)) as { id: string; canBid: boolean }[];
@@ -169,18 +210,23 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     expect(row?.canBid).toBe(true);
     const detail = (await service.getOne(silver.auth, listing.id)) as { canBid: boolean };
     expect(detail.canBid).toBe(true);
-    await expect(
-      service.placeBid(silver.auth, listing.id, bid(item.id)),
-    ).resolves.toBeDefined();
-    expect(await service.lockedPublicSummary(silver.auth)).toEqual({ locked: false });
+    expect(await service.maskedPublicTenders(silver.auth)).toEqual([]);
+    // Görünürlük kademe kapısıdır (korunur). Teklif GÖNDERİMİ ayrıca INV-KYC-1'e
+    // tabidir: davetsiz ∧ bağlantısız teklifçi doğrulanmış olmalı — bu ret kademe
+    // değil KYC kuralıdır ve kademeden bağımsız hep vardı.
+    const kyc = await service.placeBid(silver.auth, listing.id, bid(item.id)).catch((e: Error) => e);
+    expect(kyc).toMatchObject({ status: 403 });
+    expect((kyc as Error).message).toMatch(/doğrulamanız tamamlanmadan teklif veremezsiniz/i);
+    expect((kyc as Error).message).not.toMatch(PACKAGE_WORDS);
   });
 
-  it("süresi DOLMUŞ SILVER efektif STANDART gibi görmez (INV-TIER-1 lazy)", async () => {
+  it("süresi DOLMUŞ saklı SILVER (doğrulanmamış) efektif STANDART gibi görmez (INV-TIER-1 lazy)", async () => {
     const { service } = makeService();
     const { listing } = await publicListing();
     const expired = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
     });
     await prisma.company.update({
       where: { id: expired.company.id },
@@ -190,38 +236,90 @@ describe("Kademe görünürlüğü — STANDART PUBLIC'i görmez, davet/bağlant
     const auth = { ...(expired.auth as object), tier: "STANDART" } as never;
     await expect(service.getOne(auth, listing.id)).rejects.toMatchObject({ status: 403 });
   });
+
+  describe("saklı paket makinesi (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Ücretli kademe ayrımı uykuda; anahtar kapanınca doğrulanmış firma da saklı kademesine döner.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("doğrulanmış STANDART bağsız PUBLIC'i göremez/teklif veremez; doğrulanmış SILVER görür + teklif verir", async () => {
+      const { service } = makeService();
+      const { listing, item } = await publicListing();
+      const std = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART" });
+      await expect(service.getOne(std.auth, listing.id)).rejects.toMatchObject({
+        status: 403,
+        response: { code: "TIER_REQUIRED", minTier: "SILVER" },
+      });
+      await expect(service.placeBid(std.auth, listing.id, bid(item.id))).rejects.toMatchObject({ status: 403 });
+      expect(await service.maskedPublicTenders(std.auth)).toHaveLength(1);
+
+      const silver = await makeCompanyWithUser(prisma, { country: "TR", tier: "SILVER" });
+      const detail = (await service.getOne(silver.auth, listing.id)) as { canBid: boolean };
+      expect(detail.canBid).toBe(true);
+      await expect(service.placeBid(silver.auth, listing.id, bid(item.id))).resolves.toBeDefined();
+      expect(await service.maskedPublicTenders(silver.auth)).toEqual([]);
+    });
+
+    it("süresi DOLMUŞ SILVER (doğrulanmış) efektif STANDART gibi görmez", async () => {
+      const { service } = makeService();
+      const { listing } = await publicListing();
+      const expired = await makeCompanyWithUser(prisma, { country: "TR", tier: "SILVER" });
+      await prisma.company.update({
+        where: { id: expired.company.id },
+        data: { membershipEndAt: new Date(Date.now() - 1000) },
+      });
+      const auth = { ...(expired.auth as object), tier: "STANDART" } as never;
+      await expect(service.getOne(auth, listing.id)).rejects.toMatchObject({ status: 403 });
+    });
+  });
 });
 
 describe("Faz T — Gold Üye rozeti + akış-kurma SILVER kapısı", () => {
-  it("SEO public profil: yalnız GOLD'da goldMember:true", async () => {
+  async function goldMemberOf(opts: Parameters<typeof makeCompanyWithUser>[1], tag: string) {
     const { PublicProfileService } = await import(
       "../../src/modules/public-profile/public-profile.service"
     );
-    const svc = new PublicProfileService(prisma as never, {
-      presignStoredObject: async () => null,
-      getPublicUrl: () => null,
-    } as never);
-    const gold = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // Eski imzadan kalan depolama stub'ı KALDIRILDI (2026-09-23): ikinci parametre
+    // artık isteğe bağlı ContentTranslationService — stub oraya düşüp
+    // "localizeCompanies is not a function" veriyordu (rig-stub tuzağı).
+    const svc = new PublicProfileService(prisma as never);
+    const co = await makeCompanyWithUser(prisma, opts);
+    const slug = `${tag}-${Date.now()}`;
     await prisma.company.update({
-      where: { id: gold.company.id },
-      data: { publicEnabled: true, slug: `gold-${Date.now()}` },
+      where: { id: co.company.id },
+      data: { publicEnabled: true, slug },
     });
-    const g = await prisma.company.findUniqueOrThrow({
-      where: { id: gold.company.id },
-    });
-    const pub = (await svc.getBySlug(g.slug!)) as { goldMember: boolean };
-    expect(pub.goldMember).toBe(true);
+    return ((await svc.getBySlug(slug)) as { goldMember: boolean }).goldMember;
+  }
 
-    const silver = await makeCompanyWithUser(prisma, { tier: "SILVER" });
-    await prisma.company.update({
-      where: { id: silver.company.id },
-      data: { publicEnabled: true, slug: `silver-${Date.now()}` },
+  it("SEO public profil: goldMember yalnız EFEKTİF GOLD'da true (ücretsiz dönem: doğrulanmış her firma)", async () => {
+    expect(await goldMemberOf({ tier: "GOLD" }, "gold")).toBe(true);
+    // Doğrulanmış firma saklı kademesi ne olursa olsun efektif GOLD.
+    expect(await goldMemberOf({ tier: "SILVER" }, "silver-v")).toBe(true);
+    expect(await goldMemberOf({ tier: "STANDART" }, "std-v")).toBe(true);
+    // Doğrulanmamış firma saklı kademesiyle kalır.
+    expect(await goldMemberOf({ tier: "SILVER", companyVerificationStatus: "UNVERIFIED" }, "silver-u")).toBe(false);
+    expect(await goldMemberOf({ ...LIMITED }, "std-u")).toBe(false);
+    expect(await goldMemberOf({ tier: "GOLD", companyVerificationStatus: "PENDING" }, "gold-p")).toBe(true);
+  });
+
+  describe("saklı kademe (ücretsiz dönem anahtarı KAPALI)", () => {
+    // Rozetin saklı GOLD/SILVER ayrımı uykuda; anahtar kapanınca geri gelmeli.
+    beforeEach(() => {
+      jest.replaceProperty(FREE_PERIOD, "VERIFIED_HAS_FULL_ACCESS", false);
     });
-    const s = await prisma.company.findUniqueOrThrow({
-      where: { id: silver.company.id },
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
-    const pub2 = (await svc.getBySlug(s.slug!)) as { goldMember: boolean };
-    expect(pub2.goldMember).toBe(false);
+
+    it("SEO public profil: yalnız GOLD'da goldMember:true", async () => {
+      expect(await goldMemberOf({ tier: "GOLD" }, "gold-off")).toBe(true);
+      expect(await goldMemberOf({ tier: "SILVER" }, "silver-off")).toBe(false);
+    });
   });
 
   it("akış-KURMA uçları CompanyPaidTierGuard (Silver+) taşır; yönetme/karar uçları taşımaz", async () => {

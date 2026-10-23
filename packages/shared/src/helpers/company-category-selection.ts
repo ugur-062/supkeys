@@ -1,3 +1,4 @@
+import { isHiddenCategory, visibleCategoryIds } from "../constants/category-catalog";
 import { categoryAncestors, categoryLevel, isCategoryCode } from "./category-code";
 
 /**
@@ -82,4 +83,47 @@ export function removeCategoryBranch(
   return subIds.filter(
     (id) => id !== code && !categoryAncestors(id).includes(code),
   );
+}
+
+/**
+ * BEYANIN GÖSTERİMİ — gizli dal kuralının ATA ZİNCİRİ saklayan kayıttaki hâli
+ * (2026-10-10: gizleme artık aile / sınıf düzeyinde de var, yani GÖRÜNÜR bir
+ * atanın gizli torunu olabilir).
+ *
+ * Beyan seçimi zinciriyle saklar: `46101500` seçen firmanın kaydında
+ * `46000000` (ana eksen) + `46100000` + `46101500` (alt eksen) durur. Yalnız
+ * gizli kodları düşürmek (`visibleCategoryIds`) geride `46000000`'ı bırakır ve
+ * firma "İş Güvenliği ve Yangın Ekipmanları — sektörün tamamı" beyan etmiş
+ * gibi görünür: seçmediği bir şey gösterilir, o sektörün süzgecinde ve
+ * sayısında yer alır. Kayıtta ise (kategori alanına dokunan kayıt gizli
+ * kodları düşürür) yaprağı kalmayan segment "her şeyi yaparım" anlamına gelir
+ * ve firma segmentin BÜTÜN bildirimlerini almaya başlar.
+ *
+ * Kural: gizli kodlar düşer; görünür bir kod da, altında saklanmış EN DERİN
+ * seçimlerin HEPSİ gizliyse düşer (yalnız gizli bir seçimin atası olarak
+ * oradadır). Altında hiç kod saklanmamış segment / aile bilinçli bir "tamamı"
+ * seçimidir ve kalır; altında en az bir görünür seçim olan ata kalır.
+ *
+ * Bir eksenin İKİ dizisi birlikte verilir (satış: `sellerCategoryIds` +
+ * `sellerSubCategoryIds`; alış ayrı çağrı). Gizli kod saklanmamış beyanda
+ * sonuç `visibleCategoryIds` ile birebir aynıdır (sıra dahil). Yalnız GÖSTERİM,
+ * SAYIM ve "gizliyi düşür" kaydı içindir — eşleştirme ve bildirim saklanan
+ * kodların tamamını kullanır.
+ */
+export function visibleCompanyCategorySelection(
+  mainIds: readonly (string | null | undefined)[] | null | undefined,
+  subIds: readonly (string | null | undefined)[] | null | undefined,
+): { mainIds: string[]; subIds: string[] } {
+  const main = visibleCategoryIds(mainIds);
+  const sub = visibleCategoryIds(subIds);
+  const stored = [...(mainIds ?? []), ...(subIds ?? [])].filter((id): id is string => !!id && isCategoryCode(id));
+  if (!stored.some((id) => isHiddenCategory(id))) return { mainIds: main, subIds: sub };
+  // Görünür en derin seçimlerin zinciri kalır; gerisi gizli bir seçimin atasıdır.
+  const kept = new Set<string>();
+  for (const pick of deepestCategoryPicks(stored)) {
+    if (isHiddenCategory(pick)) continue;
+    for (const ata of categoryAncestors(pick)) kept.add(ata);
+  }
+  const keep = (id: string) => !isCategoryCode(id) || kept.has(id);
+  return { mainIds: main.filter(keep), subIds: sub.filter(keep) };
 }

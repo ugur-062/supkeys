@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
@@ -13,14 +14,17 @@ import { ClientIp } from "../../common/http/client-ip.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import { IsString, Length, MinLength } from "class-validator";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
 import { clearAuthCookies } from "../../common/auth/cookie";
+import { SessionRevocationService } from "../../common/auth/session-revocation.service";
 import { AdminAuthService } from "./admin-auth.service";
 import { AllowAnyAdminRole } from "./decorators/allow-any-admin-role.decorator";
+import { AllowWithoutAdmin2fa } from "./decorators/allow-without-admin-2fa.decorator";
+import { AllowWithoutAdminPasswordChange } from "./decorators/allow-without-admin-password-change.decorator";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { AdminJwtAuthGuard } from "./guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "./guards/admin-roles.guard";
@@ -56,12 +60,15 @@ export class AdminAuthController {
   constructor(
     private readonly adminAuthService: AdminAuthService,
     private readonly config: ConfigService,
+    private readonly sessions: SessionRevocationService,
   ) {}
 
+  /** Çıkış = çerez silinir VE yalnız o oturum sunucuda iptal edilir (H2; bkz. company). */
   @Post("logout")
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     clearAuthCookies(res, "admin", this.config);
+    await this.sessions.revokeFromRequest(req, "admin");
     return { ok: true };
   }
 
@@ -80,6 +87,8 @@ export class AdminAuthController {
   @Get("me")
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
+  @AllowWithoutAdmin2fa() // panel kurulum zorunluluğunu buradan öğrenir
+  @AllowWithoutAdminPasswordChange() // geçici parola kilidini de (D-025)
   me(@CurrentAdmin() admin: AuthenticatedAdmin) {
     // 2FA durumu gibi taze alanlar için DB'den oku (JWT payload'ı bayat olabilir).
     return this.adminAuthService.getMe(admin.id);
@@ -93,18 +102,22 @@ export class AdminAuthController {
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
+  @AllowWithoutAdminPasswordChange() // geçici parolayı değiştirme akışının kendisi (D-025)
   @HttpCode(HttpStatus.OK)
   changePassword(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Body() dto: ChangePasswordDto,
+    @ClientIp() ip: string,
   ) {
-    return this.adminAuthService.changePassword(admin.id, dto.current, dto.next);
+    return this.adminAuthService.changePassword(admin.id, dto.current, dto.next, ip);
   }
 
   @Post("2fa/setup")
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
+  @AllowWithoutAdmin2fa() // zorunlu kurulum akışı (MU-01)
+  @AllowWithoutAdminPasswordChange() // 2FA önce kurulur, sonra şifre (D-025)
   @HttpCode(HttpStatus.OK)
   setup2fa(@CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.adminAuthService.setupTwoFactor(admin.id);
@@ -114,6 +127,8 @@ export class AdminAuthController {
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
+  @AllowWithoutAdmin2fa() // zorunlu kurulum akışı (MU-01)
+  @AllowWithoutAdminPasswordChange() // 2FA önce kurulur, sonra şifre (D-025)
   @HttpCode(HttpStatus.OK)
   enable2fa(
     @CurrentAdmin() admin: AuthenticatedAdmin,

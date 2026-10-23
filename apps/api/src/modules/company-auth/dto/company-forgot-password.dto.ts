@@ -1,6 +1,8 @@
 import { IsEmail } from "class-validator";
 
+import { tApi } from "../../../common/i18n/i18n.service";
+
 export class CompanyForgotPasswordDto {
-  @IsEmail({}, { message: "Geçerli e-posta girin" })
+  @IsEmail({}, { message: () => tApi("api.dto.companyForgotPassword.gecerliEpostaGirin") })
   email!: string;
 }

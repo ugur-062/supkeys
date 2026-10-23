@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+import { useListingStatusLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 
 export type ListingStatus =
@@ -12,73 +14,23 @@ export type ListingStatus =
   | "CANCELLED";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 
-/**
- * İlan durum etiketleri — TEK kaynak. Tüm görünümler (badge, detay, filtre)
- * etiket metnini buradan alır; renk/stil her görünümün kendi sorumluluğunda.
- */
-export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
-  DRAFT: "Taslak",
-  IN_APPROVAL: "Onayda",
-  OPEN: "Yayında",
-  CLOSED: "Teklife Kapalı",
-  IN_AWARD: "Değerlendirmede",
-  IN_AWARD_APPROVAL: "Kazandırma Onayı",
-  AWARDED: "Tamamlandı",
-  CLOSED_NO_AWARD: "Kazansız Kapandı",
-  CANCELLED: "İptal/Kapalı",
+/** Renk/stil her görünümün kendi sorumluluğunda; metin katalogdan. */
+const STATUS_CLASS: Record<ListingStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-600 border-slate-200",
+  IN_APPROVAL: "bg-amber-50 text-amber-700 border-amber-200",
+  OPEN: "bg-success-50 text-success-600 border-success-500/30",
+  CLOSED: "bg-warning-50 text-warning-600 border-warning-500/30",
+  IN_AWARD: "bg-blue-50 text-blue-700 border-blue-200",
+  IN_AWARD_APPROVAL: "bg-amber-50 text-amber-700 border-amber-200",
+  AWARDED: "bg-zinc-100 text-zinc-700 border-zinc-200",
+  CLOSED_NO_AWARD: "bg-zinc-100 text-zinc-600 border-zinc-200",
+  CANCELLED: "bg-danger-50 text-danger-600 border-danger-500/30",
 };
 
-const STATUS_META: Record<ListingStatus, { label: string; className: string }> =
-  {
-    DRAFT: {
-      label: LISTING_STATUS_LABELS.DRAFT,
-      className: "bg-slate-100 text-slate-600 border-slate-200",
-    },
-    IN_APPROVAL: {
-      label: LISTING_STATUS_LABELS.IN_APPROVAL,
-      className: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    OPEN: {
-      label: LISTING_STATUS_LABELS.OPEN,
-      className: "bg-success-50 text-success-600 border-success-500/30",
-    },
-    CLOSED: {
-      label: LISTING_STATUS_LABELS.CLOSED,
-      className: "bg-warning-50 text-warning-600 border-warning-500/30",
-    },
-    IN_AWARD: {
-      label: LISTING_STATUS_LABELS.IN_AWARD,
-      className: "bg-blue-50 text-blue-700 border-blue-200",
-    },
-    IN_AWARD_APPROVAL: {
-      label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL,
-      className: "bg-amber-50 text-amber-700 border-amber-200",
-    },
-    AWARDED: {
-      label: LISTING_STATUS_LABELS.AWARDED,
-      className: "bg-zinc-100 text-zinc-700 border-zinc-200",
-    },
-    CLOSED_NO_AWARD: {
-      label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD,
-      className: "bg-zinc-100 text-zinc-600 border-zinc-200",
-    },
-    CANCELLED: {
-      label: LISTING_STATUS_LABELS.CANCELLED,
-      className: "bg-danger-50 text-danger-600 border-danger-500/30",
-    },
-  };
-
-const FORMAT_META: Record<ListingFormat, { label: string; className: string }> =
-  {
-    RFQ: {
-      label: "Teklif Toplama",
-      className: "bg-zinc-50 text-zinc-700 border-zinc-200",
-    },
-    ENGLISH_AUCTION: {
-      label: "Pazarlık",
-      className: "bg-blue-50 text-blue-700 border-blue-200",
-    },
-  };
+const FORMAT_CLASS: Record<ListingFormat, string> = {
+  RFQ: "bg-zinc-50 text-zinc-700 border-zinc-200",
+  ENGLISH_AUCTION: "bg-blue-50 text-blue-700 border-blue-200",
+};
 
 export function TenderStatusBadge({
   status,
@@ -87,16 +39,18 @@ export function TenderStatusBadge({
   status: ListingStatus;
   className?: string;
 }) {
-  const meta = STATUS_META[status] ?? STATUS_META.DRAFT;
+  const statusLabel = useListingStatusLabel();
+  // Bilinmeyen durum DRAFT'a düşer (kırılmaz).
+  const known: ListingStatus = status in STATUS_CLASS ? status : "DRAFT";
   return (
     <span
       className={cn(
         "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium",
-        meta.className,
+        STATUS_CLASS[known],
         className,
       )}
     >
-      {meta.label}
+      {statusLabel(known)}
     </span>
   );
 }
@@ -108,17 +62,17 @@ export function TenderTypeBadge({
   format: ListingFormat | null;
   className?: string;
 }) {
-  const meta = FORMAT_META[format ?? "RFQ"];
-  const label = meta.label;
+  const t = useTranslations("web.panel.requests.statusBadge");
+  const key = format ?? "RFQ";
   return (
     <span
       className={cn(
         "inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-semibold",
-        meta.className,
+        FORMAT_CLASS[key],
         className,
       )}
     >
-      {label}
+      {key === "ENGLISH_AUCTION" ? t("pazarlik") : t("teklifToplama")}
     </span>
   );
 }

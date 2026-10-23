@@ -23,6 +23,11 @@ import { foldSearchText } from "../helpers/search-fold";
  *    3 ton mu 3 metre mi?). Böyle bir girdi `null` döner, serbest metin olarak
  *    saklanır ve kullanıcı uyarılır — belirsizliği KULLANICI çözer, biz değil.
  *    `units.spec.ts` alias çakışmasını test ediyor; yeni alias eklerken bak.
+ *  · Alias'lar ÜÇ DİLDE (2026-09-27): Türkçe, İngilizce (tekil + çoğul:
+ *    pieces, metres, litres, tons…) ve Rusça (шт, кг, м, л, т, упак, мешок,
+ *    час, мес…) — Rusça kullanıcının Excel içe aktarması ve AI kalemleri
+ *    `unitCode` alsın. Rusça tek harfli semboller (г, т, м, л, ч) GOST
+ *    kısaltmalarıdır; birim sütununda belirsiz değildir.
  */
 
 export type UnitDimension =
@@ -65,77 +70,82 @@ export const UNIT_DIMENSION_LABELS: Record<UnitDimension, string> = {
 export const UNITS: readonly UnitDef[] = [
   // ── Sayı ────────────────────────────────────────────────────────────────
   { code: "PCE", nameTr: "adet", symbol: "ad", dimension: "COUNT", decimals: 0, toBase: 1,
-    aliases: ["adet", "ad", "pcs", "piece", "pc", "tane", "unit"] },
+    aliases: ["adet", "ad", "pcs", "piece", "pieces", "pc", "tane", "unit", "units", "ea", "each",
+      "шт", "штука", "штуки", "штук"] },
   { code: "PAIR", nameTr: "çift", symbol: "çift", dimension: "COUNT", decimals: 0, toBase: 2,
-    aliases: ["cift", "çift", "pair"] },
+    aliases: ["cift", "çift", "pair", "pairs", "пара", "пары", "пар"] },
   { code: "SET", nameTr: "set", symbol: "set", dimension: "COUNT", decimals: 0, toBase: 1,
-    aliases: ["set", "takim", "takım", "kit"] },
+    aliases: ["set", "sets", "takim", "takım", "kit", "kits", "комплект", "компл", "набор"] },
   { code: "DZN", nameTr: "düzine", symbol: "dzn", dimension: "COUNT", decimals: 0, toBase: 12,
-    aliases: ["duzine", "düzine", "dozen"] },
+    aliases: ["duzine", "düzine", "dozen", "dozens", "дюжина"] },
 
   // ── Ağırlık (temel: kg) ─────────────────────────────────────────────────
   { code: "KG", nameTr: "kilogram", symbol: "kg", dimension: "MASS", decimals: 3, toBase: 1,
-    aliases: ["kg", "kilo", "kilogram"] },
+    aliases: ["kg", "kgs", "kilo", "kilogram", "kilograms", "кг", "килограмм"] },
   { code: "GRM", nameTr: "gram", symbol: "g", dimension: "MASS", decimals: 3, toBase: 0.001,
-    aliases: ["g", "gr", "gram"] },
+    aliases: ["g", "gr", "gram", "grams", "г", "гр", "грамм"] },
   { code: "TON", nameTr: "ton", symbol: "t", dimension: "MASS", decimals: 3, toBase: 1000,
-    aliases: ["ton", "t", "tonne"] },
+    aliases: ["ton", "tons", "t", "tonne", "tonnes", "metric ton", "metric tons", "т", "тонна", "тонны", "тонн"] },
 
   // ── Uzunluk (temel: m) ──────────────────────────────────────────────────
   { code: "M", nameTr: "metre", symbol: "m", dimension: "LENGTH", decimals: 2, toBase: 1,
-    aliases: ["m", "metre", "meter", "metretul", "metretül"] },
+    aliases: ["m", "metre", "metres", "meter", "meters", "metretul", "metretül", "linear meter", "linear metre",
+      "м", "метр", "метра", "метров", "пог. м", "п.м"] },
   { code: "CM", nameTr: "santimetre", symbol: "cm", dimension: "LENGTH", decimals: 2, toBase: 0.01,
-    aliases: ["cm", "santim", "santimetre"] },
+    aliases: ["cm", "santim", "santimetre", "centimeter", "centimeters", "centimetre", "centimetres", "см", "сантиметр"] },
   { code: "MM", nameTr: "milimetre", symbol: "mm", dimension: "LENGTH", decimals: 2, toBase: 0.001,
-    aliases: ["mm", "milimetre"] },
+    aliases: ["mm", "milimetre", "millimeter", "millimeters", "millimetre", "millimetres", "мм", "миллиметр"] },
   { code: "KM", nameTr: "kilometre", symbol: "km", dimension: "LENGTH", decimals: 3, toBase: 1000,
-    aliases: ["km", "kilometre"] },
+    aliases: ["km", "kilometre", "kilometres", "kilometer", "kilometers", "км", "километр"] },
 
   // ── Alan (temel: m²) ────────────────────────────────────────────────────
   { code: "M2", nameTr: "metrekare", symbol: "m²", dimension: "AREA", decimals: 2, toBase: 1,
-    aliases: ["m2", "m²", "metrekare", "metre kare", "sqm"] },
+    aliases: ["m2", "m²", "metrekare", "metre kare", "sqm", "sq m", "square meter", "square meters", "square metre",
+      "square metres", "м2", "м²", "кв. м", "кв.м", "квадратный метр"] },
 
   // ── Hacim (temel: m³) ───────────────────────────────────────────────────
   { code: "M3", nameTr: "metreküp", symbol: "m³", dimension: "VOLUME", decimals: 3, toBase: 1,
-    aliases: ["m3", "m³", "metrekup", "metreküp", "metre kup", "cbm"] },
+    aliases: ["m3", "m³", "metrekup", "metreküp", "metre kup", "cbm", "cubic meter", "cubic meters", "cubic metre",
+      "cubic metres", "м3", "м³", "куб. м", "куб.м", "кубометр", "кубический метр"] },
   { code: "LTR", nameTr: "litre", symbol: "L", dimension: "VOLUME", decimals: 3, toBase: 0.001,
-    aliases: ["lt", "l", "litre", "liter"] },
+    aliases: ["lt", "l", "litre", "litres", "liter", "liters", "л", "литр", "литра", "литров"] },
   { code: "ML", nameTr: "mililitre", symbol: "mL", dimension: "VOLUME", decimals: 3, toBase: 0.000001,
-    aliases: ["ml", "mililitre"] },
+    aliases: ["ml", "mililitre", "milliliter", "milliliters", "millilitre", "millilitres", "мл", "миллилитр"] },
 
   // ── Ambalaj ─────────────────────────────────────────────────────────────
   { code: "PKT", nameTr: "paket", symbol: "pk", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["paket", "pk", "pack"] },
+    aliases: ["paket", "pk", "pack", "packs", "package", "packages", "pkg", "упак", "упаковка", "уп", "пачка"] },
   { code: "BOX", nameTr: "kutu", symbol: "kutu", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["kutu", "box"] },
+    aliases: ["kutu", "box", "boxes", "коробка", "коробки", "коробок"] },
   { code: "CRT", nameTr: "koli", symbol: "koli", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["koli", "carton", "ctn"] },
+    aliases: ["koli", "carton", "cartons", "ctn", "короб", "короба"] },
   { code: "PAL", nameTr: "palet", symbol: "palet", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["palet", "pallet"] },
+    aliases: ["palet", "pallet", "pallets", "паллет", "паллета", "паллеты", "поддон"] },
   { code: "ROL", nameTr: "rulo", symbol: "rulo", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["rulo", "roll", "top"] },
+    aliases: ["rulo", "roll", "rolls", "top", "рулон", "рулона", "рулонов"] },
   { code: "BAG", nameTr: "çuval", symbol: "çuval", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["cuval", "çuval", "torba", "bag", "sack"] },
+    aliases: ["cuval", "çuval", "torba", "bag", "bags", "sack", "sacks", "мешок", "мешка", "мешков"] },
   { code: "DRM", nameTr: "varil", symbol: "varil", dimension: "PACKAGING", decimals: 0, toBase: 1,
-    aliases: ["varil", "bidon", "drum"] },
+    aliases: ["varil", "bidon", "drum", "drums", "бочка", "бочки"] },
 
   // ── Süre ────────────────────────────────────────────────────────────────
   { code: "HUR", nameTr: "saat", symbol: "sa", dimension: "TIME", decimals: 2, toBase: 1,
-    aliases: ["saat", "sa", "hour", "hr", "h"] },
+    aliases: ["saat", "sa", "hour", "hours", "hr", "hrs", "h", "час", "часа", "часов", "ч"] },
   { code: "DAY", nameTr: "gün", symbol: "gün", dimension: "TIME", decimals: 2, toBase: 24,
-    aliases: ["gun", "gün", "day"] },
+    aliases: ["gun", "gün", "day", "days", "день", "дня", "дней", "дн", "сутки"] },
   { code: "MON", nameTr: "ay", symbol: "ay", dimension: "TIME", decimals: 2, toBase: 720,
-    aliases: ["ay", "month"] },
+    aliases: ["ay", "month", "months", "месяц", "месяца", "месяцев", "мес"] },
   { code: "YER", nameTr: "yıl", symbol: "yıl", dimension: "TIME", decimals: 2, toBase: 8760,
-    aliases: ["yil", "yıl", "year"] },
+    aliases: ["yil", "yıl", "year", "years", "yr", "yrs", "год", "года", "лет"] },
 
   // ── Hizmet ──────────────────────────────────────────────────────────────
   { code: "SRV", nameTr: "hizmet", symbol: "hizmet", dimension: "SERVICE", decimals: 0, toBase: 1,
-    aliases: ["hizmet", "service", "is", "iş", "job"] },
+    aliases: ["hizmet", "service", "services", "is", "iş", "job", "услуга", "услуги"] },
   { code: "MDY", nameTr: "adam-gün", symbol: "adam-gün", dimension: "SERVICE", decimals: 2, toBase: 1,
-    aliases: ["adam gun", "adam-gun", "adam gün", "adam-gün", "man day", "manday"] },
+    aliases: ["adam gun", "adam-gun", "adam gün", "adam-gün", "man day", "manday", "man-day", "man-days", "man days",
+      "person-day", "person day", "человеко-день", "чел.-день", "чел-дн"] },
   { code: "TRP", nameTr: "sefer", symbol: "sefer", dimension: "SERVICE", decimals: 0, toBase: 1,
-    aliases: ["sefer", "trip", "sevkiyat"] },
+    aliases: ["sefer", "trip", "trips", "sevkiyat", "рейс", "рейса", "рейсов"] },
 ] as const;
 
 /** Sihirbazda listenin başında sabitlenen, TR B2B'de en sık kullanılanlar. */
@@ -145,13 +155,20 @@ export const COMMON_UNIT_CODES = [
 
 const BY_CODE = new Map(UNITS.map((u) => [u.code, u]));
 
-/** Alias → kod. Katlanmış anahtar; ad ve sembol de otomatik dahil. */
+/**
+ * Alias → kod. Katlanmış anahtar; ad ve sembol de otomatik dahil. Her alias
+ * nokta/boşluksuz biçimiyle de kaydedilir (`normalizeUnit`in ikinci denemesi
+ * aynı biçimi arar): "кв.м", "кв. м" ve "кв м" aynı birime düşer.
+ */
+const stripUnitPunct = (k: string) => k.replace(/[.\s]/g, "");
 const BY_ALIAS = (() => {
   const m = new Map<string, string>();
   for (const u of UNITS) {
     for (const a of [u.code, u.nameTr, u.symbol, ...u.aliases]) {
       const k = foldSearchText(a);
       if (k && !m.has(k)) m.set(k, u.code);
+      const bare = stripUnitPunct(k);
+      if (bare && !m.has(bare)) m.set(bare, u.code);
     }
   }
   return m;
@@ -170,7 +187,7 @@ export function normalizeUnit(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const k = foldSearchText(String(raw).trim());
   if (!k) return null;
-  return BY_ALIAS.get(k) ?? BY_ALIAS.get(k.replace(/[.\s]/g, "")) ?? null;
+  return BY_ALIAS.get(k) ?? BY_ALIAS.get(stripUnitPunct(k)) ?? null;
 }
 
 /** Gösterim etiketi: bilinen kodda katalog adı, aksi halde ham metin. */

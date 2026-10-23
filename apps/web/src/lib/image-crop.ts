@@ -126,11 +126,13 @@ export async function renderCrop(
   canvas.width = size.w;
   canvas.height = size.h;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Görsel işlenemedi");
+  // Geliştirici mesajı: tek çağıran (ImageCropDialog) hatayı yutar ve kendi
+  // çevrilmiş metnini gösterir — bu dize kullanıcıya hiç ulaşmaz.
+  if (!ctx) throw new Error("crop: canvas 2d context unavailable");
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, size.w, size.h);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
-  if (!blob || blob.size === 0) throw new Error("Görsel işlenemedi");
+  if (!blob || blob.size === 0) throw new Error("crop: canvas.toBlob produced no data");
   const name = fileName.replace(/\.[a-z0-9]+$/i, "") + ".webp";
   return new File([blob], name, { type: "image/webp", lastModified: Date.now() });
 }

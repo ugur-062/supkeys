@@ -32,8 +32,24 @@ export const citySlug = sharedCitySlug;
 
 /** Slug → kanonik il adı. Tanınmayan slug `null` — sayfa 404 verir. */
 export function cityFromSlug(slug: string): string | null {
-  const s = slug.toLowerCase();
+  // Ham il adı da ("İstanbul") katlanarak tanınır (arayüz testi D-323):
+  // `toLowerCase` "İ"yi "i̇"ye (noktalı) çeviriyordu, eşleşme kaçıyordu.
+  const s = citySlug(slug);
   return TR_PROVINCES.find((p) => citySlug(p.name) === s)?.name ?? null;
+}
+
+/**
+ * Yol parçası → ham değer, BİR KEZ çözülmüş (arayüz testi D-323). Next
+ * dinamik parçayı yüzde kodlu verebiliyor (`%C4%B0stanbul`); bu değer API
+ * çağrısında yeniden kodlanınca (`%25C4%25B0…`) şehir bulunamıyor, sayfa
+ * 404 veriyordu. Bozuk kodlamada (tek başına `%`) değer olduğu gibi döner.
+ */
+export function decodeCityParam(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 /** Tüm iller, slug'larıyla — `generateStaticParams` ve bağlantı şeritleri. */

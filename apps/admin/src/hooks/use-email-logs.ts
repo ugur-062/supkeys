@@ -37,8 +37,11 @@ export function useEmailLogs(params: ListEmailLogsParams) {
       return data;
     },
     placeholderData: (prev) => prev,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false, // logs canlı görünmeli, 5sn'de bir refresh
+    // Loglar canlı görünmeli (5 sn'de bir). Hata (ör. 403) durumunda aralıklı
+    // sorgu DURUR — yoksa her turda yeni bir hata toast'ı çıkıyordu (derin
+    // denetim LU-13). Kullanıcı filtre/sayfa değiştirince yeni sorgu başlar.
+    refetchInterval: (query) => (query.state.status === "error" ? false : 5000),
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -57,7 +60,7 @@ export function useResendEmail() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.post<{ success: boolean; emailLogId: string }>(
+      const { data } = await api.post<{ success: boolean; emailLogId: string; sent?: boolean }>(
         `/admin/email-logs/${id}/resend`,
       );
       return data;

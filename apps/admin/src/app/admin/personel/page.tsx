@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminRoleGate } from "@/components/layout/admin-role-gate";
 import { PageHeader } from "@/components/list";
 import {
   Dialog,
@@ -22,7 +23,6 @@ import {
 } from "@/components/catalyst/dialog";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { canAdminDo } from "@/lib/admin-permissions";
 import {
   useCreateStaff,
   useStaff,
@@ -34,6 +34,7 @@ import { safeFormat } from "@/lib/date";
 import { Copy, UserPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const ROLE_META: Record<
   AdminRole,
@@ -77,8 +78,8 @@ function TempPasswordBanner({
         </Button>
       </div>
       <p className="mt-1 text-xs text-emerald-800">
-        Personel ilk girişte Ayarlar → Şifre Değiştir ile kendi şifresini
-        koymalı.
+        Personel ilk girişte bu geçici şifreyle girer; panel, kendi şifresini
+        belirleyene kadar onu Ayarlar → Şifre Değiştir&apos;e yönlendirir.
       </p>
     </div>
   );
@@ -94,7 +95,7 @@ function AddStaffDialog({
     firstName: string;
     lastName: string;
     role: AdminRole;
-  }) => void;
+  }) => unknown;
   onClose: () => void;
   pending: boolean;
 }) {
@@ -156,7 +157,7 @@ function AddStaffDialog({
               onChange={(e) => set("role", e.target.value)}
             >
               <option value="SUPPORT">Destek — salt-okuma + kurtarma</option>
-              <option value="SALES">Satış — doğrulama + üyelik + müdahale</option>
+              <option value="SALES">Satış — doğrulama + müdahale</option>
               <option value="SUPER_ADMIN">Süper Admin — her şey</option>
             </Select>
           </label>
@@ -176,7 +177,9 @@ function AddStaffDialog({
                 toast.error("Ad ve soyad gerekli");
                 return;
               }
-              onConfirm({
+              // Promise döner → admin Button iş bitene dek kilitli; çift tık
+              // ikinci personeli/409'u üretmez (arayüz testi FX-00 D-015).
+              return onConfirm({
                 email: form.email.trim(),
                 firstName: form.firstName.trim(),
                 lastName: form.lastName.trim(),
@@ -205,22 +208,24 @@ function PersonelView() {
     from: AdminRole;
     to: AdminRole;
   } | null>(null);
+  // Şifre sıfırlama da geri alınamaz (parola + 2FA + oturumlar düşer) → onay.
+  const [resetPrompt, setResetPrompt] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
+  // Pasifleştirme personeli anında panelden atar (oturumları düşer) → onay
+  // (arayüz testi D-222). Aktifleştirme zararsız, tek tık kalır.
+  const [deactivatePrompt, setDeactivatePrompt] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
   const rows = staff.data ?? [];
 
   // F7: personel yönetimi yalnız SUPER_ADMIN (manageStaff). SALES/SUPPORT
-  // deep-link'te tüm UI yerine yetki-yok mesajı (nav zaten gizli; BE 403).
-  if (!canAdminDo(admin?.role, "manageStaff")) {
-    return (
-      <div className="max-w-[1100px] py-16 text-center">
-        <p className="text-admin-text-muted text-sm">
-          Bu sayfaya erişim yetkiniz yok (yalnızca Süper Admin).
-        </p>
-      </div>
-    );
-  }
+  // deep-link'te sayfa kapısı (`AdminRoleGate`, aşağıda) bu görünümü HİÇ
+  // mount etmez → personel sorgusu atılmaz, 403 toast'ı çıkmaz (T-09).
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -238,6 +243,7 @@ function PersonelView() {
         <TempPasswordBanner password={tempPw} onClose={() => setTempPw(null)} />
       ) : null}
 
+      {/* Dar ekran kaydırma ipucu ortak <Table>'da (arayüz testi D-229). */}
       <div className="admin-card overflow-hidden">
         <Table dense>
           <TableHead>
@@ -262,7 +268,9 @@ function PersonelView() {
                 const isSelf = s.id === admin?.id;
                 return (
                   <TableRow key={s.id}>
-                    <TableCell className="text-admin-text">
+                    {/* Uzun e-posta sarar: ilk sütun dar ekranı tek başına
+                        doldurmasın, sonraki sütun görünür kalsın (D-229). */}
+                    <TableCell className="text-admin-text max-w-[14rem] whitespace-normal sm:max-w-none">
                       <span className="font-medium">
                         {s.firstName} {s.lastName}
                       </span>
@@ -271,7 +279,7 @@ function PersonelView() {
                           Siz
                         </Badge>
                       ) : null}
-                      <span className="text-admin-text-muted block text-xs">
+                      <span className="text-admin-text-muted block text-xs break-all">
                         {s.email}
                       </span>
                     </TableCell>
@@ -322,39 +330,29 @@ function PersonelView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={act.isPending}
-                          onClick={() =>
-                            act.mutate(
-                              { id: s.id, action: "reset-password" },
-                              {
-                                onSuccess: (r) => {
-                                  if (r.tempPassword) setTempPw(r.tempPassword);
-                                  toast.success("Şifre sıfırlandı");
-                                },
-                                onError: err,
-                              },
-                            )
-                          }
-                        >
-                          Şifre Sıfırla
-                        </Button>
+                        {/* Kendi satırında YOK (derin denetim MU-21): kendi
+                            şifresini sıfırlayan tek Süper Admin parolasız,
+                            2FA'sız ve oturumsuz kalıp panele dönemiyordu.
+                            Kendi şifresi → Ayarlar → Şifre Değiştir. */}
+                        {isSelf ? null : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={act.isPending}
+                            onClick={() =>
+                              setResetPrompt({ id: s.id, email: s.email })
+                            }
+                          >
+                            Şifre Sıfırla
+                          </Button>
+                        )}
                         {isSelf ? null : s.isActive ? (
                           <Button
                             variant="danger"
                             size="sm"
                             disabled={act.isPending}
                             onClick={() =>
-                              act.mutate(
-                                { id: s.id, action: "active", active: false },
-                                {
-                                  onSuccess: () =>
-                                    toast.success("Pasifleştirildi"),
-                                  onError: err,
-                                },
-                              )
+                              setDeactivatePrompt({ id: s.id, email: s.email })
                             }
                           >
                             Pasifleştir
@@ -365,14 +363,9 @@ function PersonelView() {
                             size="sm"
                             disabled={act.isPending}
                             onClick={() =>
-                              act.mutate(
-                                { id: s.id, action: "active", active: true },
-                                {
-                                  onSuccess: () =>
-                                    toast.success("Aktifleştirildi"),
-                                  onError: err,
-                                },
-                              )
+                              act
+                                .mutateAsync({ id: s.id, action: "active", active: true })
+                                .then(() => toast.success("Aktifleştirildi"), err)
                             }
                           >
                             Aktifleştir
@@ -419,17 +412,14 @@ function PersonelView() {
             <Button
               loading={act.isPending}
               onClick={() =>
-                act.mutate(
-                  { id: rolePrompt.id, action: "role", role: rolePrompt.to },
-                  {
-                    onSuccess: () => {
-                      toast.success("Rol güncellendi");
-                      setRolePrompt(null);
-                    },
-                    onError: (e: unknown) => {
-                      err(e);
-                      setRolePrompt(null);
-                    },
+                act.mutateAsync({ id: rolePrompt.id, action: "role", role: rolePrompt.to }).then(
+                  () => {
+                    toast.success("Rol güncellendi");
+                    setRolePrompt(null);
+                  },
+                  (e: unknown) => {
+                    err(e);
+                    setRolePrompt(null);
                   },
                 )
               }
@@ -440,18 +430,101 @@ function PersonelView() {
         </Dialog>
       ) : null}
 
+      {resetPrompt ? (
+        <Dialog
+          open
+          onClose={() => setResetPrompt(null)}
+          size="sm"
+          aria-label="Şifre sıfırlama onayı"
+        >
+          <DialogTitle>Şifre Sıfırla</DialogTitle>
+          <DialogBody>
+            <p className="text-admin-text text-sm">
+              <strong>{resetPrompt.email}</strong> için yeni geçici şifre
+              üretilecek. Mevcut şifre ve 2FA kaldırılır, açık oturumları
+              kapanır.
+            </p>
+          </DialogBody>
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setResetPrompt(null)}>
+              Vazgeç
+            </Button>
+            <Button
+              loading={act.isPending}
+              onClick={() =>
+                act.mutateAsync({ id: resetPrompt.id, action: "reset-password" }).then(
+                  (r) => {
+                    if (r.tempPassword) setTempPw(r.tempPassword);
+                    toast.success("Şifre sıfırlandı");
+                    setResetPrompt(null);
+                  },
+                  (e: unknown) => {
+                    err(e);
+                    setResetPrompt(null);
+                  },
+                )
+              }
+            >
+              Sıfırla
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
+
+      {deactivatePrompt ? (
+        <Dialog
+          open
+          onClose={() => setDeactivatePrompt(null)}
+          size="sm"
+          aria-label="Pasifleştirme onayı"
+        >
+          <DialogTitle>Personeli Pasifleştir</DialogTitle>
+          <DialogBody>
+            <p className="text-admin-text text-sm">
+              <strong>{deactivatePrompt.email}</strong> pasifleştirilecek. Açık
+              oturumları hemen kapanır ve yeniden aktifleştirilene kadar panele
+              giriş yapamaz.
+            </p>
+          </DialogBody>
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setDeactivatePrompt(null)}>
+              Vazgeç
+            </Button>
+            <Button
+              variant="danger"
+              loading={act.isPending}
+              onClick={() =>
+                act
+                  .mutateAsync({ id: deactivatePrompt.id, action: "active", active: false })
+                  .then(
+                    () => {
+                      toast.success("Pasifleştirildi");
+                      setDeactivatePrompt(null);
+                    },
+                    (e: unknown) => {
+                      err(e);
+                      setDeactivatePrompt(null);
+                    },
+                  )
+              }
+            >
+              Pasifleştir
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
+
       {adding ? (
         <AddStaffDialog
           pending={create.isPending}
           onConfirm={(v) =>
-            create.mutate(v, {
-              onSuccess: (r) => {
-                setTempPw(r.tempPassword);
-                setAdding(false);
-                toast.success("Personel eklendi");
-              },
-              onError: err,
-            })
+            // mutateAsync: geçici şifreyi gösteren başarı dalı BU çağrıya bağlı
+            // (mutate'in onSuccess'i yalnız son çağrıda çalışır).
+            create.mutateAsync(v).then((r) => {
+              setTempPw(r.tempPassword);
+              setAdding(false);
+              toast.success("Personel eklendi");
+            }, err)
           }
           onClose={() => setAdding(false)}
         />
@@ -463,7 +536,9 @@ function PersonelView() {
 export default function AdminPersonelPage() {
   return (
     <AdminShell>
-      <PersonelView />
+      <AdminRoleGate action="manageStaff">
+        <PersonelView />
+      </AdminRoleGate>
     </AdminShell>
   );
 }

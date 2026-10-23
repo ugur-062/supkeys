@@ -40,6 +40,8 @@ describe("robots.txt", () => {
     for (const rule of general) {
       const dis = [rule.disallow ?? []].flat();
       expect(dis).toContain("/company/");
+      expect(dis).toContain("/en/company/");
+      expect(dis).toContain("/ru/kompaniya/");
       expect(dis).toContain("/api/");
       expect(dis).toContain("/admin/");
     }

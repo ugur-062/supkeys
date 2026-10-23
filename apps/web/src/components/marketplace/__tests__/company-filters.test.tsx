@@ -33,7 +33,7 @@ const facets: PublicDirectoryFacets = {
   activities: [],
   categories: [{ id: "39000000", name: "Elektrik", count: 3 }],
 };
-const state: CompanyFilterState = { q: "", page: 1, sort: "onerilen", verified: false, hasProducts: false, gold: false, activities: [], cities: [], categories: ["42181500", "39000000"] } as unknown as CompanyFilterState;
+const state: CompanyFilterState = { q: "", page: 1, sort: "onerilen", verified: false, hasProducts: false, gold: false, activities: [], cities: [], countries: [], categories: ["42181500", "39000000"] } as unknown as CompanyFilterState;
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -8,10 +8,10 @@ describe("moneyInputError (F4: backend DTO birebir)", () => {
     expect(moneyInputError(0.005)).toBeTruthy();
   });
   it("2 ondalıktan fazla reddedilir", () => {
-    expect(moneyInputError(12.345)).toMatch(/ondalık/);
+    expect(moneyInputError(12.345)?.key).toBe("decimals");
   });
   it("MAX_MONEY üstü reddedilir", () => {
-    expect(moneyInputError(MAX_MONEY + 1)).toMatch(/çok büyük/);
+    expect(moneyInputError(MAX_MONEY + 1)?.key).toBe("tooLarge");
   });
   it("geçerli tutar null döner", () => {
     expect(moneyInputError(0.01)).toBeNull();

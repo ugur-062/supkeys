@@ -1,17 +1,11 @@
+import type { CurrencyCode } from "@rothern/shared";
+
 /**
  * Wizard + badge'ler için tip alias'ları. Eski lib/tenders/types'ın yeni
  * modele uyarlanmış alt kümesi (yalnızca wizard/etiketlerde kullanılanlar).
  */
-export type Currency =
-  | "TRY"
-  | "USD"
-  | "EUR"
-  | "GBP"
-  | "CHF"
-  | "JPY"
-  | "AED"
-  | "CNY"
-  | "RUB";
+/** Para birimi — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (Prisma enum'ıyla birebir). */
+export type Currency = CurrencyCode;
 
 export type DeliveryTerm =
   | "DOMESTIC_DELIVERED"

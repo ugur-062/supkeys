@@ -1,109 +1,251 @@
-import {
-  Body,
-  Container,
-  Head,
-  Hr,
-  Html,
-  Img,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Body, Container, Head, Html, Img, Preview, Text } from "@react-email/components";
 import * as React from "react";
-import { LOGO_CID } from "../../assets/logo";
+import { LOGO_CID, LOGO_DARK_CID, LOGO_HEIGHT, LOGO_WIDTH } from "../../assets/logo";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
+import { EmailEnvContext, privacyNoticeUrl, showsPrivacyNotice, siteHost } from "./email-env";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
   preview: string;
+  /** Alıcının dili — verilmezse Türkçe (kaynak dil). */
+  locale?: Locale;
   children: React.ReactNode;
 }
 
-const main = {
-  backgroundColor: COLORS.surfaceSubtle,
+/*
+ * Kabuk (2026-10-04 e-posta tasarımı, kullanıcı: "Rothern logosu arka temayla
+ * aynı renk bile değil, dikdörtgen bir çerçeve gibi gözüküyor"): logo artık
+ * gri sayfa zemininde DEĞİL, beyaz kartın başlığında. Görselin kendi beyaz
+ * zemini kartla aynı renk → açık modda çerçeve görünmez.
+ *
+ * Koyu mod (ikinci tur, inceleme: "koyu modda logo yine beyaz dikdörtgen,
+ * metin sütunundan 8 px kaymış"): İKİ logo var. Apple Mail/iOS Mail gibi
+ * `prefers-color-scheme` okuyan istemciler ve Outlook.com koyu modu
+ * (`[data-ogsc]`) şeffaf zeminli açık logoya geçer (`r-logo-d`), beyaz zeminli
+ * olan gizlenir (`r-logo-l`). Gmail ve Outlook masaüstü medya sorgusunu
+ * okumaz, zemini kendisi koyulaştırır ama GÖRSELİ değiştirmez → orada beyaz
+ * zeminli logo, dar iç boşluklu küçük bir chip olarak metin sütunuyla AYNI
+ * hizada durur (bkz. scripts/build-email-logo.mjs). Koyu logo varsayılan
+ * olarak gizli (`display:none` + `mso-hide:all`), medya sorgusunu okumayan
+ * istemcide hiç görünmez.
+ */
+const HEAD_CSS = `
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+a { text-decoration-skip-ink: auto; }
+@media only screen and (max-width: 480px) {
+  .r-wrap { padding: 20px 10px 24px 10px !important; }
+  .r-pad { padding: 20px 20px 28px 20px !important; }
+  .r-pad-logo { padding: 22px 20px 0 20px !important; }
+  .r-h1 { font-size: 20px !important; line-height: 28px !important; }
+  .r-code { font-size: 32px !important; letter-spacing: 8px !important; padding-left: 8px !important; }
+  .r-cta { width: 100% !important; }
+  .r-cta .r-btn { display: block !important; text-align: center !important; }
+  .r-btn { padding: 12px 14px !important; font-size: 14px !important; text-wrap: balance; }
+  .r-panel { padding-left: 14px !important; padding-right: 14px !important; }
+  .r-row-l, .r-row-v { display: block !important; width: auto !important; text-align: left !important; }
+  .r-row-l { padding-bottom: 0 !important; white-space: normal !important; }
+  .r-row-v { padding-top: 2px !important; border-top: 0 !important; }
+}
+@media (prefers-color-scheme: dark) {
+  .r-body { background-color: #09090B !important; }
+  .r-card { background-color: #18181B !important; border-color: #27272A !important; }
+  .r-h { color: #FAFAFA !important; }
+  .r-text { color: #D4D4D8 !important; }
+  .r-strong { color: #F4F4F5 !important; }
+  .r-muted { color: #A1A1AA !important; }
+  .r-box { background-color: #232326 !important; border-color: #3F3F46 !important; }
+  .r-divider { border-color: #3F3F46 !important; }
+  .r-alert { border-left-color: #A1A1AA !important; }
+  .r-code { color: #FAFAFA !important; }
+  .r-btn { background-color: #FAFAFA !important; color: #18181B !important; }
+  .r-foot { color: #A1A1AA !important; }
+  .r-logo-l { display: none !important; }
+  .r-logo-d { display: block !important; max-height: none !important; overflow: visible !important; }
+}
+[data-ogsc] .r-logo-l { display: none !important; }
+[data-ogsc] .r-logo-d { display: block !important; max-height: none !important; overflow: visible !important; }
+`;
+
+const main: React.CSSProperties = {
+  backgroundColor: COLORS.page,
   fontFamily: FONTS.sans,
   margin: 0,
   padding: 0,
 };
 
-const wrapper = {
+const wrapper: React.CSSProperties = {
   margin: "0 auto",
-  padding: "32px 16px",
+  padding: "32px 16px 40px 16px",
   maxWidth: "600px",
+  width: "100%",
 };
 
-const card = {
-  backgroundColor: "#FFFFFF",
-  borderRadius: "12px",
+const cardTable: React.CSSProperties = {
+  backgroundColor: COLORS.card,
   border: `1px solid ${COLORS.surfaceBorder}`,
-  padding: "32px",
+  borderRadius: "12px",
+  borderCollapse: "separate",
 };
 
-const headerSection = {
-  textAlign: "center" as const,
-  marginBottom: "24px",
+const cardCell: React.CSSProperties = {
+  padding: "24px 36px 36px 36px",
+  // Uzun e-posta adresi/bağlantı dar ekranda kartı taşırmasın.
+  overflowWrap: "break-word",
+  wordBreak: "break-word",
 };
 
-const logoStyle = {
-  display: "inline-block",
-  height: "auto",
+// Sol dolgu = içerik dolgusu: logonun beyaz zemini (koyu modda chip) metin
+// sütunuyla aynı hizada başlar; logo glifi 5 px içeride (görselin iç boşluğu).
+const logoCell: React.CSSProperties = {
+  padding: "28px 36px 0 36px",
+};
+
+// Koyu logo: medya sorgusu açana dek gizli. `mso-hide` Outlook masaüstü
+// (Word) için; `max-height`/`overflow` display'i yok sayan istemciler için.
+const darkLogoWrap: React.CSSProperties & Record<string, string | number> = {
+  display: "none",
+  maxHeight: 0,
+  overflow: "hidden",
+  msoHide: "all",
+};
+
+const logoStyle: React.CSSProperties = {
+  display: "block",
+  border: 0,
+  outline: "none",
+  height: `${LOGO_HEIGHT}px`,
+  width: `${LOGO_WIDTH}px`,
   margin: 0,
 };
 
-const footerStyle = {
-  textAlign: "center" as const,
-  color: COLORS.slate500,
+// Sayfa zemini zinc-100 → metin en az zinc-600 (4,5:1; bkz. CLAUDE.md).
+const footerStyle: React.CSSProperties = {
+  textAlign: "center",
+  fontFamily: FONTS.sans,
+  color: COLORS.slate600,
   fontSize: "12px",
-  marginTop: "24px",
-  lineHeight: "1.6",
+  lineHeight: "19px",
+  margin: "20px 0 0 0",
+  padding: "0 12px",
 };
+
+const footerLink: React.CSSProperties = { color: COLORS.slate600, textDecoration: "underline" };
 
 // Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
+const LOGO_DARK_SRC = `cid:${LOGO_DARK_CID}`;
 
-export function Layout({ preview, children }: LayoutProps) {
+export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutProps) {
+  const t = emailT(locale);
+  // Alan adı ve yıl gönderim ortamından (bkz. email-env.ts) — sabit değil.
+  const env = React.useContext(EmailEnvContext);
+  const year = (env.now ?? new Date()).getUTCFullYear();
   return (
-    <Html lang="tr">
+    <Html lang={locale}>
       <Head>
-        {/* Koyu mod: istemciler (Gmail iOS/Android, Apple Mail, Outlook)
-            arka planı koyulaştırır ama GÖRSELLERİ değiştirmez ve çoğu
-            `prefers-color-scheme`/`filter` CSS'ini desteklemez (Gmail hiçbirini).
-            Tek sağlam yol: logo görselinin KENDİ zemini olsun — beyaz, köşeleri
-            yuvarlak bir kart içinde siyah logo (bkz. assets/logo.ts, üretim
-            scripts/build-email-logo.mjs). Açık zeminde kart görünmez, koyu
-            zeminde beyaz kart olarak durur; logo her koşulda okunur. */}
         <meta name="color-scheme" content="light dark" />
         <meta name="supported-color-schemes" content="light dark" />
+        {/* Kodu ve tarihleri iOS telefon/takvim bağlantısına çevirmesin. */}
+        <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
+        <style dangerouslySetInnerHTML={{ __html: HEAD_CSS }} />
       </Head>
       <Preview>{preview}</Preview>
-      <Body style={main}>
-        <Container style={wrapper}>
-          <Section style={headerSection}>
-            <Img
-              src={LOGO_SRC}
-              alt="Rothern"
-              width="170"
-              height="50"
-              className="rothern-logo"
-              style={logoStyle}
-            />
-          </Section>
+      <Body className="r-body" style={main}>
+        <Container className="r-wrap" style={wrapper}>
+          <table
+            role="presentation"
+            width="100%"
+            cellPadding={0}
+            cellSpacing={0}
+            border={0}
+            className="r-card"
+            style={cardTable}
+          >
+            <tbody>
+              <tr>
+                <td className="r-pad-logo" style={logoCell}>
+                  <Img
+                    src={LOGO_SRC}
+                    alt="Rothern"
+                    width={String(LOGO_WIDTH)}
+                    height={String(LOGO_HEIGHT)}
+                    className="r-logo-l"
+                    style={logoStyle}
+                  />
+                  <div className="r-logo-d" style={darkLogoWrap}>
+                    <Img
+                      src={LOGO_DARK_SRC}
+                      alt="Rothern"
+                      width={String(LOGO_WIDTH)}
+                      height={String(LOGO_HEIGHT)}
+                      style={logoStyle}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td className="r-pad" style={cardCell}>
+                  {children}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          <Section style={card}>{children}</Section>
-
-          <Section>
-            <Hr
-              style={{
-                borderColor: COLORS.surfaceBorder,
-                margin: "24px 0 16px",
-              }}
-            />
-            <Text style={footerStyle}>
-              © 2026 Rothern
-              <br />
-              Bu e-postayı rothern.com platformundan aldınız.
-            </Text>
-          </Section>
+          <Text className="r-foot" style={footerStyle}>
+            {t("email.layout.footerNote", { site: siteHost(env.siteUrl) })}
+            {/* Tek tık çıkış + tercihler — yalnız işlem DIŞI e-postalarda
+                (gönderim servisi bağlamı kurar; kod/şifre/siparişte yok). */}
+            {env.unsubscribeUrl ? (
+              <>
+                <br />
+                {t.rich(
+                  env.preferencesUrl ? "email.layout.unsubscribeWithPrefs" : "email.layout.unsubscribe",
+                  {
+                    unsub: (chunks: React.ReactNode) => (
+                      <a href={env.unsubscribeUrl} className="r-foot" style={footerLink}>
+                        {chunks}
+                      </a>
+                    ),
+                    prefs: (chunks: React.ReactNode) => (
+                      <a href={env.preferencesUrl} className="r-foot" style={footerLink}>
+                        {chunks}
+                      </a>
+                    ),
+                  },
+                )}
+              </>
+            ) : env.preferencesUrl ? (
+              <>
+                {/* ACTIVITY: çıkış yok, yalnız bildirim ayarları (sessiz). */}
+                <br />
+                {t.rich("email.layout.preferencesOnly", {
+                  prefs: (chunks: React.ReactNode) => (
+                    <a href={env.preferencesUrl} className="r-foot" style={footerLink}>
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </>
+            ) : null}
+            {/* KVKK aydınlatma: çıkış bağlantısıyla birlikte ya da üye
+                olmayan adrese giden işlem e-postasında (`privacyNotice`). */}
+            {showsPrivacyNotice(env) ? (
+              <>
+                <br />
+                {t.rich("email.layout.privacy", {
+                  privacy: (chunks: React.ReactNode) => (
+                    <a href={privacyNoticeUrl(env.siteUrl, locale)} className="r-foot" style={footerLink}>
+                      {chunks}
+                    </a>
+                  ),
+                })}
+              </>
+            ) : null}
+            <br />
+            {t("email.layout.copyright", { year: String(year) })}
+          </Text>
         </Container>
       </Body>
     </Html>

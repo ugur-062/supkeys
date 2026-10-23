@@ -1,30 +1,32 @@
 "use client";
 
+import type { Locale } from "@rothern/i18n";
+
 import { companyApi } from "@/lib/company-auth/api";
+import { nativePush, PUSH_DEVICES_PATH, readPushToken, runPushDeviceRequest } from "@/lib/native-push";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Kapatılabilir bildirim tercihleri (backend NOTIFICATION_PREF_KEYS ile birebir).
- * UI'da toggle olarak gösterilir; varsayılan tümü açık.
+ * UI'da toggle olarak gösterilir; varsayılan tümü açık. Etiket katalogda:
+ * `web.panel.settings.accountSettingsSection.notificationPref.<key>`.
  */
-export const NOTIFICATION_PREFS: { key: string; label: string }[] = [
-  { key: "invitation", label: "Satın Alma Talebi daveti aldığımda" },
-  { key: "reminder", label: "Davetli olduğum satın alma talebinin kapanışı yaklaştığında" },
-  { key: "bidElimination", label: "Teklifim elendiğinde" },
-  { key: "listingClosed", label: "Katıldığım satın alma talebi kapandığında" },
-  { key: "categoryMatch", label: "Kategorime uygun yeni satın alma talebi açıldığında" },
-  { key: "approvalPending", label: "Onayım beklendiğinde" },
-  { key: "announcement", label: "Platform duyuruları" },
-];
-
 /**
- * Transactional bildirimler — kapatılamaz, her zaman gönderilir. UI'da bilgi
- * olarak gösterilir (toggle'sız).
+ * `parent`: alt tercihin ana şalteri (backend `PREF_KEY_PARENT`) — üst
+ * kapalıyken alt türün e-postası da gitmez; satır pasif ve girintili görünür.
  */
-export const TRANSACTIONAL_NOTIFICATIONS: string[] = [
-  "Teklifim kazandığında / sipariş oluştuğunda",
-  "Siparişimin durumu değiştiğinde",
-  "Şifre sıfırlama ve hesap/davet e-postaları",
+export const NOTIFICATION_PREFS: { key: string; parent?: string }[] = [
+  { key: "invitation" },
+  { key: "aiInvitation", parent: "invitation" },
+  { key: "reminder" },
+  { key: "growthNudges", parent: "reminder" },
+  { key: "bidElimination" },
+  { key: "listingClosed" },
+  { key: "categoryMatch" },
+  { key: "approvalPending" },
+  { key: "announcement" },
+  { key: "aiSuggestions" },
+  { key: "lifecycle" },
 ];
 
 export function useUpdateMe() {
@@ -34,12 +36,31 @@ export function useUpdateMe() {
       firstName?: string;
       lastName?: string;
       phone?: string;
+      /** Arayüz/bildirim dili (i18n Faz 1) — Ayarlar › Hesap Bilgileri › Dil. */
+      locale?: Locale;
     }) => {
       const { data } = await companyApi.patch("/company-auth/me", input);
       return data;
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
+/**
+ * Kişinin kendi hesabını silmesi (şifreyle). Hata metnini bölüm kendi satırında
+ * gösterir → global toast yok.
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async (input: { password: string }) => {
+      const { data } = await companyApi.post<{ ok: boolean; companyClosed: boolean }>(
+        "/company-auth/delete-account",
+        input,
+        { skipErrorToast: true },
+      );
+      return data;
+    },
   });
 }
 
@@ -57,8 +78,32 @@ export function useChangePassword() {
     },
     // Parola değişimi diğer oturumları geçersiz kılar (tokenVersion). BU oturum
     // sunucunun döndürdüğü taze token'la devam eder — AuthCookieInterceptor
-    // yeni httpOnly cookie'yi otomatik yazdığı için istemcide iş kalmaz.
+    // yeni httpOnly cookie'yi otomatik yazar.
+    onSuccess: () => {
+      void rebindStoredPushToken();
+    },
   });
+}
+
+/**
+ * Mobil kabuk: anlık bildirim cihaz kaydı oturum sürümüne bağlıdır (sunucu
+ * sürümü eskiyen cihaza göndermez). Şifre değişimi sürümü artırır ama bu
+ * oturum sürer → bu cihazın saklı belirteci taze oturumla yeniden yazılır;
+ * yoksa telefon bir sonraki açılışa dek bildirim almazdı. Tarayıcıda ya da
+ * belirteç yokken hiçbir şey yapmaz; hata görünmez.
+ */
+export async function rebindStoredPushToken(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const push = nativePush(window);
+  const token = push ? readPushToken() : null;
+  if (!push || !token) return;
+  try {
+    await runPushDeviceRequest(() =>
+      companyApi.post(PUSH_DEVICES_PATH, { token, platform: push.platform }, { skipErrorToast: true }),
+    );
+  } catch {
+    // Görünür bir şey yok: sonraki açılışta kaydedici yeniden kaydeder.
+  }
 }
 
 export function useSetup2fa() {
@@ -102,11 +147,15 @@ export function useDisable2fa() {
   });
 }
 
-/** E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. */
+/**
+ * E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. `capped`: saatlik
+ * tavan dolu, yeni kod GİTMEDİ ama gelen kutusundaki son kod geçerli (tavan
+ * dolu + geçerli kod yoksa API 429 atar).
+ */
 export function useSendEmail2faCode() {
   return useMutation({
     mutationFn: async () => {
-      const { data } = await companyApi.post<{ sent: boolean }>(
+      const { data } = await companyApi.post<{ sent: boolean; capped?: boolean }>(
         "/company-auth/2fa/email/send-code",
       );
       return data;

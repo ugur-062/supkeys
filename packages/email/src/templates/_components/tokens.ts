@@ -9,18 +9,25 @@ export const COLORS = {
   brand900: "#18181B", // koyu başlık / metin (zinc-900)
 
   slate100: "#F4F4F5",
+  slate400: "#A1A1AA",
   slate500: "#71717A",
   slate600: "#52525B",
   slate700: "#3F3F46",
   slate900: "#18181B",
 
+  /** Sayfa zemini (kartın çevresi) — kart beyazından ayrışacak kadar gri. */
+  page: "#F4F4F5",
+  card: "#FFFFFF",
   surfaceSubtle: "#FAFAFA",
   surfaceMuted: "#F4F4F5",
   surfaceBorder: "#E4E4E7",
 } as const;
 
+// Uzak yazı tipi YÜKLENMEZ (e-posta istemcileri çoğunlukla engeller, Outlook
+// yok sayar): marka fontu Inter yüklüyse o, değilse sistem yığını. Mono font
+// YOK (kullanıcı kararı 2026-09-10, "kod" dahil) — kod rakamları tabular-nums.
+const SANS = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 export const FONTS = {
-  sans: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  display:
-    '"Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+  sans: SANS,
+  display: SANS,
 } as const;

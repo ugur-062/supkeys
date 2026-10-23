@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/components/list";
 import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/catalyst/table";
 import { useAdminComplaints } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
+import { useState } from "react";
 
 const STATUS_META: Record<
   string,
@@ -24,8 +26,14 @@ const STATUS_META: Record<
 
 /** Şikayetler — firma hem "hakkında" hem "şikayet eden" olarak. */
 export function ComplaintsTab({ companyId }: { companyId: string }) {
-  const query = useAdminComplaints(undefined, companyId);
+  // Sayfalı (derin denetim LU-11): API varsayılan 25 kayıt döndürür; sayfa
+  // olmadan 25'i aşan firmada en eski (çözülmüş) şikayetler sessizce kesilirdi.
+  const [page, setPage] = useState(1);
+  const query = useAdminComplaints(undefined, companyId, undefined, page);
   const items = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
+  const pageSize = query.data?.pageSize ?? 25;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="admin-card overflow-hidden">
@@ -84,6 +92,15 @@ export function ComplaintsTab({ companyId }: { companyId: string }) {
           )}
         </TableBody>
       </Table>
+      {totalPages > 1 ? (
+        <Pagination
+          page={query.data?.page ?? page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }

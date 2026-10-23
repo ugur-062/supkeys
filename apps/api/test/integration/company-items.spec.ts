@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
+import { ForbiddenException } from "@nestjs/common";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeItem } from "./factories";
 import { CompanyItemsService } from "../../src/modules/company-items/company-items.service";
+import { CompanyItemsController } from "../../src/modules/company-items/company-items.controller";
+import { COMPANY_PERMISSION_KEY } from "../../src/modules/company-auth/decorators/require-company-permission.decorator";
 
 /**
  * Faz 2 — Kalem Kataloğu sözleşmesi.
@@ -85,6 +88,52 @@ describe("Kalem Kataloğu", () => {
       const second = await svc.importFromListing(auth, listing.id);
       expect(second).toMatchObject({ added: 0, skipped: 2 });
       expect(await prisma.companyItem.count({ where: { companyId: company.id } })).toBe(2);
+    });
+
+    it("205 kalemli ilan TEK basışta tamamen alınır; ikinci basış hepsini 'zaten var' sayar (arayüz testi D-248)", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const svc = make();
+      const listing = await makeListing(prisma, {
+        companyId: company.id,
+        createdById: user.id,
+      });
+      await prisma.listingItem.createMany({
+        data: Array.from({ length: 205 }, (_, i) => ({
+          listingId: listing.id,
+          lineNo: i + 1,
+          name: `Kalem ${i + 1}`,
+          unit: "adet",
+          quantity: new Prisma.Decimal(1),
+        })),
+      });
+
+      const first = await svc.importFromListing(auth, listing.id);
+      expect(first).toEqual({ added: 205, skipped: 0, truncated: 0 });
+
+      const second = await svc.importFromListing(auth, listing.id);
+      expect(second).toEqual({ added: 0, skipped: 205, truncated: 0 });
+      expect(await prisma.companyItem.count({ where: { companyId: company.id } })).toBe(205);
+    });
+
+    it("katalogda olan kalemler tavandan YER TUTMAZ — tekilleştirme kesmeden önce", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const svc = make();
+      const listing = await makeListing(prisma, {
+        companyId: company.id,
+        createdById: user.id,
+      });
+      await prisma.listingItem.createMany({
+        data: Array.from({ length: 3 }, (_, i) => ({
+          listingId: listing.id,
+          lineNo: i + 1,
+          name: `Parça ${i + 1}`,
+          unit: "adet",
+          quantity: new Prisma.Decimal(1),
+        })),
+      });
+      await svc.create(auth, { name: "Parça 1", unit: "adet" });
+      const r = await svc.importFromListing(auth, listing.id);
+      expect(r).toEqual({ added: 2, skipped: 1, truncated: 0 });
     });
 
     it("BAŞKA firmanın ilanından içe aktarılamaz", async () => {
@@ -202,14 +251,14 @@ describe("vitrin sayaçları", () => {
     });
 
     const all = await svc.list(company.id);
-    expect(all.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0 });
+    expect(all.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0, publishedInReview: 0 });
     // Satır vitrin özetini taşır (durum rozeti / küçük görsel için).
     expect(all.items.find((i) => i.id === a.id)?.isPublic).toBe(true);
     expect(all.items.find((i) => i.id === a.id)?.thumbnailUrl).toBeNull();
 
     const narrowed = await svc.list(company.id, { q: "Taslak" });
     expect(narrowed.items).toHaveLength(1);
-    expect(narrowed.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0 });
+    expect(narrowed.counts).toEqual({ published: 1, draft: 1, pending: 0, rejected: 0, publishedInReview: 0 });
   });
 });
 
@@ -231,5 +280,81 @@ describe("arşiv görünümü", () => {
     // Bayrak desteklenmeseydi burası da aktifleri döndürür ve arşiv ekranı
     // sessizce YANLIŞ liste gösterirdi.
     expect(arch.items.map((i) => i.id)).toEqual([b.id]);
+  });
+});
+
+describe("arşivle/geri al izni (derin denetim S066)", () => {
+  // Satınalma portalındaki Kalem Kataloğu `templates:manage` ile yönetilir;
+  // uç eskiden yalnız `sell:product:manage` istediği için Satın Almacı her
+  // tıklamada 403 alıyordu. Vitrine dokunmuş ürün ise yalnız satış izniyle.
+  const make = () =>
+    new CompanyItemsService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      {} as never,
+    );
+
+  it("templates:manage'li (satış izni olmayan) kullanıcı katalog kalemini arşivler", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const svc = make();
+    const r = await svc.create(auth, { name: "Conta", unit: "adet" });
+    const buyer = { ...auth, isOwner: false, roles: ["SATIN_ALMACI"] } as typeof auth;
+    await expect(svc.setActive(buyer, r.id, false)).resolves.toMatchObject({ isActive: false });
+    await expect(svc.setActive(buyer, r.id, true)).resolves.toMatchObject({ isActive: true });
+  });
+
+  it("yayındaki vitrin ürününü satış izni olmayan kullanıcı arşivleyemez", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const svc = make();
+    const r = await svc.create(auth, { name: "Vitrin ürünü", unit: "adet" });
+    await prisma.companyItem.update({
+      where: { id: r.id },
+      data: { isPublic: true, reviewStatus: "APPROVED", publishedAt: new Date(), slug: "vitrin-urunu" },
+    });
+    const buyer = { ...auth, isOwner: false, roles: ["SATIN_ALMACI"] } as typeof auth;
+    await expect(svc.setActive(buyer, r.id, false)).rejects.toBeInstanceOf(ForbiddenException);
+    // Satış izni olan kullanıcı arşivleyebilir.
+    await expect(svc.setActive(auth, r.id, false)).resolves.toMatchObject({ isActive: false });
+  });
+});
+
+describe("kalem yazma izni (arayüz testi D-185, DN-12)", () => {
+  const make = () =>
+    new CompanyItemsService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      {} as never,
+    );
+
+  it("POST / ve PATCH :id şablon iznini (templates:manage) de kabul eder", () => {
+    const proto = CompanyItemsController.prototype as unknown as Record<string, object>;
+    for (const handler of ["create", "update"]) {
+      expect(Reflect.getMetadata(COMPANY_PERMISSION_KEY, proto[handler]!)).toEqual([
+        "sell:product:manage",
+        "templates:manage",
+      ]);
+    }
+    // Vitrin uçları yalnız satış izniyle.
+    expect(Reflect.getMetadata(COMPANY_PERMISSION_KEY, proto.createProduct!)).toBe("sell:product:manage");
+    expect(Reflect.getMetadata(COMPANY_PERMISSION_KEY, proto.updateShowcase!)).toBe("sell:product:manage");
+  });
+
+  it("satış izni olmayan şablon yetkilisi TASLAK kalemi düzenler, vitrin ürününü düzenleyemez", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const svc = make();
+    const buyer = { ...auth, isOwner: false, roles: ["SATIN_ALMACI"] } as typeof auth;
+    const draft = await svc.create(buyer, { name: "Conta", unit: "adet" });
+    await expect(svc.update(buyer, draft.id, { name: "Conta 2", unit: "adet" })).resolves.toMatchObject({
+      name: "Conta 2",
+    });
+
+    const shown = await svc.create(auth, { name: "Vitrin ürünü", unit: "adet" });
+    await prisma.companyItem.update({
+      where: { id: shown.id },
+      data: { isPublic: true, reviewStatus: "APPROVED", publishedAt: new Date(), slug: "vitrin-urunu-2" },
+    });
+    await expect(svc.update(buyer, shown.id, { name: "Değişti", unit: "adet" })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });

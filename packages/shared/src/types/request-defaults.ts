@@ -1,3 +1,5 @@
+import { EU_VAT_COUNTRIES } from "../data/country-profiles";
+
 /**
  * TALEP ŞARTLARI — firmanın ticari profili (2026-09-09, hızlı talep).
  *
@@ -39,6 +41,11 @@ export interface RequestDefaults {
 export const REQUEST_CLOSE_DAY_OPTIONS = [3, 7, 14] as const;
 export const REQUEST_CLOSE_DAYS_DEFAULT = 7;
 export const REQUEST_CLOSE_DAYS_MAX = 60;
+/**
+ * Kabul edilen para birimi üst sınırı (arayüz testi D-046): talep şartları
+ * şeması, talep DTO'su ve formdaki çipler aynı sayıyı kullanır.
+ */
+export const REQUEST_ALLOWED_CURRENCIES_MAX = 8;
 
 export type RequestDefaultsSource = "saved" | "last_listing" | "none";
 
@@ -70,6 +77,74 @@ export const REQUEST_DEFAULTS_FALLBACK: RequestDefaults = {
   deliveryAddressId: null,
   billingSameAsDelivery: true,
 };
+
+/**
+ * Euro kullanan AB DIŞI ülkeler (resmî ya da tek taraflı) — AB üyeleriyle
+ * birlikte varsayılan para birimi EUR.
+ */
+const EURO_NON_EU = new Set(["AD", "MC", "SM", "VA", "ME", "XK"]);
+
+/**
+ * Platformun desteklediği yerel para birimleri (`CURRENCY_CODES`,
+ * `constants/currencies.ts`). Listede olmayan ülke USD'ye düşer. Bulgaristan
+ * 2026-01-01'de euroya geçti → AB kuralıyla EUR (BGN yalnız listede, eski
+ * kayıtlar için). Polonya/Çekya/Macaristan'ın para birimi TCMB'de yok → AB
+ * kuralıyla EUR; Kazakistan/Özbekistan → USD (ikinci kur kaynağı gelince
+ * yerel birime geçer).
+ */
+const NATIVE_SUPPORTED_CURRENCY: Record<string, string> = {
+  TR: "TRY",
+  XN: "TRY",
+  GB: "GBP",
+  CH: "CHF",
+  LI: "CHF",
+  JP: "JPY",
+  AE: "AED",
+  CN: "CNY",
+  RU: "RUB",
+  AZ: "AZN",
+  SE: "SEK",
+  NO: "NOK",
+  SJ: "NOK",
+  DK: "DKK",
+  FO: "DKK",
+  GL: "DKK",
+  RO: "RON",
+  KR: "KRW",
+  SA: "SAR",
+  QA: "QAR",
+  KW: "KWD",
+  AU: "AUD",
+  CX: "AUD",
+  CC: "AUD",
+  NF: "AUD",
+  KI: "AUD",
+  NR: "AUD",
+  TV: "AUD",
+  CA: "CAD",
+};
+
+/**
+ * Firmanın DOĞAL para birimi (2026-09-27, kayıt tüm ülkelere açıldı): yabancı
+ * alıcının ilk talebi TRY ile açılmasın. TR/KKTC → TRY, AB ve euro kullanan
+ * ülkeler → EUR, desteklenen yerel para birimi olan ülke → o, diğerleri → USD.
+ */
+export function defaultCurrencyForCountry(country: string | null | undefined): string {
+  const cc = (country || "TR").toUpperCase();
+  if (NATIVE_SUPPORTED_CURRENCY[cc]) return NATIVE_SUPPORTED_CURRENCY[cc]!;
+  if (EU_VAT_COUNTRIES.has(cc) || EURO_NON_EU.has(cc)) return "EUR";
+  return "USD";
+}
+
+/**
+ * Platform varsayılanı firmanın ülkesine göre — yalnız para birimi değişir.
+ * Kayıtlı profil ve son talepten türetilen şartlar HER ZAMAN önce gelir
+ * (bu yalnız `source: "none"` yedeği).
+ */
+export function requestDefaultsFallbackFor(country: string | null | undefined): RequestDefaults {
+  const currency = defaultCurrencyForCountry(country);
+  return { ...REQUEST_DEFAULTS_FALLBACK, primaryCurrency: currency, allowedCurrencies: [currency] };
+}
 
 /** Yayın → kapanış arasından gün sayısı (1..MAX), hesaplanamazsa varsayılan. */
 export function closeDaysBetween(publishedAt: Date | string | null | undefined, closesAt: Date | string | null | undefined): number {

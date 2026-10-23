@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers";
+import { QA, apiGet, apiPost, apiSession, daysFromNow, qaDeliveryAddressId } from "./staging-helpers";
 
 /**
  * FİRMALAR ARASI YALITIM (IDOR) + KENDİ SATIRINI DÜZENLEYEMEME.
@@ -23,16 +23,8 @@ test("başka firmanın talebi, siparişi, ürünü, adresi ve kullanıcısı id 
   const outsider = await apiSession(QA.tedarikci2Kurucu); // üçüncü firma: hiçbir ilişkisi yok
 
   // ── Alıcı firmanın kayıtları ────────────────────────────────────────
-  const addr = await apiPost(buyer, "/company/addresses", {
-    type: "TESLIMAT",
-    title: `QA Yalıtım Depo ${stamp}`,
-    addressLine: "Organize Sanayi 4. Cadde No 11",
-    city: "İstanbul",
-    district: "Tuzla",
-    country: "TR",
-  });
-  expect(addr.status).toBeLessThan(300);
-  const addressId: string = addr.body.id;
+  // Adres yeniden kullanılır (her koşuda yeni adres firma sınırını dolduruyordu).
+  const addressId = await qaDeliveryAddressId(buyer);
 
   // TASLAK talep: yalnız SAHİBİNE açık. (PRIVATE seçilmedi çünkü davetli
   // firma ZORUNLU ve davet bağlantı ister — yalıtım sınamasına gereksiz
@@ -80,9 +72,18 @@ test("başka firmanın talebi, siparişi, ürünü, adresi ve kullanıcısı id 
   const foreignAddr = await apiPost(outsider, `/company/addresses/${addressId}/set-default`, {});
   expect([403, 404, 405]).toContain(foreignAddr.status);
 
-  // Sipariş: taraf olmayan firma göremez.
+  // Sipariş: taraf olmayan firma göremez. Outsider'ın TARAF OLDUĞU sipariş
+  // seçilmemeli (staging-money bölünmüş kazandırması alıcı ↔ QA Tedarikçi 2
+  // siparişi üretir; orada 200 doğru yanıttır, sızıntı değil).
+  const outsiderMe = await apiGet(outsider, "/company-auth/me");
+  const outsiderCompanyId: string = outsiderMe.body?.company?.id ?? outsiderMe.body?.companyId;
+  expect(outsiderCompanyId, "üçüncü firma id").toBeTruthy();
   const orders = await apiGet(buyer, "/company/orders");
-  const anyOrder = (orders.body as Array<{ id: string }>)[0];
+  type Siparis = { id: string; counterpartyCompanyId?: string; sellerCompanyId?: string; buyerCompanyId?: string };
+  const anyOrder = ((orders.body as Siparis[]) ?? []).find(
+    (o) => ![o.counterpartyCompanyId, o.sellerCompanyId, o.buyerCompanyId].includes(outsiderCompanyId),
+  );
+  if (!anyOrder) console.log("   ⓘ alıcının üçüncü firmayla ilgisiz siparişi yok — sipariş yalıtımı atlandı");
   if (anyOrder) {
     const foreign = await apiGet(outsider, `/company/orders/${anyOrder.id}`);
     expect(isDenied(foreign.status), `üçüncü firma → sipariş ${foreign.status}`).toBe(true);

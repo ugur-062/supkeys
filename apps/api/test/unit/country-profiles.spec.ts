@@ -1,49 +1,90 @@
 import {
   COUNTRY_PROFILES,
   COUNTRIES,
+  REGISTRATION_BLOCKED,
+  countryHasIban,
+  flagAssetPath,
+  hasFlagAsset,
+  countryName,
+  countryUsesIban,
   getCountryProfile,
+  isValidCountryCode,
   isRegistrationOpen,
   registrationCountries,
   requiredDocsForCountry,
+  taxIdLabelKey,
 } from "@rothern/shared";
 
 /**
- * Ülke kapısı + belge profili sözleşmesi (Faz 1).
+ * Ülke kapısı + belge profili sözleşmesi.
  *
- * Karar: kayıt SEKİZ ülkeye açık (TR, KKTC, RU, AZ, KZ, UZ, CN, AE).
- * Gerekçe `docs/plan-country-registration.md`.
+ * Karar (2026-09-27, kullanıcı: "tüm ülkeler kayıt olabilsin, Amerika hariç"):
+ * kayıt KAPALI LİSTE dışındaki her ülkeye açık — ABD + toprakları ve
+ * kapsamlı yaptırım ülkeleri (İran, Kuzey Kore, Suriye, Küba) kapalı.
+ * (2026-09-01 – 09-27 arası yalnız sekiz ülke açıktı.)
  */
 describe("Ülke profilleri", () => {
-  const OPEN = ["TR", "XN", "RU", "AZ", "KZ", "UZ", "CN", "AE"];
-
-  it("kayıt tam olarak SEKİZ ülkeye açık", () => {
-    expect(registrationCountries().map((c) => c.code).sort()).toEqual(
-      [...OPEN].sort(),
-    );
+  it("kapalı liste: ABD + toprakları ve dört yaptırım ülkesi — başka hiçbiri", () => {
+    const closed = COUNTRIES.map((c) => c.code).filter((c) => !isRegistrationOpen(c)).sort();
+    expect(closed).toEqual(["AS", "CU", "GU", "IR", "KP", "MP", "PR", "SY", "US", "VI"].sort());
+    expect([...REGISTRATION_BLOCKED].sort()).toEqual(closed);
   });
 
-  it("AB ve Afrika BİLİNÇLİ olarak kapalı", () => {
-    // Kapalıysa yeni kayıt alınmaz; ertelemenin maliyeti yok (VIES 27 ülkede
-    // aynı doğrulama → AB sonradan tek seferde eklenir).
-    for (const c of ["DE", "FR", "IT", "CY", "NG", "ZA", "EG", "KE"]) {
-      expect(isRegistrationOpen(c)).toBe(false);
+  it("eskiden kapalı AB/Afrika/Asya ülkeleri artık açık", () => {
+    for (const c of ["DE", "FR", "IT", "CY", "NG", "ZA", "EG", "KE", "IN", "BR", "JP", "GB", "CA"]) {
+      expect(isRegistrationOpen(c)).toBe(true);
     }
   });
 
-  it("her açık ülkenin görünen ADI var (kod göstermeyiz)", () => {
-    for (const c of registrationCountries()) {
+  it("bilinmeyen/boş kod kapalı (kapı fail-closed)", () => {
+    expect(isRegistrationOpen("ZZ")).toBe(false);
+    expect(isRegistrationOpen("")).toBe(false);
+    expect(isRegistrationOpen(null)).toBe(false);
+  });
+
+  it("kayıt listesi: TR başta, kapalılar YOK, her ülkenin görünen ADI var", () => {
+    const list = registrationCountries();
+    expect(list[0]!.code).toBe("TR");
+    expect(list.some((c) => c.code === "US")).toBe(false);
+    expect(list.length).toBeGreaterThan(220);
+    for (const c of list) {
       expect(c.name).toBeTruthy();
       expect(c.name).not.toBe(c.code);
     }
   });
 
-  it("KKTC ISO listesinde YOK ama profili var (kod XN)", () => {
-    // ISO 3166-1'de KKTC kodu yoktur; kullanıcıya ayrılmış X-aralığı kullanıldı.
-    expect(COUNTRIES.some((c) => c.code === "XN")).toBe(false);
-    expect(isRegistrationOpen("XN")).toBe(true);
-    expect(registrationCountries().find((c) => c.code === "XN")?.name).toMatch(
-      /Kıbrıs/,
-    );
+  it("tam ülke listesi: kodlar tekil, TR başta, KKTC (XN) ve Kosova (XK) dahil", () => {
+    const codes = COUNTRIES.map((c) => c.code);
+    expect(new Set(codes).size).toBe(codes.length);
+    expect(codes[0]).toBe("TR");
+    expect(codes.length).toBeGreaterThanOrEqual(245);
+    expect(countryName("XN")).toMatch(/Kıbrıs/);
+    expect(isValidCountryCode("XK")).toBe(true);
+    // Bayrak SVG dosyası (flag-icons, 2026-10-04): KKTC'nin yok (metne düşer),
+    // Kosova'nın var; tabloda olmayan kod dosya yolu üretmez.
+    expect(hasFlagAsset("XN")).toBe(false);
+    expect(flagAssetPath("XN")).toBeNull();
+    expect(flagAssetPath("XK")).toBe("/flags/4x3/xk.svg");
+    expect(flagAssetPath("de")).toBe("/flags/4x3/de.svg");
+    expect(flagAssetPath("ZZ")).toBeNull();
+    expect(flagAssetPath(null)).toBeNull();
+  });
+
+  it("profili olmayan ülke VARSAYILAN yabancı profil alır: 3 belge, IBAN kaydından banka biçimi, AB → VIES", () => {
+    const de = getCountryProfile("DE")!;
+    expect(de).toMatchObject({ code: "DE", group: "EU", viesSupported: true, usesIban: true, taxIdRule: "GENERIC" });
+    expect(de.requiredDocs).toEqual(["tradeRegistry", "taxPlate", "idFront"]);
+    expect(getCountryProfile("IN")).toMatchObject({ group: "OTHER", viesSupported: false, usesIban: false });
+    expect(getCountryProfile("NG")!.group).toBe("AFRICA");
+    expect(getCountryProfile("ZZ")).toBeNull();
+  });
+
+  it("IBAN kullanımı: kayıt listesi + profil ezmesi (RU/UZ/CN hayır; FR toprakları ve KKTC evet)", () => {
+    for (const c of ["TR", "DE", "GB", "AE", "SA", "XN", "RE", "GP"]) expect(countryUsesIban(c)).toBe(true);
+    // Kısmi IBAN ülkesi (kayıtta var, iç ödemede yerleşmemiş): IBAN zorunlu DEĞİL.
+    for (const c of ["BR", "EG", "CR"]) expect(countryUsesIban(c)).toBe(false);
+    for (const c of ["RU", "UZ", "CN", "IN", "JP", "CA", "AU", "MX", "US"]) expect(countryUsesIban(c)).toBe(false);
+    expect(countryHasIban("RU")).toBe(true); // kayıtta var ama profil ezer
   });
 
   describe("belge kümeleri ülkeye göre AYRIŞIYOR", () => {
@@ -86,11 +127,10 @@ describe("Ülke profilleri", () => {
 
   describe("MEVCUT firmalar kilitlenmez", () => {
     it("kapalı ülkedeki eski kayıt için belge kümesi YİNE de hesaplanır", () => {
-      // Almanya kapalı ama orada kayıtlı eski bir firma varsa KYC ekranı
-      // çalışmaya devam etmeli — kapı yalnız YENİ kayda uygulanır.
-      const de = requiredDocsForCountry("DE");
-      expect(de.length).toBeGreaterThan(0);
-      expect(getCountryProfile("DE")).toBeNull(); // profili yok
+      // Kapı yalnız YENİ kayda uygulanır; ABD'de kayıtlı eski bir firma varsa
+      // KYC ekranı çalışmaya devam etmeli.
+      expect(requiredDocsForCountry("US")).toHaveLength(3);
+      expect(getCountryProfile("US")).toMatchObject({ registrationOpen: false });
     });
 
     it("bilinmeyen/boş ülke ortak temele düşer, patlamaz", () => {
@@ -108,9 +148,27 @@ describe("Ülke profilleri", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it("her profilde vergi no ETİKETİ var (kullanıcı ne gireceğini bilsin)", () => {
+  /**
+   * 2026-09-27: profildeki etiket karışık dilliydi ("БИН (BIN) — 12 hane") ve
+   * ham basılıyordu. Artık profil yalnız YEREL resmî adı taşır (dilden
+   * bağımsız veri); arayüz metni katalogda `web.domain.taxId.*.<anahtar>`.
+   */
+  it("vergi no etiket anahtarı: özel kural, KKTC, AB, genel", () => {
+    expect(taxIdLabelKey("TR")).toBe("TR_VKN");
+    expect(taxIdLabelKey("XN")).toBe("XN");
+    expect(taxIdLabelKey("RU")).toBe("RU_INN");
+    expect(taxIdLabelKey("KZ")).toBe("KZ_BIN");
+    expect(taxIdLabelKey("CN")).toBe("CN_USCC");
+    expect(taxIdLabelKey("AE")).toBe("AE_TRN");
+    expect(taxIdLabelKey("DE")).toBe("EU");
+    expect(taxIdLabelKey("GR")).toBe("EU");
+    expect(taxIdLabelKey("BR")).toBe("GENERIC");
+    expect(taxIdLabelKey(null)).toBe("GENERIC");
     for (const p of COUNTRY_PROFILES) {
-      expect(p.taxIdLabel.length).toBeGreaterThan(3);
+      if (p.taxIdRule === "GENERIC") continue;
+      // Yerel ad dilden bağımsız: Türkçe cümle/uzunluk bilgisi TAŞIMAZ.
+      expect(p.taxIdLocalName).toBeTruthy();
+      expect(p.taxIdLocalName).not.toMatch(/hane|karakter|digits/i);
     }
   });
 });

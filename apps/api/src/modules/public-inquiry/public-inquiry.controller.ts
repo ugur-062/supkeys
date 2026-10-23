@@ -16,6 +16,13 @@ import { PublicInquiryService } from "./public-inquiry.service";
  *
  * Pazar yeri anahtarına tabi: pazar yeri kapalıyken ürün sayfası zaten yok,
  * uç de olmamalı.
+ *
+ * BİLİNÇLİ AÇIK (arayüz testi O-059, kullanıcı kararı T-02 2026-10-01:
+ * "misafirler mevcut misafir bilgi talebi akışını korur"): web bugün bu formu
+ * çizmiyor (herkese açık "Bilgi iste" girişe götürür) ama uç ve e-posta
+ * doğrulama zinciri (`/talep-onayla`) KAPATILMADI — misafir talebi doğrulanana
+ * dek satıcıya ulaşmaz, IP/e-posta tavanları ve bot tuzağı geçerli. Kapatma
+ * ya da 410 ürün sahibi kararına bağlı (karar listesinde).
  */
 @Controller("public/inquiries")
 @UseGuards(MarketplaceLiveGuard)

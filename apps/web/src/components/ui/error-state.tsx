@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface ErrorStateProps {
   title?: string;
@@ -9,6 +11,11 @@ interface ErrorStateProps {
   onRetry?: () => void;
   retryLabel?: string;
   className?: string;
+  /**
+   * Dar yer (süzgeç rayı, pencere içi seçici, açılır liste): kart yerine tek
+   * satır — mesaj + "Tekrar dene" bağlantısı. Başlık çizilmez.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -17,12 +24,37 @@ interface ErrorStateProps {
  * refetch veya error boundary reset).
  */
 export function ErrorState({
-  title = "Bir şeyler ters gitti",
-  message = "İçerik yüklenirken bir hata oluştu. Lütfen tekrar deneyin.",
+  title,
+  message,
   onRetry,
-  retryLabel = "Tekrar dene",
+  retryLabel,
   className,
+  compact = false,
 }: ErrorStateProps) {
+  // Varsayılan metinler GÖVDEDE çözülür: parametre varsayılanı `t`yi göremez.
+  const t = useTranslations("web.shared.errorState");
+  const heading = title ?? t("birSeylerTersGitti");
+  const body = message ?? t("icerikYuklenirkenHata");
+  const retry = retryLabel ?? t("tekrarDene");
+  if (compact) {
+    return (
+      <p role="alert" className={cn("text-sm text-zinc-600", className)}>
+        {body}
+        {onRetry ? (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-semibold text-zinc-900 underline underline-offset-2"
+            >
+              {retry}
+            </button>
+          </>
+        ) : null}
+      </p>
+    );
+  }
   return (
     <div
       role="alert"
@@ -33,12 +65,12 @@ export function ErrorState({
     >
       <AlertTriangle className="size-8 text-red-500" aria-hidden="true" />
       <div className="space-y-1">
-        <p className="text-sm font-medium text-zinc-900">{title}</p>
-        <p className="max-w-sm text-sm text-zinc-500">{message}</p>
+        <p className="text-sm font-medium text-zinc-900">{heading}</p>
+        <p className="max-w-sm text-sm text-zinc-500">{body}</p>
       </div>
       {onRetry ? (
         <Button variant="secondary" size="sm" onClick={onRetry}>
-          {retryLabel}
+          {retry}
         </Button>
       ) : null}
     </div>

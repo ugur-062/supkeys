@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bildirim vurgu rengi (küçük ikon arka planı / uygulama adı). API'nin FCM iletisindeki
+         android.notification.color ile aynı. -->
+    <color name="rothern_notification_color">#0A0A0A</color>
+</resources>

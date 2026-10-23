@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 
 /**
  * Pano URL durumu (Faz 3) — dönem + sekme + karşılaştır + özel aralık TEK
@@ -11,6 +11,14 @@ import { useCallback, useEffect, useRef } from "react";
  *   &tab=...    (varsayılan sekme param yazılmaz)
  * Sayfa paylaşılabilir/yer imlenebilir; geçişler history'e PUSH edilir ki
  * geri tuşu çalışsın.
+ *
+ * YAZIM YERLİ `history.pushState` İLE (mobil denetim g10-02, 2026-10-15):
+ * `router.push(…, { scroll: false })` sekme / dönem dokunuşunda sayfayı yine
+ * EN ÜSTE atıyordu — Next'in `ScrollAndFocusHandler`ı gezinme sonrası
+ * `scrollTop = 0` yapıp sayfa kökünü odaklıyor; telefonda Grafikler ~2000 px
+ * aşağıda, kullanıcı her dokunuşta geri kaydırmak zorundaydı. Yerli
+ * `pushState`i Next 15 `useSearchParams` ile eşitler (sunucu isteği yok,
+ * kaydırma yok, Geri tuşu çalışır); dil öneki `window.location`dan korunur.
  */
 
 export type DashPeriod = "month" | "quarter" | "year" | "custom";
@@ -37,8 +45,6 @@ export function useDashboardParams(
 ): DashboardParams & {
   setParams: (patch: Partial<DashboardParams>) => void;
 } {
-  const router = useRouter();
-  const pathname = usePathname();
   const sp = useSearchParams();
 
   const rawPeriod = sp.get("period");
@@ -55,20 +61,13 @@ export function useDashboardParams(
   const rawTab = sp.get("tab");
   const tab = rawTab && validTabs.includes(rawTab) ? rawTab : defaultTab;
 
-  // Ardışık hızlı değişim yarışı (karşılaştır + dönem): router.push async —
-  // ikinci setParams, ilk push henüz URL'e yansımadan gelirse bayat taban
-  // bir önceki parametreyi sessizce düşürür. Son push'lanan sorgu ref'te
-  // aynalanır; URL güncellenince (sp değişince) ref sıfırlanır.
-  const pendingQs = useRef<string | null>(null);
-  useEffect(() => {
-    pendingQs.current = null;
-  }, [sp]);
-
+  // Taban HER ZAMAN `window.location.search`: `pushState` adresi eşzamanlı
+  // günceller → ardışık hızlı değişimde (dönem + sekme) ikinci çağrı ilkinin
+  // parametresini düşürmez (eski `router.push` yarışı için tutulan bekleyen
+  // sorgu ref'i gereksiz kaldı).
   const setParams = useCallback(
     (patch: Partial<DashboardParams>) => {
-      const cur = new URLSearchParams(
-        pendingQs.current ?? window.location.search,
-      );
+      const cur = new URLSearchParams(window.location.search);
       const next = new URLSearchParams(cur.toString());
       const curRawPeriod = cur.get("period");
       const curPeriod: DashPeriod =
@@ -100,10 +99,14 @@ export function useDashboardParams(
       else next.set("tab", t);
 
       const qs = next.toString();
-      pendingQs.current = qs;
-      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      const url = new URL(window.location.href);
+      url.search = qs ? `?${qs}` : "";
+      // Aynı adres yeniden yazılmaz (seçili sekmeye / döneme tekrar dokunma
+      // geçmişe boş kayıt eklemesin).
+      if (url.href === window.location.href) return;
+      window.history.pushState(null, "", url.href);
     },
-    [validTabs, defaultTab, pathname, router],
+    [validTabs, defaultTab],
   );
 
   return {

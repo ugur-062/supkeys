@@ -1,6 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
+import { LanguageSwitcher } from "./language-switcher";
 
 /**
  * UÇUŞAN MİNİ KARTLAR VE NABIZ NOKTALARI KALDIRILDI (2026-09-13, kullanıcı
@@ -17,21 +19,45 @@ import type { ReactNode } from "react";
  *
  * LOGO KALIR (kullanıcıya ayrıca soruldu, 2026-09-13): formun üstündeki
  * Rothern logosu marka çapasıdır, temizliğin kapsamı dışında.
+ *
+ * DİL SEÇİCİ (2026-09-27): giriş, kayıt, ekip daveti kabulü ve şifre
+ * sıfırlama bu kabukta; pazarlama üst çubuğu yok. Seçici olmadan davetli
+ * kabul etmeden önce dili değiştiremiyordu (hesap kabul sayfasının dilinde
+ * doğar). Aynı bileşen: aynı sayfa, yeni dilin ön ekiyle.
+ *
+ * `hideLanguageSwitcher` (arayüz testi D-066): kayıtın KOD adımında hesap
+ * zaten açılmış ve dili belli; dil değiştirmek sayfayı yeni ön ekle yeniden
+ * yüklüyor, bellekteki adım kayboluyor ve aynı bilgilerle yeniden kayıt 409
+ * veriyordu. O adımda seçici çizilmez.
+ *
+ * GİZLİLİK BAĞLANTILARI (2026-10-16, mağaza incelemesi): Apple 5.1.1(i)
+ * gizlilik politikasının uygulama İÇİNDEN kolay erişilir olmasını ister; mobil
+ * uygulama giriş ekranıyla açılır ve bu kabukta pazarlama altbilgisi yok. Kartın
+ * altında Gizlilik + KVKK. Yarım formun (kayıt, davet) altında durduğu için
+ * kayıt onay satırlarının kalıbıyla: yeni sekme + `data-shell-browser` (kabukta
+ * uygulama içi tarayıcı; WebView'de açılsa yazılan form kaybolurdu).
  */
+const LEGAL_LINK =
+  "inline-flex min-h-8 items-center underline-offset-2 hover:text-zinc-800 hover:underline";
 
 export function AuthShell({
   title,
   subtitle,
   children,
   footer,
+  hideLanguageSwitcher = false,
 }: {
   title: string;
   subtitle: string;
   children: ReactNode;
   footer: ReactNode;
+  hideLanguageSwitcher?: boolean;
 }) {
+  const t = useTranslations("web.marketing.footer");
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-6">
+    // Güvenli alan (mobil kabuk): içerik durum çubuğunun ve ana ekran
+    // çizgisinin altında kalmaz; pay 0 iken eskisiyle aynı (`py-6`).
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 pt-[calc(1.5rem+var(--safe-top))] pb-[calc(1.5rem+var(--safe-bottom))]">
       {/* grid deseni */}
       <svg
         aria-hidden="true"
@@ -64,6 +90,17 @@ export function AuthShell({
         className="rt-float-slow absolute bottom-0 left-1/3 -z-10 size-[28rem] rounded-full bg-violet-400/10 blur-[100px]"
       />
 
+      {/* Yatay pay EKLENMEZ (2. tur safe-area): kabuk akışta, `body`nin
+          `padding-right: var(--safe-right)` payının İÇİNDE; `right-4` zaten
+          çentik payından 16 px içeride. Eskiden pay iki kez sayılıyordu
+          (yatay telefonda kenardan 110 px). Üst pay kalır (kabuğun üstü
+          ekranın tepesinde). */}
+      {hideLanguageSwitcher ? null : (
+        <div className="absolute top-[calc(1rem+var(--safe-top))] right-4 z-10">
+          <LanguageSwitcher />
+        </div>
+      )}
+
       {/* ortadaki kart */}
       <div className="relative w-full max-w-md">
         <div className="mb-5 flex justify-center">
@@ -90,6 +127,17 @@ export function AuthShell({
         </div>
 
         <div className="mt-6 text-center text-sm text-zinc-500">{footer}</div>
+        <p className="mt-3 flex flex-wrap justify-center gap-x-3 text-xs text-zinc-500">
+          <Link href="/sozlesmeler/gizlilik" target="_blank" rel="noopener noreferrer" data-shell-browser="" className={LEGAL_LINK}>
+            {t("privacy")}
+          </Link>
+          <span aria-hidden="true" className="self-center">
+            ·
+          </span>
+          <Link href="/sozlesmeler/kvkk" target="_blank" rel="noopener noreferrer" data-shell-browser="" className={LEGAL_LINK}>
+            {t("kvkk")}
+          </Link>
+        </p>
       </div>
     </div>
   );

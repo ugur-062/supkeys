@@ -1,6 +1,7 @@
 import { Transform } from "class-transformer";
 import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
 import type { DirectoryParams } from "../../../common/company/company-directory";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
  * PANEL FİRMA DİZİNİ SORGUSU — herkese açık `PublicDirectoryQueryDto` ile
@@ -26,9 +27,18 @@ export class PanelDirectoryQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /** Ülke (ISO) — virgüllü çoklu, firmanın kayıt ülkesi (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  country?: string;
+
   /** Kategori — 8 haneli kod, virgüllü çoklu (en çok 10). */
   @IsOptional()
-  @Matches(/^\d{8}(,\d{8}){0,9}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}(,\d{8}){0,9}$/, {
+    message: () => tApi("api.dto.panelDirectoryQuery.kategoriKodu8HaneliOlmali"),
+  })
   category?: string;
 
   @IsOptional()
@@ -83,6 +93,7 @@ export class PanelDirectoryFacetQueryDto extends PanelDirectoryQueryDto {}
 export function toDirectoryParams(dto: PanelDirectoryQueryDto): Omit<DirectoryParams, "q"> {
   return {
     city: dto.city || undefined,
+    country: dto.country || undefined,
     category: dto.category || undefined,
     activity: dto.activity || undefined,
     verified: dto.verified === "1",

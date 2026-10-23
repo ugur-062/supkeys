@@ -1,4 +1,4 @@
-import { isCorsOriginAllowed } from "../../src/common/cors-origin";
+import { CORS_EXPOSED_HEADERS, isCorsOriginAllowed } from "../../src/common/cors-origin";
 
 const ORIGINS = ["https://app.rothern.com", "https://admin.rothern.com"];
 
@@ -43,5 +43,13 @@ describe("isCorsOriginAllowed — vercel jokeri env-gate", () => {
     expect(
       isCorsOriginAllowed(undefined, { corsOrigins: ORIGINS, allowVercel: false }),
     ).toBe(true);
+  });
+});
+
+describe("CORS_EXPOSED_HEADERS", () => {
+  it("indirme dosya adı için content-disposition tarayıcıya açılır", () => {
+    const lower = CORS_EXPOSED_HEADERS.map((h) => h.toLowerCase());
+    expect(lower).toContain("content-disposition");
+    expect(lower).toContain("x-request-id");
   });
 });

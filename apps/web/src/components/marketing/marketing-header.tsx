@@ -1,13 +1,20 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
+import { stripLocale } from "@/i18n/href";
+
 import { RothernLogo } from "@/components/brand/logo";
 import { Sheet } from "@/components/ui/sheet";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { useAudienceValue } from "@/components/marketplace/audience-switch";
+import { SessionSwap } from "@/components/marketplace/member-cta";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "./language-switcher";
 import { useEffect, useState } from "react";
 
 /**
@@ -29,8 +36,8 @@ import { useEffect, useState } from "react";
  * GELMEDİ, yalnız bağlantılar.
  *
  * SIRA: önce gidilecek yerler (pazar yeri), sonra açıklayıcı sayfalar.
- * Adlar `MARKETPLACE_LABELS`ten — üst çubuk, liste sayfası ve footer aynı
- * sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
+ * Adlar `web.marketplace.labels.*` katalogundan — üst çubuk, liste sayfası ve
+ * footer aynı sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
  *
  * Sonuç: header 100 px'ten **64 px'e** indi. Sayfaların üst boşluğu
  * (`pt-28`) olduğu gibi duruyor — artık nefes payı daha geniş, kesişme yok;
@@ -53,19 +60,33 @@ import { useEffect, useState } from "react";
  * statik/ISR üretimde "/" DÖNMÜYOR (2026-09-05 #418): sunucu HER ZAMAN
  * "aktif yok + kaydırılmamış" hâli basar, işaret hidrasyondan sonra düşer.
  * Yükseklik yalnız kaydırınca değişir, dolayısıyla ilk boyada zıplama olmaz.
+ *
+ * 1024–1279 PX SIĞDIRMA (mobil denetim 2026-10, r1-public#new0): masaüstü
+ * satırı lg'de açılır; RU'da logo + dört menü satırı + dil + "Войти" +
+ * "Бесплатная регистрация" 960 px'lik satıra sığmıyordu, kayıt düğmesi
+ * ekranın sağından 33 px taşıp kırpılıyordu (iPad yatay). xl'e dek menü
+ * aralığı biraz daralır (gap-6) ve kayıt düğmesi `nav.signupCompact`
+ * etiketini taşır (RU "Регистрация"; TR/EN tam etiketle AYNI → tek metin
+ * çizilir, görünüm değişmez). xl'de tam etiket. İki etiket CSS ile
+ * değişir (`display`), erişilebilir ad her zaman görünen metindir.
  */
-const PRICING_HREF = "/nasil-calisir#fiyatlar";
 
 /** Logonun yanındaki menü — tek kaynak (masaüstü satırı + mobil çekmece). */
-const NAV = [
-  { name: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
-  { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
-  { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-  { name: "Nasıl Çalışır", href: "/nasil-calisir" },
-  { name: "Fiyatlar", href: PRICING_HREF },
-];
-
 export function MarketingHeader() {
+  const t = useTranslations("web.marketing.nav");
+  const tl = useTranslations("web.marketplace.labels");
+  // Yayın anahtarı kapalıyken pazar yeri rotaları 404 döner (geri dönüş
+  // senaryosu) — altbilgi gibi menü de o satırları HİÇ basmaz (arayüz testi O-004).
+  const NAV = [
+    ...(MARKETPLACE_LIVE
+      ? [
+          { name: tl("products"), href: MARKETPLACE_ROUTES.products },
+          { name: tl("companies"), href: MARKETPLACE_ROUTES.companies },
+          { name: tl("demands"), href: MARKETPLACE_ROUTES.demands },
+        ]
+      : []),
+    { name: t("howItWorks"), href: "/nasil-calisir" },
+  ];
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [here, setHere] = useState<string | null>(null);
@@ -80,7 +101,7 @@ export function MarketingHeader() {
   /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
      Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */
   useEffect(() => {
-    setHere(window.location.pathname);
+    setHere(stripLocale(window.location.pathname));
   }, [pathname]);
 
   useEffect(() => {
@@ -94,13 +115,30 @@ export function MarketingHeader() {
      ikisi birden işaretlenmesin diye yalnız TAM eşleşme aktif sayılır. */
   const isActive = (href: string) => here != null && here === href.split("#")[0] && !href.includes("#");
 
+  /* Masaüstü satırındaki kayıt etiketi: kısa etiket tam etiketten farklıysa
+     (RU) xl altında kısası görünür; aynıysa (TR/EN) tek metin. */
+  const signupFull = t("signup");
+  const signupCompact = t("signupCompact");
+  const desktopSignupLabel =
+    signupCompact === signupFull ? (
+      signupFull
+    ) : (
+      <>
+        <span className="xl:hidden">{signupCompact}</span>
+        <span className="hidden xl:inline">{signupFull}</span>
+      </>
+    );
+
   return (
     <header className="fixed inset-x-0 top-0 z-50">
+      {/* Güvenli alan (mobil kabuk): zemin durum çubuğunun altına uzanır,
+          satır onun altından başlar (yükseklik = satır + üst pay); yatay
+          telefonda çentik tarafı da pay alır. Pay 0 iken eskisiyle aynı. */}
       <div
-        className={`border-b transition-[height,background-color,border-color,box-shadow] duration-200 ${
+        className={`border-b pt-(--safe-top) pr-(--safe-right) pl-(--safe-left) transition-[height,background-color,border-color,box-shadow] duration-200 ${
           scrolled
-            ? "h-14 border-zinc-950/10 bg-white/90 shadow-sm shadow-zinc-950/5 backdrop-blur-md"
-            : "h-16 border-zinc-950/10 bg-white/95 backdrop-blur"
+            ? "h-[calc(3.5rem+var(--safe-top))] border-zinc-950/10 bg-white/90 shadow-sm shadow-zinc-950/5 backdrop-blur-md"
+            : "h-[calc(4rem+var(--safe-top))] border-zinc-950/10 bg-white/95 backdrop-blur"
         }`}
       >
         <div
@@ -118,7 +156,7 @@ export function MarketingHeader() {
               yaslı hâli "çok soldan başlıyor" diye iki kez geri geldi
               (kullanıcı, 2026-09-10). Sağ grup ml-auto taşımaz, boşluğu nav
               iki yana eşit paylaştırır. */}
-          <nav aria-label="Site menüsü" className="hidden items-center gap-8 lg:mx-auto lg:flex">
+          <nav aria-label={t("siteMenu")} className="hidden items-center gap-6 lg:mx-auto lg:flex xl:gap-8">
             {NAV.map((item) => {
               const on = isActive(item.href);
               return (
@@ -139,29 +177,51 @@ export function MarketingHeader() {
           </nav>
 
           <div className="hidden items-center gap-4 lg:flex">
-            <Link
-              href="/company/login"
-              className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
+            <LanguageSwitcher />
+            {/* Oturumlu üyeye misafir CTA'ları (Giriş Yap / Ücretsiz Kaydol)
+                yerine panel bağlantısı — yalnız hidrasyondan sonra (arayüz
+                testi webA-02 yeniden doğrulama). */}
+            <SessionSwap
+              member={
+                <Link
+                  href="/company"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
+                    signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+                  )}
+                >
+                  {t("goToPanel")}
+                </Link>
+              }
             >
-              Giriş Yap
-            </Link>
-            <Link
-              href="/company/kayit"
-              className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
-                signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
-              )}
-            >
-              Ücretsiz Kaydol
-            </Link>
+              {/* Dokunma alanı 44 px (iPad yatayda masaüstü satırı dokunmatikle
+                  kullanılır; düz metin bağlantı 20 px'ti). Görünüm aynı. */}
+              <Link
+                href="/company/login"
+                className="inline-flex min-h-11 items-center text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
+              >
+                {t("login")}
+              </Link>
+              <Link
+                href="/company/kayit"
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
+                  signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+                )}
+              >
+                {desktopSignupLabel}
+              </Link>
+            </SessionSwap>
           </div>
 
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
+            aria-expanded={menuOpen}
+            aria-haspopup="dialog"
             className="ml-auto inline-flex size-10 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 lg:hidden"
           >
-            <span className="sr-only">Menüyü aç</span>
+            <span className="sr-only">{t("openMenu")}</span>
             <Bars3Icon aria-hidden className="size-6" />
           </button>
         </div>
@@ -172,45 +232,65 @@ export function MarketingHeader() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         side="right"
-        title="Menü"
+        title={t("menu")}
         footer={
           <div className="flex flex-col gap-2">
-            <Link
-              href="/company/kayit"
-              onClick={() => setMenuOpen(false)}
-              className={cn(
-                "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
-                signupGreen ? "bg-emerald-600" : "bg-blue-600",
-              )}
+            <SessionSwap
+              member={
+                <Link
+                  href="/company"
+                  onClick={() => setMenuOpen(false)}
+                  className={cn(
+                    "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
+                    signupGreen ? "bg-emerald-600" : "bg-blue-600",
+                  )}
+                >
+                  {t("goToPanel")}
+                </Link>
+              }
             >
-              Ücretsiz Kaydol
-            </Link>
-            <Link
-              href="/company/login"
-              onClick={() => setMenuOpen(false)}
-              className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-zinc-900 ring-1 ring-zinc-950/10 ring-inset"
-            >
-              Giriş Yap
-            </Link>
+              <Link
+                href="/company/kayit"
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
+                  signupGreen ? "bg-emerald-600" : "bg-blue-600",
+                )}
+              >
+                {t("signup")}
+              </Link>
+              <Link
+                href="/company/login"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-zinc-900 ring-1 ring-zinc-950/10 ring-inset"
+              >
+                {t("login")}
+              </Link>
+            </SessionSwap>
           </div>
         }
       >
-        <nav
-          className="flex flex-col"
+        {/* Herhangi bir bağlantıya basınca çekmece kapanır — dil seçici DAHİL:
+            o anki dile basmak aynı adrese gider, rota değişmediği için çekmece
+            açık kalıyordu (arayüz testi D-339). */}
+        <div
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("a")) setMenuOpen(false);
           }}
         >
-          {NAV.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="-mx-2 rounded-lg px-2 py-2.5 text-base font-semibold text-zinc-900 hover:bg-zinc-50"
-            >
-              {item.name}
-            </Link>
-          ))}
-        </nav>
+          <nav aria-label={t("siteMenu")} className="flex flex-col">
+            {NAV.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="-mx-2 rounded-lg px-2 py-2.5 text-base font-semibold text-zinc-900 hover:bg-zinc-50"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+          <LanguageSwitcher variant="inline" className="mt-6 border-t border-zinc-100 pt-4" />
+        </div>
       </Sheet>
     </header>
   );

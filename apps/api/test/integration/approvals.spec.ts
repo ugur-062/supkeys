@@ -13,6 +13,7 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { makeService } from "./make-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
@@ -142,6 +143,47 @@ describe("Akış doğrulama (eski sistem kuralları)", () => {
       flowInput([approver.user.id]) as never,
     );
     expect(ok.id).toBeTruthy();
+  });
+});
+
+describe("Onaycı adayları (derin denetim MU-23)", () => {
+  it("yalnız aktif + approval:act taşıyanlar; e-posta/izin sızmaz; controller approvals:manage ister", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyerOnly = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
+    const approver = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const passive = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    await prisma.companyUser.update({
+      where: { id: passive.user.id },
+      data: { isActive: false },
+    });
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    await addUser(other.company.id, "TR", ["ONAYLAYICI"]);
+
+    const rows = await approvals.listApproverCandidates(owner.company.id);
+    const ids = rows.map((r) => r.id).sort();
+    // Kurucu (isOwner -> approval:act) + Onaylayici; SA-only, pasif ve
+    // baska firmanin kullanicisi yok.
+    expect(ids).toEqual([owner.user.id, approver.user.id].sort());
+    expect(ids).not.toContain(buyerOnly.user.id);
+    for (const r of rows) {
+      expect(Object.keys(r).sort()).toEqual(
+        ["firstName", "id", "lastName", "roles"],
+      );
+    }
+
+    // Uc users:manage DEGIL approvals:manage ister (yalniz akis yetkili uye).
+    const { CompanyApprovalsController } = await import(
+      "../../src/modules/company-approvals/company-approvals.controller"
+    );
+    const { COMPANY_PERMISSION_KEY } = await import(
+      "../../src/modules/company-auth/decorators/require-company-permission.decorator"
+    );
+    const perm = Reflect.getMetadata(
+      COMPANY_PERMISSION_KEY,
+      CompanyApprovalsController.prototype.listApproverCandidates,
+    );
+    expect([perm].flat()).toEqual(["approvals:manage"]);
   });
 });
 
@@ -362,6 +404,77 @@ describe("Kazandırma onayı — uçtan uca", () => {
       where: { requestId, status: "PENDING" },
     });
     expect(pending).toBe(0);
+  });
+
+  it("fallback (derin denetim MU-15): Yönetici etiketi kalsa da approval:act izni alınan onaycının adımı devredilir", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator
+    const y = await addUser(owner.company.id, "TR", ["YONETICI"]);
+    const a2 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([y.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+
+    // Kurucu Y'nin "Onaylama" tikini kaldırdı: users:manage kalır → etiket
+    // YONETICI olarak durur, ama karar uçları (approval:act) 403 verir.
+    await prisma.companyUser.update({
+      where: { id: y.user.id },
+      data: { permissions: ["company:manage", "users:manage"], roles: ["YONETICI"] },
+    });
+    const n = await approvals.fallbackInactiveApprovers();
+    expect(n).toBe(1);
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(a2.user.id);
+  });
+
+  it("fallback (derin denetim MU-15): Kurucu'nun onay izni örtük — saklı listesinde approval:act olmasa da ikame havuzunda", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]); // initiator
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res } = await startAward(approvals, buyer.auth, owner.company.id, buyer.user.id);
+    const requestId = (res as { requestId?: string }).requestId!;
+
+    // Kurucu kendi satırını kaydetmiş: yalnız koltuk izinleri saklanır.
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { permissions: ["sell:view", "sell:bid:submit"] },
+    });
+    await prisma.companyUser.update({
+      where: { id: a1.user.id },
+      data: { isActive: false },
+    });
+    const n = await approvals.fallbackInactiveApprovers();
+    expect(n).toBe(1);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId } });
+    expect(req.status).toBe("PENDING"); // eskiden: uygun onaycı yok → REJECTED
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { requestId, status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(owner.user.id);
+  });
+
+  it("requestApproval (derin denetim MU-15): akış adımı onaycısının approval:act izni sonradan alındıysa oluştururken ikame edilir", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator
+    const y = await addUser(owner.company.id, "TR", ["YONETICI"]);
+    const a2 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([y.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    await prisma.companyUser.update({
+      where: { id: y.user.id },
+      data: { permissions: ["users:manage"], roles: ["YONETICI"] },
+    });
+    const { res } = await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+    expect((res as { approved: boolean }).approved).toBe(false);
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(a2.user.id);
   });
 
   it("requestApproval: ilk adım approver'ı == initiator + başka admin var → ANINDA ikame", async () => {
@@ -809,5 +922,121 @@ describe("X-CF-3 — ilan+tip başına tek bekleyen istek (kısmi unique index)"
       where: { listingId: listing.id, type: "LISTING_AWARD", status: "PENDING" },
     });
     expect(n).toBe(1);
+  });
+});
+
+describe("Derin denetim LU-06", () => {
+  it("pasifleştirilmiş başlatana onay sonucu e-postası GİTMEZ", async () => {
+    const { approvals, flush, email } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    // Başlatan istek bekliyorken pasifleştirilir (işten ayrıldı).
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { isActive: false },
+    });
+    await approvals.decide(a1.auth, started.requestId!, "reject", {
+      note: "gizli not",
+    } as never);
+    await flush();
+    await new Promise((r) => setTimeout(r, 300));
+    const toOwner = email.send.mock.calls.filter(
+      (c) => (c[0] as { to: { email: string } }).to.email === owner.user.email,
+    );
+    expect(toOwner).toHaveLength(0);
+  });
+
+  it("akış çoğaltma soneki istek dilinde; üç dilin soneki taban addan ayıklanır", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id], { name: "Purchase approval" }) as never,
+    );
+    const nameOf = async (id: string) =>
+      (await prisma.approvalFlow.findUniqueOrThrow({ where: { id } })).name;
+
+    const c1 = await runWithLocale("en", () => approvals.duplicateFlow(owner.auth, flow.id));
+    expect(await nameOf(c1.id)).toBe("Purchase approval — Copy");
+    // Kopyanın kopyası "— Copy — Copy" birikmez → numaralanır.
+    const c2 = await runWithLocale("en", () => approvals.duplicateFlow(owner.auth, c1.id));
+    expect(await nameOf(c2.id)).toBe("Purchase approval — Copy 2");
+    // Başka dilde (TR) çoğaltma, EN sonekini de taban addan ayıklar.
+    const c3 = await runWithLocale("tr", () => approvals.duplicateFlow(owner.auth, c2.id));
+    expect(await nameOf(c3.id)).toBe("Purchase approval — Kopya");
+    const c4 = await runWithLocale("ru", () => approvals.duplicateFlow(owner.auth, c3.id));
+    expect(await nameOf(c4.id)).toBe("Purchase approval — Копия");
+  });
+});
+
+describe("Arayüz testi O-013 — doğrulaması geri alınan firmada son onay", () => {
+  it("son adımda firma VERIFIED değilse onay uygulanmaz: açık KYC mesajı, event yok, istek PENDING kalır", async () => {
+    const { approvals, awardApproved, listings } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { listing, res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    // İstek açıldıktan sonra admin belgeyi reddetti.
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "REJECTED" },
+    });
+
+    await expect(
+      approvals.decide(a1.auth, started.requestId!, "approve", {} as never),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "COMPANY_NOT_VERIFIED" }),
+    });
+    expect(awardApproved).toHaveLength(0);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: started.requestId! },
+      include: { steps: true },
+    });
+    expect(req.status).toBe("PENDING");
+    expect(req.steps[0]!.status).toBe("PENDING");
+    // Onaycı yine REDDEDEBİLİR (istek takılı kalmaz).
+    const rej = await approvals.decide(a1.auth, started.requestId!, "reject", {} as never);
+    expect(rej.status).toBe("REJECTED");
+
+    // İkinci hat: olay yine de gelirse uygulayıcı sipariş yazmaz (fail-closed).
+    await expect(
+      listings.onAwardApproved({
+        listingId: listing.id,
+        payload: { kind: "full", bidId: "test-bid" },
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "COMPANY_NOT_VERIFIED" }),
+    });
+    expect(await prisma.companyOrder.count({ where: { listingId: listing.id } })).toBe(0);
+  });
+
+  it("doğrulama yerindeyse son onay her zamanki gibi uygulanır", async () => {
+    const { approvals, awardApproved } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "VERIFIED",
+    });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+    const r = await approvals.decide(a1.auth, started.requestId!, "approve", {} as never);
+    expect(r.status).toBe("APPROVED");
+    expect(awardApproved).toHaveLength(1);
   });
 });

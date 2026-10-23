@@ -32,13 +32,17 @@ COPY apps/admin/package.json apps/admin/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/email/package.json packages/email/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 RUN pnpm install --frozen-lockfile
 
-# 2) Kaynak + build (shared tsc → web next build). Web yalnız @rothern/shared'e
-#    bağlı; db/prisma gerekmez.
+# 2) Kaynak + build (shared tsc → i18n tsc → web next build; vercel.json ile
+#    aynı sıra). Web @rothern/shared + @rothern/i18n'e bağlı (next.config.ts
+#    i18n'i import eder); db/prisma gerekmez.
 COPY packages/shared/ packages/shared/
+COPY packages/i18n/ packages/i18n/
 COPY apps/web/ apps/web/
 RUN pnpm --filter @rothern/shared build \
+ && pnpm --filter @rothern/i18n build \
  && pnpm --filter @rothern/web build
 
 # ── Runtime: yalnız standalone çıktı ──

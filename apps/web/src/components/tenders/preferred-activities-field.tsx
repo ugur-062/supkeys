@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useActivityLabel } from "@/i18n/domain";
 import {
   COMPANY_ACTIVITIES,
   MAX_COMPANY_ACTIVITIES,
@@ -29,6 +31,8 @@ interface Props {
  * beyan etmemiş firmayı görünmez yapar ve o firma bedelini asla göremezdi.
  */
 export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
+  const t = useTranslations("web.panel.requests.preferredActivitiesField");
+  const activityLabel = useActivityLabel();
   const dolu = value.length >= MAX_COMPANY_ACTIVITIES;
 
   return (
@@ -45,7 +49,7 @@ export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
               : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
           }`}
         >
-          Hepsi dahil
+          {t("hepsiDahil")}
         </button>
         {COMPANY_ACTIVITIES.map((a) => {
           const secili = value.includes(a.code);
@@ -55,7 +59,7 @@ export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
               type="button"
               disabled={disabled || (!secili && dolu)}
               aria-pressed={secili}
-              title={a.hintTr}
+              title={t(`hint.${a.code}` as never)}
               onClick={() =>
                 onChange(
                   secili
@@ -69,15 +73,15 @@ export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
-              {a.nameTr}
+              {activityLabel(a.code)}
             </button>
           );
         })}
       </div>
       <p className="mt-1 text-xs text-zinc-500">
         {value.length === 0
-          ? "Tercih belirtmezseniz kategorinize uyan tüm firmalar aynı sırada bilgilendirilir."
-          : "Seçtiğiniz tipteki firmalar öne alınır; diğerleri de talebi görmeye devam eder."}
+          ? t("tercihBelirtmezsenizKategorinizeUyanTum")
+          : t("sectiginizTiptekiFirmalarOneAlinir")}
       </p>
     </div>
   );
