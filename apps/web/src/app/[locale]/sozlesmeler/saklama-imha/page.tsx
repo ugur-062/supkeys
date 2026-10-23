@@ -189,7 +189,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/saklama-imha"
       title="Kişisel Veri Saklama ve İmha Politikası"
-      updatedAt="2026-10-22"
+      updatedAt="2026-10-23"
       sections={[
         {
           paragraphs: [
@@ -355,7 +355,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
           paragraphs: [
             "Politika, www.rothern.com'da yayımlandığı tarihte yürürlüğe girer. Politika; saklama süreleri, kayıt ortamları ya da mevzuat değiştiğinde ve her durumda yılda en az bir kez gözden geçirilir. Güncellemeler aşağıdaki değişiklik geçmişine tarihiyle yazılır ve güncel metin her zaman bu sayfada yayımlanır.",
           ],
-          list: ["22.10.2026 — İlk yayım: saklama ve imha süreleri tablosu, periyodik imha süreleri, imha yöntemleri ve görev dağılımı."],
+          list: ["23.10.2026 — İlk yayım: saklama ve imha süreleri tablosu, periyodik imha süreleri, imha yöntemleri ve görev dağılımı."],
         },
       ]}
     />

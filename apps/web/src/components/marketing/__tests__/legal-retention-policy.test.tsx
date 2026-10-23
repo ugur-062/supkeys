@@ -221,7 +221,7 @@ describe("Kişisel Veri Saklama ve İmha Politikası — Silme Yönetmeliği m.6
     expect(m11).toContain('href="/hesap-silme"');
     expect(m11).toContain('href="/sozlesmeler/kvkk"');
     const m12 = text(between(html, "madde-12"));
-    expect(m12).toContain("22.10.2026 — İlk yayım");
+    expect(m12).toContain("23.10.2026 — İlk yayım");
     expect(m12).not.toContain("16.10.2026");
   });
 });
