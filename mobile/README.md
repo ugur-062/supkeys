@@ -45,6 +45,12 @@ npm run sync:staging
 
 Mağaza paketinden önce yeniden düz `npx cap sync`.
 
+**iOS başlangıç yolu:** Capacitor iOS, site uzaktan açılsa bile `public/<appStartPath>` yolunun pakette
+olmasını şart koşar; yoksa uygulama açılır açılmaz kapanır (konsolda "Unable to load … This file is the root
+of your web app"). Bu yüzden `www/company/` yer tutucusu var (`npm test` denetler). Staging paketinin
+başlangıç yolu atlatma sorgusu taşıdığından (`/company?x-vercel-…`) bu denetimi geçemez: staging deneme
+paketi yalnız Android içindir.
+
 ## Android deneme paketi (Mac'siz, bu makinede)
 
 Java 21 ve Android SDK `~/android-sdk` altında kurulu (2026-10-11). Telefona elle kurulan deneme paketi:

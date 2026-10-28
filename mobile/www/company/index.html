@@ -1,0 +1,19 @@
+<!doctype html>
+<!--
+  Yer tutucu (2026-10-29). Uygulama bu sayfayı GÖSTERMEZ: kabuk canlı siteyi açar
+  (capacitor.config.ts server.url + appStartPath "/company").
+
+  Neden var: Capacitor iOS, site uzaktan açılsa bile başlangıç yolunun yerel web
+  klasöründe (ios/App/App/public + appStartPath) bulunmasını şart koşar
+  (CAPBridgeViewController.loadWebView → fileExists, yoksa exit(1)). Bu klasör yokken
+  iOS uygulaması açılır açılmaz kapanıyordu. Android bu denetimi yapmaz.
+  appStartPath değişirse bu klasör de taşınır (scripts/shell-config.test.mjs denetler).
+-->
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rothern</title>
+  </head>
+  <body></body>
+</html>

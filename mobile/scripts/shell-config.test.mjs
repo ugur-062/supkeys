@@ -4,7 +4,7 @@
 // sınamalar onu yakalar. Gerçek Gradle doğrulaması README "Mağaza paketi"ndeki gibi
 // `./gradlew -m :app:bundleRelease` (dosyasız kopyada hata, dosyalıda başarı).
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -55,6 +55,17 @@ test("the store build never allows cleartext traffic and never carries the stagi
   assert.equal(config.server?.url, "https://www.rothern.com");
   assert.equal(config.server?.cleartext, false);
   assert.equal(config.server?.appStartPath, "/company");
+});
+
+test("the iOS start path exists in the bundled web assets (iOS exits on launch otherwise)", async () => {
+  // Capacitor iOS checks public/<appStartPath> on disk before loading even a remote server.url
+  // (CAPBridgeViewController.loadWebView → fileExists, else exit(1)); www/ is copied to public/.
+  delete process.env.ROTHERN_APP_URL;
+  delete process.env.ROTHERN_VERCEL_BYPASS;
+  const { default: config } = await import(`../capacitor.config.ts?start=${Date.now()}`);
+  const startPath = (config.server?.appStartPath ?? "").replace(/^\/+/, "");
+  assert.ok(startPath, "appStartPath is set");
+  assert.ok(existsSync(path.join(mobile, config.webDir ?? "www", startPath)), `${config.webDir}/${startPath} must exist`);
 });
 
 // Dosya paylaşma ve yazdırma (web: `apps/web/src/lib/native-shell.ts`). Web eklentileri kabuğun
