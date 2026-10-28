@@ -144,15 +144,17 @@ Uygulama öndeyken gelen bildirim sistem bandı / ses olarak GÖSTERİLMEZ (`cap
 `presentationOptions: ["badge"]`): web aynı bildirimi uygulama içi kartla gösterir. Arka planda ve kapalıyken
 bildirimi işletim sistemi gösterir.
 
-**Mac'te bir kez (Xcode, `npx cap open ios`):**
+**Mac'te (Xcode, `npx cap open ios`) — 2026-10-29'dan beri projede hazır:** FirebaseMessaging paketi (SPM,
+sürümler `project.xcworkspace/xcshareddata/swiftpm/Package.resolved`) App hedefine ve
+`App/App/GoogleService-Info.plist` App kaynaklarına bağlı (`project.pbxproj`). Yeni bir Mac'te yalnız:
 
-1. File → Add Package Dependencies → `https://github.com/firebase/firebase-ios-sdk` → yalnız
-   **FirebaseMessaging** ürününü **App** hedefine ekle. (`AppDelegate.swift` paket yokken de derlenir ama
-   cihaz bildirime kaydolmaz — ham APNs belirteci sunucuya gitmez, sunucu yalnız FCM ile gönderir; paket ve
-   plist eklenince FCM belirtecini kendiliğinden kullanır.)
-2. `App/App/GoogleService-Info.plist`'i Xcode'da App grubuna sürükle, "Add to targets: App" işaretli.
-3. App hedefi → Signing & Capabilities → **+ Capability → Push Notifications** (`aps-environment`
-   `App.entitlements`'ta zaten var; yetenek listede görünmeli).
+1. `GoogleService-Info.plist`'i Firebase konsolundan indirip **tam bu adla** `ios/App/App/` altına koy
+   (Xcode'a sürükleme; ad "GoogleService-Info 2" gibi değişirse Firebase başlamaz). Dosya yokken iOS paketi
+   derlenmez — proje dosyayı kaynak olarak bekler. Dosya depoya GİRMEZ: Xcode bazen `git add` eder, commit'ten
+   önce `git status`'ta `A … GoogleService-Info.plist` görürsen `git rm --cached` ile çıkar.
+2. `npx cap sync ios` (yerel web klasörü `public/` buradan dolar; atlanırsa uygulama açılışta kapanır).
+3. App hedefi → Signing & Capabilities → Team: şirket takımı. Push Notifications ve Associated Domains
+   yetenekleri projede; ücretsiz "Personal Team" bunları imzalayamaz (yalnız simülatörde çalıştırılır).
 
 **Apple Developer hesabı açılınca:** Certificates, Identifiers & Profiles → Keys → yeni anahtar, **Apple Push
 Notifications service (APNs)** işaretli → `.p8` dosyasını indir (bir kez indirilir; depoya KONMAZ). Firebase →
