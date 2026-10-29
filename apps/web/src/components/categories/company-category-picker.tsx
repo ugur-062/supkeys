@@ -1,22 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  MAX_COMPANY_MAIN_CATEGORIES,
-  MAX_COMPANY_SUB_PICKS,
-  categoryLevel,
-  categorySegment,
-  deepestCategoryPicks,
-  expandCompanyCategorySelection,
-  removeCategoryBranch,
-  visibleCompanyCategorySelection,
-} from "@rothern/shared";
-import { Layers, Plus, Tag, X as XIcon } from "lucide-react";
+import { MAX_COMPANY_MAIN_CATEGORIES } from "@rothern/shared";
+import { Layers, Pencil, Plus, Tag, X as XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useCategoriesByIds, useRoots } from "@/hooks/use-categories";
-import { resolvedCategoryIds } from "@/lib/visible-categories";
-import { plainBreadcrumb } from "./category-breadcrumb";
+import { declaredSectors, sectorsOf } from "@/lib/company/declared-sectors";
 import { sameIdSet } from "./category-dialog-shell";
 import { LoadError } from "./category-load-error";
 
@@ -27,21 +17,33 @@ const CategorySelectorModal = dynamic(
 );
 
 export interface CompanyCategoryValue {
-  /** ANA kategori = segment (L1). Eşleştirmenin geniş ekseni. */
+  /** Sektörler (L1) — beyanın tamamı. */
   mainIds: string[];
-  /** ALT kategori (L2-4). Eşleştirmenin dar ekseni. */
+  /**
+   * Eski ürün / hizmet seçimleri (L2-4). Seçici bunları YAZMAZ: her
+   * değişiklikte boş döner (bkz. başlık notu); yalnız eski kaydın sektörünü
+   * bulmak için okunur.
+   */
   subIds: string[];
 }
 
 interface Props {
   value: CompanyCategoryValue;
   onChange: (next: CompanyCategoryValue) => void;
-  /** Bölüm başlığı: "Ne satarım", "Ne alırım", "Faaliyet alanlarınız". */
+  /** Bölüm başlığı: "Ne satarım", "Ne alırım", "Sektörleriniz". */
   label: string;
   /** Başlığın altındaki tek cümlelik gerekçe. */
   hint: string;
   /** Modal başlığı — hangi eksende olduğumuzu modal içinde de söyler. */
   modalTitle: string;
+  /**
+   * Modalın tek cümlelik açıklaması. Verilmezse alış + satış BİRLİKTE (kayıt
+   * beyanı: "Alıp sattığınız ürün ve hizmetlerin sektörleri"). Tek eksenli
+   * çağıran (Ayarlar › Ne alırım / Ne satarım) kendi cümlesini verir — alış
+   * ekseni "faaliyet gösterdiğiniz" sektör değil, SATIN ALDIKLARINIZIN
+   * sektörüdür (hastane tıbbi cihaz alır, o sektörde çalışmaz).
+   */
+  modalDescription?: string;
   /** Portal rengi: satınalma mavi, satış yeşil, kayıt nötr. */
   accent?: "blue" | "emerald" | "zinc";
   disabled?: boolean;
@@ -61,13 +63,9 @@ const ACCENT: Record<
 };
 
 /**
- * Yeni kümeyi KAYITLI SIRAYLA verir: zaten kayıtlı kodlar yerinde kalır, yeni
- * gelenler sona eklenir.
- *
- * Türetme (`expandCompanyCategorySelection`) zinciri seçim sırasıyla yeniden
- * kurar. Sıra korunmazsa tek bir çip eklemek/kaldırmak sektör kartlarının
- * yerini değiştirir; Ayarlar formu da dizileri sıralı karşılaştırdığı için
- * yalnız sırası değişen beyan "değişti" sayılır.
+ * Yeni kümeyi KAYITLI SIRAYLA verir: zaten kayıtlı sektörler yerinde kalır,
+ * yeni gelenler sona eklenir. Sıra korunmazsa tek bir sektör eklemek çiplerin
+ * yerini değiştirir.
  */
 function kayitliSirayla(
   kayitli: readonly string[],
@@ -78,78 +76,49 @@ function kayitliSirayla(
 }
 
 /**
- * FİRMA KATEGORİ BEYANI — TEK SORU, TÜRETİLMİŞ SEGMENT.
+ * FİRMA KATEGORİ BEYANI — YALNIZ SEKTÖR (sahip kararı 2026-10-29).
  *
- * ÖNCEKİ HÂLİ NEDEN DEĞİŞTİ (2026-09-14, kullanıcı: "frontendi hoş değil"):
- * ekran aynı Ariba ağacından İKİ KEZ seçim istiyordu — önce "Faaliyet Sektörü"
- * (yalnız L1, kendi modalı), sonra "Ürün / hizmetleriniz" (L3-4, başka bir
- * modal) — ve üçüncü bir kalıpla faaliyet tipi çipleri. Üç ayrı etkileşim
- * deseni, tek bir soru için.
+ * NE DEĞİŞTİ: kayıt 2. adımı ("Faaliyet alanı") ve Ayarlar › Firma Bilgileri ›
+ * Kategoriler ("Ne alırım / Ne satarım") artık yalnız SEKTÖR (L1) sorar;
+ * eksen başına en fazla `MAX_COMPANY_MAIN_CATEGORIES`. 2026-10-08'den beri
+ * aynı pencerede sektörün tamamı ya da altındaki ürün / hizmet (L2-L4, en
+ * fazla 50) işaretleniyordu; ürün / hizmet seçimi bu pencereden KALKTI. Firmanın
+ * ne sattığının asıl kaynağı vitrindeki ürünlerdir (ürün formunun kategorisi);
+ * beyanda ikinci kez sorulmaz. Talep ve ürün formlarının kategori seçicileri
+ * (en az L3) DEĞİŞMEDİ.
  *
- * Kullanıcı ne sattığını bilir ("çelik boru"), onun Ariba segmentini bilmez.
- * Bu yüzden artık TEK seçim var: somut ürün/hizmet. Segment koddan TÜRETİLİR
- * (`categorySegment`, ilan tarafındaki `deriveCategoryMatchCandidates` ile aynı
- * mantık) ve salt-okunur rozet olarak gösterilir — kullanıcı ne beyan ettiğini
- * görür ama ikinci kez seçmez.
+ * ARAMA KALIR: kullanıcı ne sattığını bilir ("çelik boru"), sektör adını
+ * bilmez. Pencere (`sectorsOnly`) aramayı bağlamıyla gösterir; işaret sonucun
+ * SEKTÖRÜNE konur.
  *
- * SEGMENT NEDEN YİNE DE YAZILIYOR: eşleştirme iki eksene birden bakıyor
- * (`sellerCategoryIds hasSome segmentIds` OR `sellerSubCategoryIds hasSome
- * subCandidates`). Segment ekseni boş kalırsa firma yalnız tam kırılım
- * tutturan taleplerde görünür ve geniş talepleri kaçırır.
+ * DEĞER SÖZLEŞMESİ (API aynı şekli alır, depoda ayrı işaret yok):
+ *  · `mainIds` = beyan edilen sektörler; sıra kayıtlı sıradır, yeniler sona.
+ *  · `subIds` her değişiklikte BOŞ döner. Mevcut firmaların alt seçimleri
+ *    ayrı bir temizlik betiğiyle silinir, API de yeni alt seçim saklamaz
+ *    (eski istemciden gelen alt dizi sektörüne normalize edilip `[]` yazılır).
+ *    Seçici `[]`ı bilinçli döner: Ayarlar'da sektör kaldırılınca eksenin alt
+ *    listesi de `[]` olarak gider — gönderilmeseydi API eksik yarıyı depodaki
+ *    eski alt seçimlerden doldurup kaldırılan sektörü geri getirebilirdi.
+ *  · Okurken eski kayıt da doğru okunur (`declaredSectors`): alt seçimin
+ *    sektörü zaten ana eksende durur (API normalize eder); durmuyorsa da
+ *    alt seçimden türetilip sektör olarak gösterilir. Değişmeyen beyan
+ *    `onChange` üretmez (pencereyi dokunmadan onaylamak formu kirletmez).
  *
- * SEKTÖRÜN TAMAMI — AYNI PENCEREDE (2026-10-08, kullanıcı: "üst başlıktan
- * seçemiyorlar"). Bir sektörün tamamında çalışan firma yaprak saymak zorunda
- * kalmasın diye sektörün kendisi de beyan edilebilir; o sektörün altı boş
- * kalır — bilinçli: "bu alanda her şeyi yaparım". Eskiden bu, sayfadaki ayrı
- * bir "Sektör geneli ekle" bağlantısının açtığı İKİNCİ pencereden yapılıyordu
- * ve ağaçtaki sektör satırı yalnız aç/kapa başlığıydı: kullanıcı en doğal
- * yerde (başlıkta) işaret arıyor, bulamıyordu. Artık tek pencere var ve her
- * seviye işaretlenir: sektör (= tamamı), aile, sınıf, emtia.
+ * TAVAN: en fazla `MAX_COMPANY_MAIN_CATEGORIES` sektör. Pencere aşacak işareti
+ * reddeder ve sayacı "Sektör n/max" gösterir; `dogrula` onay anındaki son
+ * denetimdir (tavanın üstünde kayıtlı eski beyan — Ayarlar eskiden 10 sektöre
+ * izin veriyordu — azaltılmadan onaylanamaz). Tavandayken düğme "Sektörleri
+ * düzenle" der (pencere ekletmez, değiştirtir); tavanın üstündeki eski beyan
+ * pencere açılmadan çiplerin altında söylenir.
  *
- * DEĞER SÖZLEŞMESİ DEĞİŞMEDİ (API de aynı şekli alır, depoda ayrı işaret yok):
- * "sektörün tamamı" = sektör kodu `mainIds`te ve o sektörden HİÇBİR kod
- * `subIds`te yok. Altında kayıt olan sektör türetilmiştir. Pencereye giden
- * seçim kümesi bu kuraldan okunur (`pencereDegeri`), dönen küme
- * `expandCompanyCategorySelection` ile aynı şekle çevrilir.
- *
- * EKLE/ÇIKAR KURALI (belirsizlik bırakmamak için):
- *  · seçim eklenince ata zinciri (L2/L3/L4) ve segmenti KENDİLİĞİNDEN belirir
- *  · seçim silinince zinciri de gider; o segmentte başka seçim kalmadıysa
- *    SEGMENT DE düşer — aksi hâlde firma tek yaprağı sildikten sonra sessizce
- *    segmentin TAMAMINDAN bildirim almaya başlardı (çözmeye çalıştığımız
- *    arızanın ta kendisi)
- *  · segment silinince ALTINDAKİLER DE gider (zincirleme) — "artık bu alanda
- *    değilim" demenin tek ve net yolu
- *  · bir dalda TEK seçim: sektör işaretlenince altındaki seçimler, altından
- *    bir öğe işaretlenince sektör işareti düşer (pencere bunu söyler)
- *
- * BİLİNÇLİ TAVİZ: tamamı beyan edilmiş bir sektörün altından sonradan öğe
- * seçilir ve o öğe silinirse, sektör de düşer (kaydı provenance tutmuyoruz).
- * Tek tık ile geri eklenebilir; ters tercih ise sessiz genişleme üretirdi.
- *
- * TAVANLAR: en fazla `MAX_COMPANY_MAIN_CATEGORIES` sektör (tamamı beyan
- * edilenler + diğer seçimlerin sektörleri) ve sektör ALTINDA en fazla
- * `MAX_COMPANY_SUB_PICKS` seçim. Pencere ikisini ayrı sayaçla gösterir ve
- * aşacak işareti reddeder; `dogrula` onay anındaki son denetimdir.
- *
- * GİZLİ KATEGORİ (2026-10-09, sahip kararı: "anasayfada olmayan kategori başka
- * yerde de gösterilmesin"): gizlenmeden önce kaydedilmiş beyan kodu bu
- * bileşende YOK SAYILIR — kartı çizilmez, pencereye
- * gitmez, sektör/seçim tavanına sayılmaz, adı sorulmaz. Seçici dokunulan
- * ekseni gördüğünden yeniden kurduğu için o eksen kaydedilince gizli kodlar
- * depodan da düşer (API aynı kuralı uygular). Dokunulmayan eksen gönderilmez;
- * eşleştirme o zamana dek kayıtlı kodları kullanmayı sürdürür. Yalnız gizli
- * kodu olan beyan boş durumla açılır. (2026-10-08'e dek gizli sektörün adı
- * `by-ids` yedeğinden okunup kart olarak çiziliyordu.)
- *
- * GİZLİ DAL, GÖRÜNÜR SEKTÖR (2026-10-10): gizleme aile / sınıf düzeyinde de var
- * (46 "İş Güvenliği ve Yangın Ekipmanları" açık, silah ve kolluk dalları
- * gizli). Beyan seçimi ata zinciriyle saklar; yalnız gizli kodları düşürmek
- * geride sektör kodunu bırakır ve altı boş sektör "sektörün tamamı" diye
- * çizilir — firmanın beyan ETMEDİĞİ bir şey gösterilir, kayıtta da yazılırdı.
- * Görünür kısım bu yüzden iki dizi BİRLİKTE okunarak çıkar
- * (`visibleCompanyCategorySelection`): yalnız gizli bir seçimin atası olarak
- * saklanmış sektör / aile de düşer; bilinçli "sektörün tamamı" beyanı kalır.
+ * GİZLİ KATEGORİ (2026-10-09 / 2026-10-10, sahip kararı: "anasayfada olmayan
+ * kategori başka yerde de gösterilmesin"): gizli kod çizilmez, pencereye
+ * gitmez, tavana sayılmaz, adı sorulmaz. Beyan seçimi ata zinciriyle sakladığı
+ * için yalnız gizli bir seçimin atası olarak saklanmış görünür sektör de
+ * (46 "İş Güvenliği ve Yangın Ekipmanları" altındaki silah / kolluk dalı)
+ * düşer — eksenin iki dizisi BİRLİKTE okunur (`visibleCompanyCategorySelection`,
+ * `declaredSectors` içinde). Seçici dokunulan ekseni görünür sektörlerden
+ * yeniden kurduğu için o eksen kaydedilince gizli kodlar depodan da düşer.
  */
 export function CompanyCategoryPicker({
   value,
@@ -157,41 +126,36 @@ export function CompanyCategoryPicker({
   label,
   hint,
   modalTitle,
+  modalDescription,
   accent = "zinc",
   disabled,
   error,
 }: Props) {
   const t = useTranslations("web.shared.companyCategoryPicker");
   const [open, setOpen] = useState(false);
-  const [uyari, setUyari] = useState<string | null>(null);
   const hataId = useId();
+  const tavanId = useId();
 
   // Sektör listesi düşerse ad `by-ids` yedeğinden okunur (aşağıda), pencere de
   // hatayı kendi içinde çizer → genel toast ve 429'da otomatik tekrar yok.
   const { data: segments } = useRoots({ inlineError: true });
-  /** Beyanın GÖRÜNÜR kısmı — bileşenin geri kalanı yalnız bunu okur (bkz. başlık notu). */
-  const { mainIds, subIds } = useMemo(
-    () => visibleCompanyCategorySelection(value.mainIds, value.subIds),
+  /**
+   * Beyanın GÖRÜNÜR sektörleri — bileşenin geri kalanı yalnız bunu okur.
+   * Yalnız KODLARA bağlı (adlara değil): pencere `value` her değiştiğinde
+   * taslağını sıfırlar; ad isteği yanıtlandığında yeni bir dizi doğsaydı
+   * kullanıcının penceredeki işaretleri silinirdi.
+   */
+  const sektorler = useMemo(
+    () => declaredSectors(value.mainIds, value.subIds),
     [value.mainIds, value.subIds],
   );
   /**
-   * Depoda ata zinciri de duruyor (L2+L3+L4). Ekranda yalnız KULLANICININ
-   * seçtikleri çizilir — türetilmiş üst seviyeler ayrı çip olsaydı tek seçim
-   * üç çipe dönüşür ve 50'lik tavan anlamsızlaşırdı. Zincir, çipin
-   * breadcrumb'ında zaten okunuyor.
+   * Adlar sektör listesinden; aynı kodlar `by-ids` ile de istenir (liste
+   * yüklenirken / düşmüşken ad yine gelsin). Kayıt sihirbazının özeti AYNI
+   * id listesi ve AYNI seçenekle ister → sorgu anahtarı ortaktır.
    */
-  const secilenler = useMemo(() => deepestCategoryPicks(subIds), [subIds]);
-  /**
-   * Adlar TEK istekle: seçimler + sektörlerin kendisi. Sektör adı önce
-   * `segments`ten okunur; aynı istek sektör listesi yüklenirken/düşmüşken de
-   * adı verir. Gizli sektörün kodu burada yoktur (yukarıda düştü).
-   */
-  const adIds = useMemo(
-    () => [...new Set([...secilenler, ...mainIds])],
-    [secilenler, mainIds],
-  );
-  const adlar = useCategoriesByIds(adIds, { inlineError: true });
-  const subCats = adlar.data;
+  const adlar = useCategoriesByIds(sektorler, { inlineError: true });
+  const adCevabi = adlar.data;
   /**
    * Ad isteği düştü — "…" kalıcı görünmesin; kod + "Yeniden dene". Yeniden
    * deneme yoldayken hata sayılmaz (çipler "…" gösterir).
@@ -200,72 +164,58 @@ export function CompanyCategoryPicker({
   const renk = ACCENT[accent];
 
   const adById = useMemo(
-    () => new Map((subCats ?? []).map((c) => [c.id, c])),
-    [subCats],
+    () => new Map((adCevabi ?? []).map((c) => [c.id, c.nameTr])),
+    [adCevabi],
   );
-  /** Ad isteği yolda: cevap yok ya da eldeki cevap önceki seçimin (placeholder). */
-  const adlarBekliyor =
-    !adlarHata && (subCats === undefined || !!adlar.isPlaceholderData);
-  /** Adı henüz gelmemiş kod: yükleniyorsa "…", istek düştüyse KOD. */
-  const adYedegi = (id: string) => (adlarBekliyor ? "…" : id);
-  /**
-   * Ad cevabı GELDİYSE satırı olmayan seçim çizilmez (katalogda artık olmayan
-   * kod): "…" çipi sonsuza dek asılı kalmasın, ham kod da basılmasın. Cevap
-   * yoksa (yükleniyor / düştü) hepsi yerinde — "…" ya da kod + "Yeniden dene".
-   */
-  const cizilenSecimler = (ids: string[]) =>
-    adlarBekliyor || adlarHata ? ids : resolvedCategoryIds(ids, subCats);
-
   const segmentAdlari = useMemo(
     () => new Map((segments ?? []).map((s) => [s.id, s.nameTr])),
     [segments],
   );
+  /** Ad isteği yolda: cevap yok ya da eldeki cevap önceki seçimin (placeholder). */
+  const adlarBekliyor =
+    !adlarHata && (adCevabi === undefined || !!adlar.isPlaceholderData);
   /** Sektörün bilinen adı (yoksa null) — liste, sonra `by-ids`. */
-  const segmentAdiBilinen = (id: string) =>
-    segmentAdlari.get(id) ?? adById.get(id)?.nameTr ?? null;
-
+  const sektorAdi = (id: string) => segmentAdlari.get(id) ?? adById.get(id) ?? null;
+  /** Adı henüz gelmemiş kod: yükleniyorsa "…", istek düştüyse KOD. */
+  const adYedegi = (id: string) => (adlarBekliyor ? "…" : id);
   /**
-   * Sektör → kullanıcının o sektörde seçtikleri. Altı BOŞ grup = sektörün
-   * tamamı beyan edilmiş (değer sözleşmesi: `mainIds`te var, `subIds`te o
-   * sektörden kod yok).
-   *
-   * Yalnız KODLAR — adlar çizimde eklenir. Adlara bağlı olsaydı ad isteği her
-   * yanıtlandığında bu dizi (ve ondan türeyen `pencereDegeri`) yeniden
-   * kurulur, açık pencere taslağını kayıtlı değere sıfırlardı.
+   * Ad cevabı GELDİYSE adı hiçbir kaynaktan çözülemeyen sektör (katalogda
+   * artık olmayan kod) çizilmez: "…" çipi asılı kalmasın, ham kod basılmasın.
+   * Cevap yoksa (yükleniyor / düştü) hepsi yerinde — "…" ya da kod.
    */
-  const gruplar = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const id of mainIds) map.set(id, []);
-    for (const id of secilenler) {
-      const seg = categorySegment(id);
-      if (!seg) continue;
-      if (!map.has(seg)) map.set(seg, []);
-      map.get(seg)!.push(id);
-    }
-    return [...map.entries()];
-  }, [mainIds, secilenler]);
-
-  /**
-   * Pencereye giden seçim kümesi — kartlarla AYNI içerik ve sıra: sektörün
-   * tamamı beyan edildiyse sektör kodu, değilse o sektördeki seçimler.
-   */
-  const pencereDegeri = useMemo(
-    () => gruplar.flatMap(([seg, secimler]) => (secimler.length > 0 ? secimler : [seg])),
-    [gruplar],
-  );
+  const cozuldu = !adlarBekliyor && !adlarHata;
+  const cizilenler = cozuldu ? sektorler.filter((id) => sektorAdi(id) !== null) : sektorler;
 
   // Yalnız gizli kod (ve onun ata zinciri) taşıyan eski beyan da BOŞ durumdur.
-  const bos = mainIds.length === 0 && subIds.length === 0;
+  const bos = sektorler.length === 0;
+  /**
+   * Tavanda pencere yeni sektör eklemez, yalnız değiştirir (birini kaldırıp
+   * başkasını işaretlemek) → düğme "Sektör ekle" değil "Sektörleri düzenle".
+   */
+  const tavanda = sektorler.length >= MAX_COMPANY_MAIN_CATEGORIES;
+  /**
+   * Tavanın ÜSTÜNDE kayıtlı eski beyan (Ayarlar eskiden 10 sektöre izin
+   * veriyordu): pencere açılmadan, çiplerin altında söylenir — çipten × ile
+   * kaldırmak pencereden geçmez, kullanıcı fazlayı ancak kaydederken API
+   * reddinden öğrenirdi. Sayı kaldırdıkça güncellenir; tavana inince kaybolur.
+   * Çağıranın hatası (zorunlu alan / sunucu reddi / Ayarlar'ın kayıt kapısı)
+   * varken o yazılır, ikisi üst üste binmez.
+   */
+  const tavanUstu =
+    sektorler.length > MAX_COMPANY_MAIN_CATEGORIES && !error
+      ? t("enFazlaSektorBeyanEdilebilir", { n: sektorler.length, max: MAX_COMPANY_MAIN_CATEGORIES })
+      : null;
+  /** Seçimi açan düğmelerin erişilebilir açıklaması (hata ya da tavan notu). */
+  const aciklamaId = error ? hataId : tavanUstu ? tavanId : undefined;
 
   /**
-   * Bir seçim/sektör kaldırılınca düğmesi DOM'dan gider ve odak <body>'ye
-   * düşer (klavye kullanıcısı yerini kaybeder). Odak kaybolduysa ekleme
-   * düğmesine — hiç seçim kalmadıysa boş durum düğmesine — taşınır.
+   * Bir sektör kaldırılınca düğmesi DOM'dan gider ve odak <body>'ye düşer
+   * (klavye kullanıcısı yerini kaybeder). Odak kaybolduysa ekleme düğmesine —
+   * hiç sektör kalmadıysa boş durum düğmesine — taşınır.
    *
    * YALNIZ KLAVYE tetiklemesinde (`detail` 0 — penceredeki çip kuralıyla aynı):
    * `focus()` hedefi görünüme kaydırır; fare/dokunmada her kaldırma sayfayı
-   * listenin sonuna atıyordu (360×640'ta 24 seçimde scrollY 0 → 660), baştan
-   * birkaç seçim kaldıran kullanıcı her seferinde geri kaydırmak zorundaydı.
+   * listenin sonuna atıyordu (webcat-1).
    */
   const ekleRef = useRef<HTMLButtonElement>(null);
   const bosRef = useRef<HTMLButtonElement>(null);
@@ -279,79 +229,36 @@ export function CompanyCategoryPicker({
   }, [value]);
 
   /**
-   * Seçim kümesini depolanan değere çevirir. Küme penceredekiyle aynı şeydir:
-   * tamamı beyan edilen sektörlerin kodu + diğer dallardaki en derin kodlar.
-   * Sektör kodu ana eksene yazılır ve altı boş kalır; diğer kodların ata
-   * zinciri (L2+L3+L4) beyana DAHİL edilir, sektörleri ana eksene türetilir.
-   *
-   * Zincir neden şart: eşleştirme ata zincirini TALEBİN kodundan yukarı
-   * çıkarıyor, firmanın beyanından aşağı inmiyor. Yaprak tek başına
-   * saklansaydı, alıcı bir üst seviyede (L3) talep açtığında dar eksen tutmaz
-   * ve firma geniş eksene düşerdi — yani daralttığını sanırken segmentin
-   * tamamından bildirim alırdı.
-   */
-  const genislet = (ids: readonly string[]): CompanyCategoryValue => {
-    const sonraki = expandCompanyCategorySelection(ids);
-    return {
-      mainIds: kayitliSirayla(mainIds, sonraki.mainIds),
-      subIds: kayitliSirayla(subIds, sonraki.subIds),
-    };
-  };
-
-  /**
-   * Tavan denetimi — modal `validate` olarak da çağırır: reddedilirse modal
-   * AÇIK kalır, taslak kaybolmaz (eskiden modal kapanıyor, açınca taslak eski
-   * değere sıfırlanıyordu — derin denetim 2026-09-29). Pencere tavanı aşacak
-   * işareti zaten reddeder; burası onay anındaki son denetim.
+   * Tavan denetimi — modalın `validate`ı: reddedilirse modal AÇIK kalır,
+   * gerekçe modal içinde yazılır, taslak kaybolmaz (derin denetim 2026-09-29).
+   * Pencere tavanı aşacak işareti zaten reddeder; burası onay anındaki son
+   * denetim (tavanın üstünde kayıtlı eski beyan).
    */
   const dogrula = (ids: string[]): string | null => {
-    // Sektör işareti ürün/hizmet DEĞİLDİR: 50'lik tavan sektör altındaki
-    // seçimleri sayar.
-    const altSecim = ids.filter((id) => categoryLevel(id) !== 1).length;
-    if (altSecim > MAX_COMPANY_SUB_PICKS) {
-      return t("enFazlaUrunHizmetSecebilirsiniz", { max: MAX_COMPANY_SUB_PICKS });
-    }
-    const { mainIds } = expandCompanyCategorySelection(ids);
-    if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
-      // Sessizce kırpmak yerine söylüyoruz: hangi seçimin düştüğünü kullanıcı
+    const n = sectorsOf(ids).length;
+    if (n > MAX_COMPANY_MAIN_CATEGORIES) {
+      // Sessizce kırpmak yerine söylüyoruz: hangi sektörün düştüğünü kullanıcı
       // göremezse beyanı eksik kalır ve bunu asla fark etmez.
-      return t("secimlerinizAyriSektoreYayiliyorEn", { n: mainIds.length, max: MAX_COMPANY_MAIN_CATEGORIES });
+      return t("enFazlaSektorBeyanEdilebilir", { n, max: MAX_COMPANY_MAIN_CATEGORIES });
     }
     return null;
   };
 
   const onayla = (ids: string[]) => {
-    const hata = dogrula(ids);
-    if (hata) {
-      setUyari(hata);
-      return;
-    }
-    setUyari(null);
-    // Seçim kümesi aynıysa beyan da aynıdır: pencereyi hiçbir şeye dokunmadan
-    // onaylamak `onChange` üretmez (Ayarlar'da form kirlenip "Kaydet" açılıyor,
-    // sayfadan çıkış uyarısı çıkıyordu).
-    if (sameIdSet(ids, pencereDegeri)) return;
-    onChange(genislet(ids));
+    // `validate` onaydan önce reddetti; buraya tavanı aşan küme gelmez.
+    if (dogrula(ids)) return;
+    const yeni = sectorsOf(ids);
+    // Küme aynıysa beyan da aynıdır: pencereyi hiçbir şeye dokunmadan onaylamak
+    // `onChange` üretmez (Ayarlar'da form kirlenip "Kaydet" açılıyor, sayfadan
+    // çıkış uyarısı çıkıyordu).
+    if (sameIdSet(yeni, sektorler)) return;
+    onChange({ mainIds: kayitliSirayla(sektorler, yeni), subIds: [] });
   };
 
-  /**
-   * Bir seçimi kaldır. Ata zinciri de saklandığı için yalnız kodun kendisini
-   * silmek YETMEZ — L3/L2 kayıtları kalsaydı firma sildiğini sandığı daldan
-   * bildirim almaya devam ederdi. Kardeş seçimlerin ihtiyaç duyduğu atalar
-   * yeniden kurulur; tamamı beyan edilmiş diğer sektörler kümede durur.
-   */
-  const altSil = (id: string, klavyeyle: boolean) => {
+  /** Sektör kaldırılır; eski alt seçimler de (o sektördekiler dahil) gider. */
+  const sektorSil = (seg: string, klavyeyle: boolean) => {
     odakGeriAl.current = klavyeyle;
-    onChange(genislet(pencereDegeri.filter((x) => x !== id)));
-  };
-
-  /** Segment silinince altındaki her şey gider — zincirleme. */
-  const segmentSil = (seg: string, klavyeyle: boolean) => {
-    odakGeriAl.current = klavyeyle;
-    onChange({
-      mainIds: mainIds.filter((x) => x !== seg),
-      subIds: removeCategoryBranch(subIds, seg),
-    });
+    onChange({ mainIds: sektorler.filter((x) => x !== seg), subIds: [] });
   };
 
   return (
@@ -371,7 +278,7 @@ export function CompanyCategoryPicker({
           type="button"
           onClick={() => !disabled && setOpen(true)}
           disabled={disabled}
-          aria-describedby={error ? hataId : undefined}
+          aria-describedby={aciklamaId}
           className={`flex w-full items-center justify-between gap-3 rounded-lg border-2 border-dashed px-4 py-3 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
             error
               ? "border-rose-300 bg-rose-50 hover:bg-rose-100"
@@ -392,98 +299,42 @@ export function CompanyCategoryPicker({
             </span>
             <span className="min-w-0 text-left">
               <span className="block text-sm font-semibold text-zinc-900">
-                {t("urunHizmetSecin")}
+                {t("sektorSecin")}
               </span>
-              {/* Sektörün tamamı da AYNI pencereden seçilir — ayrı bağlantı yok. */}
+              {/* Sektör adını bilmeyen kullanıcı ürün / hizmet adıyla arar. */}
               <span className="mt-0.5 block text-xs break-words text-zinc-500">
-                {t("sektorunTamaminiDaSecebilirsiniz")}
+                {t("urunYaDaHizmetAdiylaArayabilirsiniz")}
               </span>
             </span>
           </span>
           <Plus className="h-4 w-4 shrink-0 text-zinc-500" />
         </button>
       ) : (
-        <ul className="space-y-2">
-          {gruplar.map(([seg, secimler]) => {
-            const segAd = segmentAdiBilinen(seg);
-            const cizilen = cizilenSecimler(secimler);
-            // Çizilecek hiçbir şeyi kalmayan kart açılmaz: bütün seçimleri
-            // katalogdan düşmüş sektör ya da adı hiçbir kaynaktan çözülemeyen
-            // (katalogda olmayan) sektör kodu — başlıksız/ham kodlu kutu yok.
-            const cozuldu = !adlarBekliyor && !adlarHata;
-            if (secimler.length > 0 ? cizilen.length === 0 : cozuldu && !segAd) return null;
+        <ul className="flex flex-wrap gap-2">
+          {cizilenler.map((seg) => {
+            const ad = sektorAdi(seg);
             return (
               <li
                 key={seg}
-                className="rounded-lg border border-zinc-200 bg-white p-3"
+                /* `max-w-full min-w-0`: çip kutunun içinde kalır; uzun sektör
+                   adı kesilmez, sarılır. */
+                className={`inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${renk.chip}`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span
-                    className={`inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${renk.chip}`}
+                {/* `shrink-0`: ad sarılınca ikon ezilmesin. */}
+                <Layers className="h-3 w-3 shrink-0" aria-hidden />
+                <span className="min-w-0 break-words">{ad ?? adYedegi(seg)}</span>
+                {!disabled ? (
+                  // Dokunma hedefi 32 px; eksi kenar boşluğu çipi büyütmez.
+                  <button
+                    type="button"
+                    // Klavye tetiklemesinde `detail` 0'dır.
+                    onClick={(e) => sektorSil(seg, e.detail === 0)}
+                    aria-label={t("sektoruKaldir", { segmentAdi: ad ?? seg })}
+                    className="-my-2 -mr-2 -ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded text-zinc-500 hover:text-rose-600 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-zinc-900"
                   >
-                    {/* `shrink-0`: ad sarılınca ikon 4-10 px'e eziliyordu. */}
-                    <Layers className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="min-w-0 break-words">
-                      {segAd ?? adYedegi(seg)}
-                    </span>
-                  </span>
-                  {!disabled ? (
-                    // Dokunma hedefi 32 px; eksi kenar boşluğu kartı büyütmez.
-                    <button
-                      type="button"
-                      // Klavye tetiklemesinde `detail` 0'dır.
-                      onClick={(e) => segmentSil(seg, e.detail === 0)}
-                      aria-label={t("sektorunuVeAltindakiSecimleriKaldir", { segmentAdi: segAd ?? seg })}
-                      className="-m-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded text-zinc-500 hover:text-rose-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-zinc-900"
-                    >
-                      <XIcon className="h-4 w-4" aria-hidden />
-                    </button>
-                  ) : null}
-                </div>
-                {secimler.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {cizilen.map((id) => {
-                      const c = adById.get(id);
-                      const ad = c?.nameTr ?? null;
-                      // Breadcrumb: zincirin tamamı burada okunuyor, ayrı çipe
-                      // gerek yok. Baştaki segment harfi ("P. ") iç koddur,
-                      // gösterilmez.
-                      const yol = plainBreadcrumb(c?.breadcrumb);
-                      return (
-                        <span
-                          key={id}
-                          /* Yol tooltip'te: kullanıcı yaprağı seçti, hangi sınıfın
-                             altında olduğunu (ve dolayısıyla neyle eşleşeceğini)
-                             görebilmeli. */
-                          title={yol || ad || undefined}
-                          /* `max-w-full min-w-0`: çip kartın içinde kalır (sabit
-                             220 px tavanla 360 px'te kartın 15 px dışına çıkıyordu). */
-                          className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700"
-                        >
-                          {/* Adın TAMAMI — uzun ad kesilmez, sarılır. */}
-                          <span className="min-w-0 break-words">
-                            {ad ?? adYedegi(id)}
-                          </span>
-                          {!disabled ? (
-                            <button
-                              type="button"
-                              onClick={(e) => altSil(id, e.detail === 0)}
-                              aria-label={t("seciminiKaldir", { ad: ad ?? id })}
-                              className="-my-2 -mr-2 -ml-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded text-zinc-500 hover:text-rose-600 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-zinc-900"
-                            >
-                              <XIcon className="h-3 w-3" aria-hidden />
-                            </button>
-                          ) : null}
-                        </span>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  // Altı boş sektör = sektörün tamamı beyan edildi.
-                  <p className="mt-2 text-xs break-words text-zinc-600">
-                    {t("sektorunTamami")}
-                  </p>
-                )}
+                    <XIcon className="h-3 w-3" aria-hidden />
+                  </button>
+                ) : null}
               </li>
             );
           })}
@@ -499,32 +350,35 @@ export function CompanyCategoryPicker({
         />
       ) : null}
 
-      {/* TEK ekleme düğmesi: sektörün tamamı da aynı pencereden seçilir (ayrı
-          "Sektör geneli ekle" bağlantısı kalktı); yanındaki ipucu bunu söyler.
-          Boşken birincil eylem zaten yukarıdaki kesikli kutu ve ipucu onun
-          içinde — burada tekrarlamak iki özdeş düğme bırakırdı. */}
+      {/* TEK ekleme düğmesi. Boşken birincil eylem zaten yukarıdaki kesikli
+          kutu ve ipucu onun içinde — burada tekrarlamak iki özdeş düğme
+          bırakırdı. */}
       {!disabled && !bos ? (
-        <div className="mt-1 flex flex-wrap items-center gap-x-3">
-          {/* Metin eylemi en az 32 px yüksek (dokunma hedefi; 16-20 px idi). */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3">
+          {/* Metin eylemi en az 32 px yüksek (dokunma hedefi). */}
           <button
             ref={ekleRef}
             type="button"
             onClick={() => setOpen(true)}
-            aria-describedby={error ? hataId : undefined}
+            aria-describedby={aciklamaId}
             className="inline-flex min-h-8 shrink-0 items-center gap-1 text-sm font-semibold text-zinc-700 hover:text-zinc-900"
           >
-            <Plus className="h-4 w-4" aria-hidden />
-            {t("urunHizmetEkle")}
+            {tavanda ? (
+              <Pencil className="h-4 w-4" aria-hidden />
+            ) : (
+              <Plus className="h-4 w-4" aria-hidden />
+            )}
+            {tavanda ? t("sektorleriDuzenle") : t("sektorEkle")}
           </button>
           <span className="min-w-0 text-xs break-words text-zinc-500">
-            {t("sektorunTamaminiDaSecebilirsiniz")}
+            {t("urunYaDaHizmetAdiylaArayabilirsiniz")}
           </span>
         </div>
       ) : null}
 
-      {uyari ? (
-        <p role="alert" className="mt-1.5 text-xs text-amber-700">
-          {uyari}
+      {tavanUstu ? (
+        <p id={tavanId} className="mt-1.5 text-xs text-amber-700">
+          {tavanUstu}
         </p>
       ) : null}
       {/* Zorunlu alan / sunucu reddi. `role="alert"`: belirdiği an okunur (odak
@@ -543,25 +397,17 @@ export function CompanyCategoryPicker({
         <CategorySelectorModal
           isOpen={open}
           onClose={() => setOpen(false)}
-          value={pencereDegeri}
+          value={sektorler}
           onConfirm={onayla}
           validate={dogrula}
           mode="multi"
-          // İki tavan: sektör ALTINDA 50 seçim + en fazla 5 sektör.
-          maxSelection={MAX_COMPANY_SUB_PICKS}
-          maxSectors={MAX_COMPANY_MAIN_CATEGORIES}
+          // Yalnız sektör (L1): ağaçta yalnız sektör satırları, aramada sonuç
+          // bağlamıyla ama işaret yalnız sektöre; tek sayaç "Sektör n/5".
+          sectorsOnly
+          maxSelection={MAX_COMPANY_MAIN_CATEGORIES}
           title={modalTitle}
-          description={t("sektorunTamaminiYaDaAltindaki")}
+          description={modalDescription ?? t("sektorPenceresiAciklamasi")}
           catalog="full"
-          // Firma beyanı L1-L4: sektör (= tamamı), aile, sınıf, emtia — hepsi
-          // tek pencerede işaretlenir (talep formu L3+ kalır).
-          minSelectableLevel={1}
-          // Depo ve gösterim dal başına tek (en derin) kodu tutar; taslak da öyle.
-          singlePickPerBranch
-          // Ekran bunlara "ürün / hizmet" diyor; uyarı da öyle desin.
-          limitMessage={t("enFazlaUrunHizmetSecebilirsiniz", {
-            max: MAX_COMPANY_SUB_PICKS,
-          })}
         />
       ) : null}
     </div>

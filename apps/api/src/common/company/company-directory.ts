@@ -68,6 +68,40 @@ const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(B
  */
 const filterCategories = (v?: string) => visibleCategoryIds(multi(v).filter(isCategoryCode));
 
+/**
+ * SECTORS OF THE `?category=` CODES (owner decision 2026-10-29, S1). A company
+ * declaration is sector-only now: "Ne alırım / Ne satarım" stores L1 codes and
+ * no product / service picks. A deep (L2-L4) filter code - the "Tedarikçiler"
+ * tab of a panel category page passes one - therefore also matches a company
+ * whose MAIN (segment) list holds that code's segment; matching only the exact
+ * code left every sector-only company out of it. A segment code matches the
+ * main lists as before. Only the main lists are compared with these: sub lists
+ * never hold a segment.
+ */
+export function categoryFilterSegments(categories: readonly string[]): string[] {
+  return [
+    ...new Set(
+      categories
+        .map((code) => categorySegment(code))
+        .filter((segment): segment is string => !!segment && !categories.includes(segment)),
+    ),
+  ];
+}
+
+/**
+ * Does a company's SHOWN declaration match the `?category=` codes: one of its
+ * codes is a filter code, or its main list holds the segment of a deep filter
+ * code (`categoryFilterSegments`). The list (`directoryRows`) and the counts
+ * (`directoryFacets`) read this one rule.
+ */
+export function declarationMatchesCategories(
+  shown: { main: readonly string[]; all: readonly string[] },
+  categories: readonly string[],
+  segments: readonly string[] = categoryFilterSegments(categories),
+): boolean {
+  return shown.all.some((c) => categories.includes(c)) || shown.main.some((c) => segments.includes(c));
+}
+
 /** Firma satırının dört beyan dizisi (satış / alım × ana / alt eksen). */
 export interface CompanyDeclarationArrays {
   sellerCategoryIds: string[];
@@ -130,6 +164,8 @@ export async function directoryRows(
   const countries = countriesOf(q.country);
   const activities = multi(q.activity).filter(isCompanyActivity);
   const categories = filterCategories(q.category);
+  const categorySegments = categoryFilterSegments(categories);
+  const mainCategoryCodes = [...categories, ...categorySegments];
   const rows = await prisma.company.findMany({
     where: {
       ...PUBLIC_PROFILE_WHERE,
@@ -146,10 +182,12 @@ export async function directoryRows(
         ...(categories.length
           ? [
               {
+                // Main lists: the codes AND the segments of deep codes (sector-only
+                // declarations, `categoryFilterSegments`); sub lists: the codes.
                 OR: [
-                  { buyerCategoryIds: { hasSome: categories } },
+                  { buyerCategoryIds: { hasSome: mainCategoryCodes } },
                   { buyerSubCategoryIds: { hasSome: categories } },
-                  { sellerCategoryIds: { hasSome: categories } },
+                  { sellerCategoryIds: { hasSome: mainCategoryCodes } },
                   { sellerSubCategoryIds: { hasSome: categories } },
                 ],
               },
@@ -242,7 +280,9 @@ export async function directoryRows(
     // GÖSTERİLEN beyandadır: `46000000`'ı yalnız gizli bir seçimin atası
     // olarak saklayan firma o sektörün süzgecinde listelenmez. Sayaç
     // (`directoryFacets`) aynı fonksiyonu okur.
-    if (categories.length > 0 && !shownCompanyDeclaration(r).all.some((c) => categories.includes(c))) return false;
+    if (categories.length > 0 && !declarationMatchesCategories(shownCompanyDeclaration(r), categories, categorySegments)) {
+      return false;
+    }
     const productCount = r._count.items;
     if (q.hasProducts && productCount === 0) return false;
     if (q.gold && !isGold(r)) return false;
@@ -458,9 +498,11 @@ export async function directoryFacets(
   const activities = multi(params.activity).filter(isCompanyActivity);
   const categories = filterCategories(params.category);
   // SÜZGEÇ eşleşmesi: liste (`directoryRows`) ile birebir — dört dizinin
-  // GÖSTERİLEN hâli (`shownCompanyDeclaration`). Satır başına bir kez hesaplanır.
-  const shownOf = new Map(rows.map((r) => [r.id, shownCompanyDeclaration(r).all] as const));
-  const cats = (r: Row) => shownOf.get(r.id) ?? [];
+  // GÖSTERİLEN hâli (`shownCompanyDeclaration`), derin kodda ana listelerdeki
+  // segmenti de (`declarationMatchesCategories`). Satır başına bir kez hesaplanır.
+  const shownOf = new Map(rows.map((r) => [r.id, shownCompanyDeclaration(r)] as const));
+  const cats = (r: Row) => shownOf.get(r.id)?.all ?? [];
+  const categorySegments = categoryFilterSegments(categories);
   // FACET sayımı: alt kodlar SEGMENTİNE yuvarlanır. Ham hâlde sayılsaydı
   // katalogdan yüzlerce satırlık bir süzgeç listesi çıkardı; facet bir gezinme
   // aracı, kod sayımı değil. Gizli dal facet'te de yok: yuvarlanan kodlar
@@ -470,7 +512,11 @@ export async function directoryFacets(
   const inCity = (r: Row) => !hasCity || (r.cityId != null && cityIds.has(r.cityId));
   const inCountry = (r: Row) => countries.size === 0 || countries.has(r.country);
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));
-  const inCat = (r: Row) => categories.length === 0 || cats(r).some((c) => categories.includes(c));
+  const inCat = (r: Row) => {
+    if (categories.length === 0) return true;
+    const shown = shownOf.get(r.id);
+    return !!shown && declarationMatchesCategories(shown, categories, categorySegments);
+  };
   const inVerified = (r: Row) => !params.verified || r.companyVerificationStatus === "VERIFIED";
   const inProducts = (r: Row) => !params.hasProducts || r._count.items > 0;
   const inGold = (r: Row) => !params.gold || isGold(r);

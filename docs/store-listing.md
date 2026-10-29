@@ -23,10 +23,10 @@ Rothern, alıcı ve tedarikçiyi tek hesapta buluşturan B2B satın alma platfor
 
 ALICILAR İÇİN
 • Alım talebinizi dakikalar içinde açın: kalemleri yazın, Excel'den aktarın ya da belgeden doldurun.
-• Kapalı zarf teklif toplayın; tedarikçiler birbirinin teklifini göremez.
+• Kapalı zarf teklif toplayın; açık eksiltme turu açmadıkça tedarikçiler birbirinin teklifini görmez.
 • Teklifleri kalem kalem karşılaştırın, toplu ya da kalem bazlı kazandırın.
 • Siparişi teslimata ve ödemeye kadar tek ekrandan izleyin.
-• AI, talebinize uygun yeni tedarikçileri bulup davet eder.
+• Yapay zekâ, talebinize uygun yeni tedarikçileri bulup davet eder.
 
 TEDARİKÇİLER İÇİN
 • Sektörünüzdeki açık alım taleplerini görün ve teklif verin.
@@ -47,7 +47,7 @@ Rothern is a B2B procurement platform that brings buyers and suppliers together 
 
 FOR BUYERS
 • Post a buying request in minutes: type your line items, import them from Excel or fill them in from a document.
-• Collect sealed quotes; suppliers can't see each other's quotes.
+• Collect sealed quotes; suppliers don't see each other's quotes unless you open a reverse-auction round.
 • Compare quotes line by line and award the whole request or item by item.
 • Track the order through delivery and payment on one screen.
 • AI finds and invites new suppliers that match your request.
@@ -71,7 +71,7 @@ Rothern — B2B-платформа для закупок, которая объ�
 
 ПОКУПАТЕЛЯМ
 • Создайте запрос за несколько минут: введите позиции, импортируйте их из Excel или заполните по документу.
-• Собирайте закрытые предложения: поставщики не видят предложения друг друга.
+• Собирайте закрытые предложения: поставщики не видят предложения друг друга, если Вы не открываете раунд торгов на понижение.
 • Сравнивайте предложения по позициям и выбирайте победителя по всему запросу или по отдельным позициям.
 • Отслеживайте заказ до поставки и оплаты на одном экране.
 • ИИ находит и приглашает новых поставщиков, подходящих под Ваш запрос.
@@ -148,13 +148,15 @@ Koddan çıkarılan durum; formu doldururken son kez doğrula.
 | Kimlik numarası (firma yetkilisinin T.C. kimlik / pasaport no; şahıs firmasında vergi no olan TCKN) ve kimlik belgesi görüntüsü | Evet | Firma doğrulaması | Evet — Play "Kişisel bilgiler › Diğer bilgiler", Apple "Diğer veriler" (Other Data) |
 | Yüklenen belgeler (doğrulama, talep ekleri) | Evet | Uygulama işlevi | Evet |
 | Mesajlar (firmalar arası) | Evet | Uygulama işlevi | Evet |
+| İşlem geçmişi (firmalar arası siparişler) | Evet | Uygulama işlevi (sipariş, ödeme bildirimi ve teslim takibi); yasal saklama — Play amaçları: "App functionality" + "Fraud prevention, security, and compliance" (ticari kayıt 10 yıl) | Evet — Play "Finansal bilgiler › Satın alma geçmişi" (Purchase history), Apple "Purchases › Purchase History"; ödeme uygulamadan alınmaz, tutar ve ödeme bildirimi firmaların kendi beyanıdır |
+| Kullanıcı tarafından oluşturulan içerik (talep, teklif, ürün, firma tanıtımı) | Evet | Uygulama işlevi (yayınlama, eşleştirme, otomatik çeviri) — Play amacı: "App functionality" | Evet — Play "Uygulama etkinliği › Kullanıcı tarafından oluşturulan diğer içerikler" (Other user-generated content), Apple "User Content › Other User Content"; herkese açık talep ve ürün sayfaları ziyaretçiye de görünür (alıcı kimliği talepte gösterilmez) |
 | Uygulama içi etkinlik (görüntülenen profil / ürün) | Evet | Uygulama işlevi (Ziyaret Edenler) | Evet |
 | Hata kayıtları | Evet | Teşhis | Evet (bazı kayıtlarda iç kullanıcı / firma kimliği; çerez, istek gövdesi, IP ve bağlantı jetonları ayıklanır) — Play: "Uygulama bilgileri ve performans" › "Kilitlenme günlükleri" / "Teşhis", kimliğe bağlı; Apple: "Diagnostics", "Linked to You", izleme için kullanılmaz |
 | Cihaz bildirimi jetonu | Evet (bildirime izin verilirse) | Anlık bildirim (Firebase Cloud Messaging; iOS'ta Apple) | Evet |
 | Konum, kişiler, fotoğraf galerisi, sağlık, finansal ödeme | Hayır | — | — |
 
-Ödeme alınmıyor; "finansal bilgi" başlığında yalnız firmanın kendi girdiği banka hesabı (sipariş için karşı tarafa
-gösterilir) beyan edilir.
+Ödeme alınmıyor; "finansal bilgi" başlığında firmanın kendi girdiği banka hesabı (sipariş için karşı tarafa
+gösterilir) ve firmalar arası siparişlerin işlem geçmişi (yukarıdaki satır) beyan edilir.
 
 ## İnceleme notu (App Store "Review Notes" / Play "Uygulama erişimi")
 

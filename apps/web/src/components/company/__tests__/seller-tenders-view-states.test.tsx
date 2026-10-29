@@ -215,7 +215,7 @@ describe("SellerTendersView — yanıt beklenirken", () => {
   it("başarılı ve BOŞ yanıt boş durumu çizer (boş durum yalnız buradan)", async () => {
     apiUp([]);
     view();
-    expect(await screen.findByRole("link", { name: "Satış kategorilerini düzenle" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Satış sektörlerinizi düzenle" })).toBeInTheDocument();
     expect(screen.getByText("Açık talep bulunamadı")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).toBeNull();
   });

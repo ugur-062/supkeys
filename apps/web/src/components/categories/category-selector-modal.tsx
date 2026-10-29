@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/catalyst/badge";
 import { Checkbox } from "@/components/catalyst/checkbox";
-import { ChevronRight, FolderTree, Loader2, X } from "lucide-react";
+import { Check, ChevronRight, FolderTree, Loader2, X } from "lucide-react";
 import {
   CategoryDialogNotices,
   CategoryDialogShell,
@@ -219,6 +219,26 @@ interface Props {
    * Çağıranın `validate`i onay anındaki son denetim olarak kalır.
    */
   maxSectors?: number;
+  /**
+   * YALNIZ SEKTÖR KİPİ (sahip kararı 2026-10-29: firma kategori beyanı yalnız
+   * sektördür). Verilince:
+   *  - ağaçta yalnız sektör (L1) satırları çizilir, her biri onay kutusu taşır;
+   *    dal açılmaz (aile / sınıf / emtia satırı yok), ada basmak da işaretler;
+   *  - arama sonucu bağlamıyla kalır (sektör › aile › sınıf › emtia) ama
+   *    onay kutusu yalnız sektör satırındadır — "çelik boru" yazan firma
+   *    sonucu görür, sonucun sektörünü işaretler; sektör adını bilmesi
+   *    gerekmez. Bağlam satırına basmak da o satırın sektörünü işaretler
+   *    (YALNIZ ekler; işaretli sektörün satırları soluk + ✓, kaldırmaz);
+   *  - arama kutusu "Sektör, ürün ya da hizmet ara" der, boş seçim şeridi
+   *    "Henüz sektör seçilmedi";
+   *  - tavan `maxSectors` (verilmezse `maxSelection`) sektördür; sayaç tek
+   *    rozettir ("Sektör n/max"); aşan işaret nedeniyle reddedilir;
+   *  - `value`daki sektör dışı kod kendi sektörüne yuvarlanır (eski kayıt);
+   *  - `minSelectableLevel` ve `singlePickPerBranch` yok sayılır (her işaret
+   *    zaten bir sektördür, iki sektör aynı dalda olamaz).
+   * Talep ve ürün formları bu kipi KULLANMAZ (en az L3 kuralı değişmedi).
+   */
+  sectorsOnly?: boolean;
 }
 
 /** `a` ile `b` aynı dalda mı (biri ötekinin atası). Hiyerarşi koddan okunur. */
@@ -245,7 +265,8 @@ function sectorsOf(ids: readonly string[]): Set<string> {
  *  Segment → Family → Class (seçilebilir) → Commodity (seçilebilir).
  * Varsayılan: Class + Commodity seçilebilir, Segment + Family accordion
  * başlığı; `minSelectableLevel={2}` ile Family, `{1}` ile Segment de
- * seçilebilir (firma beyanı: her seviye tek pencerede işaretlenir).
+ * seçilebilir. `sectorsOnly`: YALNIZ Segment seçilir (firma kategori beyanı,
+ * 2026-10-29); arama sonucu bağlam olarak kalır.
  *
  * Draft state pattern: kullanıcı "Onayla" yapana kadar parent onChange tetiklenmez.
  */
@@ -264,6 +285,7 @@ export function CategorySelectorModal({
   singlePickPerBranch = false,
   limitMessage,
   maxSectors,
+  sectorsOnly = false,
 }: Props) {
   const tr = useTranslations("web.shared.categorySelectorModal");
   // Pencere kataloğu SUNAN yüzeydir: gizli kategorideki eski kod (2026-10-09;
@@ -274,7 +296,17 @@ export function CategorySelectorModal({
   // Çağıranlar değeri zaten süzer; burası ikinci kat. `useMemo`: taslağı
   // sıfırlayan efekt `value` kimliğine bağlı, her çizimde yeni dizi taslağı
   // sürekli sıfırlardı.
-  const value = useMemo(() => visibleCategoryIds(rawValue), [rawValue]);
+  //
+  // Yalnız sektör kipinde değer sektörlerine indirilir (eski kayıttaki ürün /
+  // hizmet kodu kendi sektörünün işareti olur): pencerede başka kod
+  // işaretlenemez, taslağa da girmez. Gizli kod ÖNCE düşer — gizli dalın kodu
+  // görünür sektörünü işaretletmez.
+  const value = useMemo(() => {
+    const visible = visibleCategoryIds(rawValue);
+    return sectorsOnly ? [...sectorsOf(visible)] : visible;
+  }, [rawValue, sectorsOnly]);
+  /** Yalnız sektör kipinin tavanı (sektör sayısı). */
+  const sectorCap = maxSectors ?? maxSelection;
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -411,6 +443,13 @@ export function CategorySelectorModal({
    * Sektör tavanı ise taslağın dal kuralından ÖNCEKİ hâline bakar (aşağıda).
    */
   const limitRefusal = (kept: readonly string[], id: string): string | null => {
+    if (sectorsOnly) {
+      // Her işaret bir sektördür: tavanın üstünde kayıtlı eski beyanda (Ayarlar
+      // eskiden 10 sektöre izin veriyordu) kaldırmak serbest, eklemek değil.
+      return kept.length >= sectorCap
+        ? (limitMessage ?? tr("enFazlaSektorSecebilirsiniz", { max: sectorCap }))
+        : null;
+    }
     const picksLimit =
       limitMessage ??
       tr("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection });
@@ -497,14 +536,22 @@ export function CategorySelectorModal({
       : tr("tedarikEdebildiginizKategorileriIsaretleyinI");
 
   const retryLabel = tr("yenidenDene");
-  const selectFamily = minSelectableLevel <= 2;
-  const selectSector = minSelectableLevel === 1;
+  // Yalnız sektör kipinde aile hiçbir yerde işaretlenmez, sektör her yerde işaretlenir.
+  const selectFamily = !sectorsOnly && minSelectableLevel <= 2;
+  const selectSector = sectorsOnly || minSelectableLevel === 1;
 
   // İki tavanlı sayaç: sektör (yayılım) + sektör altındaki seçimler.
+  // Yalnız sektör kipinde TEK rozet: "Sektör n/max".
   const sectorCount = sectorsOf(draftIds).size;
   const pickCount = draftIds.filter((id) => !isSectorCode(id)).length;
-  const tallies =
-    maxSectors === undefined
+  const tallies = sectorsOnly
+    ? [
+        {
+          text: tr("sayacSektor", { n: draftIds.length, max: sectorCap }),
+          srText: tr("sayacSektorSeciliOkunus", { n: draftIds.length, max: sectorCap }),
+        },
+      ]
+    : maxSectors === undefined
       ? undefined
       : [
           {
@@ -544,7 +591,9 @@ export function CategorySelectorModal({
         value={search}
         onChange={setSearch}
         inputRef={searchRef}
-        placeholder={tr("kategoriAra")}
+        // Yalnız sektör kipinde kutu ürün / hizmet adını da aradığını söyler:
+        // kullanıcı sektörün adını değil ne sattığını bilir.
+        placeholder={sectorsOnly ? tr("sektorUrunYaDaHizmetAra") : tr("kategoriAra")}
         // Tek karakterde arama başlamaz (API en az 2 ister); ağaç yerinde
         // kalıyor ve kullanıcı neden sonuç gelmediğini bilmiyordu.
         helper={
@@ -579,7 +628,7 @@ export function CategorySelectorModal({
             // Kısa ekranda yer listeye kalır: boş durum cümlesi bir ipucudur,
             // sayaç "0" zaten seçim olmadığını söyler.
             <p className="mt-2 py-1 text-xs italic text-zinc-500 [@media(max-height:520px)]:hidden">
-              {tr("henuzSecimYokAsagidakiListeden")}
+              {sectorsOnly ? tr("henuzSektorSecilmedi") : tr("henuzSecimYokAsagidakiListeden")}
             </p>
           ) : (
             <>
@@ -606,8 +655,10 @@ export function CategorySelectorModal({
                     info?.nameTr ??
                     (namesFailed ? id : loading ? "…" : tr("silinmisKategori"));
                   // Sektör işareti bir ürün/hizmet adı gibi görünmesin: çip
-                  // "sektörün tamamı" olduğunu söyler (ad aynı kalır).
-                  const wholeSector = selectSector && isSectorCode(id);
+                  // "sektörün tamamı" olduğunu söyler (ad aynı kalır). Yalnız
+                  // sektör kipinde her çip bir sektördür — ek söylenecek bir
+                  // ayrım taşımaz, çizilmez.
+                  const wholeSector = !sectorsOnly && selectSector && isSectorCode(id);
                   return (
                     // `group/chip`: şerit çok uzun EKLİ çipi ölçüp `<li>`ye
                     // `data-split` yazar (bkz. `SelectionStrip`); sınıflar ona bakar.
@@ -735,6 +786,7 @@ export function CategorySelectorModal({
               onToggle={toggleSelection}
               selectFamily={selectFamily}
               selectSector={selectSector}
+              sectorsOnly={sectorsOnly}
             />
           ) : rootsBusy ? (
             <div className="flex items-center justify-center py-16">
@@ -761,6 +813,7 @@ export function CategorySelectorModal({
               catalog={catalog}
               selectFamily={selectFamily}
               selectSector={selectSector}
+              sectorsOnly={sectorsOnly}
             />
           )}
         </div>
@@ -789,6 +842,8 @@ interface SegmentListProps {
   selectFamily: boolean;
   /** Sektör (L1) satırı da onay kutusu taşır — `minSelectableLevel={1}`. */
   selectSector: boolean;
+  /** Yalnız sektör kipi: sektör satırı tek satırdır (dal açılmaz). */
+  sectorsOnly: boolean;
 }
 
 /**
@@ -867,6 +922,7 @@ function SegmentList({
   catalog,
   selectFamily,
   selectSector,
+  sectorsOnly,
 }: SegmentListProps) {
   const t = useTranslations("web.shared.categorySelectorModal");
   if (roots.length === 0) {
@@ -890,6 +946,37 @@ function SegmentList({
   const hizmetSegments = roots.filter(isService);
 
   const renderSegment = (segment: CategoryNode) => {
+    if (sectorsOnly) {
+      // YALNIZ SEKTÖR: ok yok, dal açılmaz; kutu ve ad aynı işi yapar (sınıf
+      // satırıyla aynı dizilim). Kutunun adı çıplak sektör adıdır — bu kipte
+      // her işaret zaten sektörün tamamıdır, ayrıca söylenecek bir şey yok.
+      const isSelected = selected.includes(segment.id);
+      return (
+        <li
+          key={segment.id}
+          data-slot="sector-row"
+          className={`flex items-center gap-2 rounded-lg px-2 transition-colors ${
+            isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : "hover:bg-zinc-50"
+          }`}
+        >
+          <Checkbox
+            checked={isSelected}
+            onChange={() => onToggleSelection(segment.id)}
+            className={TICK_HIT}
+            aria-label={segment.nameTr}
+          />
+          <button
+            type="button"
+            onClick={() => onToggleSelection(segment.id)}
+            className={`${ROW_NAME_PAD} min-w-0 flex-1 text-left text-sm font-semibold break-words ${
+              isSelected ? "text-zinc-950" : "text-zinc-800"
+            }`}
+          >
+            {segment.nameTr}
+          </button>
+        </li>
+      );
+    }
     const isExpanded = expandedSegments.has(segment.id);
     // Kategori id = 8-haneli kod → segment aidiyeti ilk 2 haneden okunur;
     // kapalı başlıkta "bu dalda n seçim var" rozeti ekstra fetch istemez.
@@ -1417,6 +1504,8 @@ interface SearchResultsProps {
   onToggle: (id: string) => void;
   selectFamily: boolean;
   selectSector: boolean;
+  /** Yalnız sektör kipi: sonuç bağlamıyla çizilir, yalnız sektör işaretlenir. */
+  sectorsOnly: boolean;
 }
 
 /**
@@ -1450,6 +1539,7 @@ function SearchResults({
   onToggle,
   selectFamily,
   selectSector,
+  sectorsOnly,
 }: SearchResultsProps) {
   const t = useTranslations("web.shared.categorySelectorModal");
   if (loading) {
@@ -1499,7 +1589,17 @@ function SearchResults({
           <span className="hidden [@media(max-height:520px)]:inline">{t("cokFazlaSonucKisa")}</span>
         </p>
       ) : null}
-      <ul className="space-y-3">
+      {sectorsOnly ? (
+        // Sonuç bir ürün / hizmet olabilir; seçilince işaret onun SEKTÖRÜNE
+        // konur (bağlam satırları da birer düğmedir — aşağıda). Kısa ekranda
+        // (klavye açık) yer sonuçlara kalır; satırlar ipucusuz da çalışır.
+        <p className="mb-2 px-2 text-xs text-zinc-600 [@media(max-height:520px)]:hidden">
+          {t("sonucSecilinceSektoruIsaretlenir")}
+        </p>
+      ) : null}
+      {/* `data-slot`: kayıt e2e'sinin (`e2e/signup-flow.ts` `kategoriAraVeSec`)
+          sonuç bekleme sözleşmesi — kapalı ağaçta bu liste yoktur. */}
+      <ul data-slot="search-results" className="space-y-3">
         {shown.map((seg) => (
           <SearchSegmentBlock
             key={seg.id}
@@ -1510,6 +1610,7 @@ function SearchResults({
             mode={mode}
             selectFamily={selectFamily}
             selectSector={selectSector}
+            sectorsOnly={sectorsOnly}
           />
         ))}
       </ul>
@@ -1525,6 +1626,7 @@ function SearchSegmentBlock({
   mode,
   selectFamily,
   selectSector,
+  sectorsOnly,
 }: {
   segment: SearchTreeSegment;
   query: string;
@@ -1533,9 +1635,55 @@ function SearchSegmentBlock({
   mode: "single" | "multi";
   selectFamily: boolean;
   selectSector: boolean;
+  sectorsOnly: boolean;
 }) {
-  const families = visibleFamilies(segment, selectFamily);
+  // Yalnız sektör kipinde aile BAĞLAMDIR: sınıfı dönmemiş (adı eşleşen) aile
+  // de yazılır — kullanıcı aradığının hangi sektörde olduğunu ondan okur.
+  const families = visibleFamilies(segment, selectFamily || sectorsOnly);
   const isSelected = selectSector && selected.includes(segment.id);
+  if (sectorsOnly) {
+    return (
+      <li>
+        <div
+          data-slot="sector-row"
+          className={`flex items-center gap-2 rounded-lg px-2 hover:bg-zinc-50 ${
+            isSelected ? "bg-zinc-50 ring-1 ring-zinc-950/10" : ""
+          }`}
+        >
+          <Checkbox
+            checked={isSelected}
+            onChange={() => onToggle(segment.id)}
+            className={TICK_HIT}
+            aria-label={segment.nameTr}
+          />
+          <button
+            type="button"
+            onClick={() => onToggle(segment.id)}
+            className={`${ROW_NAME_PAD} min-w-0 flex-1 text-left text-sm font-semibold break-words text-zinc-900`}
+          >
+            <HighlightMatch text={segment.nameTr} query={query} />
+          </button>
+        </div>
+        {families.length > 0 ? (
+          <ul className="ml-[15px] space-y-1 border-l border-zinc-950/5 pl-2">
+            {families.map((fam) => (
+              <SearchContextFamily
+                key={fam.id}
+                family={fam}
+                query={query}
+                sectorName={segment.nameTr}
+                sectorSelected={isSelected}
+                // YALNIZ EKLER: işaretli sektörü bağlam satırı kaldırmaz.
+                onAddSector={() => {
+                  if (!isSelected) onToggle(segment.id);
+                }}
+              />
+            ))}
+          </ul>
+        ) : null}
+      </li>
+    );
+  }
   return (
     <li>
       {selectSector ? (
@@ -1650,6 +1798,82 @@ function SearchFamilyBlock({
               onToggle={onToggle}
               mode={mode}
             />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+/**
+ * YALNIZ SEKTÖR KİPİ — sonucun BAĞLAMI: aile › sınıf › emtia adları. Onay
+ * kutusu yalnız sektör satırındadır, ama bağlam satırları da birer DÜĞMEDİR:
+ * "çelik boru" yazıp "Çelik borular"a basan kullanıcı tepkisiz kalmasın —
+ * basış satırın SEKTÖRÜNÜ işaretler (tavan reddi sektör kutusuyla aynı yoldan).
+ *
+ * YALNIZ EKLER (gözden geçirme 2026-10-29): satır sektörü KALDIRMAZ. Eskiden
+ * basış sektörü aç/kapa yapıyordu: "somun" arayıp "Ankraj somunları"na, sonra
+ * başka bir ürünü seçmek için "Somunlar"a basan kullanıcı sektörü geri
+ * kaldırıyordu; Ayarlar'da zaten beyan ettiği sektördeki ürününü arayıp sonuca
+ * basan satıcı o sektörü taslaktan siliyordu. Sektör işaretliyken satırlar
+ * soluk ve ✓ ile çizilir, basış bir şey yapmaz (`aria-disabled`; odak kaybolmasın
+ * diye düğme kalır). Kaldırmanın yolu sektör kutusu, sektör adı ya da seçim
+ * şeridindeki çiptir. Erişilebilir ad satırın hangi sektörü işaretleyeceğini
+ * (ya da işaretli olduğunu) söyler; eşleşen parça vurgulanır.
+ */
+function SearchContextFamily({
+  family,
+  query,
+  sectorName,
+  sectorSelected,
+  onAddSector,
+}: {
+  family: SearchTreeFamily;
+  query: string;
+  sectorName: string;
+  sectorSelected: boolean;
+  onAddSector: () => void;
+}) {
+  const t = useTranslations("web.shared.categorySelectorModal");
+  // Dokunma hedefi en az 32 px (kaldır düğmeleriyle aynı alt sınır); bağlam
+  // satırı sektör satırından sıkı kalır ki sonuç listesi uzamasın.
+  // `size` satırın yazı boyu / kalınlığı, `tone` işaretsizken rengi; işaretli
+  // sektörün satırları soluk (`text-zinc-400`) ve ✓ ile çizilir.
+  const row = (name: string, size: string, tone: string) => (
+    <button
+      type="button"
+      onClick={sectorSelected ? undefined : onAddSector}
+      aria-disabled={sectorSelected || undefined}
+      aria-label={t(sectorSelected ? "sonucunSektoruIsaretli" : "sonucuSektoruylaIsaretle", {
+        name,
+        sector: sectorName,
+      })}
+      className={`flex min-h-8 w-full items-start gap-1.5 rounded-md px-2 py-1 text-left break-words focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-zinc-900 ${size} ${
+        sectorSelected ? "cursor-default text-zinc-400" : `hover:bg-zinc-50 ${tone}`
+      }`}
+    >
+      {sectorSelected ? <Check aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" /> : null}
+      <span className="min-w-0">
+        <HighlightMatch text={name} query={query} />
+      </span>
+    </button>
+  );
+  return (
+    <li data-slot="search-context">
+      {row(family.nameTr, "text-sm font-medium", "text-zinc-600")}
+      {family.classes.length > 0 ? (
+        <ul className="ml-[15px] space-y-0.5 border-l border-zinc-950/5 pl-2">
+          {family.classes.map((cls) => (
+            <li key={cls.id}>
+              {row(cls.nameTr, "text-sm", "text-zinc-600")}
+              {cls.commodities.length > 0 ? (
+                <ul className="ml-[15px] space-y-0.5 border-l border-zinc-950/5 pl-2">
+                  {cls.commodities.map((com) => (
+                    <li key={com.id}>{row(com.nameTr, "text-xs", "text-zinc-500")}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
           ))}
         </ul>
       ) : null}

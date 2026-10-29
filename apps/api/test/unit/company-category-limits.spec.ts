@@ -82,13 +82,13 @@ describe("Firma kategori tavanı — tek kaynak", () => {
           segmentler(MAX_COMPANY_MAIN_CATEGORIES + 1),
           [],
         ),
-      ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
+      ).rejects.toThrow(new RegExp(`en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör`));
     });
 
     it("sıfır kategoriyi REDDEDER — eşleşme sinyali olmadan firma sessiz kalır", async () => {
       await expect(
         validateCategorySelection(sahtePrisma(), [], []),
-      ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
+      ).rejects.toThrow(new RegExp(`en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör`));
     });
 
     it("ana liste boş gelse de alt kodların segmenti türetilir (code-category-8)", async () => {
@@ -183,7 +183,7 @@ describe("Firma kategori tavanı — tek kaynak", () => {
           segmentler(MAX_COMPANY_MAIN_CATEGORIES),
           ["39121614"],
         ),
-      ).rejects.toThrow(new RegExp(`1-${MAX_COMPANY_MAIN_CATEGORIES}`));
+      ).rejects.toThrow(new RegExp(`en fazla ${MAX_COMPANY_MAIN_CATEGORIES} sektör`));
     });
 
     it("depolama tavanı zincir EKLENDİKTEN sonra ölçülür", async () => {

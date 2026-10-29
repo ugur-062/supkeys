@@ -4,6 +4,27 @@
 > Talep: "kategoriler çok az, özellikle endüstriyelde; parça parça daha
 > detaylı olmalı ki talepler doğru firmaların karşısına çıksın."
 
+> **Güncel not (2026-10-29, sahip kararı):** Faz 1'in firma tarafı geri
+> alındı. Firma kategori beyanı artık **yalnız sektördür** (L1, en fazla 5):
+> kayıt 2. adımı ve Ayarlar › Kategoriler'de ürün / hizmet (L2-L4) seçilmez,
+> mevcut firmaların `buyerSubCategoryIds` / `sellerSubCategoryIds` değerleri
+> tek seferlik betikle (`clear-company-sub-categories`, staging ve canlıda
+> ayrı) silinir ve API yeni alt seçim saklamaz. Betik aynı satırın sektör
+> listesini de kayıt yolunun kuralına getirir (yalnız gizli bir seçimin atası
+> olan sektör düşer, sektörü ana listede olmayan eski alt kodun sektörü
+> eklenir; kayıt yolunun reddedeceği sonuçta satır elle karara kalır).
+> Gerekçe: firmanın ne sattığı vitrine eklediği
+> ürünlerden (`CompanyItem.categoryId`, L3+) öğrenilir; beyanda ikinci kez
+> sormak gereksizdi. Ölçüm de bunu destekledi: alt seçim hiçbir sert süzgeci
+> daraltmıyordu (her alt seçim kendi sektörünü ana diziye yazıyordu ve
+> eşleştirici "sektör VEYA alt kod" bakıyordu), yalnız sıralamayı
+> etkiliyordu. AI tedarikçi keşfinde sektör eşleşmesi artık güçlü eşleşme
+> sayılır; bildirim sıralaması kesin kodda skoru olmayan firma için talebin
+> sektörüne düşer. Hassas eşleşme için kalan iki kaynak: talebin kendi
+> kodları (§4 Faz 3'ün yönü) ve vitrin ürünlerinin kategorisi. Kurallar:
+> CLAUDE.md › Kategori Kataloğu › "FİRMA KATEGORİ BEYANI YALNIZ SEKTÖR".
+> Aşağıdaki metin tarihsel plan olarak duruyor.
+
 ---
 
 ## 1. Ölçüm: taksonomi DERİN, veri SIĞ
@@ -49,6 +70,9 @@ kullanılabilir kılmak çözer.
 ---
 
 ## 2. Faz 1 — Firma kategorilerini derinleştir · **asıl darboğaz**
+
+> Eylül 2026'da uygulandı (alt kategori, tavan 50); 2026-10-29'da firma
+> beyanı için geri alındı (yalnız sektör; yukarıdaki güncel not).
 
 - `exactLevel: 1` kilidini kaldır → firma **L1 (geniş ilgi) + L3/L4
   (uzmanlık)** seçebilsin.

@@ -1626,8 +1626,10 @@ describe("segment 46 is visible - its hidden family (4610) and hidden class (461
     expect(await names({ category: SAFETY_SEG })).toEqual(["Koruyucu Beyan", "Sektor Geneli"]);
     // The total is that of the list (the page is cut from the same set).
     expect((await directory.listPublic({ category: SAFETY_SEG })).total).toBe(2);
-    expect(await names({ category: PPE_FAM })).toEqual(["Koruyucu Beyan"]);
-    expect(await names({ category: PPE_CLS })).toEqual(["Koruyucu Beyan"]);
+    // Derin kod ana listelerde sektörüyle de eşleşir (yalnız sektör beyanı,
+    // 2026-10-29); 46'yı yalnız gizli seçimin atası olarak saklayanlar yine dışarıda.
+    expect(await names({ category: PPE_FAM })).toEqual(["Koruyucu Beyan", "Sektor Geneli"]);
+    expect(await names({ category: PPE_CLS })).toEqual(["Koruyucu Beyan", "Sektor Geneli"]);
     // A hidden family / class code is no filter at all.
     for (const hidden of [WEAPON_FAM, WEAPON_CLS, SPRAY_CLS, SPRAY_LEAF]) {
       expect(await names({ category: hidden })).toEqual(everyone);

@@ -24,6 +24,7 @@ import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { CompanyActivityPicker } from "@/components/categories/company-activity-picker";
 import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
+import { declaredSectors } from "@/lib/company/declared-sectors";
 import {
   useCompanyProfile,
   useUpdateCompanyProfile,
@@ -32,10 +33,10 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
+  MAX_COMPANY_MAIN_CATEGORIES,
   isTurkey,
   maskNationalId,
   taxIdLabelKey,
-  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -60,8 +61,6 @@ import { toast } from "sonner";
  * Vitrin verisi (logo, hakkında, web sitesi, sektör) Profilim'de — buradan
  * BİLEREK çıkarıldı, payload'a da girmez.
  */
-
-const SEGMENT_RE = /^\d{2}000000$/;
 
 type FormState = {
   name: string;
@@ -117,6 +116,15 @@ type CategoryKey = (typeof CATEGORY_KEYS)[number];
 const isCategoryKey = (k: keyof FormState): k is CategoryKey =>
   (CATEGORY_KEYS as readonly string[]).includes(k);
 
+/**
+ * Eksenin iki listesi (sektörler · eski ürün / hizmet seçimleri). Beyan yalnız
+ * sektördür (2026-10-29): seçici her değişiklikte alt listeyi BOŞ döner.
+ */
+const CATEGORY_AXES = [
+  ["buyerCategoryIds", "buyerSubCategoryIds"],
+  ["sellerCategoryIds", "sellerSubCategoryIds"],
+] as const satisfies readonly (readonly [CategoryKey, CategoryKey])[];
+
 /** Aynı kodlar mı (sıra ve tekrar sayılmaz)? */
 function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
   const left = new Set(a);
@@ -134,8 +142,6 @@ function fieldChanged<K extends keyof FormState>(k: K, now: FormState, base: For
 
 /** Profil → form; aynı fonksiyon "kirli mi" karşılaştırmasının tabanıdır. */
 function toForm(p: CompanyProfile): FormState {
-  const buyer = visibleCompanyCategorySelection(p.buyerCategoryIds, p.buyerSubCategoryIds);
-  const seller = visibleCompanyCategorySelection(p.sellerCategoryIds, p.sellerSubCategoryIds);
   return {
     name: p.name ?? "",
     legalName: p.legalName ?? "",
@@ -146,26 +152,25 @@ function toForm(p: CompanyProfile): FormState {
     addressLine: p.addressLine ?? "",
     postalCode: p.postalCode ?? "",
     kepAddress: p.kepAddress ?? "",
-    // Ana kategori yalnız segment (XX000000); eski hatalı UI alt seviye
-    // yazabiliyordu, backend exactLevel:1 doğruladığından temizle.
+    // YALNIZ SEKTÖR (2026-10-29, S1/S2): eksen forma seçicinin GÖSTERDİĞİ
+    // sektör listesiyle girer — Profilim ve temizlik betiğiyle aynı kural
+    // (`declaredSectors`): ana eksendeki L2+ kod (eski hatalı UI yazabiliyordu)
+    // kendi sektörüne YUVARLANIR (eskiden süzülüp düşüyordu; eksen kaydedilince
+    // o sektör sessizce siliniyordu), eski alt seçimlerin sektörleri eklenir.
+    // Alt liste `[]`: seçici de `[]` döner → yalnız sektör kümesi değişirse form
+    // kirlenir; eksen kaydedilince alt liste `[]` gider (API zaten saklamaz).
     //
-    // GİZLİ KATEGORİ (2026-10-09): gizli bir dalın altındaki eski beyan forma
-    // HİÇ girmez. Form yalnız değişen ekseni gönderdiği için
-    // dokunulmayan eksen depoda aynen kalır (eşleştirme kayıtlı kodları
-    // kullanmayı sürdürür); dokunulan eksen görünür kodlarla yazılır, gizliler
-    // o kayıtta düşer. Taban da süzülü olduğundan gizli kod "kaydedilmemiş
-    // değişiklik" üretmez ve "iki liste birlikte boş olamaz" kuralı yalnız
-    // GÖRÜNEN beyanı sayar.
-    //
-    // Eksenin iki dizisi BİRLİKTE süzülür (2026-10-10, gizleme aile / sınıf
-    // düzeyinde de var — `visibleCompanyCategorySelection`): yalnız gizli bir
-    // seçimin atası olarak saklanmış görünür sektör de forma girmez; girseydi
-    // seçici onu "sektörün tamamı" diye çizer, kayıt da öyle yazardı.
-    buyerCategoryIds: buyer.mainIds.filter((id) => SEGMENT_RE.test(id)),
-    sellerCategoryIds: seller.mainIds.filter((id) => SEGMENT_RE.test(id)),
-    // Alt kategori: segment DIŞI her seviye — ana kategorinin tam tersi eksen.
-    buyerSubCategoryIds: buyer.subIds.filter((id) => !SEGMENT_RE.test(id)),
-    sellerSubCategoryIds: seller.subIds.filter((id) => !SEGMENT_RE.test(id)),
+    // GİZLİ KATEGORİ (2026-10-09 / 10-10): `declaredSectors` önce GÖRÜNÜR
+    // kısmı alır (`visibleCompanyCategorySelection`, eksenin iki dizisi
+    // birlikte) — gizli kod ve yalnız gizli bir seçimin atası olarak saklanmış
+    // sektör forma HİÇ girmez. Form yalnız değişen ekseni gönderdiği için
+    // dokunulmayan eksen depoda aynen kalır; dokunulan eksen görünür
+    // sektörlerle yazılır, gizliler o kayıtta düşer. "İki liste birlikte boş
+    // olamaz" kuralı da yalnız GÖRÜNEN beyanı sayar.
+    buyerCategoryIds: declaredSectors(p.buyerCategoryIds, p.buyerSubCategoryIds),
+    sellerCategoryIds: declaredSectors(p.sellerCategoryIds, p.sellerSubCategoryIds),
+    buyerSubCategoryIds: [],
+    sellerSubCategoryIds: [],
     activities: p.activities ?? [],
   };
 }
@@ -184,6 +189,7 @@ const KEP_RE = /^[^@\s]+@[^@\s]+\.kep\.tr$/i;
 
 export function CompanyProfileSection() {
   const t = useTranslations("web.panel.settings.companyProfileSection");
+  const tPicker = useTranslations("web.shared.companyCategoryPicker");
   const tTax = useTranslations("web.domain.taxId");
   const locale = useLocale() as Locale;
   const verificationMeta = useVerificationMeta();
@@ -211,6 +217,14 @@ export function CompanyProfileSection() {
       if (fieldChanged(k, form, initial)) {
         (out as Record<string, unknown>)[k] = form[k];
       }
+    }
+    // Sektör listesi değişen eksenin alt listesi de AÇIKÇA gider (seçici `[]`
+    // döner). Gönderilmezse API eksik yarıyı depodaki eski ürün / hizmet
+    // seçimlerinden doldurup normalize eder ve kaldırılan sektör geri
+    // gelebilirdi — taban `[]` görünse de (gizli kod forma girmez) depoda eski
+    // alt seçim durabilir. API yeni alt seçim saklamaz; `[]` her durumda doğru.
+    for (const [main, sub] of CATEGORY_AXES) {
+      if (out[main] !== undefined) out[sub] = form[sub];
     }
     return out;
   }, [form, initial]);
@@ -250,7 +264,24 @@ export function CompanyProfileSection() {
   const categoriesTouched = CATEGORY_KEYS.some((k) => changed[k] !== undefined);
   const categoriesEmpty = CATEGORY_KEYS.every((k) => form[k].length === 0);
   const categoryError = categoriesTouched && categoriesEmpty ? t("ikiListeBirlikteBosOlamaz") : null;
-  const hasError = Boolean(nameError || kepError || postalError || categoryError);
+  // SEKTÖR TAVANI (2026-10-29): Ayarlar eskiden eksen başına 10 sektöre izin
+  // veriyordu; tavanın üstündeki eski beyan seçicide önceden söylenir. Eksene
+  // DOKUNULDUYSA (çipten × ile kaldırmak pencereden geçmez) kayıt tavana
+  // inene dek kapalıdır — eskiden istek gidip API'nin "ana kategori" reddi
+  // toast olarak dönüyordu. Dokunulmayan eksen gönderilmez, başka alanın
+  // kaydını kilitlemez.
+  const capError = (main: CategoryKey, sub: CategoryKey): string | null => {
+    if (changed[main] === undefined && changed[sub] === undefined) return null;
+    const n = declaredSectors(form[main], form[sub]).length;
+    return n > MAX_COMPANY_MAIN_CATEGORIES
+      ? tPicker("enFazlaSektorBeyanEdilebilir", { n, max: MAX_COMPANY_MAIN_CATEGORIES })
+      : null;
+  };
+  const buyerCapError = capError("buyerCategoryIds", "buyerSubCategoryIds");
+  const sellerCapError = capError("sellerCategoryIds", "sellerSubCategoryIds");
+  const hasError = Boolean(
+    nameError || kepError || postalError || categoryError || buyerCapError || sellerCapError,
+  );
 
   // Çift tık iki istek / iki toast / iki denetim kaydı üretmesin (arayüz testi FX-00 D-132).
   const saveLock = useSubmitLock();
@@ -550,14 +581,17 @@ export function CompanyProfileSection() {
 
           İKİ EKSEN AYRI: kayıt sırasında tek soru sorulur ve aynı liste dört
           alana birden yazılır (`company-auth.service.ts` completeOnboarding);
-          alış ile satışı gerçekten ayırmanın yeri burasıdır. */}
+          alış ile satışı gerçekten ayırmanın yeri burasıdır.
+
+          YALNIZ SEKTÖR (sahip kararı 2026-10-29): her eksen en fazla
+          `MAX_COMPANY_MAIN_CATEGORIES` sektör; ürün / hizmet seçimi yok. */}
       <section
         id="kategoriler"
         className="scroll-mt-24 rounded-xl border border-zinc-950/10 bg-white p-5"
       >
         <Subheading>{t("kategoriler")}</Subheading>
         <Text className="mt-1 text-sm text-zinc-500">
-          {t("talepEslesmesiOnerilerVeBildirimler")}
+          {t("talepEslesmesiOnerilerVeBildirimler", { max: MAX_COMPANY_MAIN_CATEGORIES })}
         </Text>
         <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
           <CompanyCategoryPicker
@@ -571,8 +605,9 @@ export function CompanyProfileSection() {
             label={t("neAlirim")}
             hint={t("satinAldiklarinizTedarikciOnerileriVe")}
             modalTitle={t("alisKategorileriniz")}
+            modalDescription={t("alisPenceresiAciklamasi")}
             accent="blue"
-            error={categoryError ?? undefined}
+            error={categoryError ?? buyerCapError ?? undefined}
           />
           <CompanyCategoryPicker
             value={{
@@ -585,8 +620,9 @@ export function CompanyProfileSection() {
             label={t("neSatarim")}
             hint={t("tedarikEdebildiklerinizYeniBirAlim")}
             modalTitle={t("satisKategorileriniz")}
+            modalDescription={t("satisPenceresiAciklamasi")}
             accent="emerald"
-            error={categoryError ?? undefined}
+            error={categoryError ?? sellerCapError ?? undefined}
           />
         </div>
       </section>

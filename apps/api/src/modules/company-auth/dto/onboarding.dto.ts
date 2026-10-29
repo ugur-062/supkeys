@@ -176,14 +176,19 @@ export class CompleteOnboardingDto {
   // Kurucu her zaman Kurucu (tam yetki) olur — ayrı rol seçimi yok.
 
   /**
-   * Faaliyet sektörü: ana kategori (segment, L1) + alt kategori (L2-4).
-   * Tavanlar tek kaynak shared'de — ayarlar DTO'su AYNI sabitleri kullanır;
-   * eskiden üç ayrı sayı vardı ve kayıt ile ayarlar sessizce ayrışıyordu.
+   * Faaliyet sektörleri = firmanın kategori beyanının KENDİSİ (sahip kararı
+   * 2026-10-29, S1): yalnız sektör (segment, L1), en fazla
+   * `MAX_COMPANY_MAIN_CATEGORIES`. Tavanlar tek kaynak shared'de — ayarlar
+   * DTO'su AYNI sabitleri kullanır; eskiden üç ayrı sayı vardı ve kayıt ile
+   * ayarlar sessizce ayrışıyordu.
    *
-   * Arayüzde tek soru sorulur ("ne alıp satıyorsunuz"): kullanıcı somut
-   * ürün/hizmeti seçer, ana kategori koddan TÜRETİLİR. Bu alan yine de
-   * zorunlu — eşleştirmenin (`deriveCategoryMatchCandidates`) segment ekseni
-   * bu dizidir ve boş bırakan firmaya hiçbir talep bildirimi gitmez.
+   * Arayüz 2. adımda tek soru sorar ("Hangi sektörlerde alıp satıyorsunuz?")
+   * ve kullanıcı sektörü DOĞRUDAN seçer (arama bir ürün yazınca o sonucun
+   * sektörünü işaretletir); ürün / hizmet seçimi yoktur. Alan zorunlu —
+   * eşleştirmenin (`deriveCategoryMatchCandidates`) segment ekseni bu dizidir
+   * ve boş bırakan firmaya hiçbir talep bildirimi gitmez. `subCategoryIds`
+   * yalnız eski istemcilerden gelen girdidir ve yalnız sektörünü ekler
+   * (aşağıda).
    */
   @IsArray()
   @ArrayMinSize(1)
@@ -191,6 +196,12 @@ export class CompleteOnboardingDto {
   @IsString({ each: true })
   mainCategoryIds!: string[];
 
+  /**
+   * LEGACY INPUT (owner decision 2026-10-29): the declaration is sector-only.
+   * Still accepted from old clients (cached web bundle, mobile shell) and
+   * validated; each pick only adds its SECTOR to the main list - no sub pick is
+   * stored (`CompanyAuthService.completeOnboarding`).
+   */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(MAX_COMPANY_SUB_CATEGORIES)

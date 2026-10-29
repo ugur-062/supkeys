@@ -630,14 +630,15 @@ export interface DiscoveryCandidate {
    */
   matchedCategories: string[];
   /**
-   * Güçlü sinyal: alt-kategori (family/class) eşleşmesi, vitrinde kalemi TAM
-   * ADIYLA satıyor, ya da gevşek kalem eşleşmesi + kategori eşleşmesi (firmanın
-   * segment / alt kategori beyanı ya da eşleşen ürünün kendi kategorisi).
-   * Gevşek eşleşme TEK BAŞINA güçlü değildir (round 5 gözden geçirme, R5-01).
-   * YALNIZ güçlü eşleşmeye giden iki şey: alıcıya gösterilmeyen havuzdaki
-   * "sattığınız ürünü arıyorlar" e-postası ve OTOMATİK turun üye daveti
-   * (`DiscoveryRunsService`, AUTO-MEMBER-1) — yalnız segmenti uyan üye elle
-   * açılan pencerede kalır.
+   * Güçlü sinyal: firma talebin SEKTÖRÜNÜ gösterilen beyanında (ya da eski
+   * kayıtta alt kategorisini) taşıyor (owner decision 2026-10-29, S3: the
+   * declaration is sector-only, so a sector match is strong enough), vitrinde kalemi TAM ADIYLA satıyor, ya
+   * da gevşek kalem eşleşmesini bir kategori doğruluyor (eşleşen ürünün kendi
+   * kategorisi). Gevşek eşleşme TEK BAŞINA güçlü değildir (round 5 gözden
+   * geçirme, R5-01) — zayıf kalan yalnız odur.
+   * YALNIZ güçlü eşleşmeye giden üç şey: alıcıya gösterilmeyen havuzdaki
+   * "sattığınız ürünü arıyorlar" e-postası, OTOMATİK turun üye daveti
+   * (`DiscoveryRunsService`, AUTO-MEMBER-1) ve penceredeki "hepsini davet et".
    */
   strongMatch: boolean;
   /**
@@ -1753,6 +1754,8 @@ export class SupplierDiscoveryService {
     }
 
     const subSet = new Set(subCandidates);
+    /** The request's sectors from EVERY stored code (matching reads raw codes). */
+    const requestSegments = new Set(segmentIds);
     // ROZET kümeleri talebin GÖRÜNÜR kodlarından türer (2026-10-10): gizli bir
     // kodun görünür atası (`46101500` → `46000000`) talebin gösterilen bir
     // kategorisi değildir; yuvarlamadan ÖNCE düşer, yoksa kategorisi hiçbir
@@ -1791,12 +1794,34 @@ export class SupplierDiscoveryService {
       // sözcüğüyle eşleşen firma, talebin kendi sınıfını beyan edenin önüne
       // geçiyordu).
       const score = fullItems * 10_000 + (subMatch ? 1_000 : 0) + relaxedItems * 10 + (inCategory ? 1 : 0);
-      // Gevşek eşleşme tek başına güçlü değil: kategori eşleşmesiyle birlikte
-      // (firmanın beyanı ya da eşleşen ürünün kendi kategorisi — N2).
-      const strong = subMatch || fullItems > 0 || (relaxedItems > 0 && (inCategory || corroborated.has(r.id)));
+      // STRONG (owner decision 2026-10-29, S3): a company that declares the
+      // request's SECTOR is a strong match on its own. The declaration is
+      // sector-only now (no product / service picks), so the old rule (a sub
+      // pick or an item hit) left every member without showcase products
+      // "weak": never auto-invited, never in "invite all", no hidden-match
+      // notice. The sector is read from the SHOWN declaration
+      // (`shownDeclared`, rule of 2026-10-10): a visible segment stored only
+      // as the ancestor of a hidden pick (`46000000` for `46101500`) is not a
+      // declaration, so it does not make a legacy row strong for every
+      // sector-46 request before the cleanup runs. The request side keeps
+      // every stored code (a legacy request at a hidden code still matches a
+      // company that shows that sector). A legacy sub pick that matches
+      // (`subMatch`, raw codes - hidden branch included, as before) stays
+      // strong. Gevşek eşleşme tek başına güçlü değil: kategori eşleşmesiyle
+      // birlikte (firmanın beyanı ya da eşleşen ürünün kendi kategorisi —
+      // N2). What is left as weak: a relaxed item hit no category corroborates.
+      const sectorShown = shownDeclared.mainIds.some((c) => requestSegments.has(c));
+      const strong =
+        subMatch || sectorShown || fullItems > 0 || (relaxedItems > 0 && (inCategory || corroborated.has(r.id)));
       return { r, strong, matched, matchedItems, score };
     });
-    scored.sort((a, b) => b.score - a.score);
+    // STRONG FIRST, then score (S3). The score keeps the old tiers (full name >
+    // sub > loose > sector) for ordering inside each group, but the cut to
+    // `MAX_CANDIDATES` comes after the split: otherwise uncorroborated loose
+    // name hits (score 10+, weak: never invited) took the slots of sector
+    // declarers (score 1, strong: auto-invited, in "invite all") in a busy
+    // sector, and those were never returned.
+    scored.sort((a, b) => Number(b.strong) - Number(a.strong) || b.score - a.score);
     const top = scored.slice(0, MAX_CANDIDATES);
 
     // Rozet adları okuyucunun dilinde (katalog çevirisi; yoksa Türkçe).

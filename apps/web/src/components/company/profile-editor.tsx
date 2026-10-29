@@ -6,7 +6,8 @@ import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
 import { ViewportLayer } from "@/components/ui/viewport-layer";
 import { useShowcaseItems } from "@/hooks/use-company-items";
-import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks, visibleCompanyCategorySelection } from "@rothern/shared";
+import { EMPLOYEE_BUCKET_LABELS, visibleCompanyCategorySelection } from "@rothern/shared";
+import { declaredSectors } from "@/lib/company/declared-sectors";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness, type ProfileCompletenessKey } from "@/lib/company/profile-completeness";
 import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
@@ -384,14 +385,19 @@ export function ProfileEditor({
   // içerik kapısı yok; yayın anahtarı her pakete açık — 2026-09-06).
   // Beyanın GÖRÜNÜR kısmı, eksen başına iki dizi BİRLİKTE (2026-10-10): gizli
   // kodlar ve yalnız gizli bir seçimin atası olarak saklanmış sektör / aile
-  // düşer — özet kartı, sayılar ve "kategori var mı" aynı kümeyi okur.
+  // düşer — özet kartı, sayılar ve "kategori var mı" aynı kümeyi okur
+  // (sektör sayıları `declaredSectors`, o da aynı süzgeçten geçer).
   const sellerDeclared = visibleCompanyCategorySelection(profile.sellerCategoryIds, profile.sellerSubCategoryIds);
-  const buyerDeclared = visibleCompanyCategorySelection(profile.buyerCategoryIds, profile.buyerSubCategoryIds);
   const findability = {
     about: !!draft.aboutText.trim(),
     industry: !!draft.industry.trim(),
     // Yalnız GÖRÜNÜR beyan sayılır (2026-10-09): gizli bir dalın altındaki eski
-    // kod özet kartında çizilmez; "en az 1 kategori" de onu tamam saymaz.
+    // kod özet kartında çizilmez; "En az 1 satış sektörü" de onu tamam saymaz.
+    // SATIŞ ekseni (alıcının sizi bulması satış beyanından): özet kartındaki
+    // "Satış sektörleri (n)" çipleriyle aynı küme. Madde adı da bunu söyler —
+    // eskiden "En az 1 kategori"ydi; yanındaki "Sektör" serbest metin alanıydı
+    // (şimdi "Sektör tanımı"), çipler "Faaliyet sektörleri" diyordu: üç ad bir
+    // sayfada (gözden geçirme 2026-10-29).
     category: sellerDeclared.mainIds.length + sellerDeclared.subIds.length > 0,
   };
 
@@ -608,11 +614,14 @@ export function ProfileEditor({
               employeeCount: draft.employeeCount || null,
               services: draft.services,
               certifications: draft.certifications,
-              categoryCount:
-                buyerDeclared.mainIds.length +
-                sellerDeclared.mainIds.length +
-                buyerDeclared.subIds.length +
-                sellerDeclared.subIds.length,
+              // Beyan edilen FARKLI sektörler, alış ∪ satış (2026-10-29: beyan
+              // yalnız sektör). Eskiden ana + alt kodlar iki eksende ayrı
+              // sayılıyordu: kayıt aynı sektörü iki eksene yazdığı için tek
+              // sektörlü firma "2" alıyor, eski alt seçimler sayıyı şişiriyordu.
+              categoryCount: new Set([
+                ...declaredSectors(profile.buyerCategoryIds, profile.buyerSubCategoryIds),
+                ...declaredSectors(profile.sellerCategoryIds, profile.sellerSubCategoryIds),
+              ]).size,
             })}
             snippet={snippetFromMetadata(
               companySeo({
@@ -1631,29 +1640,27 @@ function MyProductsCard() {
 }
 
 /**
- * Faaliyet tipi + faaliyet kategorileri — Profilim'de SALT OKUNUR özet.
+ * Faaliyet tipi + SATIŞ sektörleri — Profilim'de SALT OKUNUR özet.
  * Veri Firma Bilgileri'ndekiyle aynı kayıttan; düzenleme oraya gider.
- * "Eksik: Faaliyet kategorileri" de aynı veriden beslenir.
+ * Çipler yalnız satış eksenidir ve başlık bunu söyler ("Satış sektörleri");
+ * "Eksik: Faaliyet sektörleri" maddesi ve arama görünürlüğünün sektör maddesi
+ * iki ekseni birlikte sayar (alış ∪ satış).
  */
 function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   const t = useTranslations("web.panel.company.profileEditor");
   const activityLabel = useActivityLabel();
-  // Yalnız KULLANICININ SEÇTİKLERİ (CLAUDE.md kategori gösterim kuralı):
-  // depoda ata zinciri de duruyor (segment + L2/L3); hepsi çip olsaydı tek
-  // yaprak "(4)" ve dört çip görünürdü. Altında yaprağı olmayan ("Sektör
-  // geneli") segmentler ayrıca eklenir.
+  // YALNIZ SEKTÖRLER (sahip kararı 2026-10-29: firma kategori beyanı yalnız
+  // sektördür). Eski kayıttaki ürün / hizmet seçimi çip olmaz; sektörü zaten
+  // beyandadır ve sektör olarak sayılır (`declaredSectors`) — Firma
+  // Bilgileri'ndeki seçiciyle aynı liste.
   // Gizli bir dalın altındaki eski beyan (2026-10-09) ne çip ne de "(n)"
   // sayısına girer — sahibine de gösterilmez; yalnız gizli kodu olan firma
-  // "seçilmedi" görür ve Firma Bilgileri'nden güncel bir kategori seçer.
-  // Yalnız gizli bir seçimin atası olarak saklanmış sektör de "Sektör geneli"
-  // çipi OLMAZ (2026-10-10, `visibleCompanyCategorySelection`).
-  const ids = useMemo(() => {
-    const declared = visibleCompanyCategorySelection(profile.sellerCategoryIds, profile.sellerSubCategoryIds);
-    const leaves = deepestCategoryPicks(declared.subIds);
-    const covered = new Set(leaves.map((id) => categorySegment(id)));
-    const bareSegments = declared.mainIds.filter((id) => !covered.has(id));
-    return [...bareSegments, ...leaves];
-  }, [profile.sellerCategoryIds, profile.sellerSubCategoryIds]);
+  // "seçilmedi" görür ve Firma Bilgileri'nden güncel bir sektör seçer. Yalnız
+  // gizli bir seçimin atası olarak saklanmış sektör de çip OLMAZ (2026-10-10).
+  const ids = useMemo(
+    () => declaredSectors(profile.sellerCategoryIds, profile.sellerSubCategoryIds),
+    [profile.sellerCategoryIds, profile.sellerSubCategoryIds],
+  );
   const cats = useCategoriesByIds(ids);
   const names = ids
     .map((id) => cats.data?.find((c) => c.id === id)?.nameTr)

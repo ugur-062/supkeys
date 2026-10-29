@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPANY_SEO_SECTORS,
   companySeoReadiness,
   listingSeoReadiness,
   productSeoReadiness,
@@ -47,7 +48,7 @@ describe("productSeoReadiness", () => {
 });
 
 describe("companySeoReadiness", () => {
-  it("web sitesi ve LinkedIn http(s) ister; kategori ≥3", () => {
+  it("web sitesi ve LinkedIn http(s) ister; sektör ≥1 (alış ∪ satış, 2026-10-29)", () => {
     const r = companySeoReadiness({
       aboutText: LONG,
       logoUrl: "l",
@@ -60,7 +61,7 @@ describe("companySeoReadiness", () => {
       employeeCount: "11-50",
       services: ["a", "b", "c"],
       certifications: [],
-      categoryCount: 2,
+      categoryCount: 0,
       publishedProductCount: 0,
     });
     const keys = r.missing.map((m) => m.key);
@@ -68,6 +69,29 @@ describe("companySeoReadiness", () => {
     expect(keys).toContain("categories");
     expect(keys).toContain("products"); // 0 puan ama uyarı olarak listede
     expect(r.checks.find((c) => c.key === "about")?.ok).toBe(true);
+  });
+
+  // 2. tur gözden geçirme: eşik 2 tek sektörlü uzman firmayı kalıcı olarak
+  // 10 puan eksik bırakıyor, fazladan sektör beyan etmeye itiyordu.
+  it("sektör maddesi eşiği COMPANY_SEO_SECTORS (1); yedek etiket 'kategori (ana + alt)' demez", () => {
+    expect(COMPANY_SEO_SECTORS).toBe(1);
+    const base = {
+      aboutText: null,
+      logoUrl: null,
+      coverImageUrl: null,
+      industry: null,
+      city: null,
+      website: null,
+      foundedYear: null,
+      employeeCount: null,
+      services: [],
+      certifications: [],
+    };
+    const check = (n: number) => companySeoReadiness({ ...base, categoryCount: n }).checks.find((c) => c.key === "categories")!;
+    expect(check(0).ok).toBe(false);
+    expect(check(1).ok).toBe(true);
+    expect(check(0).label).toBe("En az 1 sektör");
+    expect(check(0).label).not.toMatch(/ana \+ alt/);
   });
 });
 

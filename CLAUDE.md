@@ -1398,61 +1398,117 @@ yetkide DEĞİL.
 `catalog` query parametresi yalnız hangi ağacın GÖSTERİLECEĞİNİ seçer.
 Sözleşme: `category-catalog.spec.ts`.
 
-**Seçim seviyeleri:** talep/ilan min L3 (discovery) · firma ANA kategori exact
-L1 (tam) · firma ALT kategori L2-4 (tam) · AI önerisi 2 aşamalı → L3.
-Ana ve alt AYRI eksen; eşleştirme (`deriveCategoryMatchCandidates`) koddan tüm
-üst seviyeleri türetir.
+**Seçim seviyeleri:** talep/ilan min L3 (discovery, en fazla 3) · ürün kategorisi tek, min L3 (discovery) ·
+firma kategori beyanı YALNIZ SEKTÖR (L1, tam katalog, eksen başına en fazla 5 — 2026-10-29) · AI önerisi 2
+aşamalı → L3. Eşleştirme (`deriveCategoryMatchCandidates`) TALEBİN kodundan bütün üst seviyeleri türetir
+(firmanın beyanından aşağı inmez).
 
-**Tavanlar TEK KAYNAK (2026-09-14):** `@rothern/shared`
-`MAX_COMPANY_MAIN_CATEGORIES = 5` · **seçim** tavanı `MAX_COMPANY_SUB_PICKS = 50`
-· **depolama** tavanı `MAX_COMPANY_SUB_CATEGORIES = 200` (ata zinciri dahil).
-İki sayı AYRI: tek sayı olsaydı 50 yaprak seçen kullanıcı zincir genişlemesiyle
-tavanı aşıp anlamsız hata alırdı.
-Öncesinde ana kategori tavanı ÜÇ AYRI değerdi — kayıt DTO'su 3, ayarlar ekranı
-10 (`maxSelection` prop'u hiç geçilmemiş, varsayılan), ayarlar DTO'su 50 →
-`validateCategorySelection`'ın "1-3" kuralı ayarlar yolunda HİÇ çalışmıyordu.
-Sözleşme: `test/unit/company-category-limits.spec.ts` (sayıyı değil İLİŞKİYİ
-kilitler). Ayrıca ayarlar ucunda **iki eksen birden boşalamaz** — kategori
-alanına dokunan istek firmayı sıfır kategoriyle bırakamaz (sıfır kategorili
-firma hiç bildirim almaz ve sebebini hiçbir ekranda göremezdi).
+**FİRMA KATEGORİ BEYANI YALNIZ SEKTÖR (2026-10-29, sahip kararı S1–S3; "Ürün ve hizmetleriniz" penceresi).**
+- **S1 — pencere:** kayıt 2. adım "Faaliyet alanı" ve Ayarlar › Firma Bilgileri › Kategoriler ("Ne alırım" /
+  "Ne satarım") YALNIZ sektör sorar (`MAX_COMPANY_MAIN_CATEGORIES` = 5); pencerede ürün / hizmet (L2–L4)
+  işaretlenmez. Üç bağlama yeri de TEK bileşen `CompanyCategoryPicker` → `CategorySelectorModal sectorsOnly`
+  (ağaçta yalnız sektör satırları, tek sayaç "Sektör n/5"); biri değişip öbürü kalmaz. ARAMA KALIR: "çelik boru"
+  yazan firma sonucu bağlamıyla (sektör › aile › sınıf › emtia) görür, işaret o sonucun SEKTÖRÜNE konur —
+  sektör adlarını bilmesi gerekmez. Eski kayıttaki sektör dışı kod ekranda kendi sektörüne yuvarlanır (web
+  `lib/company/declared-sectors.ts`). Firmanın NE sattığının hassas kaynağı artık vitrin ürününün kategorisi
+  (`CompanyItem.categoryId`) ve talebin kendi kodlarıdır; ikisinin seçicisi DEĞİŞMEDİ (talep formu çoklu, en
+  fazla 3, min L3; ürün formu tek, min L3) — eşleştirme ve davet bu kodlarla çalışır.
+- **S2 — eski alt seçimler SİLİNİR, yenisi SAKLANMAZ:** tek seferlik betik `pnpm --filter @rothern/db
+  clear-company-sub-categories` (`packages/db/prisma/scripts/clear-company-sub-categories.ts`); staging ve canlıda
+  AYRI koşulur, sırası: alt diziyi `[]` saklayan API dağıtılır → yedek (betik dört kategori sütununun `\copy`
+  komutunu basar) → `-- --dry` (planı basar, yazmaz) → `HEDEF=<proje-ref>` ile gerçek koşu (yerel ve proje ref'i
+  okunamayan host reddedilir; tek işlem, her satırın ham SQL `UPDATE`'i okunan dört diziyle koşullu — arada kayıt
+  yapan firmanın satırı ezilmez; `updatedAt` ilerlemez; idempotent). Alt seçimi olan her satırda iki alt dizi `{}`
+  olur VE eksen başına ana dizi KAYIT YOLUNUN kuralıyla yeniden yazılır (web `lib/company/declared-sectors.ts`
+  `declaredSectors` = yeni web'in kategori kaydında gönderdiği liste, API `ekseniIsle` onu doğrular): sonuç firmanın
+  temizlikten önce kayıt yapıp yapmadığına bağlı kalmaz. Kural: gizli kod ve YALNIZ gizli bir seçimin atası olarak
+  saklanmış görünür sektör DÜŞER (2026-10-10 kuralı; ör. yalnız 4610… seçmiş firmanın 46000000'ı), sektörü ana
+  dizide OLMAYAN eski alt kodun ("öksüz") sektörü EKLENİR (ekranda zaten beyanlı görünüyordu, API de sonraki
+  kayıtta ekliyordu), sektör altı ana kod sektörüne yuvarlanır. Kayıt yolunun REDDEDECEĞİ sonuç yazılmaz, satır alt
+  seçimleriyle yerinde kalır ve listelenir (iki eksende de sektör kalmıyor · bir eksende 5'ten fazla sektör ·
+  eklenecek sektör katalogda etkin değil) — elle karar; ikinci koşu yalnız onları yeniden listeler. Yazılan her kod
+  `assertVisibleSeedCategories` kapısından geçer. **SAHİP KARARI BEKLİYOR (varsayılan olarak uygulandı):** gizli dal
+  atası sektörü düşürmek o firmanın o sektördeki duyurularını, dizin süzgecindeki yerini ve beyan ilgisini keser
+  (seçmediği bir sektörün tamamını almaz); alternatif "yalnız alt diziyi boşalt" o sektörü görünür, tam sektör
+  beyanı yapar — aynı soru aşağıda "GİZLİ KATEGORİ KURALI ÖN EK TABANLI"da. Prisma şema migration'ı DEĞİL: dört
+  sütun durur. İleriye dönük kural API'de: eski istemcinin (önbellekli web paketi, mobil kabuk) gönderdiği
+  `subCategoryIds` / `buyer|sellerSubCategoryIds` yine kabul edilir ve doğrulanır, her seçim sektörünü ana diziye
+  ekler (`normalizeCategorySelection`, bugünkü gibi; 5 sektör tavanı bu eklemeden SONRA), alt dizi `[]` YAZILIR
+  (kayıt `completeOnboarding` dört alana: ana → alım + satış, alt → ikisi de `[]`; Ayarlar `ekseniIsle` eksen
+  başına). Saklanan alt dizi girdi DEĞİLDİR: eksik yarıyı ondan tamamlamak kaldırılan sektörü geri getirirdi.
+  `MAX_COMPANY_SUB_PICKS` (50) / `MAX_COMPANY_SUB_CATEGORIES` (200) yalnız eski istemci girdisinin doğrulamasında
+  kalır, saklanan bir şeyi sınırlamaz. Alt dizi yazan betik de yoktur (`seed-staging-demo` seçimlerin yalnız
+  sektörünü yazar).
+- **Sert eşleşme DEĞİŞMEDİ (normalize edilmiş kayıtta):** her alt seçim sektörünü zaten ana diziye yazmıştı ve her
+  sert eşleştirici "sektör VEYA alt kod" bakar (`company-listings.service` duyuru süzgeci, Açık Talepler
+  `categoryMatch` / maskeli liste, `declaresRequestCategory`, alıcı ürün keşfi) → kimin hangi talebi gördüğü aynı.
+  İstisna yalnız temizliğin kayıt kuralına getirdiği satırlar (betik listeler): gizli dal atası sektörü düşen firma
+  o sektörün duyurularını artık almaz, öksüz alt kodunun sektörü eklenen firma o sektörün tamamını alır. Eski
+  belgelerdeki "alt seçim bildirimi daraltır" sözü YANLIŞTI: tek yaprak seçen firma da o sektörün bütün
+  duyurularını alıyordu; alt kod yalnız SIRALAMA katmanlarında okunuyordu (aşağıdaki iki madde).
+- **S3 — AI tedarikçi keşfinde SEKTÖR eşleşmesi GÜÇLÜDÜR:** talebin sektörünü GÖSTERİLEN satış beyanında
+  taşıyan üye (`discoverRegisteredFor` `sectorShown`; yalnız gizli bir seçimin atası olarak saklı sektör beyan
+  sayılmaz, talep tarafı saklı kodların tamamıyla eşleşir) otomatik turda kendiliğinden davet edilir, penceredeki "Hepsini davet
+  et"e girer ve gösterilmeyen havuzdaki gizli eşleşme e-postasını (`notifyHiddenAiMatches`, konu nötr "Firmanıza
+  uygun bir alım talebi var" — yalnız sektörü tutan firmaya "sattığınız ürünü arıyor" demez) alır.
+  Zayıf (`WEAK_MATCH`) kalan yalnız hiçbir kategorinin doğrulamadığı gevşek kalem eşleşmesidir. Tavanlar
+  DEĞİŞMEDİ: eşleştirici çağrısı başına en çok `MAX_CANDIDATES` (12) üye (taranan havuz `CANDIDATE_POOL` 60),
+  talep başına en çok `MAX_AUTO_RUNS` (2) sayılan otomatik tur, alıcı firma başına günde
+  `COMPANY_DAILY_INVITE_CAP` (60, e-posta davetleriyle ORTAK; aşan `DAILY_LIMIT`), AI davet e-postası alıcının
+  yerel gününde 3 (fazlası akşam özetine), gizli eşleşme e-postası kategori eşleşmesiyle aynı günde-3 sınırı.
+- **Bildirim sıralaması sektörü beyan edeni DÜŞÜRMEZ (S3, sözü olduğu gibi uygulandı):** ilgi tablosunda beyan
+  skoru artık sektör (L1) satırlarında; talep ise sınıf / emtia kodu taşır. `CompanyAffinityService.sectorFallbacks`
+  firmanın talep sektöründeki değerini verir: sektördeki payı × `SECTOR_FALLBACK_WEIGHT` (0,25), sektörü
+  GÖSTERİLEN beyanında (ana liste + eski alt seçimlerin sektörleri, `visibleCompanyCategorySelection`) taşıyorsa
+  en az BEYAN TABANI 100 / beyan edilen sektör sayısı (en çok 5) × 0,25 → tek sektörde 25, beş sektörde 5 =
+  `NOTIFY_MIN_AFFINITY`. Taban firma kaydından CANLI okunur (gece ilgi hesabı beklenmez). `scoresForCompanies`
+  kesin kod skoruyla bunun büyüğünü alır → sektörü beyan eden firma, kataloğu / teklifleri başka sektörde olsa da,
+  kalabalık sektörde (`NOTIFY_MIN_STRONG` = 10) duyurudan DÜŞMEZ; eleme yalnız gösterilen beyanı sektörü
+  adlandırmayan adayı (gizli seçimin saklı atası) düşürür. Sıra: talebin KENDİ kodunda satırı olan firmalar
+  (`exact`: davranış / katalog / eski alt seçim) önce, her grup kendi içinde puana göre — ürün kanıtı her beyan
+  genişliğinde sektör değerinin önünde. `profileFor` (Açık Talepler kırıcısı ve "Neden gösterildi") aynı sektör
+  değerini kullanır: yalnız sektör beyan eden firma kendi sektöründeki talepte "Faaliyet alanlarınızda işaretli"
+  gerekçesini görür. `scoreFor` kesin kodda kalır.
+- **Kural:** saklı alt diziyi "uzmanlık" sayan yeni kod yazılmaz (boştur); firmanın ürün düzeyi uzmanlığı vitrin
+  ürünlerinden okunur.
 
-**ARAYÜZ TEK SORU SORAR (2026-09-14, kullanıcı: "frontendi hoş değil"):** ekran
-aynı ağaçtan iki kez seçim istiyordu (L1 modalı + L3-4 modalı + çip duvarı =
-üç etkileşim deseni). Artık TEK seçim var; kullanıcı **L2-L4 arası hangi
-derinlikte düşünüyorsa orada** seçer (`CompanyCategoryPicker`).
+**Tavanlar TEK KAYNAK (2026-09-14):** `@rothern/shared` `MAX_COMPANY_MAIN_CATEGORIES = 5` (kayıt + Ayarlar,
+yalnız sektör beyanının tavanı) · `MAX_COMPANY_SUB_PICKS = 50` ve `MAX_COMPANY_SUB_CATEGORIES = 200` 2026-10-29'dan
+beri yalnız eski istemci girdisinin doğrulaması (yukarıda S2). Öncesinde ana kategori tavanı ÜÇ AYRI değerdi
+— kayıt DTO'su 3, ayarlar ekranı 10 (`maxSelection` prop'u hiç geçilmemiş, varsayılan), ayarlar DTO'su 50 →
+`validateCategorySelection`'ın "1-3" kuralı ayarlar yolunda HİÇ çalışmıyordu. Sözleşme:
+`test/unit/company-category-limits.spec.ts` (sayıyı değil İLİŞKİYİ kilitler). Ayrıca ayarlar ucunda **iki
+eksen birden boşalamaz** — kategori alanına dokunan istek firmayı sıfır kategoriyle bırakamaz (sıfır
+kategorili firma hiç bildirim almaz ve sebebini hiçbir ekranda göremezdi).
 
-**SEÇİM ↔ DEPOLAMA AYRI — tek kaynak `helpers/company-category-selection.ts`:**
-seçilen kodun ATA ZİNCİRİ de beyana yazılır (L2+L3+L4 → `*SubCategoryIds`,
-L1 → `*CategoryIds`). Gerekçe ölçüldü: eşleştirme ata zincirini **talebin**
-kodundan YUKARI çıkarıyor (`deriveCategoryMatchCandidates` → `categoryAncestors`),
-firmanın beyanından AŞAĞI inmiyor; talepler ise en az L3. Zincir yazılmasaydı
-`39121614` beyan eden firma, alıcı `39121600` talebi açtığında dar eksende
-eşleşmez ve geniş eksene (segmentin TAMAMI) düşerdi — daralttığını sanırken
-genişlerdi. Gösterim `deepestCategoryPicks` ile yalnız kullanıcının seçtiklerini
-çizer (türetilmiş üstler ayrı çip olmaz; zincir breadcrumb'da okunur).
+**ARAYÜZ TEK SORU SORAR:** 2026-09-14'te üç etkileşim deseni (L1 modalı + L3-4 modalı + çip duvarı) tek
+pencereye indi; 2026-10-08'de ayrı "Sektör geneli ekle" penceresi (`segment-only-picker.tsx`) kalktı ve
+sektör satırı aynı pencerede işaretlenir oldu; 2026-10-29'dan beri o tek pencere YALNIZ sektör sorar (S1).
+İkinci bir seçici ya da "uzmanlık ekle" penceresi GERİ EKLENMEZ.
 
-Kural: seçim eklenince zincir + segment belirir · seçim silinince zinciri gider
-ve o segmentte başka seçim kalmadıysa **segment de düşer** (aksi hâlde tek
-yaprağı silen firma sessizce segmentin tamamından bildirim almaya başlardı) ·
-segment silinince altındakiler de gider. Bütün sektörde çalışan firma sektör
-satırını AYNI pencerede işaretler (yaprağı olmayan segment = "her şeyi yaparım"; 2026-10-08'e dek ayrı
-"Sektör geneli ekle" penceresiydi).
-**Kayıtta kategori ZORUNLU** — üç katman: arayüz `step2Valid`, DTO
-`@ArrayMinSize(1)`, servis `validateCategorySelection`.
-Kayıt ve Ayarlar AYNI bileşeni kullanır (`CompanyActivityPicker` de öyle).
-Sözleşmeler: `company-category-picker.test.tsx` · `company-category-selection.spec.ts`.
+**SEÇİM ↔ DEPOLAMA — tek kaynak `helpers/company-category-selection.ts`:** sektör (L1) → `*CategoryIds`;
+`*SubCategoryIds` her zaman `[]` (S2). Tarihçe: 2026-09-14 – 10-29 arası seçilen L2–L4 kodu ATA ZİNCİRİYLE
+alt diziye, segmenti ana diziye yazılıyordu (`expandCompanyCategorySelection` / `normalizeCategorySelection`
+bugün eski istemci girdisinin sektörünü türetmek için duruyor); eşleştirme zinciri talebin kodundan YUKARI
+çıkardığı için zincir yazılmazsa dar eksen eşleşmezdi. Gösterim eksen başına
+`visibleCompanyCategorySelection` (gizli seçim, yalnız onun için saklanan atalarla düşer; bkz. "GİZLİ KATEGORİ
+KURALI ÖN EK TABANLI"). Firma sektörü kaldırınca o sektör düşer — geri getiren saklı bir alt kod yoktur.
+**Kayıtta kategori ZORUNLU** — üç katman: arayüz `onboarding-client.tsx` 2. adım kuralı
+(`rule(f.mainCategoryIds.length >= 1, "mainCategoryIds", …)`), DTO `@ArrayMinSize(1)`, servis
+`validateCategorySelection`. Kayıt ve Ayarlar AYNI bileşeni kullanır (`CompanyActivityPicker` de öyle).
+Sözleşmeler: `company-category-picker.test.tsx` · `category-selector-modal.test.tsx` (yalnız sektör kipi) ·
+`company-category-selection.spec.ts` · `onboarding.spec.ts` · `company-profile.spec.ts`.
 
-**Dizin facet'i (2026-09-14 düzeltildi):** süzgeç DÖRT diziye bakıyordu ama
-sayaç yalnız iki ana diziyi okuyordu → alt kategorisiyle eşleşen firma listeye
-girip SAYIYA girmiyordu. Sayaç artık dört diziyi okuyor ve alt kodları
-**segmentine yuvarlıyor** (ham sayılsaydı facet 158 bin kodluk bir liste
-üretirdi; facet gezinme aracıdır, kod sayımı değil).
+**Dizin facet'i ve kategori süzgeci:** süzgeç DÖRT diziye bakar, sayaç da (2026-09-14'e dek yalnız iki ana
+diziyi sayıyordu) ve kodları **segmentine yuvarlar** (ham sayılsaydı facet 158 bin kodluk bir liste üretirdi).
+Derin kodla (`?category=<L2–L4>`; panel kategori sayfasının "Tedarikçiler" sekmesi) süzme o kodun SEKTÖRÜNÜ de
+ana dizilerde arar (`company-directory.ts` `categoryFilterSegments` / `declarationMatchesCategories`, eski
+`GET company/directory` kopyası dahil) — yalnız kesin kod eşleşmesi alt dizisi boş her firmayı dışarıda
+bırakırdı.
 
-**Kayıt TEK soru sorar, dört alana yazar** (`company-auth.service.ts`
-completeOnboarding: `mainIds` → buyer+seller, `subIds` → her iki sub). Bilinçli:
-yeni kullanıcı alışı satıştan ayıracak durumda değil. Ayrıştırma Ayarlar ›
-Kategoriler'de ("Ne alırım" / "Ne satarım") ve kayıt ekranının ipucu metni
-bunu SÖYLER.
+**Kayıt TEK soru sorar, iki eksene yazar** (`company-auth.service.ts` completeOnboarding: `mainIds` → alım +
+satış ana dizisi, iki alt dizi `[]`). Bilinçli: yeni kullanıcı alışı satıştan ayıracak durumda değil.
+Ayrıştırma Ayarlar › Kategoriler'de ("Ne alırım" / "Ne satarım") ve kayıt ekranının ipucu metni bunu SÖYLER.
 
 **İKİNCİ EKSEN — faaliyet tipi:** `Company.activities` (tavan 3, tek kaynak
 `company-activities.ts`) kategori NE'yi, faaliyet tipi NASIL'ı söyler.
@@ -2410,11 +2466,13 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     (adres ya da SİTE alan adı kayıtlı firmayla eşleşti) · CONSENT_REQUIRED;
     `recentlyInvited` (7 günde başka alıcıdan davet aldı → özetle gider).
     Yayın sonrası tur SUGGESTED (e-postalı) ve MEMBER adayı KENDİSİ davet
-    eder — üyede yalnız GÜÇLÜ eşleşmeyi (2026-10-09: yalnız genel sektörü tutan üye
-    `WEAK_MATCH` yazılır, davet edilmez); elle pencerede (`SupplierDiscoveryModal`) alıcı seçer.
+    eder — üyede yalnız GÜÇLÜ eşleşmeyi (2026-10-29'dan beri talebin SEKTÖRÜNÜ beyan eden üye güçlüdür,
+    sahip kararı S3; `WEAK_MATCH` yalnız kategorinin doğrulamadığı gevşek kalem eşleşmesine yazılır); elle
+    pencerede (`SupplierDiscoveryModal`) alıcı seçer.
   - **Platform keşfi** (`discoverRegistered`) yayın bildirimiyle AYNI eşleştirici
     (satış ana segment + `sellerSubCategoryIds`; eskiden alt kodu ana alanda
-    arıyordu) + vitrinde kalemi SATAN firma (`productSearchClauses`, kalem başına)
+    arıyordu; alt diziler 2026-10-29'dan beri boş — beyan yalnız sektör) + vitrinde
+    kalemi SATAN firma (`productSearchClauses`, kalem başına)
     + talebin görünürlük ülkesi + YALNIZ Silver+ ∧ doğrulanmış (`ai-recommendable.ts`,
     2026-09-28). Kullanıcısız çekirdek `discoverRegisteredFor`
     (yayın sonrası tur da çağırır; `country` + `alreadyInvited` döner).
@@ -2460,8 +2518,8 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     kullanıcı: "ücretsiz firma alıcı talep açarken görünmesin; AI ile
     bulunduğunda oradan Silver'a veya doğrulamaya yönlendirelim").** Yayın
     sonrası tur aynı eşleştiriciyi `pool: "hidden"` ile de koşar (Silver+ ∧
-    doğrulanmış OLMAYAN, aktif, bağlantısız) ve GÜÇLÜ eşleşmeleri (alt kategori
-    ya da vitrinde kalem) `CompanyListingsService.notifyHiddenAiMatches`e
+    doğrulanmış OLMAYAN, aktif, bağlantısız) ve GÜÇLÜ eşleşmeleri (talebin sektörü —
+    2026-10-29, S3 — ya da vitrinde kalem) `CompanyListingsService.notifyHiddenAiMatches`e
     verir. **Turun SONUNDA (2026-10-09, `DiscoveryRunsService.closingNotices`):**
     bekletilen kategori duyurusu salındıktan SONRA ve duyurunun ulaştığı
     firmalar hariç (bir talep aynı firmaya iki e-posta üretmez); sürdürülen ve
@@ -2471,7 +2529,8 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     bağlantılı, engelli ve bu talep için e-posta almış/özette bekleyen adres
     atlanır. E-posta `listing_ai_match_locked` (tercih `categoryMatch`,
     kategori eşleşmesiyle AYNI yerel günde-3 sınırı, fazlası KİLİTLİ özet
-    satırı): "Bir alıcı sattığınız ürünleri arıyor" + kalem önizlemesi, alıcı
+    satırı): konu "Firmanıza uygun bir alım talebi var" (2026-10-29'a dek "Bir alıcı sattığınız ürünleri arıyor"; S3'ten
+    beri yalnız sektörü tutan firma da alır, ürün iddiası yazılmaz) + kalem önizlemesi, alıcı
     kimliği ve talep bağlantısı YOK; doğrulanmamışa "Ücretsiz Doğrulan"
     (`/company/ayarlar/dogrulama`), doğrulanmış/incelemedekine "Silver'a Geç".
   - **DOĞRULAMA ÖNCE (aynı gün):** kategori duyurusunun kilitli sürümü, kilitli
@@ -3134,7 +3193,11 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   satış beyanı aynı aile 4 / segment 2 + kalem adı kökleri firmanın
   sektör/ad/faaliyet metninde (≤5); puanlılar "Kalemlere uygun" çipiyle önde.
   Bunun için bağlantı kartı `categoryIds` (satış ana+alt beyanı) taşır
-  (`company-connections.service` `COMPANY_CARD_SELECT`). Özet + Yayınla kartı
+  (`company-connections.service` `COMPANY_CARD_SELECT`). 2026-10-29'dan beri
+  (yalnız sektör beyanı, S1/S2) beyan sektör kodudur ve alt dizi boştur → "aynı
+  aile 4" beyandan TETİKLENMEZ (sektör kodunun 4 haneli öneki hiçbir ailenin
+  öneki değildir); yalnız temizliğin elle karara bıraktığı eski satırda çalışır.
+  Etkili puan segment 2 + kalem kökleridir. Özet + Yayınla kartı
   sağ rayın EN ALTINDA (kullanıcı: "bu kısım en aşağıda olmalı").
   Sözleşme: `quick/__tests__/supplier-picker.test.tsx`.
 - **BAĞLANTILARIM = GÖRÜNÜRLÜK LİSTESİ (2026-09-19 akşam, kullanıcı kararı:
@@ -4504,21 +4567,25 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   yok). `tokenizeQuery` durak sözcükleri TR + EN (and, or, the, of, for) + RU (и, или, для): aranmaz ve
   vurgulanmaz.
 - **Firma kategori beyanı sunucuda da normalize:** `normalizeCategorySelection` (onboarding + profil
-  güncelleme) ata zincirini ve segmenti ekler, tavanlar ondan SONRA; web'in bugünkü gövdesi aynen saklanır.
+  güncelleme) ata zincirini ve segmenti ekler, tavanlar ondan SONRA. 2026-10-29'dan beri yalnız ana (sektör)
+  dizi saklanır, alt dizi `[]` yazılır (bkz. Kategori Kataloğu › "FİRMA KATEGORİ BEYANI YALNIZ SEKTÖR").
   Profil güncellemede firmada ZATEN kayıtlı gizli segment kodu reddedilmez (`validateIds` `allowHidden`),
   yeni eklenen gizli kod reddedilir. Ayarlar formu kategori listelerini KÜME olarak kıyaslar (sıra değişimi
   kirli saymaz).
 - **Kategori pencereleri tek kabuk** `components/categories/category-dialog-shell.tsx`: yükseklik `dvh`,
   seçim şeridi tavanlı ve kendi içinde kayar, liste kullanılabilir yükseklikte kalır, Vazgeç / Onayla HER
   ZAMAN görünür (360×640, 50 seçim); onaylanmamış değişiklikle Escape / arka plan / X sorar ("Seçime dön"
-  birincil), Vazgeç sormaz; bildirimler `CategoryDialogNotices`. `CategorySelectorModal`: `minSelectableLevel`
-  (firma beyanı **1** → SEKTÖR satırı da işaretlenir = sektörün tamamı; talep formu varsayılan 3, DEĞİŞMEDİ),
-  `singlePickPerBranch` (yalnız firma beyanı: bir dalda tek seçim — işaretlenen öğe işaretli ata ve
-  torunlarını düşürür, sektör dahil; sayaç = saklanan) ve `maxSectors` (firma beyanı 5: iki sayaç "Sektör
-  n/5" · "Ürün / hizmet n/50", sınır işaretleme anında da denetlenir). **TEK PENCERE (kullanıcı 2026-10-08:
-  "üst başlıktan seçemiyorlar"):** ayrı "Sektör geneli ekle" bağlantısı ve ikinci pencere
-  (`segment-only-picker.tsx`) KALDIRILDI; geri eklenmez. Değer sözleşmesi aynı: sektörün tamamı = segment
-  kodu `mainIds`'te, o segmentten alt kod yok. Sektör kutusunun erişilebilir adı "<sektör> · sektörün tamamı".
+  birincil), Vazgeç sormaz; bildirimler `CategoryDialogNotices`. `CategorySelectorModal` firma beyanında
+  **`sectorsOnly`** (2026-10-29, sahip kararı S1; tek çağıran `CompanyCategoryPicker`): ağaçta yalnız sektör
+  satırları (dal açılmaz), arama sonucu bağlamıyla kalır ama işaretlenen TEK satır sektördür, tek sayaç
+  "Sektör n/5", tavanı aşan işaret işaretleme anında reddedilir, `value`daki sektör dışı eski kod kendi
+  sektörüne yuvarlanır. Talep formu (çoklu, en fazla 3, min L3, discovery) ve ürün formu (tek, min L3) bu kipi
+  KULLANMAZ, davranışları DEĞİŞMEDİ. `minSelectableLevel` (1 → sektör satırı da işaretlenir), `singlePickPerBranch`
+  (bir dalda tek seçim) ve `maxSectors`'ın iki sayaçlı ("Sektör n/5" · "Ürün / hizmet n/50") yolu bir sürüm
+  daha geri dönüş için kodda durur; firma beyanı onları kullanmaz. **TEK PENCERE (kullanıcı 2026-10-08: "üst
+  başlıktan seçemiyorlar"):** ayrı "Sektör geneli ekle" bağlantısı ve ikinci pencere (`segment-only-picker.tsx`)
+  KALDIRILDI; geri eklenmez — 2026-10-29'dan beri değişen pencerenin İÇERİĞİDİR (yalnız sektör), sayısı değil.
+  Değer sözleşmesi: beyan = sektör kodları `mainIds`'te, `subIds` boş.
   Yükleme hatası ayrı durum + "Yeniden dene" (`category-load-error.tsx`; `use-categories` `{ inlineError }` →
   global toast yok, 4xx/429'da otomatik tekrar yok) — "sonuç bulunamadı" ya da "…" DEĞİL. Çip adın tamamını
   gösterir (sabit px tavan yok, kutudan taşmaz) — yalnız pencerenin SEÇİM ŞERİDİNDE bir çip en fazla 3 satır
@@ -4543,14 +4610,14 @@ Ayrıntı ve bulgu listesi: `docs/qa-ui-test-2026-10-01.md` § Kayıt, giriş ve
   aynı anda güncellenir (eski dile sekme yok). `PasswordInput` ve `PhoneInput` kökleri `data-slot="control"`
   taşır. Panel sayfalarının sekme başlığı rota etiketinden (`company-shell/document-title.ts`,
   "<sayfa> · Rothern").
-- **ONBOARDING ADIMLARI (2026-10-08):** 1 "Şirket bilgileri" — ÜLKE ilk alan (altındakiler ülkeye göre
-  düzenlenir), unvan, hukuki yapı, vergi no (+ TR vergi dairesi), web sitesi, adres · 2 "Faaliyet alanı" —
-  kategori seçimi + faaliyet tipi (kişisel alan yok) · 3 "Yetkili ve onay" — ad (salt okunur), yetkili
-  kimlik no, kurucu notu, özet, beyan. Ülke değişince yalnız ülkeye bağlı alanlar sıfırlanır
-  (`applyCountryChange`: hukuki yapı, vergi no / dairesi, il-şehir, ilçe, bölge, mahalle, posta kodu; unvan,
-  site, sokak adresi, kategoriler kalır). Taslak sürümü 2; eski biçimli taslak ATILMAZ, alanları korunup 1.
-  adımdan açılır. Sunucu hatası alanın sahibi olan adıma yönlenir. e2e `signup-flow.ts`
-  (`kategoriAraVeSec`) yeni sıraya göre.
+- **ONBOARDING ADIMLARI (2026-10-08):** 1 "Şirket bilgileri" — ÜLKE ilk alan (altındakiler ülkeye göre düzenlenir),
+  unvan, hukuki yapı, vergi no (+ TR vergi dairesi), web sitesi, adres · 2 "Faaliyet alanı" — sektör seçimi
+  (2026-10-29'dan beri yalnız sektör, en fazla 5) + faaliyet tipi (kişisel alan yok) · 3 "Yetkili ve onay" — ad
+  (salt okunur), yetkili kimlik no, kurucu notu, özet, beyan. Ülke değişince yalnız ülkeye bağlı alanlar sıfırlanır
+  (`applyCountryChange`: hukuki yapı, vergi no / dairesi, il-şehir, ilçe, bölge, mahalle, posta kodu; unvan, site,
+  sokak adresi, kategoriler kalır). Taslak sürümü 2; eski biçimli taslak ATILMAZ, alanları korunup 1. adımdan
+  açılır. Sunucu hatası alanın sahibi olan adıma yönlenir. e2e `signup-flow.ts` (`kategoriAraVeSec`) yeni sıraya
+  göre.
 - **KAYIT VE DAVET KABUL TELEFON SORMAZ (2026-10-08, sahip kararı):** numara doğrulanmıyordu (kod gitmez),
   başka firmaya gösterilmiyordu (talep ve sipariş teslimat adresi irtibat telefonunu ve firma fatura
   telefonunu gösterir — onlar aynen) ve tek kullanımı onboarding ülke tahminiydi. API: `CompanySignupDto.phone`
@@ -4655,16 +4722,23 @@ adıyla geri aç, yalnız silah ve kolluk gruplarını gizle").**
   ÖNCE `visibleCategoryId` ile verilir. `productCategoryWhere` HAM kalır (eşleştirme + gizli daldaki eski ürünün
   ilişkili blokları). Sektörü aileleriyle, aileyi sınıflarıyla açan arama çocuk sorgularına da `hiddenCategoryWhere()`
   ekler; sektör yalnız ADIYLA eşleşir. `visibleAttributeWhere()` = `hiddenCategoryWhere("categoryId")`.
-- **Firma beyanı ata zincirini saklar → gösterim, süzgeç, sayaç ve rozet eksen başına
-  `visibleCompanyCategorySelection(mainIds, subIds)` ile okunur** (`helpers/company-category-selection.ts`): gizli
-  seçim, YALNIZ onun için saklanan görünür atalarla birlikte düşer (geride kalan çıplak 46000000 "sektörün tamamı"
-  demek olurdu ve o sektörün bütün bildirimlerini getirirdi). İki diziye ayrı ayrı `visibleCategoryIds` uygulamak bu
-  hatayı üretir. API tek yardımcı `shownCompanyDeclaration` (`common/company/company-directory.ts`: dizin listesi /
-  facet / kart, eski `GET company/directory`, panel firma profili; herkese açık profil `shownMainCategoryIds`);
-  sorgudaki `hasSome` / `has` yalnız üst kümedir, kararı gösterilen beyan verir. Web: `CompanyCategoryPicker`,
+- **Eski firma beyanı ata zincirini TAŞIYABİLİR → gösterim, süzgeç, sayaç ve rozet eksen başına
+  `visibleCompanyCategorySelection(mainIds, subIds)` ile okunur** (`helpers/company-category-selection.ts`). Kural
+  bugün yalnız ESKİ satırlar içindir: 2026-10-29'dan beri beyan yalnız sektördür ve alt dizi `[]` saklanır (bkz.
+  Kategori Kataloğu › "FİRMA KATEGORİ BEYANI YALNIZ SEKTÖR" S2); temizlik betiğinin elle karara bıraktığı satırlar
+  ve betik koşulana dek bütün eski kayıtlar ata zinciri taşır. Gizli seçim, YALNIZ onun için saklanan görünür
+  atalarla birlikte düşer (geride kalan çıplak 46000000 "sektörün tamamı" demek olurdu ve o sektörün bütün
+  bildirimlerini getirirdi). İki diziye ayrı ayrı `visibleCategoryIds` uygulamak bu hatayı üretir. API tek yardımcı
+  `shownCompanyDeclaration` (`common/company/company-directory.ts`: dizin listesi / facet / kart, eski
+  `GET company/directory`, panel firma profili; herkese açık profil `shownMainCategoryIds`); sorgudaki `hasSome` /
+  `has` yalnız üst kümedir, kararı gösterilen beyan verir. Web: `CompanyCategoryPicker` (`declared-sectors.ts`),
   Ayarlar › Kategoriler, onboarding taslağı, Profilim özeti / sayıları / bulunabilirlik. `profileCompleteness` dört
-  HAM diziyi alır. Profil kaydı: eksenin saklanan yanı aynı fonksiyonla okunur; isteğin gönderdiği liste gönderildiği
-  gibi yazılır, saklı gizli kodlar hariç.
+  HAM diziyi alır. **Profil kaydı (`ekseniIsle`):** isteğin dokunmadığı eksende saklanan yan bu fonksiyonla okunur
+  (gizli kod ve yalnız onun atası olan sektör düşer); dokunulan eksende ana dizi isteğin listesidir (saklı gizli
+  kodlar hariç), gelen alt liste yalnız SEKTÖRLERİNİ ana diziye ekler ve alt dizi `[]` yazılır — saklanan alt dizi
+  girdi DEĞİLDİR. Temizlik betiği alt seçimi olan satırı aynı sonuca getirir: çıplak kalacak gizli dal atası sektör
+  düşer (S2'deki **SAHİP KARARI BEKLİYOR** notu: varsayılan bu; alternatif yalnız alt diziyi boşaltıp sektörü
+  görünür bırakmak).
 - **Eşleştirme, `strongMatch`, puan ve bildirim saklanan kodlarda KALIR**; gösterilen her şey gösterilen beyandan:
   keşif rozetleri (`matchedCategories`) adayın gösterilen beyanı ∩ talebin GÖRÜNÜR kodlarının zinciri (yazarken
   `discoverRegisteredFor`, okurken `visibleBadgeNames`); asistan `list_my_connections` modele gösterilen beyanı verir
@@ -4734,12 +4808,17 @@ adıyla geri aç, yalnız silah ve kolluk gruplarını gizle").**
   kategorisini beyan eden firmada, `strict` (2–3 sözcükte hepsi, 4+'da yarıdan fazlası) herkes için; gevşek
   eşleşme yalnız kategori eşleşmesiyle birlikte `strongMatch` — kategori doğrulaması firmanın beyanı YA DA
   eşleşen ürünün kendi `categoryId`sinin talebin kategorisiyle aynı ailede olmasıdır
-  (`productInRequestCategoryWhere`). Sıra: tam ad > alt kategori > gevşek > yalnız segment. Davet gerekçesi
-  (`inviteDiscoveredMembers` `aiReason`) aynı dosyayı kullanır. **Otomatik tur yalnız `strongMatch` üyeyi davet
-  eder (SAHİP KARARI BEKLİYOR: varsayılan olarak uygulandı):** yalnız genel sektörü tutan üye aday satırına
-  `WEAK_MATCH` yazılır (aday YAZILIRKEN; `strongMatch` saklanmaz), ekranda nötr tonda "Davet edilmedi" + nedeni,
-  "gönderilmedi" sayısına girmez; kategori duyurusunu yine alır, pencereden elle davet edilebilir. Pencerenin
-  "Platformda" sekmesinde toplu davet yalnız güçlü eşleşenler içindir; "Aynı sektörde" grubu tek tek.
+  (`productInRequestCategoryWhere`). Sıra: önce GÜÇLÜ, sonra zayıf (S3), her grup kendi içinde puanla: tam ad >
+  alt kategori (2026-10-29'dan beri boş, S2) > gevşek > yalnız sektör. `MAX_CANDIDATES` (12) kesimi bu sıradan
+  SONRA: doğrulanmamış gevşek ad eşleşmeleri (zayıf, davet edilmez) kalabalık sektörde sektörü beyan eden güçlü
+  üyenin yuvasını kapmaz. Davet gerekçesi (`inviteDiscoveredMembers` `aiReason`) aynı dosyayı kullanır. **Otomatik tur yalnız
+  `strongMatch` üyeyi davet eder; 2026-10-29'dan beri (sahip kararı S3) talebin SEKTÖRÜNÜ beyan eden üye
+  güçlüdür** (2026-10-09 – 10-29 arası yalnız sektörü tutan üye zayıf sayılıyordu). `WEAK_MATCH` artık yalnız
+  sektörü beyan etmeyen ve gevşek kalem eşleşmesini hiçbir kategorinin doğrulamadığı üyeye yazılır (aday
+  YAZILIRKEN; `strongMatch` saklanmaz), ekranda nötr tonda "Davet edilmedi" + nedeni, "gönderilmedi" sayısına
+  girmez; pencereden elle davet edilebilir. Pencerenin "Platformda" sekmesinde toplu davet yalnız güçlü
+  eşleşenler içindir; zayıf grup tek tek. Tavanlar değişmedi (Kategori Kataloğu › "FİRMA KATEGORİ BEYANI YALNIZ
+  SEKTÖR" › S3).
 - "Zaten davetli" FİRMA düzeyindedir: aynı adres ya da adayın firma anahtarı (`candidateCompanyKeys`: site alan
   adı + firmanın sahip olduğu e-posta alan adı) bu talebe GİTMİŞ ya da SIRADAKİ bir davetin alan adına eşitse
   (`inviteReachesAddress`; düşmüş davet yalnız kendi adresini kilitler). Ücretsiz sağlayıcılar tek liste

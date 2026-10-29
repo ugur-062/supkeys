@@ -89,21 +89,42 @@ describe("onboarding — 'Diğer' hukuki yapı kutusunun yer tutucusu kutusuna s
 
 /**
  * CAT-D1 — Firma Bilgileri › Kategoriler giriş metni PENCERENİN BUGÜN YAPTIĞINI
- * söyler. Kategori penceresinde sektör satırı da işaretlenebiliyor (2026-10-08:
- * sektörün tamamı ya da altındaki ürün ve hizmetler); giriş metni hâlâ "somut
- * ürün/hizmetlerinizi seçin — sektörünüz seçiminizden otomatik belirlenir"
- * diyordu, hemen altındaki seçici ise "Sektörün tamamını da seçebilirsiniz".
+ * söyler. 2026-10-29'dan beri (sahip kararı) firma beyanı YALNIZ SEKTÖRDÜR:
+ * pencere ürün / hizmet (alt kategori) işaretletmez, ama ürün / hizmet adıyla
+ * aranır ve sonucun sektörü işaretlenir. Metin sektörü ve tavanı anar;
+ * "altındaki ürün ve hizmetleri seçin" (2026-10-08 kipi) ve "sektörünüz
+ * otomatik belirlenir" (2026-09-14 kipi) demez.
+ *
+ * Arama ipucu bir ekranda TEK YERDE (gözden geçirme 2026-10-29): her seçicinin
+ * düğmesinin altında ("Ürün ya da hizmet adıyla arayabilirsiniz.") durur; giriş
+ * metni ve kayıt adımının sektör ipucu onu tekrarlamaz (Ayarlar'da üç kez,
+ * kayıtta art arda iki kez okunuyordu).
  */
 describe("Firma Bilgileri › Kategoriler giriş metni (CAT-D1)", () => {
   const KEY = "panel.settings.companyProfileSection.talepEslesmesiOnerilerVeBildirimler";
-  const WHOLE_INDUSTRY = { tr: /sektörün tamamını/i, en: /whole industry/i, ru: /отрасль целиком|всю отрасль/i };
+  const SECTOR = { tr: /sektör/i, en: /industr/i, ru: /отрасл/i };
+  const SEARCH_BY_PRODUCT = {
+    tr: /ürün ya da hizmet adıyla/i,
+    en: /(search|name) by product or service|product or service name/i,
+    ru: /по товару или услуге|по названию товара/i,
+  };
   const PRODUCTS_UNDER_IT = { tr: /altındaki ürün ve hizmet/i, en: /products and services under it/i, ru: /товары и услуги внутри/i };
   const DERIVED_AUTOMATICALLY = { tr: /otomatik/i, en: /automatic/i, ru: /автоматическ/i };
 
-  it.each(LOCALES)("%s: sektörün tamamı ya da altındaki ürün ve hizmetler; 'otomatik belirlenir' demez", (locale) => {
+  it.each(LOCALES)("%s: sektörü anar; alt seçim, 'otomatik belirlenir' ve arama ipucu (seçicide) yok", (locale) => {
     const text = at(rawMessages(locale, "web"), KEY);
-    expect(text).toMatch(WHOLE_INDUSTRY[locale]);
-    expect(text).toMatch(PRODUCTS_UNDER_IT[locale]);
+    expect(text).toMatch(SECTOR[locale]);
+    expect(text).not.toMatch(SEARCH_BY_PRODUCT[locale]);
+    expect(text).not.toMatch(PRODUCTS_UNDER_IT[locale]);
     expect(text).not.toMatch(DERIVED_AUTOMATICALLY[locale]);
+  });
+
+  it.each(LOCALES)("%s: kayıt adımının sektör ipucu da aramayı tekrarlamaz; seçici düğmesinin ipucu anar", (locale) => {
+    const web = rawMessages(locale, "web");
+    expect(at(web, "auth.onboarding.sectorHint")).not.toMatch(SEARCH_BY_PRODUCT[locale]);
+    expect(at(web, "auth.onboarding.sectorHint")).toMatch(SECTOR[locale]);
+    expect(at(web, "shared.companyCategoryPicker.urunYaDaHizmetAdiylaArayabilirsiniz")).toMatch(
+      SEARCH_BY_PRODUCT[locale],
+    );
   });
 });

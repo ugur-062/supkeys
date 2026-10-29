@@ -1276,6 +1276,19 @@ export class CompanyListingsService {
    *
    * İlgi servisi yoksa (@Optional) liste OLDUĞU GİBİ döner — bildirim
    * hiçbir koşulda kesilmez.
+   *
+   * Sector-only declarations (owner decision 2026-10-29, S3) are not scored
+   * 0 here and are not dropped: `scoresForCompanies` gives every company that
+   * declares the request's sector at least its declaration floor
+   * (100 / declared sectors × 0.25, so 5 or more = `NOTIFY_MIN_AFFINITY`),
+   * also when its catalog or bids lie in other sectors. The drop therefore
+   * removes only candidates whose SHOWN declaration does not name the sector
+   * (matched through a hidden pick or the ancestor stored only for it).
+   *
+   * ORDER: companies with a row at one of the request's own codes (`exact`:
+   * behaviour, catalog, legacy product pick) come first, each group by score -
+   * product evidence at the requested code stays ahead of a sector-level value
+   * at any declaration breadth.
    */
   private async rankByAffinity(
     companyIds: string[],
@@ -1285,7 +1298,7 @@ export class CompanyListingsService {
     if (!this.affinity || companyIds.length === 0) {
       return companyIds.map((id) => ({ id }));
     }
-    let scores: Map<string, { score: number }>;
+    let scores: Map<string, { score: number; exact: boolean }>;
     try {
       scores = await this.affinity.scoresForCompanies(companyIds, categoryIds, dir);
     } catch (err) {
@@ -1298,8 +1311,8 @@ export class CompanyListingsService {
       return companyIds.map((id) => ({ id }));
     }
     const withScore = companyIds
-      .map((id) => ({ id, score: scores.get(id)?.score ?? 0 }))
-      .sort((a, b) => b.score - a.score);
+      .map((id) => ({ id, score: scores.get(id)?.score ?? 0, exact: scores.get(id)?.exact ?? false }))
+      .sort((a, b) => Number(b.exact) - Number(a.exact) || b.score - a.score);
 
     const strong = withScore.filter((c) => c.score >= NOTIFY_MIN_AFFINITY);
     if (strong.length >= NOTIFY_MIN_STRONG) {

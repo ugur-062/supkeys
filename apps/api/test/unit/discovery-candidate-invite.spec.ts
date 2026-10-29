@@ -163,6 +163,8 @@ describe("withQueueForecast — kuyruk satırları dağıtıcının öngörüsü
  * imalatçısı, elektrik talebine yalnız o segmentte alım yapan bir firma. Davet
  * alıcıya sorulmadan gittiği için yalnız GÜÇLÜ eşleşmeye gider; öteki üye
  * `WEAK_MATCH` yazılır (davet edilmez, durum listesi nedenini söyler).
+ * 2026-10-29 (sahip kararı S3): sektör eşleşmesi artık GÜÇLÜ — beyan yalnız
+ * sektör. Kural (`strongMatch` false → WEAK_MATCH) değişmedi.
  */
 describe("mergeCandidates — otomatik tur yalnız güçlü eşleşen üyeyi davete yazar (AUTO-MEMBER-1)", () => {
   const member = (companyId: string, strongMatch: boolean, extra: Partial<DiscoveryCandidate> = {}): DiscoveryCandidate => ({
@@ -195,9 +197,11 @@ describe("mergeCandidates — otomatik tur yalnız güçlü eşleşen üyeyi dav
   const statuses = (rows: ReturnType<typeof mergeCandidates>) => rows.map((r) => [r.memberCompanyId ?? r.email, r.status, r.source]);
   const AUTO = { strongMembersOnly: true };
 
-  it("güçlü eşleşen üye MEMBER (davet edilecek), yalnız segmenti uyan üye WEAK_MATCH; zaten davetli olan öyle kalır", () => {
+  // Zayıf = eşleştiricinin güçlü saymadığı üye: bugün yalnız kategorinin
+  // doğrulamadığı gevşek kalem eşleşmesi (sektör eşleşmesi 2026-10-29'dan beri güçlü).
+  it("güçlü eşleşen üye MEMBER (davet edilecek), güçlü sayılmayan (gevşek) üye WEAK_MATCH; zaten davetli olan öyle kalır", () => {
     const rows = mergeCandidates(
-      [member("item", true, { matchedItems: [1] }), member("segment", false), member("invited", false, { alreadyInvited: true })],
+      [member("item", true, { matchedItems: [1] }), member("loose", false), member("invited", false, { alreadyInvited: true })],
       [],
       new Set(),
       "TR",
@@ -206,21 +210,21 @@ describe("mergeCandidates — otomatik tur yalnız güçlü eşleşen üyeyi dav
     expect(MEMBER_WEAK_MATCH).toBe("WEAK_MATCH");
     expect(statuses(rows)).toEqual([
       ["item", "MEMBER", "PLATFORM"],
-      ["segment", "WEAK_MATCH", "PLATFORM"],
+      ["loose", "WEAK_MATCH", "PLATFORM"],
       ["invited", "ALREADY_INVITED", "PLATFORM"],
     ]);
   });
 
   it("web araması aynı üyeyi bu talep için de bulduysa (ikinci kaynak) üye davet edilir: BOTH + MEMBER", () => {
     const rows = mergeCandidates(
-      [member("segment", false), member("other", false)],
-      [web("Segment", { status: "MEMBER", memberCompanyId: "segment" }), web("Yeni")],
+      [member("loose", false), member("other", false)],
+      [web("Loose", { status: "MEMBER", memberCompanyId: "loose" }), web("Yeni")],
       new Set(),
       "TR",
       AUTO,
     );
     expect(statuses(rows)).toEqual([
-      ["segment", "MEMBER", "BOTH"],
+      ["loose", "MEMBER", "BOTH"],
       ["other", "WEAK_MATCH", "PLATFORM"],
       ["info@yeni.com", "SUGGESTED", "WEB"],
     ]);
@@ -235,6 +239,6 @@ describe("mergeCandidates — otomatik tur yalnız güçlü eşleşen üyeyi dav
   });
 
   it("seçenek verilmezse (kendisi davet etmeyen liste) zayıf eşleşen üye de MEMBER kalır", () => {
-    expect(statuses(mergeCandidates([member("segment", false)], [], new Set(), "TR"))).toEqual([["segment", "MEMBER", "PLATFORM"]]);
+    expect(statuses(mergeCandidates([member("loose", false)], [], new Set(), "TR"))).toEqual([["loose", "MEMBER", "PLATFORM"]]);
   });
 });

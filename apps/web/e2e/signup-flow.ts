@@ -94,43 +94,42 @@ export function aktifAdim(page: Page) {
 }
 
 /**
- * Firma kategori penceresini açar, ARAR, sonuçlardan bir SINIF satırını
- * işaretler ve onaylar. "Faaliyet alanı" adımında çağrılır.
+ * Firma kategori penceresini açar, ARAR, sonuçtaki SEKTÖR satırını işaretler
+ * ve onaylar. "Faaliyet alanı" adımında çağrılır.
+ *
+ * FİRMA BEYANI YALNIZ SEKTÖR (sahip kararı 2026-10-29): pencere yalnız sektör
+ * (L1) işaretletir; arama sonucu bağlamıyla (aile › sınıf › emtia) çizilir ama
+ * onay kutusu yalnız sektör satırındadır. Ürün / hizmet adıyla aranır, işaret
+ * sonucun SEKTÖRÜNE konur.
  *
  * NEDEN "PENCEREDEKİ İLK ONAY KUTUSU" DEĞİL (inceleme CAT-R2, 2026-10-08):
- * firma beyanında sektör satırı da onay kutusu taşır (kutu = sektörün TAMAMI)
- * ve sektör listesi pencere açılmadan önbellektedir. Eski adım terimi yazıp
- * `dialog.getByRole("checkbox").first()`e tıklıyordu: arama 300 ms gecikmeyle
- * başladığı için bulunan kutu sonuç değil, kapalı AĞACIN ilk sektörüydü. Hangi
- * terim yazılırsa yazılsın firma aynı sektörün tamamını beyan ediyor
- * (`subIds` boş), ara-sonra-seç adımı hiç sınanmıyordu; akış yine tamamlandığı
- * için hiçbir şey kırmızıya dönmüyordu.
+ * kapalı ağacın sektör satırları da onay kutusu taşır ve sektör listesi
+ * pencere açılmadan önbellektedir. Terimi yazıp `dialog.getByRole("checkbox")
+ * .first()`e tıklamak — arama 300 ms gecikmeyle başladığı için — sonuç değil
+ * kapalı AĞACIN ilk sektörünü işaretler; ara-sonra-seç adımı hiç sınanmaz.
  *
- * Bu yüzden iki şey açıkça yapılır:
- *  1. SONUÇ BEKLENİR ve bir sonuç satırı işaretlenir. Sonuç ağacı iç içe
- *     listedir (sektör › aile › sınıf › emtia); üçüncü düzeydeki ilk kutu bir
- *     SINIF satırıdır. Kapalı ağaçta iç içe liste yoktur → bu konum yalnız
- *     sonuçlar çizilince eşleşir, bekleme kendiliğinden olur. (DOM sözleşmesi
- *     yerelde `category-selector-modal.test.tsx` "e2e sözleşmesi" testiyle
- *     kilitli — bu dosya yerelde koşulamaz.)
- *  2. İşaretin sektör ALTINDAN bir seçim olduğu doğrulanır: sektör işareti
- *     "Ürün / hizmet" sayacına girmez. Sayaç 1 değilse adım kırmızıya döner.
+ * Bu yüzden SONUÇ BEKLENİR: kutu `[data-slot="search-results"]` listesinin
+ * içinden alınır (bağlam satırları — aile › sınıf › emtia — birer düğmedir,
+ * onay kutusu değil; kutu yalnız sektör satırında). Kapalı ağaçta bu liste yoktur → konum yalnız sonuçlar
+ * çizilince eşleşir, bekleme kendiliğinden olur. (DOM sözleşmesi yerelde
+ * `category-selector-modal.test.tsx` "yalnız sektör kipi" › "e2e sözleşmesi"
+ * testiyle kilitli — bu dosya yerelde koşulamaz.) Ardından tek sayaç
+ * "Sektör 1/5" doğrulanır.
  */
 export async function kategoriAraVeSec(page: Page, terim: string): Promise<void> {
-  await page.getByRole("button", { name: /Ürün \/ hizmet (seçin|ekle)/ }).first().click();
+  // Boşken "Sektör seçin", doluyken "Sektör ekle", tavanda "Sektörleri düzenle".
+  await page.getByRole("button", { name: /Sektör (seçin|ekle)|Sektörleri düzenle/ }).first().click();
   const pencere = page.getByRole("dialog");
-  const kategoriAra = pencere.getByPlaceholder(/Kategori ara/);
+  // Yalnız sektör kipinde kutu ürün / hizmet adını da aradığını söyler.
+  const kategoriAra = pencere.getByPlaceholder(/Sektör, ürün ya da hizmet ara/);
   await expect(kategoriAra).toBeVisible({ timeout: 15_000 });
   await kategoriAra.fill(terim);
-  const sinifKutusu = pencere.locator("ul ul ul").getByRole("checkbox").first();
-  // Artık gerçekten arama yanıtı beklenir (eski adım beklemiyordu) → süre geniş.
-  await expect(sinifKutusu, `"${terim}" araması sınıf düzeyinde sonuç getirdi`).toBeVisible({ timeout: 30_000 });
-  await sinifKutusu.click();
-  await expect(sinifKutusu).toHaveAttribute("aria-checked", "true");
-  await expect(
-    pencere.getByText(/^Ürün \/ hizmet 1\/\d+$/),
-    "sektörün tamamı değil, sektör altından tek seçim",
-  ).toBeVisible();
+  const sektorKutusu = pencere.locator('[data-slot="search-results"]').getByRole("checkbox").first();
+  // Gerçekten arama yanıtı beklenir → süre geniş.
+  await expect(sektorKutusu, `"${terim}" araması sonuç getirdi (sonucun sektörü)`).toBeVisible({ timeout: 30_000 });
+  await sektorKutusu.click();
+  await expect(sektorKutusu).toHaveAttribute("aria-checked", "true");
+  await expect(pencere.getByText(/^Sektör 1\/5$/), "tek sektör işaretli (yalnız sektör kipi)").toBeVisible();
   const onayla = pencere.getByRole("button", { name: /^Onayla/ });
   await expect(onayla).toBeEnabled({ timeout: 10_000 });
   await onayla.click();
@@ -164,10 +163,10 @@ export async function onboarding(page: Page, firmaUnvani: string): Promise<void>
 
   // 2 — Faaliyet alanı: yalnız kategori seçici + faaliyet tipi (kişisel alan yok)
   await expect(aktifAdim(page)).toContainText("Faaliyet alanı", { timeout: 30_000 });
-  // KATEGORİ SEÇİCİ TEK SORU SORAR (2026-09-14): eski "Sektör seçmek için
-  // tıklayın" (L1 modalı) kalktı; boş durumda "Ürün / hizmet seçin" düğmesi
-  // CategorySelectorModal'ı açar. Bu yardımcı 2026-09-16 RLS turunda eski
-  // metinle kırıldı (staging-signup + prod-journey aynı yardımcıyı kullanır).
+  // KATEGORİ SEÇİCİ YALNIZ SEKTÖR SORAR (2026-10-29): boş durumda "Sektör
+  // seçin" düğmesi CategorySelectorModal'ı yalnız sektör kipinde açar; ürün /
+  // hizmet adıyla aranır, sonucun sektörü işaretlenir (staging-signup +
+  // prod-journey + staging-scope-foreign aynı yardımcıyı kullanır).
   await kategoriAraVeSec(page, "Makine");
   await page.getByRole("button", { name: "Devam" }).click();
 

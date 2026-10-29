@@ -92,7 +92,7 @@ vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => [
  * seçici hangi adımda çizilir, değeri nereye yazılır, hata ona nasıl verilir,
  * sihirbaz onu ne zaman söker. Firma Bilgileri testi de aynı yolu izler.
  *
- * Sahte seçici bir düğme ("Ürün / hizmet seçin") ve açılınca tek seçenekli bir
+ * Sahte seçici bir düğme ("Sektör seçin") ve açılınca tek seçenekli bir
  * pencere çizer; pencerenin açık olması YEREL durumdur — seçici sökülüp yeniden
  * bağlanırsa kapanır (webcat-8 sözleşmesi bununla sınanır).
  */
@@ -119,7 +119,7 @@ vi.mock("@/components/categories/company-category-picker", () => ({
           aria-describedby={props.error ? "kategori-hatasi" : undefined}
           onClick={() => setOpen(true)}
         >
-          Ürün / hizmet seçin
+          Sektör seçin
         </button>
         <output data-testid="kategori-degeri">{JSON.stringify(props.value)}</output>
         {props.error ? (
@@ -149,7 +149,6 @@ import {
   ONBOARDING_FORM_KEYS,
   OnboardingClient,
   applyCountryChange,
-  categoryDeclarationGroups,
   defaultLegalForm,
   formatOnboardingAddress,
   initialOnboardingCountry,
@@ -224,7 +223,7 @@ async function fillStep1TR(user: User) {
 
 /** 2. adımda (Faaliyet alanı) sahte seçiciden bir sektör seçer. */
 async function pickSector(user: User) {
-  await user.click(screen.getByRole("button", { name: "Ürün / hizmet seçin" }));
+  await user.click(screen.getByRole("button", { name: "Sektör seçin" }));
   await user.click(screen.getByRole("button", { name: "Yazılım & IT seç" }));
 }
 
@@ -396,7 +395,7 @@ describe("OnboardingClient — adımlar ve içerikleri", () => {
     const user = userEvent.setup();
     await goStep2(user);
     expect(stepHeading(2)).toHaveAccessibleDescription("Faaliyet alanı");
-    expect(screen.getByText("Ne alıp satıyorsunuz?")).toBeInTheDocument();
+    expect(screen.getByText("Hangi sektörlerde alıp satıyorsunuz?")).toBeInTheDocument();
     expect(screen.getByTestId("kategori-secici")).toBeInTheDocument();
     expect(screen.getByText("Faaliyet tipiniz")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Üretici/ })).toBeInTheDocument();
@@ -1355,30 +1354,28 @@ describe("OnboardingClient — ülke değişimi", () => {
 });
 
 describe("OnboardingClient — adım 2 (faaliyet alanı)", () => {
-  it("seçici sözleşmesi: etiket / ipucu / pencere başlığı katalogdan; seçim ana ve alt kategoriyi TEK yazmada günceller", async () => {
+  // Beyan yalnız sektördür (sahip kararı 2026-10-29): seçici sektör döndürür,
+  // alt eksen (ürün / hizmet) HER ZAMAN boş kalır — eski bir istemcinin ya da
+  // seçicinin alt dizi göndermesi bile forma yazılmaz.
+  it("seçici sözleşmesi: etiket / ipucu / pencere başlığı katalogdan; seçim yalnız sektörleri yazar, alt eksen boş kalır", async () => {
     const user = userEvent.setup();
     await goStep2(user);
     const props = h.pickerProps.mock.calls.at(-1)![0];
     expect(props).toMatchObject({
       value: { mainIds: [], subIds: [] },
-      label: "Ürün ve hizmetleriniz",
-      modalTitle: "Ürün ve hizmetleriniz",
+      label: "Sektörleriniz",
+      modalTitle: "Sektörleriniz",
       error: undefined,
     });
-    expect(props.hint).toMatch(/^Alıp sattığınız her şeyi tek listede işaretleyin/);
+    expect(props.hint).toMatch(/^Alıp sattığınız ürün ve hizmetlerin sektörlerini işaretleyin/);
     await pickSector(user);
     expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('{"mainIds":["cat1"],"subIds":[]}');
-    // Ara tur yok: seçiciye hiçbir çizimde tutarsız çift verilmez.
     act(() => props.onChange({ mainIds: ["cat2"], subIds: ["39120000"] }));
     await waitFor(() =>
-      expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('{"mainIds":["cat2"],"subIds":["39120000"]}'),
+      expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('{"mainIds":["cat2"],"subIds":[]}'),
     );
     for (const [p] of h.pickerProps.mock.calls) {
-      expect([
-        '{"mainIds":[],"subIds":[]}',
-        '{"mainIds":["cat1"],"subIds":[]}',
-        '{"mainIds":["cat2"],"subIds":["39120000"]}',
-      ]).toContain(JSON.stringify(p.value));
+      expect(p.value.subIds).toEqual([]);
     }
   });
 
@@ -1397,11 +1394,16 @@ describe("OnboardingClient — adım 2 (faaliyet alanı)", () => {
     const user = userEvent.setup();
     await goStep2(user);
     expect(screen.queryByText(/boş bırakırsanız/)).toBeNull();
-    expect(screen.getByText(/En az bir seçim zorunludur\./)).toBeInTheDocument();
+    expect(screen.getByText(/en az bir sektör seçmelisiniz\.$/)).toBeInTheDocument();
+    // Tavan ipucunda sayıyla söylenir. Ürün / hizmetle arama ipucu bu ekranda
+    // TEK yerde, seçici düğmesinin altında (gözden geçirme 2026-10-29): adım
+    // ipucu onu tekrarlamaz.
+    expect(screen.getByText(/^En fazla 5 sektör seçin\. Açık talepler size bu sektörlere göre iletilir;/)).toBeInTheDocument();
+    expect(screen.queryByText(/ürün ya da hizmet adıyla/)).toBeNull();
     expect(screen.queryByTestId("kategori-hatasi")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Devam" }));
-    expect(screen.getByTestId("kategori-hatasi")).toHaveTextContent("En az bir ürün ya da hizmet seçin");
-    expect(screen.getByRole("button", { name: "Ürün / hizmet seçin" })).toHaveFocus();
+    expect(screen.getByTestId("kategori-hatasi")).toHaveTextContent("En az bir sektör seçin");
+    expect(screen.getByRole("button", { name: "Sektör seçin" })).toHaveFocus();
     expect(queryStepHeading(3)).toBeNull();
     // Seçim yapılınca hata kalkar.
     await pickSector(user);
@@ -1860,7 +1862,7 @@ describe("OnboardingClient — taslak yenilemede ve dil değişiminde korunur", 
     const second = render(<OnboardingClient />);
     expect(stepHeading(3)).toBeInTheDocument();
     expect(screen.getByLabelText("T.C. Kimlik No *")).toHaveValue("10000000146");
-    expect(summaryValue("Sektörler")).toBe("Yazılım & IT · sektörün tamamı");
+    expect(summaryValue("Sektörler")).toBe("Yazılım & IT");
     // Okumak silmez: hemen ardından gelen ikinci yenileme de aynı taslağı bulur.
     expect(sessionStorage.getItem(DRAFT_KEY)).not.toBeNull();
     second.unmount();
@@ -2035,13 +2037,13 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
     expect(summaryValue("Adres")).toBe("Moda Cad. No:1, 34710 Kadıköy / İstanbul");
     expect(summaryValue("Teslimat Adresi")).toBe("Fatura adresiyle aynı");
     expect(summaryValue("Rol")).toBe("Kurucu · satış koltuğu");
-    // Bu testte yalnız sektörün tamamı seçildi: özet onu öyle yazar (CAT-D2)…
-    expect(summaryLines("Sektörler")).toEqual(["Yazılım & IT · sektörün tamamı"]);
+    // Beyan yalnız sektördür (2026-10-29): özet sektörü adıyla yazar (ek yok)…
+    expect(summaryLines("Sektörler")).toEqual(["Yazılım & IT"]);
     expect(summaryValue("Faaliyet Tipi")).toBe("Üretici, Hizmet sağlayıcı");
     // Özetin ilk satırı ülke (alanların adımlardaki sırası).
     const terms = Array.from(document.querySelectorAll("dl dt")).map((dt) => dt.textContent);
     expect(terms.slice(0, 3)).toEqual(["Ülke", "Firma Unvanı", "Hukuki Yapı"]);
-    // …ve tek tek seçilen ürün/hizmet olmadığından boş "Ürün ve Hizmetler: —" satırı basılmaz.
+    // …ve "Ürün ve Hizmetler" satırı artık yok.
     expect(terms).not.toContain("Ürün ve Hizmetler");
     expect(terms.slice(-2)).toEqual(["Sektörler", "Faaliyet Tipi"]);
     // Yetkilinin adı ve kimlik numarası aynı ekranda alan olarak duruyor.
@@ -2051,127 +2053,102 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
     expect(screen.queryByText("10000000146")).toBeNull();
   }, LONG);
 
-  /** Geçerli, son adımda duran bir TR taslağı (yenileme sonrası durum). */
+  /**
+   * Geçerli, son adımda duran bir TR taslağı (yenileme sonrası durum). ESKİ
+   * biçim: sektör + ürün / hizmet seçimi (ata zinciriyle) — beyan 2026-10-29'dan
+   * beri yalnız sektördür, eski taslağın alt seçimleri forma geri gelmez.
+   */
   const openSummaryDraft = (over: Record<string, unknown> = {}) =>
     open(2, {
       mainCategoryIds: ["39000000"],
-      // Depoda ata zinciri de durur; özet yalnız kullanıcının seçtiğini yazar.
       subCategoryIds: ["39120000", "39121600", "39121614"],
       declarationAccepted: true,
       ...over,
     });
 
-  it("seçilen ürün/hizmetler adlarıyla listelenir (ata zinciri değil, kullanıcının seçtiği)", () => {
-    h.cats = [
-      { id: "39121614", nameTr: "Kablo kanalları" },
-      { id: "39000000", nameTr: "Elektrik Sistemleri" },
-    ];
-    openSummaryDraft();
-    expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
-    expect(summaryValue("Ürün ve Hizmetler")).toBe("Kablo kanalları");
-    // Altında seçim olan sektör işaretsiz yazılır (tamamı beyan edilmedi). Adı
-    // sektör listesinde yoksa (gizli sektör, düşen liste) ad isteğinden gelir.
-    expect(summaryLines("Sektörler")).toEqual(["Elektrik Sistemleri"]);
-  });
-
   /**
-   * Kayıt arayüz testi 2026-10 CAT-D2: özet, tamamı beyan edilen sektörü
-   * "Sektörler = Kimyasal Maddeler" + "Ürün ve Hizmetler = —" diye yazıyor;
-   * karışık seçimde sektörleri işaretsiz ve katalog sırasıyla (2. adımdaki
-   * kartlardan farklı sırada) listeliyordu.
+   * BEYAN YALNIZ SEKTÖR (sahip kararı 2026-10-29). Özet "Sektörler" satırını
+   * 2. adımdaki çiplerle AYNI sırayla yazar; eski "Ürün ve Hizmetler" satırı ve
+   * "· sektörün tamamı" eki kalktı. Eski taslağın ürün / hizmet seçimi forma
+   * geri gelmez, gönderilmez (`subCategoryIds: []`); seçimin sektörü sektör
+   * olarak kalır.
    */
-  describe("kategori beyanı 2. adımdaki kartlar gibi okunur (CAT-D2)", () => {
+  describe("kategori beyanı yalnız sektör (2026-10-29)", () => {
     const NAMES = [
       { id: "12000000", nameTr: "Kimyasal Maddeler" },
       { id: "14000000", nameTr: "Kağıt Ürünler ve Malzemeler" },
       { id: "22000000", nameTr: "Ağır İş Ekipmanı" },
       { id: "31000000", nameTr: "Üretim Bileşenleri ve Malzemeleri" },
+      { id: "39000000", nameTr: "Elektrik Sistemleri" },
     ];
 
-    it("yalnız sektörün tamamı: '<sektör> · sektörün tamamı'; 'Ürün ve Hizmetler' satırı yok", () => {
+    it("eski taslaktaki ürün / hizmet seçimi özette yazılmaz; 'Ürün ve Hizmetler' satırı yok", () => {
       h.roots.data = NAMES;
-      openSummaryDraft({ mainCategoryIds: ["12000000"], subCategoryIds: [] });
-      expect(summaryLines("Sektörler")).toEqual(["Kimyasal Maddeler · sektörün tamamı"]);
-      // Boş "Ürün ve Hizmetler: —" satırı basılmaz.
+      h.cats = [{ id: "39121614", nameTr: "Kablo kanalları" }];
+      openSummaryDraft();
+      expect(screen.getByRole("button", { name: "Tamamla" })).toBeInTheDocument();
+      expect(summaryLines("Sektörler")).toEqual(["Elektrik Sistemleri"]);
       expect(screen.queryByText("Ürün ve Hizmetler", { selector: "dt" })).toBeNull();
+      expect(screen.queryByText(/Kablo kanalları|sektörün tamamı/)).toBeNull();
     });
 
-    it("karışık seçim: sektörler KART sırasıyla, tamamı beyan edilenler işaretli; seçimler de kart sırasıyla", () => {
-      // Sektör listesi katalog sırasıyla gelir; kartlar KAYITLI sırayla çizilir.
+    it("sektörler KAYITLI sırayla; eski alt seçimin sektörü (ana eksende yoksa) sektör olarak sona eklenir", () => {
       h.roots.data = NAMES;
-      h.cats = [
-        { id: "14111501", nameTr: "Fotokopi kağıdı" },
-        { id: "31160000", nameTr: "Hırdavat" },
-        { id: "31171500", nameTr: "Rulmanlar" },
-      ];
       openSummaryDraft({
-        mainCategoryIds: ["22000000", "31000000", "12000000", "14000000"],
-        // Depoda ata zinciri de durur; alt kodların sırası kart sırası değildir.
-        subCategoryIds: ["14110000", "14111500", "14111501", "31160000", "31170000", "31171500"],
+        mainCategoryIds: ["22000000", "31000000", "12000000"],
+        subCategoryIds: ["31160000", "31170000", "31171500", "14110000", "14111500", "14111501"],
       });
       expect(summaryLines("Sektörler")).toEqual([
-        "Ağır İş Ekipmanı · sektörün tamamı",
+        "Ağır İş Ekipmanı",
         "Üretim Bileşenleri ve Malzemeleri",
-        "Kimyasal Maddeler · sektörün tamamı",
+        "Kimyasal Maddeler",
         "Kağıt Ürünler ve Malzemeler",
       ]);
-      expect(summaryValue("Ürün ve Hizmetler")).toBe("Hırdavat, Rulmanlar, Fotokopi kağıdı");
     });
 
-    it("categoryDeclarationGroups: kayıtlı sektör sırası; altı boş grup = sektörün tamamı; ata zinciri seçim sayılmaz", () => {
-      expect(
-        categoryDeclarationGroups(
-          ["22000000", "31000000", "12000000"],
-          ["31160000", "31170000", "31171500", "31171501"],
-        ),
-      ).toEqual([
-        { sector: "22000000", picks: [] },
-        // 31170000 ve 31171500, 31171501'in atalarıdır; 31160000 ayrı bir seçimdir.
-        { sector: "31000000", picks: ["31160000", "31171501"] },
-        { sector: "12000000", picks: [] },
-      ]);
-      // Sektörü ana eksende olmayan seçim (eski kayıt) kendi grubunu sona açar.
-      expect(categoryDeclarationGroups(["12000000"], ["14111501"])).toEqual([
-        { sector: "12000000", picks: [] },
-        { sector: "14000000", picks: ["14111501"] },
-      ]);
-      expect(categoryDeclarationGroups([], [])).toEqual([]);
+    it("eski taslağın alt seçimleri forma geri gelmez; 'Tamamla' yalnız sektörleri gönderir (subCategoryIds [])", async () => {
+      const user = userEvent.setup();
+      h.completeAsync.mockResolvedValue({ ok: true });
+      openSummaryDraft({ mainCategoryIds: ["39000000"], subCategoryIds: ["39120000", "39121600", "23211500"] });
+      await user.click(screen.getByRole("button", { name: "Tamamla" }));
+      await waitFor(() => expect(h.completeAsync).toHaveBeenCalledTimes(1));
+      expect(h.completeAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ mainCategoryIds: ["39000000", "23000000"], subCategoryIds: [] }),
+      );
     });
 
-    // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli sektör seçicide
-    // çizilmediği gibi özete de girmez.
-    //
-    // 2026-10-10 (sahip kararı): 46 "İş Güvenliği ve Yangın Ekipmanları" görünür,
-    // silah / kolluk dalları gizli. Beyan seçimi ata zinciriyle saklar: gizli
-    // seçimin (46101500) görünür atası (46000000) özete "sektörün tamamı" diye
-    // GİRMEZ; aynı sektörde görünür seçim varsa sektör yalnız onunla okunur.
-    it("categoryDeclarationGroups: gizli kod, altındaki seçimler ve yalnız gizli seçimin atası olan sektör özete GİRMEZ", () => {
-      expect(
-        categoryDeclarationGroups(
-          ["46000000", "31000000", "77000000"],
-          ["46100000", "46101500", "31160000", "10151500"],
-        ),
-      ).toEqual([{ sector: "31000000", picks: ["31160000"] }]);
-      expect(categoryDeclarationGroups(["46000000"], ["46101500"])).toEqual([]);
-      expect(categoryDeclarationGroups(["46000000"], ["46180000", "46182500", "46182501"])).toEqual([]);
-      expect(categoryDeclarationGroups(["77000000"], ["77101500"])).toEqual([]);
+    it("2. adımda açılan eski taslak: seçiciye yalnız sektörler gider (alt eksen boş)", () => {
+      open(1, { mainCategoryIds: ["39000000"], subCategoryIds: ["39120000", "39121600"] });
+      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: ["39000000"], subIds: [] });
     });
 
-    it("categoryDeclarationGroups: 46 görünür sektördür — tamamı ya da görünür seçimiyle özete girer", () => {
-      expect(categoryDeclarationGroups(["46000000"], [])).toEqual([{ sector: "46000000", picks: [] }]);
-      expect(
-        categoryDeclarationGroups(["46000000"], ["46100000", "46101500", "46180000", "46181500"]),
-      ).toEqual([{ sector: "46000000", picks: ["46181500"] }]);
-    });
+    // Tavan (5): pencere aşan işareti reddeder; eski bir taslaktan tavanın
+    // üstünde gelen küme "Devam"da seçicinin metniyle durur (API reddine kalmaz).
+    it("tavanın üstünde sektörle açılan taslak: 'Devam' gerekçeyle durur, 5'e inince geçer", async () => {
+      const user = userEvent.setup();
+      const alti = ["39000000", "40000000", "41000000", "22000000", "23000000", "24000000"];
+      open(1, { mainCategoryIds: alti, subCategoryIds: [] });
+      await user.click(screen.getByRole("button", { name: "Devam" }));
+      expect(screen.getByTestId("kategori-hatasi")).toHaveTextContent(
+        "6 sektör seçili; en fazla 5 sektör beyan edilebilir. Fazla olanları kaldırın.",
+      );
+      expect(queryStepHeading(3)).toBeNull();
+      act(() => h.pickerProps.mock.calls.at(-1)![0].onChange({ mainIds: alti.slice(1), subIds: [] }));
+      expect(screen.queryByTestId("kategori-hatasi")).toBeNull();
+      await user.click(screen.getByRole("button", { name: "Devam" }));
+      expect(stepHeading(3)).toBeInTheDocument();
+    }, LONG);
 
-    it("eski taslaktaki gizli kod ve yalnız onun atası olan sektör forma geri gelmez: seçici yalnız görünür beyanı alır", () => {
-      // Dal gizlenmeden ÖNCE saklanmış taslak (adım 2 = faaliyet alanı).
+    // 2026-10-09 / 2026-10-10 (sahip kararı): gizli kategori seçicide
+    // çizilmediği gibi özete de girmez. 46 "İş Güvenliği ve Yangın Ekipmanları"
+    // görünür, silah / kolluk dalları gizli: gizli seçimin (46101500) görünür
+    // atası (46000000) sektör olarak forma GERİ GELMEZ.
+    it("eski taslaktaki gizli kod ve yalnız onun atası olan sektör forma geri gelmez", () => {
       open(1, {
         mainCategoryIds: ["46000000", "31000000"],
         subCategoryIds: ["46100000", "46101500", "31160000"],
       });
-      const props = h.pickerProps.mock.calls.at(-1)![0];
-      expect(props.value).toEqual({ mainIds: ["31000000"], subIds: ["31160000"] });
+      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: ["31000000"], subIds: [] });
     });
 
     it("yalnız gizli seçim taşıyan taslak kategorisiz açılır (kayıt 'kategori zorunlu' ile güncel seçim ister)", () => {
@@ -2179,9 +2156,9 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
       expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: [], subIds: [] });
     });
 
-    it("taslaktaki görünür 46 beyanı (koruyucu giysi) forma geri gelir", () => {
+    it("taslaktaki görünür 46 seçimi (koruyucu giysi) sektör olarak forma geri gelir", () => {
       open(1, { mainCategoryIds: ["46000000"], subCategoryIds: ["46180000", "46181500"] });
-      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: ["46000000"], subIds: ["46180000", "46181500"] });
+      expect(h.pickerProps.mock.calls.at(-1)![0].value).toEqual({ mainIds: ["46000000"], subIds: [] });
     });
   });
 
@@ -2203,9 +2180,9 @@ describe("OnboardingClient — özet kaydedilecek şirket ve faaliyet bilgilerin
     openSummaryDraft({ mainCategoryIds: [], subCategoryIds: [] });
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     expect(h.completeAsync).not.toHaveBeenCalled();
-    expect(await screen.findByTestId("kategori-hatasi", {}, SLOW)).toHaveTextContent("En az bir ürün ya da hizmet seçin");
+    expect(await screen.findByTestId("kategori-hatasi", {}, SLOW)).toHaveTextContent("En az bir sektör seçin");
     expect(stepHeading(2)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ürün / hizmet seçin" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Sektör seçin" })).toHaveFocus();
   });
 
   it("ayrı teslimat adresi (TR) özetde kendi satırında", async () => {
@@ -2325,7 +2302,7 @@ describe("OnboardingClient — sunucu hatası alanın adımında gösterilir (si
     await user.click(screen.getByRole("button", { name: "Tamamla" }));
     expect(await screen.findByTestId("kategori-hatasi", {}, SLOW)).toHaveTextContent(message);
     expect(stepHeading(2)).toBeInTheDocument();
-    const trigger = screen.getByRole("button", { name: "Ürün / hizmet seçin" });
+    const trigger = screen.getByRole("button", { name: "Sektör seçin" });
     expect(trigger).toHaveFocus();
     expect(trigger).toHaveAccessibleDescription(message);
     // Hata yalnız seçicide: adımın hata kutusu ayrıca çizilmez.
@@ -2513,13 +2490,13 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
     open(1, { mainCategoryIds: [] });
     const retry = screen.getByRole("button", { name: "Yeniden dene" });
     expect(retry).toHaveAccessibleDescription("Sektörler yüklenemedi.");
-    expect(screen.queryByText("En az bir ürün ya da hizmet seçin")).toBeNull();
+    expect(screen.queryByText("En az bir sektör seçin")).toBeNull();
     const next = screen.getByRole("button", { name: "Devam" });
     await user.click(next);
     expect(next).not.toHaveFocus();
     expect(retry).toHaveFocus();
-    expect(screen.getByText("En az bir ürün ya da hizmet seçin")).toBeInTheDocument();
-    expect(retry).toHaveAccessibleDescription("Sektörler yüklenemedi. En az bir ürün ya da hizmet seçin");
+    expect(screen.getByText("En az bir sektör seçin")).toBeInTheDocument();
+    expect(retry).toHaveAccessibleDescription("Sektörler yüklenemedi. En az bir sektör seçin");
     expect(screen.queryByRole("button", { name: "Tamamla" })).toBeNull();
     await user.click(retry);
     expect(h.roots.refetch).toHaveBeenCalledTimes(1);
@@ -2531,38 +2508,38 @@ describe("OnboardingClient — kayıt denetimi 2026-10 ikinci tur", () => {
   it("sektör listesi eldeyken tazeleme düşerse seçici ve açık penceresi yerinde kalır", async () => {
     const user = userEvent.setup();
     const view = open(1, { mainCategoryIds: [] });
-    await user.click(screen.getByRole("button", { name: "Ürün / hizmet seçin" }));
-    expect(screen.getByRole("dialog", { name: "Ürün ve hizmetleriniz" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sektör seçin" }));
+    expect(screen.getByRole("dialog", { name: "Sektörleriniz" })).toBeInTheDocument();
     // Arka plan tazelemesi düştü: hata + eldeki liste.
     h.roots.isError = true;
     view.rerender(<OnboardingClient />);
     expect(screen.queryByText(/Sektörler yüklenemedi/)).toBeNull();
     // Pencere açık kaldı (seçici sökülüp yeniden bağlanmadı), seçim yapılabiliyor.
-    expect(screen.getByRole("dialog", { name: "Ürün ve hizmetleriniz" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Sektörleriniz" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Yazılım & IT seç" }));
     expect(screen.getByTestId("kategori-degeri")).toHaveTextContent('"mainIds":["cat1"]');
   });
 
-  // webcat-5: sihirbaz yalnız seçimleri soruyordu; seçici seçimler + sektörleri
-  // sorduğu için sorgu anahtarı hiç tutmuyor, ikinci bir `by-ids` isteği
-  // varsayılan seçeneklerle (429'da üç tekrar, 5xx'te genel toast) çıkıyordu.
-  // Seçicinin kendi isteği kendi testinde; burada sihirbazın isteği kilitli.
+  // webcat-5: sihirbazın ad isteği seçicininkiyle AYNI anahtarda olmalı (aynı
+  // id listesi + aynı seçenek); yoksa ikinci bir `by-ids` isteği varsayılan
+  // seçeneklerle (429'da üç tekrar, 5xx'te genel toast) çıkar. Beyan yalnız
+  // sektör olduğundan (2026-10-29) liste yalnız sektörlerdir — eski taslağın
+  // ürün / hizmet kodu sorulmaz. Seçicinin kendi isteği kendi testinde.
   it.each([
     [1, "seçici çizili (2. adım)"],
     [2, "özet (son adım)"],
-  ])("ad isteği seçiciyle AYNI id listesi (seçimler + sektörler) ve seçenekle yapılır — %i: %s", (step) => {
+  ])("ad isteği seçiciyle AYNI id listesi (sektörler) ve seçenekle yapılır — %i: %s", (step) => {
     open(step, {
       mainCategoryIds: ["39000000"],
-      // Depoda ata zinciri de durur; adı sorulan kullanıcının seçtiği yapraktır.
+      // Eski taslak: alt seçim (ata zinciriyle) — adı sorulmaz.
       subCategoryIds: ["39120000", "39121600", "39121614"],
       declarationAccepted: true,
     });
-    const asks = h.byIds.mock.calls.filter(([ids]) => (ids as string[]).includes("39121614"));
+    const asks = h.byIds.mock.calls.filter(([ids]) => (ids as string[]).includes("39000000"));
     expect(asks.length).toBeGreaterThan(0);
-    const signatures = new Set(
-      asks.map(([ids, options]) => JSON.stringify([[...(ids as string[])].sort(), options ?? null])),
-    );
-    expect([...signatures]).toEqual([JSON.stringify([["39000000", "39121614"], { inlineError: true }])]);
+    const signatures = new Set(asks.map(([ids, options]) => JSON.stringify([ids, options ?? null])));
+    expect([...signatures]).toEqual([JSON.stringify([["39000000"], { inlineError: true }])]);
+    expect(h.byIds.mock.calls.some(([ids]) => (ids as string[]).includes("39121614"))).toBe(false);
   });
 
   // Sektör listesi de seçiciyle ortak anahtarda. Sihirbaz listeyi 1. adımdan

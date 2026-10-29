@@ -325,3 +325,72 @@ adlarında taklit edilebilir).
 Kuralı yerine getiremeyen (devredecek kimse yok, sipariş sonuçlanmıyor) ama giriş yapabilen kişi de aynı
 adrese yazar; durum firmayla birlikte çözülür (devir, kullanıcı çıkarma, siparişin sonuçlanması), silmeyi
 kişi uygulamada kendisi yapar.
+
+---
+
+## 9. Firma alt kategori temizliği (2026-10-29, sahip kararı S2) — staging ve canlıda AYRI
+
+Firma kategori beyanı artık yalnız sektör (CLAUDE.md › Kategori Kataloğu › "FİRMA KATEGORİ BEYANI YALNIZ
+SEKTÖR"). Mevcut firmaların ürün / hizmet seçimleri (`companies.buyerSubCategoryIds`,
+`sellerSubCategoryIds`) tek seferlik betikle boşaltılır ve aynı satırın sektör dizileri (`buyerCategoryIds`,
+`sellerCategoryIds`) KAYIT YOLUNUN kuralıyla yeniden yazılır — firma Ayarlar › Kategoriler'i bugün kaydetse ne
+saklanacaksa o (web `declaredSectors`; sonuç firmanın temizlikten önce kayıt yapıp yapmadığına bağlı kalmaz).
+Şema migration'ı değildir, sütunlar durur. Alt seçimi olmayan satıra dokunulmaz.
+
+**Ön koşul:** alt diziyi `[]` saklayan API sürümü O ORTAMA dağıtılmış olmalı (staging = `main`, canlı =
+`production`). Önce betik koşulursa eski API, sayfası açık kalmış eski istemcinin dizisini yeniden yazar
+(betik bunu görürse "Koşudan sonra atlananlar dışında N firma yine alt seçim taşıyor" der ve çıkış 1 verir —
+API'yi denetleyip yeniden koş).
+
+**Sahip kararı bekliyor (varsayılan uygulandı):** yalnız gizli bir dalda (46'nın silah / kolluk dalları) seçim
+yapmış firmanın sektörü (46000000) temizlikte DÜŞER — kayıt yolu ve 2026-10-10 kuralı böyle; firma seçmediği
+sektörün bütün duyurularını almaz. Alternatif "yalnız alt diziyi boşalt" o sektörü görünür, tam sektör beyanı
+yapar (profil, dizin süzgeci, ilgi skoru, bütün 46 duyuruları). Canlıda koşmadan önce sahibe kuru çalışmanın
+listesiyle sor.
+
+### 9a. Staging
+
+1. Kuru çalışma (kök `.env` = staging):
+   `pnpm --filter @rothern/db clear-company-sub-categories -- --dry`
+   İlk satırlar: `hedef veritabanı: … (proje tmqwyypvxxkwrxequksu)` ve `ortam: Supabase projesi
+   tmqwyypvxxkwrxequksu = STAGING`. Başka bir şey yazıyorsa Ctrl+C. Çıktı: alt seçimi olan firma sayısı
+   (alım / satış), toplam kayıt, `plan:` satırı, sektör listesi değişecek firmalar (firma başına `−kod` / `+kod`
+   ve yeni liste) ve ATLANACAK firmalar (aşağıda).
+2. Yedek: betiğin bastığı `\copy` komutunu (dört kategori sütunu) staging `DIRECT_URL`iyle koş (CSV'yi depo
+   DIŞINDA tut) ya da Supabase panel › Database › Backups.
+3. Gerçek koşu: `HEDEF=tmqwyypvxxkwrxequksu pnpm --filter @rothern/db clear-company-sub-categories`
+   Beklenen: `✅ N firmanın alt seçimleri temizlendi; M firmanın sektör listesi kayıt kuralına getirildi.` ve
+   `sonra:` satırında yalnız atlanan firmalar kalır. Yeniden `-- --dry` `plan: 0 firma yazılacak` göstermeli.
+
+### 9b. Canlı
+
+1. Supabase snapshot / PITR (bkz. §4, `docs/migration-safety.md` Not 2) **ve** betiğin bastığı `\copy`.
+2. `ENV_FILE=../../.env.prod.local pnpm --filter @rothern/db clear-company-sub-categories -- --dry`
+   (kabukta `source` ETME). İlk satır `aws-1-eu-central-1…` + canlı proje ref'i ve `staging DEĞİL (canlı
+   olabilir)`; staging ref'i görünürse Ctrl+C. Değişecek ve atlanacak listeyi sahibe göster (yukarıdaki karar).
+3. `ENV_FILE=../../.env.prod.local HEDEF=<canlı-ref> pnpm --filter @rothern/db clear-company-sub-categories`
+   HEDEF adresteki ref'le birebir değilse betik bağlanmadan durur.
+
+### Çıktının anlamı ve sonrası
+
+- **Sektör listesi değişen firmalar** (yazılır): `−46000000` = yalnız gizli bir seçimin atası olarak saklanmış
+  sektör düştü (firma o sektörün duyurularını, dizin süzgecindeki yerini ve beyan ilgisini kaybeder) ya da gizli
+  sektör kodu düştü; `+41000000` = sektörü ana dizide olmayan eski alt kodun ("öksüz") sektörü eklendi (ekranda
+  zaten beyanlı görünüyordu; firma artık o sektörün TÜM duyurularını alır); `−39120000 +39000000` = ana dizideki
+  sektör altı kod sektörüne yuvarlandı.
+- **ATLANACAK firmalar** (yazılmaz, alt seçimleri yerinde kalır — kayıt yolu bu sonucu reddederdi): "iki eksende
+  de sektör kalmıyor" (beyanın tamamı gizli dalda), "N sektör > 5", "eklenecek sektör katalogda etkin değil".
+  Firmayla konuşulup sektörü Ayarlar › Kategoriler'den seçilir ya da sahip karar verir; kaydedince API alt
+  diziyi boşaltır. Betiği yeniden koşmak yalnız bu listeyi yeniden basar.
+- **"N firma koşu sırasında değişti, yazılmadı"** (çıkış 1): o satırlar okunduktan sonra kaydedildi, betik onları
+  ezmedi. Yeniden koş (idempotent).
+- İlgi tablosu gece işi (`affinity.recompute`, 03:20 İstanbul) yeni hâli kendisi hesaplar; ayrı adım yok.
+- **Geri dönüş** yalnız API değişikliğiyle birlikte anlamlıdır (yeni API her kayıtta alt diziyi yine boşaltır):
+  CSV'den, TEK psql oturumunda (geçici tablo oturumla yaşar; `\copy` ayrı satırda):
+  ```sql
+  CREATE TEMP TABLE b (id text, buyer_main text[], buyer_sub text[], seller_main text[], seller_sub text[]);
+  \copy b FROM '<dosya>.csv' CSV HEADER
+  UPDATE companies c SET "buyerCategoryIds" = b.buyer_main, "buyerSubCategoryIds" = b.buyer_sub,
+    "sellerCategoryIds" = b.seller_main, "sellerSubCategoryIds" = b.seller_sub FROM b WHERE c.id = b.id;
+  ```
+  (Yerel kopyada denendi 2026-10-29: dışa aktarım → betik → geri yükleme, dört sütun birebir döndü.)

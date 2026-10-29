@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { visibleCompanyCategorySelection } from "@rothern/shared";
+import { MAX_COMPANY_MAIN_CATEGORIES, categorySegment, visibleCompanyCategorySelection } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { tApi } from "../../common/i18n/i18n.service";
 
@@ -60,6 +60,18 @@ const SCORE_BUDGET = 100;
  */
 const LEAK_PARENT = 0.5;
 const LEAK_GRANDPARENT = 0.25;
+
+/**
+ * Weight of a company's SECTOR value in a listing lookup (`sectorFallbacks`,
+ * owner decision 2026-10-29). A quarter of its share of the request's sector,
+ * and a quarter of 100 / (declared sectors) as the floor for a sector it
+ * declares: with at most `MAX_COMPANY_MAIN_CATEGORIES` = 5 sectors that floor
+ * is 5 or more - the notification threshold - so a declarer is never dropped
+ * from a request in its sector, also when its catalog or bids lie in other
+ * sectors. A behaviour / catalog row at the request's own code is read in
+ * full and ranks first (`exact`, `rankByAffinity`).
+ */
+export const SECTOR_FALLBACK_WEIGHT = 0.25;
 
 /** Bir öneride kullanıcıya gösterilecek ham sinyal dökümü. */
 export interface AffinityReasons {
@@ -375,6 +387,12 @@ export class CompanyAffinityService {
    * TEK firmanın verilen kategorilerdeki skorlarını KATEGORİ BAZINDA döner.
    * Liste sıralaması ilan başına farklı kategoriye bakar; ilan×kategori
    * başına sorgu atmak N×M tur demek olurdu.
+   *
+   * Same SECTOR FALLBACK as `scoresForCompanies` (owner decision 2026-10-29):
+   * a code the company has no row at gets the company's sector value
+   * (`sectorFallbacks`), so a sector-only declarer sees the Open Requests
+   * "why shown" reason ("declared") and the tie-break for requests in its
+   * sector. The exact-code row wins when it is higher.
    */
   async profileFor(
     companyId: string,
@@ -383,15 +401,33 @@ export class CompanyAffinityService {
   ): Promise<Map<string, { score: number; reasons: AffinityReasons }>> {
     const out = new Map<string, { score: number; reasons: AffinityReasons }>();
     if (categoryIds.length === 0) return out;
+    const segments = segmentsOf(categoryIds);
     const rows = await this.prisma.companyAffinity.findMany({
-      where: { companyId, categoryId: { in: categoryIds } },
-      select: { categoryId: true, sellScore: true, buyScore: true, reasons: true },
+      where: {
+        companyId,
+        OR: [
+          { categoryId: { in: categoryIds } },
+          ...segments.map((s) => ({ categoryId: { startsWith: s.slice(0, 2) } })),
+        ],
+      },
+      select: { companyId: true, categoryId: true, sellScore: true, buyScore: true, reasons: true },
     });
+    const exact = new Set(categoryIds);
     for (const r of rows) {
+      if (!exact.has(r.categoryId)) continue;
       out.set(r.categoryId, {
         score: dir === "sell" ? r.sellScore : r.buyScore,
         reasons: (r.reasons ?? {}) as AffinityReasons,
       });
+    }
+    const bySegment = (await this.sectorFallbacks([companyId], segments, rows, dir)).get(companyId);
+    if (bySegment) {
+      for (const code of categoryIds) {
+        const segment = categorySegment(code);
+        const fallback = segment ? bySegment.get(segment) : undefined;
+        const cur = out.get(code);
+        if (fallback && (!cur || fallback.score > cur.score)) out.set(code, fallback);
+      }
     }
     return out;
   }
@@ -399,27 +435,166 @@ export class CompanyAffinityService {
   /**
    * Verilen firmaların skorlarını TEK sorguda getirir (liste sıralaması).
    * Liste başına firma-başına-sorgu N+1 üretirdi.
+   *
+   * SECTOR FALLBACK (owner decision 2026-10-29, S3). A company declares
+   * SECTORS only now (L1, at most `MAX_COMPANY_MAIN_CATEGORIES`), so its
+   * declared score sits on segment rows, while a request carries class /
+   * commodity codes. The exact-code lookup alone scored every sector-only
+   * company 0, and `rankByAffinity` drops low scores once a sector is busy.
+   * The owner rule is that notification ranking must not drop a company for
+   * a sector it declares, so each company's value is the higher of its
+   * exact-code score and its sector value (`sectorFallbacks`: its share of the
+   * request's sector × `SECTOR_FALLBACK_WEIGHT`, never below the declaration
+   * floor when it declares that sector). The floor is at least 5
+   * (`NOTIFY_MIN_AFFINITY`) for every declarer, whatever else the company
+   * does in other sectors.
+   *
+   * `exact` marks a company that has a row at one of the request's own codes
+   * (behaviour, catalog, or a legacy product pick). `rankByAffinity` puts
+   * those companies first and orders each group by score: product evidence at
+   * the requested code stays ahead of a sector-level value at any breadth
+   * (a focused one-sector declarer has a floor of 25, more than a five-sector
+   * company with one catalog item at the code can score).
    */
   async scoresForCompanies(
     companyIds: string[],
     categoryIds: string[],
     dir: Dir,
-  ): Promise<Map<string, { score: number; reasons: AffinityReasons }>> {
-    const out = new Map<string, { score: number; reasons: AffinityReasons }>();
+  ): Promise<Map<string, { score: number; reasons: AffinityReasons; exact: boolean }>> {
+    const out = new Map<string, { score: number; reasons: AffinityReasons; exact: boolean }>();
     if (companyIds.length === 0 || categoryIds.length === 0) return out;
+    const exact = new Set(categoryIds);
+    const segments = segmentsOf(categoryIds);
     const rows = await this.prisma.companyAffinity.findMany({
-      where: { companyId: { in: companyIds }, categoryId: { in: categoryIds } },
-      select: { companyId: true, sellScore: true, buyScore: true, reasons: true },
+      where: {
+        companyId: { in: companyIds },
+        OR: [
+          { categoryId: { in: categoryIds } },
+          // Every row inside the request's sectors (two-digit segment prefix).
+          ...segments.map((s) => ({ categoryId: { startsWith: s.slice(0, 2) } })),
+        ],
+      },
+      select: { companyId: true, categoryId: true, sellScore: true, buyScore: true, reasons: true },
     });
     for (const r of rows) {
+      if (!exact.has(r.categoryId)) continue;
       const v = dir === "sell" ? r.sellScore : r.buyScore;
       const cur = out.get(r.companyId);
       if (!cur || v > cur.score) {
-        out.set(r.companyId, { score: v, reasons: (r.reasons ?? {}) as AffinityReasons });
+        out.set(r.companyId, { score: v, reasons: (r.reasons ?? {}) as AffinityReasons, exact: v > 0 || !!cur?.exact });
+      }
+    }
+    for (const [companyId, bySegment] of await this.sectorFallbacks(companyIds, segments, rows, dir)) {
+      for (const fallback of bySegment.values()) {
+        const cur = out.get(companyId);
+        if (!cur || fallback.score > cur.score) {
+          out.set(companyId, { ...fallback, exact: cur?.exact ?? false });
+        }
       }
     }
     return out;
   }
+
+  /**
+   * Sector value of each company in each requested sector (owner decision
+   * 2026-10-29, S3): companyId → segment → { score, reasons }. Two parts, the
+   * higher counts:
+   *
+   *  - SHARE: the sum of the company's affinity rows inside the segment (the
+   *    per-company budget is 100, so the sum says how much of the company sits
+   *    in that sector), times `SECTOR_FALLBACK_WEIGHT`. Catalog, bids and
+   *    invitations in the sector at other codes count here.
+   *  - DECLARATION FLOOR: when the company's SHOWN declaration on that
+   *    direction names the sector (the main list plus the sectors of legacy
+   *    sub picks, hidden codes and the ancestors stored only for them left
+   *    out - the same set the settings window shows), it gets at least
+   *    100 / (number of declared sectors) × `SECTOR_FALLBACK_WEIGHT`, the
+   *    count capped at `MAX_COMPANY_MAIN_CATEGORIES`: 25 for one sector, 5 for
+   *    five. Read live from the company row, so a company that has just
+   *    declared its sectors (no nightly affinity rows yet) is covered too.
+   *
+   * `rows` are the affinity rows of these companies, already read with the
+   * segment prefixes.
+   */
+  private async sectorFallbacks(
+    companyIds: string[],
+    segments: string[],
+    rows: ReadonlyArray<{ companyId: string; categoryId: string; sellScore: number; buyScore: number; reasons: unknown }>,
+    dir: Dir,
+  ): Promise<Map<string, Map<string, { score: number; reasons: AffinityReasons }>>> {
+    const out = new Map<string, Map<string, { score: number; reasons: AffinityReasons }>>();
+    if (segments.length === 0) return out;
+    const put = (companyId: string, segment: string, score: number, reasons: AffinityReasons) => {
+      if (score <= 0) return;
+      const bySegment = out.get(companyId) ?? new Map<string, { score: number; reasons: AffinityReasons }>();
+      const cur = bySegment.get(segment);
+      if (!cur || score > cur.score) bySegment.set(segment, { score, reasons });
+      out.set(companyId, bySegment);
+    };
+
+    const shares = new Map<string, { companyId: string; segment: string; sum: number; reasons: AffinityReasons }>();
+    for (const r of rows) {
+      const segment = categorySegment(r.categoryId);
+      if (!segment || !segments.includes(segment)) continue;
+      const key = `${r.companyId}|${segment}`;
+      const share = shares.get(key) ?? { companyId: r.companyId, segment, sum: 0, reasons: {} };
+      share.sum += dir === "sell" ? r.sellScore : r.buyScore;
+      // The "why shown" text names the sector-level signal (the declaration).
+      if (r.categoryId === segment) share.reasons = (r.reasons ?? {}) as AffinityReasons;
+      shares.set(key, share);
+    }
+    for (const s of shares.values()) put(s.companyId, s.segment, s.sum * SECTOR_FALLBACK_WEIGHT, s.reasons);
+
+    const companies = await this.prisma.company.findMany({
+      where: { id: { in: companyIds } },
+      select: {
+        id: true,
+        buyerCategoryIds: true,
+        buyerSubCategoryIds: true,
+        sellerCategoryIds: true,
+        sellerSubCategoryIds: true,
+      },
+    });
+    for (const c of companies) {
+      const declared = declaredSectorSet(
+        dir === "sell" ? c.sellerCategoryIds : c.buyerCategoryIds,
+        dir === "sell" ? c.sellerSubCategoryIds : c.buyerSubCategoryIds,
+      );
+      if (declared.size === 0) continue;
+      const floor = (SCORE_BUDGET / Math.min(declared.size, MAX_COMPANY_MAIN_CATEGORIES)) * SECTOR_FALLBACK_WEIGHT;
+      for (const segment of segments) {
+        if (!declared.has(segment)) continue;
+        const shareReasons = shares.get(`${c.id}|${segment}`)?.reasons ?? {};
+        put(c.id, segment, floor, { ...shareReasons, declared: true });
+      }
+    }
+    return out;
+  }
+}
+
+/** The distinct segments (sectors) of a list of category codes. */
+function segmentsOf(categoryIds: readonly string[]): string[] {
+  return [...new Set(categoryIds.map((c) => categorySegment(c)).filter((s): s is string => !!s))];
+}
+
+/**
+ * The sectors a company's declaration on one direction SHOWS: the visible
+ * part (`visibleCompanyCategorySelection`, hidden codes and the ancestors kept
+ * only for them out), each main code rounded to its sector, plus the sectors
+ * of legacy sub picks. Same rule as the web `declaredSectors` and the cleanup
+ * script's `sectorsAfterCleanup`.
+ */
+function declaredSectorSet(
+  mainIds: readonly string[] | null | undefined,
+  subIds: readonly string[] | null | undefined,
+): Set<string> {
+  const visible = visibleCompanyCategorySelection(mainIds, subIds);
+  const out = new Set<string>();
+  for (const id of [...visible.mainIds, ...visible.subIds]) {
+    const sector = categorySegment(id);
+    if (sector) out.add(sector);
+  }
+  return out;
 }
 
 /**

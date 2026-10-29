@@ -494,7 +494,8 @@
     "firmaBulunamadi": "Company not found",
     "firmaAdiEnAz2Karakter": "Company name must be at least 2 characters",
     "enFazlaUrunHizmetSecebilirsiniz": "You can select up to {MAXCOMPANYSUBPICKS, plural, one {# product/service} other {# products/services}}",
-    "enAzBirAnaKategoriSecili": "At least one industry or product/service must stay selected — request notifications cannot be sent to a company without a selection.",
+    "enAzBirAnaKategoriSecili": "At least one industry must stay selected — request notifications cannot be sent to a company without an industry.",
+    "herListedeEnFazlaSektor": "You can select at most {MAXCOMPANYMAINCATEGORIES, plural, one {# industry} other {# industries}} in each list (buying and selling).",
     "gecerliBirKepAdresiGiriniz": "Enter a valid KEP address",
     "gecerliBirIbanGiriniz": "Enter a valid IBAN",
     "gecerliBirWebSitesiGiriniz": "Enter a valid website address (for example: www.yourcompany.com)",
@@ -795,7 +796,7 @@
     "onceBirAdBaslikYazin": "Enter a name or title first.",
     "aciklamaUretilemediBirkacOlguDahaEkleyip": "The description could not be generated — add a few more facts and try again.",
     "aiOzelligiSuAndaKullanilamiyor": "The AI feature is currently unavailable.",
-    "profilTanitimiIcinBilgiYok": "To write a description we first need your industry, your services, your business categories or a product — please add at least one.",
+    "profilTanitimiIcinBilgiYok": "To write a description we first need your industry, your services, your declared industries or a product — please add at least one.",
     "gunlukAiProfilOlusturmaLimitineUlasildi": "The daily limit for AI description suggestions has been reached ({DAILYLIMIT}) — try again tomorrow.",
     "profilAiTaslagiHazirlaniyor": "Your description draft is already being prepared — try again in a few minutes.",
     "aiSuAnYanitVeremediBirkac": "The AI could not respond right now — try again in a few seconds.",
@@ -1086,7 +1087,7 @@
     "kayitBulunamadi": "Record not found"
   },
   "helpers": {
-    "n1ArasiAnaKategoriSecmelisiniz": "You must select between 1 and {MAXCOMPANYMAINCATEGORIES} main categories",
+    "n1ArasiAnaKategoriSecmelisiniz": "Select at least 1 and at most {MAXCOMPANYMAINCATEGORIES, plural, one {# industry} other {# industries}}.",
     "altKategoriBeyaniFazlaGenis": "The subcategory declaration is too broad",
     "enFazlaUrunHizmetSecebilirsiniz": "You can select at most {MAXCOMPANYSUBPICKS} products/services",
     "gecersizAnaKategoriYalnizcaSegmentSecilebilir": "Invalid main category (only a segment can be selected)",
@@ -1640,20 +1641,20 @@
         "subjectAnon": "You’ve been invited to a buying request that matches what you sell",
         "body": "You’ve been invited to the buying request “{title}” ({number}). The requested line items are below; open the request for details and to submit a quote.",
         "bodyProduct": "You’ve been invited to the buying request “{title}” ({number}). We suggested you because of “{product}” in your showcase; the requested line items are below.",
-        "bodyCategory": "You’ve been invited to the buying request “{title}” ({number}). The request matches the category you sell in; the requested line items are below.",
+        "bodyCategory": "You’ve been invited to the buying request “{title}” ({number}). The request matches an industry you declared for selling; the requested line items are below.",
         "footer": "This invitation was sent based on Rothern’s supplier suggestions. You can turn off request invitations in Settings › Notifications.",
         "inviterRow": "Invited by",
         "inAppBodyInviter": "{inviter} invited you to the buying request “{title}” ({number})."
       },
       "aiMatchLocked": {
-        "subject": "A buyer is looking for what you sell",
+        "subject": "A buying request fits your company",
         "bodyVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified, you weren’t suggested to the buyer and you can’t see the request. Verify your company for free; once verified, you can see this request, quote on it and appear in buyers’ AI supplier suggestions.",
         "inAppBodyVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free to see the request and quote.",
         "bodyPaidPending": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company verification is still under review, you haven’t been suggested to the buyer yet. You can already see the request; once your verification is approved, you can quote on it and appear in buyers’ AI supplier suggestions.",
         "bodyPaidVerify": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company is unverified, you weren’t suggested to the buyer. You can see the request; verify your company for free to quote on it and appear in buyers’ AI supplier suggestions.",
         "inAppBodyPaidPending": "AI found your company a good fit for the request “{title}”. You can see it now; you can quote once your verification is approved.",
         "inAppBodyPaidVerify": "AI found your company a good fit for the request “{title}”. Verify your company for free to submit a quote.",
-        "footer": "You’re receiving this because your showcase and categories matched a buyer’s search. You can turn off category notifications in Settings › Notifications.",
+        "footer": "You’re receiving this because your company’s industry or showcase matched a buyer’s search. You can turn off category notifications in Settings › Notifications.",
         "bodyPending": "A buyer’s AI supplier search found your company a good fit for the buying request “{title}” ({number}); the requested line items are below. Because your company verification is still under review, you haven’t been suggested to the buyer yet and you can’t see the request. Once your verification is approved, you can see this request, quote on it and appear in buyers’ AI supplier suggestions.",
         "inAppBodyPending": "AI found your company a good fit for the request “{title}”. Once your verification is approved, you can see the request and quote."
       }

@@ -2204,7 +2204,7 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
         .getAllByRole("listitem")
         .map((li) => li.querySelector("p > span")?.textContent);
 
-    it("güçlü eşleşenler önce ve ayrı grupta, toplu davet YALNIZ onlara; yalnız aynı sektörde olanlar ayrı başlık + açıklamayla, tek tek", async () => {
+    it("güçlü eşleşenler önce ve ayrı grupta, toplu davet YALNIZ onlara; yalnız ürün adı benzeyenler ayrı başlık + açıklamayla, tek tek", async () => {
       // Sunucu sırası puana göredir: güçlü olmayan üye güçlünün önünde gelebilir.
       h.discovery.mockResolvedValue([
         member("s1", "Sektör Bir AŞ", { matchedCategories: ["Makine"] }),
@@ -2218,15 +2218,15 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       );
       render(listingModal());
       const strong = await screen.findByRole("region", { name: "Güçlü eşleşenler" });
-      const sector = screen.getByRole("region", { name: "Aynı sektörde" });
+      const sector = screen.getByRole("region", { name: "Ürün adı benzeyenler" });
       expect(names(strong)).toEqual(["Güçlü Bir AŞ", "Güçlü İki AŞ", "Güçlü Davetli AŞ"]);
       expect(names(sector)).toEqual(["Sektör Bir AŞ", "Sektör İki Ltd"]);
       expect(strong.compareDocumentPosition(sector) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(within(strong).getByRole("heading")).toHaveTextContent("Güçlü eşleşenler · 3");
-      expect(within(sector).getByRole("heading")).toHaveTextContent("Aynı sektörde · 2");
+      expect(within(sector).getByRole("heading")).toHaveTextContent("Ürün adı benzeyenler · 2");
       expect(
         within(sector).getByText(
-          "Bu üyeler benzer alanda faaliyet gösteriyor; talebinizdeki kalemleri sattıkları doğrulanmadı. Uygun gördüklerinizi tek tek davet edin.",
+          "Bu üyelerin ürün adları talebinizdeki kalemlere kısmen benziyor; talebinizin sektörünü beyan etmemişler. Uygun gördüklerinizi tek tek davet edin.",
         ),
       ).toBeInTheDocument();
       // Rozet yalnız güçlü grubun satırlarında.
@@ -2247,14 +2247,14 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       await waitFor(() => expect(h.inviteMembers).toHaveBeenCalledWith({ listingId: "l1", companyIds: ["s2"] }));
     });
 
-    it("yalnız aynı sektörde üyeler varsa (canlı taleplerdeki durum) toplu davet düğmesi HİÇ çizilmez", async () => {
+    it("yalnız güçlü olmayan (ürün adı benzeyen) üyeler varsa toplu davet düğmesi HİÇ çizilmez", async () => {
       h.discovery.mockResolvedValue([
         member("s1", "Sektör Bir AŞ"),
         member("s2", "Sektör İki Ltd"),
         member("s3", "Sektör Üç AŞ"),
       ]);
       render(listingModal());
-      const sector = await screen.findByRole("region", { name: "Aynı sektörde" });
+      const sector = await screen.findByRole("region", { name: "Ürün adı benzeyenler" });
       expect(screen.queryByRole("region", { name: "Güçlü eşleşenler" })).toBeNull();
       expect(within(sector).getAllByRole("button", { name: "Talebe davet et" })).toHaveLength(3);
       // Pencerede toplu davet eylemi yok (sayı taşıyan davet düğmesi).
@@ -2267,25 +2267,35 @@ describe("SupplierDiscoveryModal — canlı yeniden doğrulama (2026-10-09)", ()
       render(listingModal());
       const strong = await screen.findByRole("region", { name: "Güçlü eşleşenler" });
       expect(within(strong).getAllByRole("button").map((b) => b.textContent)).toEqual(["Talebe davet et"]);
-      expect(screen.queryByRole("region", { name: "Aynı sektörde" })).toBeNull();
+      expect(screen.queryByRole("region", { name: "Ürün adı benzeyenler" })).toBeNull();
     });
 
     it("grup metinleri üç dilde", async () => {
       const texts = await Promise.all(
         (["tr", "en", "ru"] as const).map(async (locale) => {
           const t = await translator(locale);
-          return [t("grupGucluEslesenler"), t("gucluEslesenleriDavetEt", { n: 6 }), t("grupAyniSektorde")];
+          return [t("grupGucluEslesenler"), t("gucluEslesenleriDavetEt", { n: 6 }), t("grupUrunAdiBenzeyenler")];
         }),
       );
       expect(texts).toEqual([
-        ["Güçlü eşleşenler", "Güçlü eşleşenleri davet et (6)", "Aynı sektörde"],
+        // S3 (2026-10-29): talebin sektörünü beyan eden üye GÜÇLÜDÜR; geri kalan
+        // grup yalnız ürün adı benzeyen, sektörü beyan etmeyen üyelerdir — eski
+        // başlık "Aynı sektörde" tam tersini söylüyordu.
+        ["Güçlü eşleşenler", "Güçlü eşleşenleri davet et (6)", "Ürün adı benzeyenler"],
         // EN terimi "industry" (terim listesi; katalogda "sector" kullanılmaz — R6-05).
-        ["Strong matches", "Invite strong matches (6)", "In the same industry"],
-        ["С высоким соответствием", "Пригласить всех с высоким соответствием (6)", "Из той же отрасли"],
+        ["Strong matches", "Invite strong matches (6)", "Similar product names"],
+        ["С высоким соответствием", "Пригласить всех с высоким соответствием (6)", "Похожие названия товаров"],
       ]);
-      expect((await translator("en"))("grupAyniSektorde")).not.toMatch(/sector/i);
-      expect((await translator("en"))("ayniSektordeAciklama")).toMatch(/one by one/);
-      expect((await translator("ru"))("ayniSektordeAciklama")).toMatch(/Вашего запроса/);
+      const en = await translator("en");
+      const ru = await translator("ru");
+      const tr = await translator("tr");
+      expect(en("grupUrunAdiBenzeyenler")).not.toMatch(/sector/i);
+      expect(en("urunAdiBenzeyenlerAciklama")).toMatch(/one by one/);
+      expect(en("urunAdiBenzeyenlerAciklama")).toMatch(/not declared your request's industry/);
+      expect(ru("urunAdiBenzeyenlerAciklama")).toMatch(/Вашего запроса/);
+      // Açıklama "aynı / benzer alanda" demez: bu üyeler talebin sektöründe DEĞİL.
+      expect(tr("urunAdiBenzeyenlerAciklama")).toMatch(/sektörünü beyan etmemişler/);
+      expect(tr("urunAdiBenzeyenlerAciklama")).not.toMatch(/aynı sektör|benzer alanda/i);
     });
   });
 

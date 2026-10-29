@@ -567,8 +567,8 @@ describe("açılış duyurusu — AI davetlisinin e-posta sınıfı zamanlamaya 
     const aiMail = byTo.get(ai.user.email)!;
     expect(aiMail.context.type).toBe("listing_invitation_ai");
     expect(carriesOneClickUnsubscribe(streamForContext(aiMail.context.type))).toBe(true);
-    // Gerekçe davet satırından (`aiReason`) okunur.
-    expect(JSON.stringify(aiMail.templateData)).toContain("kategori");
+    // Gerekçe davet satırından (`aiReason`) okunur; beyan yalnız sektör (2026-10-29).
+    expect(JSON.stringify(aiMail.templateData)).toContain("satış beyanınızdaki sektörle eşleşiyor");
     const manualMail = byTo.get(manual.user.email)!;
     expect(manualMail.context.type).toBe("listing_invitation");
     expect(streamForContext(manualMail.context.type)).toBe("ACTIVITY");
@@ -833,18 +833,54 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
 
   /**
    * Canlı doğrulama 2026-10-09, AUTO-MEMBER-1 — tur eşleştiricinin döndürdüğü
-   * HER üyeyi davet ediyordu, kendisinin "güçlü değil" dediklerini de (yalnız
-   * üst segment uyuyor): elektrik talebine yalnız o segmentte çalışan bir firma,
-   * hidrolik silindir talebine bir hırdavatçı ve iki makine imalatçısı. Davet
+   * HER üyeyi davet ediyordu, kendisinin "güçlü değil" dediklerini de. Davet
    * alıcıya sorulmadan, onun adına gittiği için yalnız GÜÇLÜ eşleşmeye gider.
+   *
+   * SEKTÖR EŞLEŞMESİ GÜÇLÜ (sahip kararı 2026-10-29, S3): firma beyanı artık
+   * yalnız sektör; talebin sektörünü beyan eden üye güçlüdür ve davet edilir.
+   * Zayıf kalan tek eşleşme: talebin kategorisinin DOĞRULAMADIĞI gevşek kalem
+   * eşleşmesi (başka sektörde, ürünü kalemin sözcüklerinin çoğunu taşıyan üye).
    */
   describe("AUTO-MEMBER-1 — otomatik tur yalnız güçlü eşleşen üyeyi davet eder", () => {
+    /** Kalemi kategorisi doğrulamayan gevşek eşleşmeyle bulunan ikinci kalem. */
+    const LOOSE_ITEM = "Paslanmaz çelik boru 2 inç dikişsiz";
     /** Doğrulanmış üye; yalnız talebin ÜST segmentini beyan ediyor (alt kategori yok, ürün yok). */
     async function segmentSeller(name: string) {
       const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
       await proveAccounts(prisma, s.company.id);
       await prisma.company.update({ where: { id: s.company.id }, data: { sellerCategoryIds: ["31000000"] } });
       return s;
+    }
+    /**
+     * Doğrulanmış üye; BAŞKA sektörü beyan ediyor, vitrinindeki ürün ikinci
+     * kalemin dört anlamlı sözcüğünden üçünü taşıyor (kesin gevşek eşleşme) —
+     * talebin kategorisi doğrulamadığı için ZAYIF.
+     */
+    async function looseSeller(name: string) {
+      const s = await makeCompanyWithUser(prisma, { tier: "SILVER", name });
+      await proveAccounts(prisma, s.company.id);
+      await prisma.company.update({
+        where: { id: s.company.id },
+        data: { slug: `l-${s.company.id}`, publicEnabled: true, sellerCategoryIds: ["11000000"] },
+      });
+      await prisma.companyItem.create({
+        data: {
+          companyId: s.company.id,
+          createdById: s.user.id,
+          name: "Paslanmaz Çelik Boru DN50",
+          unit: "adet",
+          slug: `boru-${s.company.id}`,
+          isPublic: true,
+          publishedAt: new Date(),
+          searchText: foldSearchText("Paslanmaz Çelik Boru DN50"),
+        },
+      });
+      return s;
+    }
+    async function setupWithLooseItem() {
+      const made = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
+      await makeItem(prisma, made.listing.id, { name: LOOSE_ITEM, lineNo: 2 });
+      return made;
     }
     const candidatesOf = async (runId: string) =>
       (
@@ -859,11 +895,12 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
         (i) => i.invitedCompanyId,
       );
 
-    it("alt kategorisi / kalemi eşleşen üye davet edilir; yalnız segmenti uyan üye WEAK_MATCH yazılır: davet yok, durum listesi nedenini söyler, alıcı pencereden yine davet edebilir", async () => {
-      const { owner, listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
+    it("alt kategorisi / kalemi / SEKTÖRÜ eşleşen üye davet edilir; kategorinin doğrulamadığı gevşek eşleşme WEAK_MATCH yazılır: davet yok, durum listesi nedenini söyler, alıcı pencereden yine davet edebilir", async () => {
+      const { owner, listing } = await setupWithLooseItem();
       const bySubCategory = await categorySeller("Bağlantı Ltd");
       const byProduct = await productSeller("Cıvata AŞ");
-      const segmentOnly = await segmentSeller("Karadeniz Enerji A.Ş.");
+      const bySector = await segmentSeller("Karadeniz Enerji A.Ş.");
+      const loose = await looseSeller("Boru Ticaret Ltd.");
       const { runs, ai } = makeRuns([]);
       // Web araması kapalı: yalnız platform eşleştiricisinin döndürdükleri.
       ai.isEnabled = false;
@@ -872,42 +909,66 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
 
       expect(await candidatesOf(runId)).toEqual([
         ["Bağlantı Ltd", "INVITED", "PLATFORM"],
+        ["Boru Ticaret Ltd.", "WEAK_MATCH", "PLATFORM"],
         ["Cıvata AŞ", "INVITED", "PLATFORM"],
-        ["Karadeniz Enerji A.Ş.", "WEAK_MATCH", "PLATFORM"],
+        ["Karadeniz Enerji A.Ş.", "INVITED", "PLATFORM"],
       ]);
-      expect((await invitedTo(listing.id)).sort()).toEqual([bySubCategory.company.id, byProduct.company.id].sort());
-      // Tur bitti (bekleyen aday yok) ve sonuç mesajı yalnız davet edilen iki üyeyi sayar.
+      expect((await invitedTo(listing.id)).sort()).toEqual(
+        [bySubCategory.company.id, byProduct.company.id, bySector.company.id].sort(),
+      );
+      // Tur bitti (bekleyen aday yok) ve sonuç mesajı yalnız davet edilen üyeleri sayar.
       const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId } });
       expect(run.state).toBe("DONE");
       expect(run.notifiedAt).not.toBeNull();
 
       const view = await runs.forListing(owner.auth, listing.id);
       const row = (name: string) => view.runs[0]!.candidates.find((c) => c.name === name)!;
-      expect(row("Karadeniz Enerji A.Ş.")).toMatchObject({ status: "WEAK_MATCH", invite: "NOT_SENT", inviteReason: "WEAK_MATCH" });
-      expect(row("Bağlantı Ltd")).toMatchObject({ status: "INVITED", invite: "INVITED", inviteReason: null });
+      expect(row("Boru Ticaret Ltd.")).toMatchObject({ status: "WEAK_MATCH", invite: "NOT_SENT", inviteReason: "WEAK_MATCH" });
+      expect(row("Karadeniz Enerji A.Ş.")).toMatchObject({ status: "INVITED", invite: "INVITED", inviteReason: null });
 
       // Elle açılan pencerede üye durur: alıcı isterse davet eder; durum listesi artık "davet edildi" der.
-      const { results } = await runs.inviteMembers(owner.auth, listing.id, [segmentOnly.company.id]);
-      expect(results).toEqual([{ companyId: segmentOnly.company.id, status: "INVITED" }]);
+      const { results } = await runs.inviteMembers(owner.auth, listing.id, [loose.company.id]);
+      expect(results).toEqual([{ companyId: loose.company.id, status: "INVITED" }]);
       const after = await runs.forListing(owner.auth, listing.id);
-      expect(after.runs[0]!.candidates.find((c) => c.name === "Karadeniz Enerji A.Ş.")).toMatchObject({
+      expect(after.runs[0]!.candidates.find((c) => c.name === "Boru Ticaret Ltd.")).toMatchObject({
         status: "INVITED",
         invite: "INVITED",
         inviteReason: null,
       });
     });
 
-    it("yalnız zayıf eşleşen üye bulunduysa kimse davet edilmez: tur DONE, sonuç mesajı yok; üyeler anonim kategori duyurusunu yine alır; ikinci turu da kilitlemez", async () => {
+    it("yalnız SEKTÖRÜ uyan üye davet edilir ve firma adlı AI davetini alır; anonim kategori duyurusuna girmez (tek talep, tek e-posta)", async () => {
       const { listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
       const hardware = await segmentSeller("Demir Hırdavat Ltd.");
-      const machines = await segmentSeller("RV FX00 Maschinenbau");
       const { runs, ai, listings } = makeRuns([]);
       ai.isEnabled = false;
       const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
       await runs.process(runId);
+      expect(await candidatesOf(runId)).toEqual([["Demir Hırdavat Ltd.", "INVITED", "PLATFORM"]]);
+      expect(await invitedTo(listing.id)).toEqual([hardware.company.id]);
+
+      const mails = () =>
+        listings.email.send.mock.calls
+          .map((c) => c[0] as { to: { email: string }; context: { type: string } })
+          .filter((m) => m.to.email === hardware.user.email)
+          .map((m) => m.context.type);
+      await settle(() => mails().length >= 1);
+      // Arka plandaki duyuru işine de zaman tanı: ikinci bir e-posta gelmemeli.
+      await settle(() => false, 500);
+      expect(mails()).toEqual(["listing_invitation_ai"]);
+    });
+
+    it("yalnız zayıf eşleşen üye bulunduysa kimse davet edilmez: tur DONE, sonuç mesajı yok; ikinci turu da kilitlemez", async () => {
+      const { listing } = await setupWithLooseItem();
+      await looseSeller("Boru Ticaret Ltd.");
+      await looseSeller("RV FX00 Rohrhandel");
+      const { runs, ai } = makeRuns([]);
+      ai.isEnabled = false;
+      const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
+      await runs.process(runId);
       expect(await candidatesOf(runId)).toEqual([
-        ["Demir Hırdavat Ltd.", "WEAK_MATCH", "PLATFORM"],
-        ["RV FX00 Maschinenbau", "WEAK_MATCH", "PLATFORM"],
+        ["Boru Ticaret Ltd.", "WEAK_MATCH", "PLATFORM"],
+        ["RV FX00 Rohrhandel", "WEAK_MATCH", "PLATFORM"],
       ]);
       expect(await invitedTo(listing.id)).toEqual([]);
       const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId } });
@@ -916,32 +977,22 @@ describe("DiscoveryRunsService — platform üyeleri", () => {
       expect(
         await prisma.supplierDiscoveryCandidate.count({ where: { runId, status: { in: ["SUGGESTED", "MEMBER"] } } }),
       ).toBe(0);
-      // Davet edilmedikleri için duyurunun "davetliler hariç" kuralına takılmazlar: tur bitince salınan
-      // anonim kategori duyurusu ikisine de gider (firma adını taşıyan AI daveti değil).
-      await settle(() => listings.email.send.mock.calls.length >= 2);
-      const mails = listings.email.send.mock.calls.map((c) => c[0] as { to: { email: string }; context: { type: string } });
-      expect(mails.map((m) => [m.to.email, m.context.type]).sort()).toEqual(
-        [
-          [hardware.user.email, "listing_category_match"],
-          [machines.user.email, "listing_category_match"],
-        ].sort(),
-      );
     });
 
-    it("web araması aynı üyeyi bu talep için de bulduysa (ikinci kaynak) yalnız segmenti uyan üye de davet edilir (BOTH)", async () => {
-      const { listing } = await setup({ aiDiscovery: true, visibility: "PUBLIC" });
-      const found = await segmentSeller("Karadeniz Enerji A.Ş.");
-      const notFound = await segmentSeller("Demir Hırdavat Ltd.");
+    it("web araması aynı üyeyi bu talep için de bulduysa (ikinci kaynak) zayıf eşleşen üye de davet edilir (BOTH)", async () => {
+      const { listing } = await setupWithLooseItem();
+      const found = await looseSeller("Boru Ticaret Ltd.");
+      const notFound = await looseSeller("RV FX00 Rohrhandel");
       await prisma.companyUser.update({ where: { id: found.user.id }, data: { emailVerifiedAt: new Date() } });
       const { runs } = makeRuns([
-        [{ name: "Karadeniz Enerji A.Ş.", email: found.user.email, country: "TR", reason: "r", items: [1] }],
+        [{ name: "Boru Ticaret Ltd.", email: found.user.email, country: "TR", reason: "r", items: [2] }],
         [],
       ]);
       const runId = (await runs.enqueue(listing.id, "PUBLISH"))!;
       await runs.process(runId);
       expect(await candidatesOf(runId)).toEqual([
-        ["Demir Hırdavat Ltd.", "WEAK_MATCH", "PLATFORM"],
-        ["Karadeniz Enerji A.Ş.", "INVITED", "BOTH"],
+        ["Boru Ticaret Ltd.", "INVITED", "BOTH"],
+        ["RV FX00 Rohrhandel", "WEAK_MATCH", "PLATFORM"],
       ]);
       expect(await invitedTo(listing.id)).toEqual([found.company.id]);
       expect(await invitedTo(listing.id)).not.toContain(notFound.company.id);

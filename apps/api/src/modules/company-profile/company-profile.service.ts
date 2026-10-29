@@ -15,6 +15,7 @@ import {
   MAX_COMPANY_SUB_CATEGORIES,
   MAX_COMPANY_SUB_PICKS,
   categoryAncestors,
+  categorySegment,
   deepestCategoryPicks,
   isHiddenCategory,
   visibleCompanyCategorySelection,
@@ -367,9 +368,10 @@ export class CompanyProfileService {
     // yazabiliyordu. Tavanlar ve doğrulama dönüşümden SONRAKİ listeye bakar.
     //
     // İstek ekseni KISMEN gönderebilir (form yalnız değişen alanı yollar) →
-    // gelmeyen taraf kayıtlı değerden tamamlanır. Kayıtlı taraf yalnız dönüşüm
-    // onu DEĞİŞTİRDİYSE yazılır ve yalnız EKLENEN kodları doğrulanır: isteğin
-    // dokunmadığı eski kayıt bu yüzden reddedilmez.
+    // gelmeyen ANA liste kayıtlı değerden tamamlanır. Kayıtlı taraf yalnız
+    // dönüşüm onu DEĞİŞTİRDİYSE yazılır ve yalnız EKLENEN kodları doğrulanır:
+    // isteğin dokunmadığı eski kayıt bu yüzden reddedilmez. ALT liste artık
+    // saklanmaz (2026-10-29, yalnız sektör beyanı — bkz. `ekseniIsle`).
     const kategoriyeDokunuyor =
       dto.buyerCategoryIds !== undefined ||
       dto.buyerSubCategoryIds !== undefined ||
@@ -422,10 +424,40 @@ export class CompanyProfileService {
         // for them are gone. Equal to the stored lists when nothing is hidden.
         const gorunen = visibleCompanyCategorySelection(oncekiMain, oncekiSub);
         if (gelenMain === undefined && gelenSub === undefined) {
-          // The request does not touch this axis: nothing is re-derived or
-          // re-validated here; only its hidden legacy codes are dropped.
-          if (gorunen.mainIds.length !== oncekiMain.length) data[mainKey] = gorunen.mainIds;
-          if (gorunen.subIds.length !== oncekiSub.length) data[subKey] = gorunen.subIds;
+          // The request does not touch this axis. Its hidden legacy codes are
+          // dropped and nothing the user chose is re-validated.
+          if (oncekiSub.length === 0) {
+            if (gorunen.mainIds.length !== oncekiMain.length) data[mainKey] = gorunen.mainIds;
+            return;
+          }
+          // Legacy sub picks are not kept on ANY category save (S2, owner
+          // decision 2026-10-29). Their sectors move to the main list - the
+          // shown declaration reduced to sectors, the same rule as the web
+          // `declaredSectors` and the cleanup script's `sectorsAfterCleanup` -
+          // when that stays within `MAX_COMPANY_MAIN_CATEGORIES` and every
+          // added sector is an active, visible segment. Otherwise the sub list
+          // is still emptied and the shown main list is kept: the save must
+          // not fail over an axis the user did not edit.
+          data[subKey] = [];
+          const sektorler = [
+            ...new Set(
+              [...gorunen.mainIds, ...gorunen.subIds]
+                .map((code) => categorySegment(code))
+                .filter((code): code is string => !!code),
+            ),
+          ];
+          const eklenen = sektorler.filter((code) => !oncekiMain.includes(code));
+          let tasinir = sektorler.length > 0 && sektorler.length <= MAX_COMPANY_MAIN_CATEGORIES;
+          if (tasinir && eklenen.length > 0) {
+            try {
+              await this.categories.validateIds(eklenen, { exactLevel: 1 });
+            } catch (err) {
+              if (!(err instanceof BadRequestException || err instanceof NotFoundException)) throw err;
+              tasinir = false;
+            }
+          }
+          const yeniMain = tasinir ? sektorler : gorunen.mainIds;
+          if (!ayniListe(yeniMain, oncekiMain)) data[mainKey] = yeniMain;
           return;
         }
         const buEksendeKayitli = new Set(
@@ -433,30 +465,39 @@ export class CompanyProfileService {
         );
         const eskiGizlileriAt = (ids: readonly string[]) =>
           ids.filter((code) => !(isHiddenCategory(code) && buEksendeKayitli.has(code)));
+        // SECTOR-ONLY DECLARATION (owner decision 2026-10-29, S1/S2). The
+        // window declares sectors only; product / service picks are no longer
+        // STORED. A sub list from an old client (a cached web bundle, a mobile
+        // shell) still counts for its SECTORS - each pick adds its segment to
+        // the main list, as before - and is validated as before (a new hidden or
+        // unknown code is still refused), but the axis is stored with an EMPTY
+        // sub list. The stored sub list is not an input any more: it would
+        // bring back the sector of a pick when the request removes that sector
+        // from the main list (the old "missing half from the stored value"
+        // rule) - and it is emptied by this save anyway.
         const { mainIds, subIds } = normalizeCategorySelection(
           gelenMain !== undefined ? eskiGizlileriAt(gelenMain) : gorunen.mainIds,
-          gelenSub !== undefined ? eskiGizlileriAt(gelenSub) : gorunen.subIds,
+          gelenSub !== undefined ? eskiGizlileriAt(gelenSub) : [],
         );
         const mainYazilir = gelenMain !== undefined || !ayniListe(mainIds, oncekiMain);
-        const subYazilir = gelenSub !== undefined || !ayniListe(subIds, oncekiSub);
-        if (subYazilir) {
+        if (gelenSub !== undefined) {
           if (subIds.length > MAX_COMPANY_SUB_CATEGORIES) {
             throw new BadRequestException(i18nMessage("api.helpers.altKategoriBeyaniFazlaGenis"));
           }
           seciminiDenetle(subIds);
           // No `allowHidden`: the stored hidden codes are already out of the
           // list, so every hidden code still here is a NEW one -> rejected.
-          await this.categories.validateIds(
-            gelenSub !== undefined ? subIds : subIds.filter((code) => !oncekiSub.includes(code)),
-            { minLevel: 2 },
-          );
-          data[subKey] = subIds;
+          await this.categories.validateIds(subIds, { minLevel: 2 });
         }
+        // Only a change is written (the audit log lists the changed fields).
+        if (oncekiSub.length > 0) data[subKey] = [];
         if (mainYazilir) {
           // DTO tavanı gelen listeye bakar; türeyen segmentlerle aşılabilir.
+          // The cap is PER AXIS and an axis may be empty here (only the two
+          // together may not), so the message does not say "at least 1".
           if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
             throw new BadRequestException(
-              i18nMessage("api.helpers.n1ArasiAnaKategoriSecmelisiniz", { MAXCOMPANYMAINCATEGORIES: MAX_COMPANY_MAIN_CATEGORIES }),
+              i18nMessage("api.companyProfile.herListedeEnFazlaSektor", { MAXCOMPANYMAINCATEGORIES: MAX_COMPANY_MAIN_CATEGORIES }),
             );
           }
           await this.categories.validateIds(

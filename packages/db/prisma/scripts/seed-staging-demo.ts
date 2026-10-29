@@ -170,6 +170,10 @@ async function ensureCompany(spec: CompanySpec, idx: number) {
 
   const sellPicks = (await Promise.all(spec.sellPicks.map(existingPick))).filter((c): c is string => !!c);
   const buyPicks = (await Promise.all(spec.buyPicks.map(existingPick))).filter((c): c is string => !!c);
+  // Firma beyanı YALNIZ SEKTÖR (sahip kararı 2026-10-29, S1/S2): seçimlerin
+  // SEKTÖRLERİ ana diziye yazılır, ürün / hizmet (alt) seçimi SAKLANMAZ —
+  // aksi hâlde yeniden koşum staging'e `clear-company-sub-categories`in
+  // sildiği alt dizileri geri getirirdi.
   const sell = expandCompanyCategorySelection(sellPicks, sellPicks.filter((c) => c.endsWith("000000")));
   const buy = expandCompanyCategorySelection(buyPicks, buyPicks.filter((c) => c.endsWith("000000")));
 
@@ -196,9 +200,9 @@ async function ensureCompany(spec: CompanySpec, idx: number) {
     ibanHolder: spec.legalName,
     billingTitle: spec.legalName,
     buyerCategoryIds: buy.mainIds,
-    buyerSubCategoryIds: buy.subIds,
+    buyerSubCategoryIds: [],
     sellerCategoryIds: sell.mainIds,
-    sellerSubCategoryIds: sell.subIds,
+    sellerSubCategoryIds: [],
     tier: spec.tier,
     membershipEndAt: spec.tier === "STANDART" ? null : new Date(now.getTime() + 365 * 86400_000),
     companyVerificationStatus: spec.verified ? ("VERIFIED" as const) : ("UNVERIFIED" as const),

@@ -169,6 +169,55 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.queryByText(/Kaydedilmemiş değişiklikler/)).not.toBeInTheDocument();
   });
 
+  // Gözden geçirme 2026-10-29: firma beyanı yalnız sektördür. "Arama
+  // görünürlüğü" maddesi "En az 3 kategori (ana + alt)" diyor ve alış + satış
+  // ana kodlarını + eski alt seçimleri ayrı ayrı sayıyordu: kayıt aynı sektörü
+  // iki eksene yazdığı için tek sektörlü firma 2 alıyor, eski alt seçimler sayıyı
+  // şişiriyordu. Artık alış ∪ satıştaki FARKLI GÖRÜNÜR sektörler sayılır ve
+  // eşik 1'dir (2. tur: eşik 2 tek sektörlü uzman firmayı fazladan sektör
+  // beyan etmeye itiyordu — her fazla sektör o sektörün tüm taleplerini getirir).
+  it("arama görünürlüğü: 'En az 1 sektör' — tek sektörlü uzman firma geçer; alt seçim ve gizli beyan sayılmaz", async () => {
+    const maddeler = async () => {
+      const card = within(screen.getByRole("complementary")).getByRole("region", { name: "Arama görünürlüğü" });
+      const more = within(card).queryByRole("button", { name: /madde daha/ });
+      if (more) fireEvent.click(more);
+      return card;
+    };
+    // Aynı sektör iki eksende + eski alt seçimler: 1 sektör → madde tamam.
+    const { unmount } = render(
+      <ProfileEditor
+        profile={{
+          ...PROFILE,
+          buyerCategoryIds: ["39000000"],
+          sellerCategoryIds: ["39000000"],
+          buyerSubCategoryIds: ["39120000", "39121600"],
+          sellerSubCategoryIds: ["39120000", "39121600", "39121601"],
+        }}
+        canEdit
+      />,
+    );
+    let card = await maddeler();
+    expect(within(card).queryByText(/^En az 1 sektör/)).toBeNull();
+    expect(card.textContent).not.toMatch(/kategori \(ana \+ alt\)|En az 2 sektör/);
+    unmount();
+
+    // Yalnız gizli bir dalın beyanı (46 › 4610 silah) → görünür sektör yok → madde eksik.
+    render(
+      <ProfileEditor
+        profile={{
+          ...PROFILE,
+          buyerCategoryIds: [],
+          buyerSubCategoryIds: [],
+          sellerCategoryIds: ["46000000"],
+          sellerSubCategoryIds: ["46100000", "46101500"],
+        }}
+        canEdit
+      />,
+    );
+    card = await maddeler();
+    expect(within(card).getByText("En az 1 sektör")).toBeInTheDocument();
+  });
+
   // resignup-7: aynı adlı ikinci firma `…-2` adresini alır; önizleme adresi
   // addan yeniden üretiyor, ÖTEKİ firmanın sayfasını gösteriyordu.
   it("'Google'da böyle görünür' önizlemesi firmanın KAYITLI adresini gösterir (addan üretmez)", () => {
@@ -286,7 +335,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     fireEvent.change(screen.getByLabelText("Hakkında"), { target: { value: "Yeni tanıtım" } });
     // Başka sekme: ziyaret gizliliği kapandı + sektör değişti → refetch.
     rerender(wrap({ ...PROFILE, visitsVisible: false, industry: "Makine" }));
-    expect((screen.getByLabelText("Sektör") as HTMLInputElement).value).toBe("Makine");
+    expect((screen.getByLabelText("Sektör tanımı") as HTMLInputElement).value).toBe("Makine");
     expect((screen.getByLabelText("Hakkında") as HTMLTextAreaElement).value).toBe("Yeni tanıtım");
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
@@ -298,7 +347,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
 
   it("alan uzunluk tavanları istemcide: maxLength + Hakkında sayacı + alan adlı hata (arayüz testi D-054)", async () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
-    expect(screen.getByLabelText("Sektör")).toHaveAttribute("maxLength", "100");
+    expect(screen.getByLabelText("Sektör tanımı")).toHaveAttribute("maxLength", "100");
     expect(screen.getByLabelText("Hakkında")).toHaveAttribute("maxLength", "2000");
     // "https://demo.com" kayıtta "https://demo.com/" olur: 1 karakterlik pay düşülür.
     expect(screen.getByLabelText("Web sitesi")).toHaveAttribute("maxLength", "199");
@@ -428,7 +477,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     );
     // Rehber (kapı değil): kategori seçilmemiş → eksik olarak listelenir.
     expect(screen.getByText(/Alıcıların sizi bulması için/)).toBeInTheDocument();
-    expect(screen.getByText(/En az 1 kategori/)).toBeInTheDocument();
+    expect(screen.getByText(/En az 1 satış sektörü/)).toBeInTheDocument();
   });
 
   /**
@@ -509,16 +558,23 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(body).toHaveProperty("foundedYear", null);
   });
 
-  it("faaliyet kategorileri sayısı yalnız kullanıcının seçtiklerini sayar, türetilmiş ataları değil (derin denetim LU-27)", () => {
+  // Beyan yalnız sektördür (sahip kararı 2026-10-29): özet SEKTÖRLERİ çizer ve
+  // sayar; eski kayıttaki ürün / hizmet seçimi (ata zinciriyle) çip olmaz.
+  it("faaliyet kategorileri yalnız SEKTÖRLERDİR: eski ürün / hizmet seçimi çip olmaz, sayıya girmez (derin denetim LU-27)", async () => {
+    byIdsNames({ "39000000": "Elektrik Malzemeleri", "40000000": "Dağıtım Sistemleri", "39121601": "Yaprak seçimi" });
     // Tek L4 yaprak seçimi depoda segment + L2 + L3 + L4 olarak durur; ayrıca
-    // altında yaprağı olmayan ("Sektör geneli") bir segment var.
+    // altında yaprağı olmayan bir sektör var.
     const profile = {
       ...PROFILE,
       sellerCategoryIds: ["39000000", "40000000"],
       sellerSubCategoryIds: ["39120000", "39121600", "39121601"],
     };
     render(<ProfileEditor profile={profile} canEdit />);
-    expect(screen.getByText("Faaliyet kategorileri (2)")).toBeInTheDocument();
+    expect(screen.getByText("Satış sektörleri (2)")).toBeInTheDocument();
+    expect(await screen.findByText("Elektrik Malzemeleri")).toBeInTheDocument();
+    expect(screen.getByText("Dağıtım Sistemleri")).toBeInTheDocument();
+    expect(screen.queryByText("Yaprak seçimi")).toBeNull();
+    expect(askedIds().every((ids) => !/3912/.test(ids))).toBe(true);
   });
 
   // 2026-10-09 (sahip kararı; arayüz denetimi W-10): gizli kategorideki eski
@@ -550,17 +606,19 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       sellerSubCategoryIds: ["46100000", "46101500", "39120000", "39121600"],
     };
     render(<ProfileEditor profile={profile} canEdit />);
-    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
-    expect(await screen.findByText("Ad 39121600")).toBeInTheDocument();
+    expect(screen.getByText("Satış sektörleri (1)")).toBeInTheDocument();
+    // Beyan yalnız sektördür: görünür eski seçimin (39121600) sektörü çizilir.
+    expect(await screen.findByText("Ad 39000000")).toBeInTheDocument();
+    expect(screen.queryByText("Ad 39121600")).toBeNull();
     expect(document.body.textContent).not.toMatch(/Ateşli silahlar|İş Güvenliği ve Yangın|46101500|77000000/);
     expect(askedIds().every((ids) => !/\b(46|77)\d{6}\b/.test(ids))).toBe(true);
   });
 
-  it("46 görünür sektör: tamamı beyanı ve görünür seçimi çip olur ve sayılır; aynı sektördeki gizli seçim sayılmaz", async () => {
+  it("46 görünür sektör: tek başına ya da görünür eski seçimiyle sektör çipi olur ve bir kez sayılır; gizli seçim sayılmaz", async () => {
     byIdsNames({ "46181500": "Koruyucu giysi", "46000000": "İş Güvenliği ve Yangın Ekipmanları", "46101500": "Ateşli silahlar" });
     const whole = { ...PROFILE, sellerCategoryIds: ["46000000"], sellerSubCategoryIds: [] };
     const view = render(<ProfileEditor profile={whole} canEdit />);
-    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
+    expect(screen.getByText("Satış sektörleri (1)")).toBeInTheDocument();
     expect(await screen.findByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
     view.unmount();
 
@@ -570,9 +628,11 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       sellerSubCategoryIds: ["46100000", "46101500", "46180000", "46181500", "46182500", "46182501"],
     };
     render(<ProfileEditor profile={mixed} canEdit />);
-    // Yalnız koruyucu giysi: gizli aile (4610) ve gizli sınıf (461825) seçimleri sayıya girmez.
-    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
-    expect(await screen.findByText("Koruyucu giysi")).toBeInTheDocument();
+    // Görünür eski seçim (koruyucu giysi) sektörünü beyanda tutar; çip SEKTÖRDÜR.
+    // Gizli aile (4610) ve gizli sınıf (461825) seçimleri hiçbir şey eklemez.
+    expect(screen.getByText("Satış sektörleri (1)")).toBeInTheDocument();
+    expect(await screen.findByText("İş Güvenliği ve Yangın Ekipmanları")).toBeInTheDocument();
+    expect(screen.queryByText("Koruyucu giysi")).toBeNull();
     expect(document.body.textContent).not.toMatch(/Ateşli silahlar|46101500|46182501/);
     expect(askedIds().every((ids) => !/4610|461825/.test(ids))).toBe(true);
   });
@@ -580,16 +640,19 @@ describe("ProfileEditor — yerinde düzenleme", () => {
   it("yalnız gizli seçim beyanı olan firma: 'seçilmedi' görür, durum kartı kategoriyi tamam saymaz", () => {
     const profile = { ...PROFILE, sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46100000", "46101500"], buyerCategoryIds: [], buyerSubCategoryIds: [] };
     render(<ProfileEditor profile={profile} canEdit />);
-    // Özet etiketi sayısız + "Eksik" listesinde aynı ad: tamamlanma hesabı da
-    // gizli beyanı saymaz (özet "seçilmedi" derken kart "tamam" demez).
-    expect(screen.getAllByText("Faaliyet kategorileri").length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText(/Faaliyet kategorileri \(\d+\)/)).toBeNull();
+    // Özet etiketi sayısız ("Satış sektörleri") + "Eksik" listesinde "Faaliyet
+    // sektörleri" (iki eksen birlikte): tamamlanma hesabı da gizli beyanı
+    // saymaz (özet "seçilmedi" derken kart "tamam" demez).
+    expect(screen.getByText("Satış sektörleri")).toBeInTheDocument();
+    expect(screen.queryByText(/Satış sektörleri \(\d+\)/)).toBeNull();
+    expect(screen.getAllByText("Faaliyet sektörleri").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Seçilmedi — açık talep eşleşmesi/)).toBeInTheDocument();
     // Karşılaştırma: görünür beyanla "Eksik" listesinde kategori yoktur.
     cleanup();
     render(<ProfileEditor profile={{ ...profile, sellerCategoryIds: ["39000000"], sellerSubCategoryIds: [] }} canEdit />);
-    expect(screen.getByText("Faaliyet kategorileri (1)")).toBeInTheDocument();
-    expect(screen.queryAllByText("Faaliyet kategorileri")).toHaveLength(0);
+    expect(screen.getByText("Satış sektörleri (1)")).toBeInTheDocument();
+    expect(screen.queryAllByText("Faaliyet sektörleri")).toHaveLength(0);
+    expect(screen.queryByText("Satış sektörleri")).toBeNull();
   });
 
   it("tekrarlanan hizmet ve tavan sessiz kalmaz: ipucu + sayaç, tavanda pasif (arayüz testi D-294)", () => {
@@ -735,7 +798,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       h.post.mockResolvedValue(yanit());
       render(<ProfileEditor profile={{ ...PROFILE, aboutText: null, website: "ornekfirma.com" }} canEdit />);
       // Kaydedilmemiş sektör değişikliği de gider (sunucu DB'deki eski değeri okumasın).
-      fireEvent.change(screen.getByLabelText("Sektör"), { target: { value: "Elektrik panoları" } });
+      fireEvent.change(screen.getByLabelText("Sektör tanımı"), { target: { value: "Elektrik panoları" } });
       fireEvent.click(screen.getByRole("button", { name: "Tanıtımı AI ile yaz" }));
 
       await waitFor(() => expect(h.post).toHaveBeenCalled());
@@ -1243,7 +1306,7 @@ describe("ProfileEditor — yerinde düzenleme", () => {
       const { rerender } = rtlRender(wrap(PROFILE));
       await waitFor(() => expect(kutu().value).toBe(TASLAK));
       rerender(wrap({ ...PROFILE, industry: "Makine" }));
-      expect((screen.getByLabelText("Sektör") as HTMLInputElement).value).toBe("Makine");
+      expect((screen.getByLabelText("Sektör tanımı") as HTMLInputElement).value).toBe("Makine");
       expect(kutu().value).toBe(TASLAK);
       expect(screen.getByText(GERI_YUKLENDI)).toBeInTheDocument();
       expect(saklanan()).toMatchObject({ text: TASLAK });

@@ -897,7 +897,13 @@ export class CompanyAuthService {
     assertPostalCode(country, dto.postalCode);
     if (dto.deliverySameAsBilling === false) assertPostalCode(country, dto.deliveryPostalCode);
 
-    const { mainIds, subIds } = await validateCategorySelection(
+    // SECTOR-ONLY DECLARATION (owner decision 2026-10-29, S1/S2): step 2
+    // ("Faaliyet alanı") declares sectors only. `subCategoryIds` from an old
+    // client (a cached web bundle, a mobile shell) is still accepted and
+    // validated, and each pick still adds its SECTOR to the main list (at most
+    // 5 sectors after that), but no product / service pick is stored: the two
+    // sub lists are written empty below.
+    const { mainIds } = await validateCategorySelection(
       this.prisma,
       dto.mainCategoryIds,
       dto.subCategoryIds ?? [],
@@ -982,8 +988,9 @@ export class CompanyAuthService {
           // metni bunu SÖYLER — iki ekranın birbirine yalan söylememesi için.
           buyerCategoryIds: mainIds,
           sellerCategoryIds: mainIds,
-          buyerSubCategoryIds: subIds,
-          sellerSubCategoryIds: subIds,
+          // Sector-only declaration (2026-10-29): no sub picks are stored.
+          buyerSubCategoryIds: [],
+          sellerSubCategoryIds: [],
           activities: [...new Set(dto.activities ?? [])] as never,
           onboardingCompletedAt: new Date(),
         },

@@ -41,7 +41,8 @@
     "build-geo-cities": "tsx prisma/scripts/build-geo-cities.ts",
     "seed-geo-cities": "tsx prisma/scripts/seed-geo-cities.ts",
     "backfill-city-ids": "tsx prisma/scripts/backfill-city-ids.ts",
-    "backfill-price-base": "tsx prisma/scripts/backfill-price-base.ts"
+    "backfill-price-base": "tsx prisma/scripts/backfill-price-base.ts",
+    "clear-company-sub-categories": "tsx prisma/scripts/clear-company-sub-categories.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

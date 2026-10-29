@@ -27,7 +27,12 @@ import { categoryAncestors, categoryLevel, isCategoryCode } from "./category-cod
  * anlamsız bir hata alırdı.
  */
 
-/** Kullanıcının seçebileceği en fazla ürün/hizmet sayısı (zincir hariç). */
+/**
+ * Kullanıcının seçebileceği en fazla ürün/hizmet sayısı (zincir hariç).
+ * LEGACY ONLY (owner decision 2026-10-29): the declaration window picks
+ * sectors only; the API still applies this cap to a sub list from an old
+ * client before turning it into sectors (nothing below L1 is stored).
+ */
 export const MAX_COMPANY_SUB_PICKS = 50;
 
 /**

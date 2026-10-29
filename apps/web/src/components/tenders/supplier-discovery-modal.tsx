@@ -165,10 +165,13 @@ import { toast } from "sonner";
  *        bunu hatırlar (`syncOnly`). Bekleme metni dürüst: genellikle bir-iki
  *        dakika, yoğun saatlerde daha uzun.
  *  - N2  "Platformda" sekmesi iki gruptur: GÜÇLÜ eşleşenler (sunucunun
- *        `strongMatch`i) önce — toplu davet YALNIZ onlara; yalnız aynı sektörde
- *        olanlar ayrı başlık ve açıklamayla, tek tek davet edilir. Eskiden
- *        birincil düğme "Hepsini talebe davet et" yalnız segment düzeyinde
- *        eşleşen üyeleri de davet ediyordu.
+ *        `strongMatch`i) önce — toplu davet YALNIZ onlara; geri kalanlar ayrı
+ *        başlık ve açıklamayla, tek tek davet edilir. 2026-10-29'dan beri
+ *        (sahip kararı S3) talebin SEKTÖRÜNÜ beyan eden üye de güçlüdür ve
+ *        toplu davete girer; güçlü OLMAYAN grupta yalnız ürün adı kalemlere
+ *        kısmen benzeyen, talebin sektörünü beyan etmeyen ve ürününün
+ *        kategorisi de talebinkine uymayan üyeler kalır ("Ürün adı
+ *        benzeyenler"; eski başlık "Aynı sektörde" bu yüzden yanlıştı).
  *  - N4  Sunucunun HAM varsayılan metni basılmaz (`serverUserText`): işlenmemiş
  *        500'ün "Internal server error"ı yerine pencerenin kendi çevrilmiş
  *        yedeği. Pencerenin bütün hata metinleri `windowErrorMessage`ten geçer.
@@ -1547,13 +1550,13 @@ export function SupplierDiscoveryModal({
   };
 
   // N2 — "Platformda" listesi iki gruptur: sunucunun GÜÇLÜ dediği eşleşmeler
-  // (kalemi vitrininde satıyor / talebin alt kategorisini beyan ediyor —
-  // `strongMatch`, tek kaynak API) ve yalnız aynı sektörde olanlar. Sunucu sırası
-  // grup içinde korunur. Toplu davet YALNIZ güçlü eşleşenlere gider: eskiden
-  // "Hepsini talebe davet et" yalnız segment düzeyinde eşleşen üyeleri de
-  // (canlı taleplerde listenin tamamı) birincil eylemle davet ediyordu.
+  // (`strongMatch`, tek kaynak API: talebin sektörünü beyan ediyor — S3,
+  // 2026-10-29 — ya da kalemi vitrininde satıyor / gevşek kalem eşleşmesini
+  // bir kategori doğruluyor) ve geri kalanlar: yalnız ürün adı kalemlere kısmen
+  // benzeyen, talebin sektöründe beyanı olmayan üyeler. Sunucu sırası grup
+  // içinde korunur. Toplu davet YALNIZ güçlü eşleşenlere gider.
   const strongCandidates = candidates.filter((c) => c.strongMatch);
-  const sectorCandidates = candidates.filter((c) => !c.strongMatch);
+  const looseNameCandidates = candidates.filter((c) => !c.strongMatch);
   const strongToInvite = strongCandidates.filter(
     (c) => !invited.has(c.companyId) && !c.alreadyInvited && memberStatus[c.companyId] !== "NOT_ELIGIBLE",
   );
@@ -2182,19 +2185,20 @@ export function SupplierDiscoveryModal({
                         <ul className="mt-2 space-y-2">{strongCandidates.map(platformRow)}</ul>
                       </section>
                     ) : null}
-                    {/* Yalnız aynı sektörde olanlar: ayrı başlık + açıklama, toplu
-                        eylem YOK — alıcı tek tek inceleyip davet eder. */}
-                    {sectorCandidates.length > 0 ? (
+                    {/* Yalnız ürün adı benzeyenler (talebin sektöründe beyanı
+                        yok): ayrı başlık + açıklama, toplu eylem YOK — alıcı tek
+                        tek inceleyip davet eder. */}
+                    {looseNameCandidates.length > 0 ? (
                       <section
-                        aria-label={tr("grupAyniSektorde")}
+                        aria-label={tr("grupUrunAdiBenzeyenler")}
                         className={cn(strongCandidates.length > 0 && "mt-5")}
                       >
                         <h4 className="text-xs font-semibold tracking-wide text-zinc-700 uppercase">
-                          {tr("grupAyniSektorde")}{" "}
-                          <span className="font-normal text-zinc-500">· {sectorCandidates.length}</span>
+                          {tr("grupUrunAdiBenzeyenler")}{" "}
+                          <span className="font-normal text-zinc-500">· {looseNameCandidates.length}</span>
                         </h4>
-                        <p className="mt-0.5 text-xs text-zinc-600">{tr("ayniSektordeAciklama")}</p>
-                        <ul className="mt-2 space-y-2">{sectorCandidates.map(platformRow)}</ul>
+                        <p className="mt-0.5 text-xs text-zinc-600">{tr("urunAdiBenzeyenlerAciklama")}</p>
+                        <ul className="mt-2 space-y-2">{looseNameCandidates.map(platformRow)}</ul>
                       </section>
                     ) : null}
                   </>

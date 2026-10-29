@@ -1219,11 +1219,11 @@ describe("CategorySelectorModal — sektör (L1) seçimi", () => {
   // İnceleme CAT-R2: e2e kayıt yardımcısı (`e2e/signup-flow.ts`
   // `kategoriAraVeSec`) "penceredeki ilk onay kutusu"na tıklıyordu; sektör
   // satırı kutu taşıdığından bu, kapalı ağacın ilk sektörüydü (sektörün tamamı)
-  // ve arama hiç sınanmıyordu. Yardımcı artık sonuç ağacının ÜÇÜNCÜ düzeyindeki
-  // ilk kutuya tıklar ve "Ürün / hizmet 1/…" sayacını doğrular. O dosya yerelde
-  // koşulamaz; dayandığı DOM sözleşmesi burada kilitlidir — bu test kırılırsa
-  // yardımcıdaki konum da güncellenmelidir.
-  it("e2e sözleşmesi: kapalı ağaçta üçüncü düzey liste yok; arama sonucunda oradaki ilk kutu SINIF satırıdır", async () => {
+  // ve arama hiç sınanmıyordu. Bu test 2026-10-08 kipinin (sektör + ürün /
+  // hizmet) DOM'unu kilitler. Firma beyanı 2026-10-29'dan beri YALNIZ SEKTÖR
+  // kipindedir; yardımcının bugünkü sözleşmesi aşağıdaki "yalnız sektör kipi"
+  // bloğunda ("e2e sözleşmesi") kilitli.
+  it("e2e sözleşmesi (eski kip): kapalı ağaçta üçüncü düzey liste yok; arama sonucunda oradaki ilk kutu SINIF satırıdır", async () => {
     const user = userEvent.setup();
     seedTree();
     h.roots = { data: [SEG, S39], isLoading: false };
@@ -1331,6 +1331,331 @@ describe("CategorySelectorModal — sektör (L1) seçimi", () => {
     await user.click(sectorBox("Dağıtım Sistemleri"));
     expect(sectorBox("Dağıtım Sistemleri")).not.toBeChecked();
     expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+  });
+});
+
+/**
+ * YALNIZ SEKTÖR KİPİ (sahip kararı 2026-10-29): firma kategori beyanı yalnız
+ * sektördür, en fazla 5. Ağaçta yalnız sektör satırları (dal açılmaz); arama
+ * sonucu bağlamıyla kalır ama işaretlenebilen tek satır sektördür; tek sayaç
+ * "Sektör n/5". Talep ve ürün formları bu kipi kullanmaz (yukarıdaki
+ * "varsayılan" testleri değişmedi).
+ */
+describe("CategorySelectorModal — yalnız sektör kipi (sectorsOnly)", () => {
+  const S39: Node = { id: "39000000", code: "39000000", nameTr: "Elektrik Malzemeleri", level: 1 };
+  const S40: Node = { id: "40000000", code: "40000000", nameTr: "Dağıtım Sistemleri", level: 1 };
+  const S72: Node = { id: "72000000", code: "72000000", nameTr: "Bina ve İnşaat Hizmetleri", level: 1 };
+
+  /** Bu kipte kutu ürün / hizmet adını da aradığını söyler (ad = yer tutucu). */
+  const sectorSearchBox = () => screen.getByRole("textbox", { name: "Sektör, ürün ya da hizmet ara" });
+
+  /** Firma beyanının (`CompanyCategoryPicker`) pencereyi açtığı biçim. */
+  function renderSectors(props: Partial<ComponentProps<typeof CategorySelectorModal>> = {}) {
+    const onConfirm = vi.fn();
+    render(
+      <CategorySelectorModal
+        isOpen
+        onClose={() => {}}
+        value={[]}
+        onConfirm={onConfirm}
+        mode="multi"
+        sectorsOnly
+        maxSelection={5}
+        catalog="full"
+        {...props}
+      />,
+    );
+    return { onConfirm };
+  }
+
+  /** Arama sonucu: 31 › 3116 Hırdavat › 311617 Somunlar › 31161701 Ankraj somunları; 39 yalnız adıyla. */
+  const SEARCH = {
+    data: {
+      segments: [
+        {
+          id: SEG.id,
+          code: SEG.code,
+          nameTr: SEG.nameTr,
+          level: 1,
+          segmentLetter: "P",
+          families: [
+            {
+              id: FAM.id,
+              code: FAM.code,
+              nameTr: "Hırdavat",
+              level: 2,
+              classes: [
+                {
+                  id: CLS.id,
+                  code: CLS.code,
+                  nameTr: "Somunlar",
+                  level: 3,
+                  isMatch: true,
+                  commodities: [{ id: COM.id, code: COM.code, nameTr: "Ankraj somunları", level: 4, isMatch: true }],
+                },
+              ],
+            },
+            // Sınıfı dönmeyen (adı eşleşen) aile de bağlam olarak yazılır.
+            { id: FAM2.id, code: FAM2.code, nameTr: "Rulmanlar", level: 2, isMatch: true, classes: [] },
+          ],
+        },
+        { id: S39.id, code: S39.code, nameTr: S39.nameTr, level: 1, segmentLetter: "AN", isMatch: true, families: [] },
+      ],
+    },
+    isLoading: false,
+  };
+
+  it("ağaç: yalnız sektör satırları, her biri onay kutusu (adı çıplak sektör adı); dal açılmaz, ada basmak da işaretler", async () => {
+    const user = userEvent.setup();
+    seedTree();
+    h.roots = { data: [SEG, S39, S72], isLoading: false };
+    const { onConfirm } = renderSectors();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(3);
+    for (const name of ["Üretim Bileşenleri", "Elektrik Malzemeleri", "Bina ve İnşaat Hizmetleri"]) {
+      expect(screen.getByRole("checkbox", { name })).not.toBeChecked();
+    }
+    // Aç/kapa yok: ne ok düğmesi ne de aria-expanded taşıyan ad düğmesi.
+    expect(screen.queryByRole("button", { name: /^Genişlet:/ })).toBeNull();
+    expect(dialog.querySelector("[aria-expanded]")).toBeNull();
+    // Mal / hizmet grupları korunur.
+    expect(screen.getByText("Mal ve Ekipman")).toBeInTheDocument();
+    expect(screen.getByText("Hizmetler")).toBeInTheDocument();
+
+    // Ada basmak işaretler (dal açmaz): aile satırı çizilmez.
+    await user.click(screen.getByRole("button", { name: "Üretim Bileşenleri" }));
+    expect(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" })).toBeChecked();
+    expect(screen.queryByText("Hırdavat")).toBeNull();
+    // Kutu da işaretler; "sektörün tamamı" notu bu kipte yok (her işaret zaten sektördür).
+    await user.click(screen.getByRole("checkbox", { name: "Bina ve İnşaat Hizmetleri" }));
+    expect(screen.queryByText(/Sektörün tamamı seçili/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Onayla (2)" }));
+    expect(onConfirm).toHaveBeenCalledWith([SEG.id, S72.id]);
+  });
+
+  it("tek sayaç: 'Sektör n/5' (ekran okuyucuya tam cümle); 'Ürün / hizmet' sayacı yok", async () => {
+    const user = userEvent.setup();
+    h.roots = { data: [SEG, S39], isLoading: false };
+    h.byIds = { data: [{ id: S39.id, nameTr: S39.nameTr }], isPlaceholderData: false };
+    renderSectors({ value: [S39.id] });
+    const tallies = document.querySelector('[data-slot="tallies"]') as HTMLElement;
+    expect(within(tallies).getAllByText(/./, { selector: "[aria-hidden]" })).toHaveLength(1);
+    expect(screen.getByText("Sektör 1/5")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("1 sektör seçildi (en fazla 5)").className).toContain("sr-only");
+    expect(screen.queryByText(/Ürün \/ hizmet/)).toBeNull();
+    await user.click(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" }));
+    expect(screen.getByText("Sektör 2/5")).toBeInTheDocument();
+  });
+
+  it("seçim şeridinde sektör çipi çıplak addır ('· sektörün tamamı' eki yok)", () => {
+    h.roots = { data: [S39], isLoading: false };
+    h.byIds = { data: [{ id: S39.id, nameTr: S39.nameTr, breadcrumb: "AN. Elektrik Malzemeleri" }], isPlaceholderData: false };
+    renderSectors({ value: [S39.id] });
+    const [chip] = within(screen.getByRole("list", { name: "Seçimleriniz" })).getAllByRole("listitem");
+    expect(chip.textContent).toBe("Elektrik Malzemeleri");
+    expect(screen.getByRole("button", { name: "Elektrik Malzemeleri seçimini kaldır" })).toBeInTheDocument();
+  });
+
+  it("değerdeki sektör dışı kod (eski kayıt) sektörüne yuvarlanır; aynı sektör tek işarettir", async () => {
+    const user = userEvent.setup();
+    h.roots = { data: [SEG, S39], isLoading: false };
+    const { onConfirm } = renderSectors({ value: [A.id, "39131700", CLS.id] });
+    expect(screen.getByRole("checkbox", { name: "Elektrik Malzemeleri" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" })).toBeChecked();
+    expect(screen.getByText("Sektör 2/5")).toBeInTheDocument();
+    // Değişiklik yok → "Onayla" yine iki sektörü döndürür.
+    await user.click(screen.getByRole("button", { name: "Onayla (2)" }));
+    expect(onConfirm).toHaveBeenCalledWith([S39.id, SEG.id]);
+  });
+
+  it("tavan: tavana gelince yeni sektör reddedilir ve nedeni söylenir; kaldırmak serbest", async () => {
+    const user = userEvent.setup();
+    h.roots = { data: [SEG, S39, S40], isLoading: false };
+    renderSectors({ maxSelection: 2 });
+    await user.click(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" }));
+    await user.click(screen.getByRole("checkbox", { name: "Elektrik Malzemeleri" }));
+    expect(screen.getByText("Sektör 2/2")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" }));
+    expect(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "En fazla 2 sektör seçebilirsiniz. Başka bir sektör eklemek için önce birini kaldırın.",
+    );
+    await user.click(screen.getByRole("checkbox", { name: "Elektrik Malzemeleri" }));
+    expect(screen.getByText("Sektör 1/2")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" }));
+    expect(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" })).toBeChecked();
+  });
+
+  it("tavanın üstündeki eski beyan: kaldırmak serbest, ekleme reddedilir", async () => {
+    const user = userEvent.setup();
+    h.roots = { data: [SEG, S39, S40], isLoading: false };
+    renderSectors({ value: [SEG.id, S39.id], maxSelection: 1 });
+    expect(screen.getByText("Sektör 2/1")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" }));
+    expect(screen.getByRole("checkbox", { name: "Dağıtım Sistemleri" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("En fazla 1 sektör seçebilirsiniz.");
+    await user.click(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" }));
+    expect(screen.getByText("Sektör 1/1")).toBeInTheDocument();
+  });
+
+  it("arama: sonuç bağlamıyla çizilir (aile › sınıf › emtia); onay kutusu yalnız sektörde, bağlam satırına basmak sektörünü işaretler", async () => {
+    const user = userEvent.setup();
+    h.search = SEARCH;
+    const { onConfirm } = renderSectors();
+    await user.type(sectorSearchBox(), "somun");
+    const results = await screen.findByText("Bir sonucu seçtiğinizde onun sektörü işaretlenir.");
+    expect(results).toBeInTheDocument();
+    const list = document.querySelector('[data-slot="search-results"]') as HTMLElement;
+    // Bağlam: aile, sınıf, emtia adları (vurgulu parçalar dahil) yazılı …
+    expect(list).toHaveTextContent("Hırdavat");
+    expect(list).toHaveTextContent("Somunlar");
+    expect(list).toHaveTextContent("Ankraj somunları");
+    // … sınıfı dönmemiş aile de bağlamdır.
+    expect(list).toHaveTextContent("Rulmanlar");
+    // Onay kutusu yalnız iki sektörde; bağlam satırında kutu yok.
+    const boxes = within(list).getAllByRole("checkbox");
+    expect(boxes.map((b) => b.getAttribute("aria-label"))).toEqual(["Üretim Bileşenleri", "Elektrik Malzemeleri"]);
+    for (const ctx of list.querySelectorAll('[data-slot="search-context"]')) {
+      expect(ctx.querySelector("[role='checkbox']")).toBeNull();
+    }
+    // Bağlam satırları birer düğmedir: ad, satırın hangi sektörü işaretlediğini
+    // söyler. Aç/kapa düğmesi DEĞİLDİR (aria-pressed yok): yalnız ekler.
+    const AD = ["Hırdavat", "Somunlar", "Ankraj somunları", "Rulmanlar"];
+    const baglam = AD.map((ad) =>
+      within(list).getByRole("button", { name: `${ad}: Üretim Bileşenleri sektörünü işaretle` }),
+    );
+    for (const b of baglam) {
+      expect(b).not.toHaveAttribute("aria-pressed");
+      expect(b).not.toHaveAttribute("aria-disabled");
+    }
+
+    // "Somun" yazıp sonuca basan kullanıcı tepkisiz kalmaz: sonucun sektörü işaretlenir.
+    await user.click(baglam[2]!);
+    expect(boxes[0]).toBeChecked();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    // İşaretli sektörün satırları "zaten işaretli" der, soluk ve ✓ ile çizilir.
+    const isaretli = AD.map((ad) =>
+      within(list).getByRole("button", { name: `${ad}: Üretim Bileşenleri sektörü zaten işaretli` }),
+    );
+    for (const b of isaretli) {
+      expect(b).toHaveAttribute("aria-disabled", "true");
+      expect(b.className).toContain("text-zinc-400");
+      expect(b.querySelector("svg")).not.toBeNull();
+    }
+    // Aynı sektördeki BAŞKA bir sonuca basmak sektörü KALDIRMAZ (eskiden aç/kapa
+    // yapıyordu: ikinci ürüne basan kullanıcı sektörü geri siliyordu).
+    await user.click(isaretli[1]!);
+    expect(boxes[0]).toBeChecked();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    // Aynı satıra yeniden basmak da kaldırmaz; odak düğmede kalır.
+    await user.click(isaretli[2]!);
+    expect(boxes[0]).toBeChecked();
+    expect(isaretli[2]).toHaveFocus();
+    // Öteki sektörün satırı yoktur (39 yalnız adıyla eşleşti); onun satırları işaretsiz kalırdı.
+    expect(within(list).queryByRole("button", { name: /Elektrik Malzemeleri sektörü zaten işaretli/ })).toBeNull();
+
+    // Kaldırmanın yolu sektör kutusu: kutu kalkınca satırlar yeniden "işaretle" der.
+    await user.click(boxes[0]!);
+    expect(boxes[0]).not.toBeChecked();
+    expect(screen.getByText("Sektör 0/5")).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: "Somunlar: Üretim Bileşenleri sektörünü işaretle" })).toBeInTheDocument();
+
+    // Kutu ve sektör adı da işaretler.
+    await user.click(boxes[0]!);
+    expect(boxes[0]).toBeChecked();
+    await user.click(within(list).getByRole("button", { name: "Elektrik Malzemeleri" }));
+    expect(boxes[1]).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Onayla (2)" }));
+    expect(onConfirm).toHaveBeenCalledWith([SEG.id, S39.id]);
+  });
+
+  it("arama: zaten beyanlı sektördeki ürüne basmak beyanı silmez (Ayarlar senaryosu)", async () => {
+    const user = userEvent.setup();
+    h.search = SEARCH;
+    h.byIds = { data: [{ id: SEG.id, nameTr: SEG.nameTr }], isPlaceholderData: false };
+    const { onConfirm } = renderSectors({ value: [SEG.id] });
+    await user.type(sectorSearchBox(), "somun");
+    await screen.findByText("Bir sonucu seçtiğinizde onun sektörü işaretlenir.");
+    const ankraj = await screen.findByRole("button", {
+      name: "Ankraj somunları: Üretim Bileşenleri sektörü zaten işaretli",
+    });
+    await user.click(ankraj);
+    expect(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" })).toBeChecked();
+    expect(screen.getByText("Sektör 1/5")).toBeInTheDocument();
+    // Değişiklik yok → Onayla aynı beyanı döndürür.
+    await user.click(screen.getByRole("button", { name: "Onayla (1)" }));
+    expect(onConfirm).toHaveBeenCalledWith([SEG.id]);
+  });
+
+  it("arama: tavandayken bağlam satırı da yeni sektör ekleyemez (aynı ret metni)", async () => {
+    const user = userEvent.setup();
+    h.search = SEARCH;
+    h.byIds = { data: [{ id: S39.id, nameTr: S39.nameTr }], isPlaceholderData: false };
+    renderSectors({ value: [S39.id], maxSelection: 1 });
+    await user.type(sectorSearchBox(), "somun");
+    const somunlar = await screen.findByRole("button", { name: "Somunlar: Üretim Bileşenleri sektörünü işaretle" });
+    await user.click(somunlar);
+    expect(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" })).not.toBeChecked();
+    expect(somunlar).not.toHaveAttribute("aria-disabled");
+    expect(somunlar).toHaveAccessibleName("Somunlar: Üretim Bileşenleri sektörünü işaretle");
+    expect(screen.getByRole("status")).toHaveTextContent("En fazla 1 sektör seçebilirsiniz.");
+  });
+
+  it("arama: altı boş dönen sektör de satırdır (adıyla eşleşti); tavan aramada da uygulanır", async () => {
+    const user = userEvent.setup();
+    h.search = SEARCH;
+    h.byIds = { data: [{ id: S72.id, nameTr: S72.nameTr }], isPlaceholderData: false };
+    renderSectors({ value: [S72.id], maxSelection: 2 });
+    await user.type(sectorSearchBox(), "elektrik");
+    const elektrik = await screen.findByRole("checkbox", { name: "Elektrik Malzemeleri" });
+    await user.click(elektrik);
+    expect(elektrik).toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" }));
+    expect(screen.getByRole("checkbox", { name: "Üretim Bileşenleri" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("En fazla 2 sektör seçebilirsiniz.");
+  });
+
+  it("metinler sektörü söyler: arama kutusu ürün / hizmeti de anar, boş seçim 'Henüz sektör seçilmedi'", () => {
+    h.roots = { data: [SEG], isLoading: false };
+    renderSectors();
+    expect(sectorSearchBox()).toHaveAttribute("placeholder", "Sektör, ürün ya da hizmet ara");
+    expect(screen.queryByRole("textbox", { name: "Kategori ara" })).toBeNull();
+    expect(screen.getByText(/^Henüz sektör seçilmedi/)).toBeInTheDocument();
+    expect(screen.queryByText(/kategori ekleyin/)).toBeNull();
+  });
+
+  // e2e kayıt yardımcısının (`e2e/signup-flow.ts` `kategoriAraVeSec`) DOM
+  // sözleşmesi: yardımcı terimi yazar, `[data-slot="search-results"]` içindeki
+  // İLK onay kutusunu (= sonucun sektörü) işaretler ve "Sektör 1/5"i doğrular.
+  // O dosya yerelde koşulamaz; bu test kırılırsa yardımcı da güncellenmelidir.
+  it("e2e sözleşmesi: kapalı ağaçta sonuç listesi yok (bekleme kendiliğinden); sonuçtaki ilk kutu sektördür", async () => {
+    const user = userEvent.setup();
+    h.roots = { data: [SEG, S39], isLoading: false };
+    h.search = SEARCH;
+    renderSectors();
+    const dialog = screen.getByRole("dialog");
+    const firstResultBox = () => dialog.querySelector('[data-slot="search-results"] [role="checkbox"]');
+    // Sonuç gelmeden: ağacın sektör kutuları var ama sonuç listesi yok.
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(2);
+    expect(firstResultBox()).toBeNull();
+
+    await user.type(sectorSearchBox(), "somun");
+    await screen.findByText("Bir sonucu seçtiğinizde onun sektörü işaretlenir.");
+    const box = firstResultBox() as HTMLElement;
+    expect(box).toHaveAttribute("aria-label", "Üretim Bileşenleri");
+    await user.click(box);
+    expect(box).toHaveAttribute("aria-checked", "true");
+    expect(within(dialog).getByText(/^Sektör 1\/5$/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Onayla (1)" })).toBeEnabled();
+  });
+
+  it("yükleme hatası ve 'sonuç bulunamadı' bu kipte de ayrı durumlardır", async () => {
+    const user = userEvent.setup();
+    h.search = { data: { segments: [] }, isLoading: false };
+    renderSectors();
+    await user.type(sectorSearchBox(), "zzz");
+    expect(await screen.findByText("“zzz” için sonuç bulunamadı")).toBeInTheDocument();
+    expect(screen.queryByText("Bir sonucu seçtiğinizde onun sektörü işaretlenir.")).toBeNull();
   });
 });
 

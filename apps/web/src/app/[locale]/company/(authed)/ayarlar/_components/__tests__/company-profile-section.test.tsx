@@ -8,7 +8,11 @@
  *  - TR dışı firmada Vergi Dairesi / KEP çizilmez, vergi etiketi ülkeden;
  *  - kategori listeleri KÜMEDİR: yalnız sırası değişen liste formu kirletmez;
  *  - iki kategori seçicisi birlikte boşalırsa hata SEÇİCİLERİN üstünde çıkar
- *    ve istek atılmaz (yalnız toast değil).
+ *    ve istek atılmaz (yalnız toast değil);
+ *  - beyan YALNIZ SEKTÖR (2026-10-29): sektör listesi değişen eksenin alt
+ *    listesi `[]` olarak AÇIKÇA gider (seçici `[]` döner) — gönderilmeseydi API
+ *    eksik yarıyı depodaki eski alt seçimlerden doldurup kaldırılan sektörü
+ *    geri getirebilirdi.
  */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -29,6 +33,8 @@ const h = vi.hoisted(() => ({
     {
       value: { mainIds: string[]; subIds: string[] };
       onChange: (next: { mainIds: string[]; subIds: string[] }) => void;
+      modalTitle?: string;
+      modalDescription?: string;
     }
   >,
 }));
@@ -57,8 +63,15 @@ vi.mock("@/components/categories/company-category-picker", () => ({
     value: { mainIds: string[]; subIds: string[] };
     onChange: (next: { mainIds: string[]; subIds: string[] }) => void;
     error?: string;
+    modalTitle?: string;
+    modalDescription?: string;
   }) => {
-    h.pickers[props.label] = { value: props.value, onChange: props.onChange };
+    h.pickers[props.label] = {
+      value: props.value,
+      onChange: props.onChange,
+      modalTitle: props.modalTitle,
+      modalDescription: props.modalDescription,
+    };
     return (
       <div data-testid="kategori-secici" data-label={props.label}>
         {props.label}
@@ -340,7 +353,7 @@ describe("CompanyProfileSection", () => {
 
   const BUY = "Ne alırım";
   const SELL = "Ne satarım";
-  const CATEGORY_ERROR = /En az bir sektör ya da ürün\/hizmet seçili kalmalı/;
+  const CATEGORY_ERROR = /En az bir sektör seçili kalmalı/;
   const withCategories = () =>
     baseProfile({
       buyerCategoryIds: ["39000000", "40000000"],
@@ -352,14 +365,31 @@ describe("CompanyProfileSection", () => {
   const pick = (label: string, next: { mainIds: string[]; subIds: string[] }) =>
     act(() => h.pickers[label]!.onChange(next));
 
+  // Gözden geçirme (2026-10-29): her eksen aynı "Faaliyet gösterdiğiniz
+  // sektörler" açıklamasını alıyordu; alış ekseni SATIN ALDIKLARINIZIN
+  // sektörüdür (hastane tıbbi cihaz alır, o sektörde çalışmaz).
+  it("seçici pencereleri eksene özgü açıklama alır (alış: satın aldığınız, satış: sattığınız)", () => {
+    h.profile = withCategories();
+    render(<CompanyProfileSection />);
+    expect(h.pickers[BUY]).toMatchObject({
+      modalTitle: "Alış sektörleriniz",
+      modalDescription: "Satın aldığınız ürün ve hizmetlerin sektörlerini işaretleyin.",
+    });
+    expect(h.pickers[SELL]).toMatchObject({
+      modalTitle: "Satış sektörleriniz",
+      modalDescription: "Sattığınız ürün ve hizmetlerin sektörlerini işaretleyin.",
+    });
+  });
+
   // Arayüz testi 2026-10 code-category-6: seçici değişiklik yapılmadan
   // onaylanınca (ya da bir seçim kaldırılıp geri eklenince) AYNI kümeyi başka
   // sırayla döndürür; form kirleniyor ve Kaydet aynı beyanı yeniden yazıyordu.
   it("kategori listesinin yalnız SIRASI değişirse form kirlenmez (Kaydet pasif, uyarı yok)", () => {
     h.profile = withCategories();
     render(<CompanyProfileSection />);
-    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: ["39121000", "39120000"] });
-    pick(SELL, { mainIds: ["39000000", "31000000"], subIds: ["31171501", "31170000", "31171500"] });
+    // Seçici eski alt seçimleri sektör olarak gösterir ve alt listeyi hep `[]` döner.
+    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: [] });
+    pick(SELL, { mainIds: ["39000000", "31000000"], subIds: [] });
     // Ekran yeni sırayı gösterir, ama kaydedilecek bir şey yoktur.
     expect(screen.getByTestId(`deger-${BUY}`)).toHaveTextContent('"mainIds":["40000000","39000000"]');
     expect(screen.queryByText("Kaydedilmemiş değişiklikler var")).not.toBeInTheDocument();
@@ -367,31 +397,89 @@ describe("CompanyProfileSection", () => {
     expect(saveButton()).toBeDisabled();
   });
 
-  it("gerçek değişiklikte yalnız DEĞİŞEN kategori listesi gönderilir; sırası değişen öteki liste gitmez", async () => {
+  it("gerçek değişiklikte yalnız DEĞİŞEN eksen gönderilir; sırası değişen öteki eksen gitmez", async () => {
     h.profile = withCategories();
     const user = userEvent.setup();
     render(<CompanyProfileSection />);
-    // Alış: aynı küme, başka sıra. Satış: bir alt seçim eklendi, ana liste yalnız yer değiştirdi.
-    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: ["39121000", "39120000"] });
-    pick(SELL, {
-      mainIds: ["39000000", "31000000"],
-      subIds: ["31170000", "31171500", "31171501", "39120000"],
-    });
+    // Alış: aynı küme, başka sıra (seçici değişmeyen kümeyle onChange üretmez;
+    // üretse de form kirlenmez). Satış: bir sektör eklendi — seçici alt listeyi boş döner.
+    pick(BUY, { mainIds: ["40000000", "39000000"], subIds: [] });
+    pick(SELL, { mainIds: ["31000000", "39000000", "40000000"], subIds: [] });
     expect(screen.getByText("Kaydedilmemiş değişiklikler var")).toBeInTheDocument();
     await user.click(saveButton());
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
     expect(h.update).toHaveBeenCalledWith({
-      sellerSubCategoryIds: ["31170000", "31171500", "31171501", "39120000"],
+      sellerCategoryIds: ["31000000", "39000000", "40000000"],
+      sellerSubCategoryIds: [],
     });
   });
 
-  it("bir kod eklenip çıkarılması değişikliktir (küme farklı): eleman sayısı aynı kalsa da", async () => {
+  it("bir sektör eklenip biri çıkarılması değişikliktir (küme farklı): eleman sayısı aynı kalsa da", async () => {
     h.profile = withCategories();
     const user = userEvent.setup();
     render(<CompanyProfileSection />);
-    pick(BUY, { mainIds: ["39000000", "41000000"], subIds: ["39120000", "39121000"] });
+    pick(BUY, { mainIds: ["39000000", "41000000"], subIds: [] });
     await user.click(saveButton());
-    await waitFor(() => expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "41000000"] }));
+    await waitFor(() =>
+      expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "41000000"], buyerSubCategoryIds: [] }),
+    );
+  });
+
+  // S2 (2026-10-29): API sektör listesi gelen ama alt listesi gelmeyen ekseni
+  // depodaki alt seçimlerle tamamlayıp normalize eder → kaldırılan sektör geri
+  // gelebilirdi. Form sektörü kaldırılan eksenin alt listesini HER ZAMAN `[]`
+  // olarak yollar — taban `[]` görünse bile (temizlik sonrası kayıt ya da
+  // forma girmeyen gizli alt seçim).
+  it("sektör kaldırılınca eksenin alt listesi [] olarak açıkça gider (taban boş olsa da)", async () => {
+    h.profile = baseProfile({
+      buyerCategoryIds: ["39000000", "40000000"],
+      buyerSubCategoryIds: [],
+      sellerCategoryIds: ["31000000"],
+      sellerSubCategoryIds: [],
+    });
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    pick(BUY, { mainIds: ["40000000"], subIds: [] });
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["40000000"], buyerSubCategoryIds: [] });
+  });
+
+  it("eski alt seçimli kayıtta sektör kaldırılınca: kalan sektörler + alt liste []", async () => {
+    h.profile = withCategories();
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    // Seçici eski kaydı yalnız sektör olarak gösterir; kaldırınca alt listeyi boş döner.
+    pick(SELL, { mainIds: ["31000000"], subIds: [] });
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({ sellerCategoryIds: ["31000000"], sellerSubCategoryIds: [] });
+  });
+
+  // Gözden geçirme (2026-10-29): eski hatalı UI ana eksene L2+ kod
+  // yazabiliyordu (ör. 39120000). Form onu süzüp atıyordu → seçici 39'u
+  // göstermiyor, eksen kaydedilince 39 sessizce düşüyordu; Profilim ve temizlik
+  // betiği ise 39 sektörünü sayıyor. Artık aynı kural: kod sektörüne yuvarlanır.
+  it("ana eksendeki L2+ eski kod sektörüne yuvarlanır: seçicide görünür, eksen kaydedilince korunur", async () => {
+    h.profile = baseProfile({
+      buyerCategoryIds: ["40000000"],
+      buyerSubCategoryIds: [],
+      sellerCategoryIds: ["39120000", "31000000", "39121000"],
+      sellerSubCategoryIds: [],
+    });
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    expect(h.pickers[SELL]!.value).toEqual({ mainIds: ["39000000", "31000000"], subIds: [] });
+    // Açılışta kirli değil.
+    expect(saveButton()).toBeDisabled();
+    // Bir sektör eklenince yuvarlanmış 39 da yazılır (temizlik betiğiyle aynı sonuç).
+    pick(SELL, { mainIds: ["39000000", "31000000", "40000000"], subIds: [] });
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({
+      sellerCategoryIds: ["39000000", "31000000", "40000000"],
+      sellerSubCategoryIds: [],
+    });
   });
 
   // Arayüz testi 2026-10 category-11: iki seçici de boşaltılıp Kaydet'e
@@ -434,6 +522,45 @@ describe("CompanyProfileSection", () => {
   });
 
   /**
+   * SEKTÖR TAVANI (2026-10-29, gözden geçirme): Ayarlar eskiden eksen başına 10
+   * sektöre izin veriyordu. Tavanın üstündeki eski eksen başka alanın kaydını
+   * kilitlemez (gönderilmez); eksene dokunulunca (çipten × ile kaldırmak
+   * pencereden geçmez) kayıt tavana inene dek kapalıdır ve gerekçe o seçicide
+   * yazılır — eskiden istek gidip API'nin reddi toast oluyordu.
+   */
+  it("tavanın üstündeki eski eksen: dokunulmadıkça başka alan kaydedilir; dokunulunca 5'e inene dek Kaydet pasif", async () => {
+    const yedi = ["39000000", "40000000", "41000000", "22000000", "23000000", "24000000", "31000000"];
+    h.profile = baseProfile({ companyVerificationStatus: "VERIFIED", sellerCategoryIds: yedi, buyerCategoryIds: ["39000000"] });
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    expect(screen.queryByTestId(`hata-${SELL}`)).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("İl"));
+    await user.type(screen.getByLabelText("İl"), "Ankara");
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    expect(h.update).toHaveBeenCalledWith({ city: "Ankara" });
+
+    h.update.mockClear();
+    pick(SELL, { mainIds: yedi.slice(1), subIds: [] });
+    expect(screen.getByTestId(`hata-${SELL}`)).toHaveTextContent(
+      "6 sektör seçili; en fazla 5 sektör beyan edilebilir. Fazla olanları kaldırın.",
+    );
+    expect(screen.queryByTestId(`hata-${BUY}`)).not.toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+    await user.click(saveButton());
+    expect(h.update).not.toHaveBeenCalled();
+
+    pick(SELL, { mainIds: yedi.slice(2), subIds: [] });
+    expect(screen.queryByTestId(`hata-${SELL}`)).not.toBeInTheDocument();
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    // (Sahte profil kayıttan sonra tazelenmez: "İl" değişikliği de yeniden gider.)
+    expect(h.update).toHaveBeenCalledWith(
+      expect.objectContaining({ sellerCategoryIds: yedi.slice(2), sellerSubCategoryIds: [] }),
+    );
+  });
+
+  /**
    * GİZLİ KATEGORİ (2026-10-09, sahip kararı; arayüz denetimi W-10): dal
    * gizlenmeden önce kaydedilmiş beyan forma HİÇ girmez. Dokunulmayan eksen
    * gönderilmez (depoda kalır, eşleştirme kullanmayı sürdürür); dokunulan eksen
@@ -457,7 +584,8 @@ describe("CompanyProfileSection", () => {
   it("gizli kod ve yalnız onun atası olan sektör seçicilere verilmez; form açılışta kirli değildir", () => {
     h.profile = legacyProfile();
     render(<CompanyProfileSection />);
-    expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["39000000"], subIds: ["39120000", "39121000"] });
+    // Görünür eski alt seçimler (39120000 …) sektörleri olarak girer; alt liste `[]`.
+    expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["39000000"], subIds: [] });
     // Yalnız gizli beyanı olan eksen boş durumla açılır.
     expect(h.pickers[SELL]!.value).toEqual({ mainIds: [], subIds: [] });
     expect(saveButton()).toBeDisabled();
@@ -473,8 +601,8 @@ describe("CompanyProfileSection", () => {
     render(<CompanyProfileSection />);
     // Altı boş sektör = bilinçli "sektörün tamamı" beyanı: kalır.
     expect(h.pickers[BUY]!.value).toEqual({ mainIds: ["46000000"], subIds: [] });
-    // Görünür seçimin (koruyucu giysi) zinciri kalır; gizli aile ve gizli sınıf düşer.
-    expect(h.pickers[SELL]!.value).toEqual({ mainIds: ["46000000"], subIds: ["46180000", "46181500"] });
+    // Görünür seçim (koruyucu giysi) sektörüyle girer; gizli aile ve gizli sınıf düşer.
+    expect(h.pickers[SELL]!.value).toEqual({ mainIds: ["46000000"], subIds: [] });
     expect(saveButton()).toBeDisabled();
   });
 
@@ -494,10 +622,11 @@ describe("CompanyProfileSection", () => {
     h.profile = legacyProfile();
     const user = userEvent.setup();
     render(<CompanyProfileSection />);
-    pick(BUY, { mainIds: ["39000000", "40000000"], subIds: ["39120000", "39121000"] });
+    pick(BUY, { mainIds: ["39000000", "40000000"], subIds: [] });
     await user.click(saveButton());
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
-    expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "40000000"] });
+    // Gizli alt seçimler (46101500 …) forma hiç girmedi; alt liste [] gider ve depodan da düşer.
+    expect(h.update).toHaveBeenCalledWith({ buyerCategoryIds: ["39000000", "40000000"], buyerSubCategoryIds: [] });
   });
 
   it("görünen son beyan da kaldırılırsa 'boş olamaz' hatası çıkar — gizli beyan firmayı kategorili saydırmaz", async () => {

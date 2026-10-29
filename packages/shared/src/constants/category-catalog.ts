@@ -336,7 +336,10 @@ export const MAX_COMPANY_MAIN_CATEGORIES = 5;
  * yukarı çıkarıyor, firmanın beyanından aşağı inmiyor — yaprak tek başına
  * saklanırsa alıcı L3'te talep açtığında dar eksen tutmaz.
  *
- * 200 = 50 seçim × 3 seviye + pay. Ana kategoriden yüksek olması DOĞRU: alt
- * kategori daraltır, genişletmez.
+ * 200 = 50 seçim × 3 seviye + pay.
+ *
+ * LEGACY ONLY (owner decision 2026-10-29): the company declaration is
+ * sector-only; no sub pick is stored any more. The cap still bounds the sub
+ * list an old client may send (it only adds its sectors to the main list).
  */
 export const MAX_COMPANY_SUB_CATEGORIES = 200;

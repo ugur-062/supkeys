@@ -585,7 +585,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     let r = render(<SellerTendersView />);
     expect(screen.getByText("Aktif açık talep yok.")).toBeInTheDocument();
     expect(screen.getByText("Kapananlar için Durum → Geçmiş.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Satış kategorilerini düzenle" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Satış sektörlerinizi düzenle" })).toBeInTheDocument();
     expect(screen.queryByText("Bağlantı Kur")).not.toBeInTheDocument();
     r.unmount();
 

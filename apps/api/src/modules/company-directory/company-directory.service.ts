@@ -5,7 +5,11 @@ import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
-import { shownCompanyDeclaration } from "../../common/company/company-directory";
+import {
+  categoryFilterSegments,
+  declarationMatchesCategories,
+  shownCompanyDeclaration,
+} from "../../common/company/company-directory";
 import { likeLiteral } from "../../common/prisma/like-literal";
 
 /**
@@ -56,12 +60,17 @@ export class CompanyDirectoryService {
     // filter still worked and listed exactly the companies that had declared
     // the hidden segment.
     const category = visibleCategoryId(q.category);
+    // A deep code also matches its SEGMENT in the main lists (sector-only
+    // declarations, owner decision 2026-10-29 - same rule as the shared
+    // directory builder, `categoryFilterSegments`).
+    const segment = category ? (categoryFilterSegments([category])[0] ?? null) : null;
+    const mainCodes = category ? [category, ...(segment ? [segment] : [])] : [];
     const declaresCategory: Prisma.CompanyWhereInput | null = category
       ? {
           OR: [
-            { buyerCategoryIds: { has: category } },
+            { buyerCategoryIds: { hasSome: mainCodes } },
             { buyerSubCategoryIds: { has: category } },
-            { sellerCategoryIds: { has: category } },
+            { sellerCategoryIds: { hasSome: mainCodes } },
             { sellerSubCategoryIds: { has: category } },
           ],
         }
@@ -71,10 +80,13 @@ export class CompanyDirectoryService {
     // under this category is a hidden one still holds the visible ancestor.
     // It is not listed under it: the SHOWN declaration decides (single rule,
     // `shownCompanyDeclaration`). Only a category that has a hidden branch
-    // below it needs this second pass; the page and the total then come from
-    // the narrowed id set.
+    // below it - or, for a deep code, below its segment, which now matches too
+    // - needs this second pass; the page and the total then come from the
+    // narrowed id set.
     const shownIds =
-      category && declaresCategory && hiddenPrefixesUnder(category).length > 0
+      category &&
+      declaresCategory &&
+      hiddenPrefixesUnder(category).length + (segment ? hiddenPrefixesUnder(segment).length : 0) > 0
         ? (
             await this.prisma.company.findMany({
               where: { ...PUBLIC_PROFILE_WHERE, ...declaresCategory },
@@ -88,7 +100,7 @@ export class CompanyDirectoryService {
               take: 5000,
             })
           )
-            .filter((c) => shownCompanyDeclaration(c).all.includes(category))
+            .filter((c) => declarationMatchesCategories(shownCompanyDeclaration(c), [category]))
             .map((c) => c.id)
         : null;
     const where: Prisma.CompanyWhereInput = {

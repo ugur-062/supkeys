@@ -3,6 +3,7 @@
 import type { AiSeoEnrichResult, SeoCheck, SeoReadiness } from "@rothern/shared";
 import {
   COMPANY_SEO_ABOUT,
+  COMPANY_SEO_SECTORS,
   PRODUCT_SEO_ATTRIBUTES,
   PRODUCT_SEO_DESCRIPTION,
   PRODUCT_SEO_IMAGES,
@@ -68,6 +69,7 @@ const CHECK_N: Record<string, number> = {
   keywords: PRODUCT_SEO_KEYWORDS,
   attributes: PRODUCT_SEO_ATTRIBUTES,
   about: COMPANY_SEO_ABOUT,
+  categories: COMPANY_SEO_SECTORS,
 };
 
 export function SearchVisibilityCard({

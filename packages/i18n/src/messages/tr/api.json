@@ -494,7 +494,8 @@
     "firmaBulunamadi": "Firma bulunamadı",
     "firmaAdiEnAz2Karakter": "Firma adı en az 2 karakter olmalı",
     "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
-    "enAzBirAnaKategoriSecili": "En az bir sektör ya da ürün/hizmet seçili kalmalı — seçimi olmayan firmaya talep bildirimi gönderilemez.",
+    "enAzBirAnaKategoriSecili": "En az bir sektör seçili kalmalı — sektörü olmayan firmaya talep bildirimi gönderilemez.",
+    "herListedeEnFazlaSektor": "Alım ve satış listelerinin her birinde en fazla {MAXCOMPANYMAINCATEGORIES, number} sektör seçebilirsiniz.",
     "gecerliBirKepAdresiGiriniz": "Geçerli bir KEP adresi giriniz",
     "gecerliBirIbanGiriniz": "Geçerli bir IBAN giriniz",
     "gecerliBirWebSitesiGiriniz": "Geçerli bir web sitesi adresi giriniz (örnek: www.firmaniz.com)",
@@ -795,7 +796,7 @@
     "onceBirAdBaslikYazin": "Önce bir ad/başlık yazın.",
     "aciklamaUretilemediBirkacOlguDahaEkleyip": "Açıklama üretilemedi — birkaç olgu daha ekleyip tekrar deneyin.",
     "aiOzelligiSuAndaKullanilamiyor": "AI özelliği şu anda kullanılamıyor.",
-    "profilTanitimiIcinBilgiYok": "Tanıtım yazabilmemiz için önce sektörünüzü, hizmetlerinizi, faaliyet kategorilerinizi ya da bir ürününüzü ekleyin.",
+    "profilTanitimiIcinBilgiYok": "Tanıtım yazabilmemiz için önce sektörünüzü, hizmetlerinizi, faaliyet sektörlerinizi ya da bir ürününüzü ekleyin.",
     "gunlukAiProfilOlusturmaLimitineUlasildi": "Günlük AI tanıtım önerisi sınırına ulaşıldı ({DAILYLIMIT}) — yarın tekrar deneyin.",
     "profilAiTaslagiHazirlaniyor": "Tanıtım taslağınız şu an hazırlanıyor — birkaç dakika sonra tekrar deneyin.",
     "aiSuAnYanitVeremediBirkac": "AI şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
@@ -1086,7 +1087,7 @@
     "kayitBulunamadi": "Kayıt bulunamadı"
   },
   "helpers": {
-    "n1ArasiAnaKategoriSecmelisiniz": "1-{MAXCOMPANYMAINCATEGORIES} arası ana kategori seçmelisiniz",
+    "n1ArasiAnaKategoriSecmelisiniz": "En az 1, en fazla {MAXCOMPANYMAINCATEGORIES, number} sektör seçebilirsiniz.",
     "altKategoriBeyaniFazlaGenis": "Alt kategori beyanı fazla geniş",
     "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
     "gecersizAnaKategoriYalnizcaSegmentSecilebilir": "Geçersiz ana kategori (yalnızca segment seçilebilir)",
@@ -1640,20 +1641,20 @@
         "subjectAnon": "Sattıklarınıza uygun bir alım talebine davet edildiniz",
         "body": "“{title}” ({number}) alım talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; ayrıntılar ve teklif için talebi açın.",
         "bodyProduct": "“{title}” ({number}) alım talebine davet edildiniz. Sizi vitrininizdeki “{product}” ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
-        "bodyCategory": "“{title}” ({number}) alım talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
+        "bodyCategory": "“{title}” ({number}) alım talebine davet edildiniz. Talep, satış beyanınızdaki sektörle eşleşiyor; talep edilen kalemler aşağıda.",
         "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz.",
         "inviterRow": "Davet eden firma",
         "inAppBodyInviter": "{inviter} sizi “{title}” ({number}) alım talebine davet etti."
       },
       "aiMatchLocked": {
-        "subject": "Bir alıcı sattığınız ürünleri arıyor",
+        "subject": "Firmanıza uygun bir alım talebi var",
         "bodyVerify": "Bir alıcının AI tedarikçi araması, “{title}” ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmadığı için alıcıya önerilmediniz ve talebi göremiyorsunuz. Firmanızı ücretsiz doğrulayın; doğrulandığınızda bu talebi görür, teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
         "inAppBodyVerify": "“{title}” talebi için AI firmanızı uygun buldu. Talebi görmek ve teklif vermek için firmanızı ücretsiz doğrulayın.",
         "bodyPaidPending": "Bir alıcının AI tedarikçi araması, “{title}” ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firma doğrulamanız incelemede olduğu için alıcıya henüz önerilmediniz. Talebi şimdiden görebilirsiniz; doğrulamanız onaylanınca teklif verebilir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
         "bodyPaidVerify": "Bir alıcının AI tedarikçi araması, “{title}” ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmadığı için alıcıya önerilmediniz. Talebi görebilirsiniz; teklif vermek ve alıcıların AI tedarikçi önerilerinde çıkmak için firmanızı ücretsiz doğrulayın.",
         "inAppBodyPaidPending": "“{title}” talebi için AI firmanızı uygun buldu. Talebi görebilirsiniz; doğrulamanız onaylanınca teklif verebilirsiniz.",
         "inAppBodyPaidVerify": "“{title}” talebi için AI firmanızı uygun buldu. Teklif vermek için firmanızı ücretsiz doğrulayın.",
-        "footer": "Bu bildirimi vitrininiz ve kategorileriniz bir alıcının aramasıyla eşleştiği için alıyorsunuz. Kategori bildirimlerini Ayarlar › Bildirimler'den kapatabilirsiniz.",
+        "footer": "Bu bildirimi, firmanızın sektörü ya da vitrini bir alıcının aramasıyla eşleştiği için alıyorsunuz. Kategori bildirimlerini Ayarlar › Bildirimler'den kapatabilirsiniz.",
         "bodyPending": "Bir alıcının AI tedarikçi araması, “{title}” ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firma doğrulamanız incelemede olduğu için alıcıya henüz önerilmediniz ve talebi göremiyorsunuz. Doğrulamanız onaylanınca bu talebi görür, teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
         "inAppBodyPending": "“{title}” talebi için AI firmanızı uygun buldu. Doğrulamanız onaylanınca talebi görür ve teklif verirsiniz."
       }

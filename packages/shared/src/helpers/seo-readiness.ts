@@ -171,12 +171,26 @@ export interface CompanySeoReadinessInput {
   employeeCount: string | null;
   services: string[];
   certifications: string[];
-  /** Ana + alt kategori toplamı (alıcı+satıcı). */
+  /**
+   * Beyan edilen FARKLI sektör sayısı, alış ∪ satış (firma kategori beyanı
+   * 2026-10-29'dan beri yalnız sektördür; aynı sektör iki eksende bir sayılır).
+   */
   categoryCount: number;
   publishedProductCount?: number;
 }
 
 export const COMPANY_SEO_ABOUT = 300;
+/**
+ * "Sektörler" maddesinin eşiği. Beyan yalnız sektördür (en fazla 5 / eksen);
+ * eski "en az 3 kategori (ana + alt)" kuralı alt seçimleri sayıyordu ve alt
+ * seçim artık yapılamaz. 1 = en az bir GÖRÜNÜR beyanlı sektör (gözden geçirme
+ * 2026-10-29): kayıt aynı sektörleri iki eksene yazar; eşik 2 olsaydı tek
+ * sektörlü uzman firma (ör. bağlantı elemanı toptancısı) maddeyi hiç geçemez,
+ * fazladan sektör beyan etmeye itilirdi — her fazla sektör o sektördeki tüm
+ * talepleri getirir, 5'lik tavanın önlediği gürültü budur. Sahip onayı
+ * bekliyor; değişirse etiket `{n}` ile izler.
+ */
+export const COMPANY_SEO_SECTORS = 1;
 
 export function companySeoReadiness(c: CompanySeoReadinessInput): SeoReadiness {
   const about = (c.aboutText ?? "").trim();
@@ -194,10 +208,12 @@ export function companySeoReadiness(c: CompanySeoReadinessInput): SeoReadiness {
     { key: "city", label: "Şehir", hint: "Şehir sayfalarında listelenmenin şartı.", points: 10, ok: !!c.city?.trim() },
     {
       key: "categories",
-      label: "En az 3 kategori (ana + alt)",
-      hint: "Organization.knowsAbout ve eşleştirme kategoriden çalışır.",
+      label: `En az ${COMPANY_SEO_SECTORS} sektör`,
+      // Yalnız şema özelliği (`numberOfEmployees.` gibi): ekran metni katalogda
+      // (`web.domain.seoReadiness.categories`), burası yalnız yedek.
+      hint: "Organization.knowsAbout.",
       points: 10,
-      ok: c.categoryCount >= 3,
+      ok: c.categoryCount >= COMPANY_SEO_SECTORS,
     },
     {
       key: "website",

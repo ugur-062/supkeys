@@ -28,12 +28,12 @@ import {
   readOnboardingDraft,
   saveOnboardingDraft,
 } from "@/lib/company-auth/onboarding-draft";
+import { declaredSectors } from "@/lib/company/declared-sectors";
 import { cleanPostal, isInvalidTrPostal, postalInputMaxLength } from "@/lib/company/postal-code";
 import { errorToastedGlobally, extractErrorMessage, extractFieldErrors } from "@/lib/tenders/error";
 import {
+  MAX_COMPANY_MAIN_CATEGORIES,
   TURKEY_LOCATIONS,
-  categorySegment,
-  deepestCategoryPicks,
   isValidTaxIdForCountry,
   isValidTckn,
   EU_VAT_COUNTRIES,
@@ -46,7 +46,6 @@ import {
   provinceDisplayName,
   registrationCountries,
   taxIdLabelKey,
-  visibleCompanyCategorySelection,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
@@ -103,6 +102,11 @@ const INITIAL_FORM = {
   deliveryAddressLine: "",
   authorizedTckn: "",
   mainCategoryIds: [] as string[],
+  /**
+   * Beyan yalnız sektördür (2026-10-29): HER ZAMAN boş — seçici ürün / hizmet
+   * seçtirmez, eski taslağınki forma geri gelmez, gönderimde `[]`. Alan,
+   * API gövdesiyle aynı anahtar kümesi (ve sunucu reddinin adımı) için durur.
+   */
   subCategoryIds: [] as string[],
   activities: [] as string[],
   declarationAccepted: false,
@@ -323,39 +327,6 @@ export function settleTypedLegalForm<F extends LegalFormFields>(f: F): F {
 }
 
 /**
- * KATEGORİ BEYANI — 2. ADIMDAKİ KARTLARLA AYNI GRUPLAR VE SIRA (kayıt arayüz
- * testi 2026-10 CAT-D2). Özet beyanı kartların gösterdiği gibi okur: sektör →
- * kullanıcının o sektörde seçtikleri. Altı BOŞ grup = sektörün TAMAMI beyan
- * edildi (değer sözleşmesi: kod `mainIds`te, o sektörden hiçbir kod `subIds`te
- * yok). Sıra kartların sırasıdır: önce kayıtlı sektör sırası, her sektörde
- * seçim sırası.
- *
- * `CompanyCategoryPicker`ın kart gruplamasının (`gruplar`) AYNASIDIR — biri
- * değişirse diğeri de. Eskiden özet sektörleri katalog sırasıyla ve işaretsiz
- * yazıyor, tamamı beyan edilen sektör "Ürün ve Hizmetler: —" olarak görünüyordu.
- *
- * Gizli kategori kodu (2026-10-09; eski taslaktan kalmış olabilir) seçicide
- * çizilmediği gibi özete de GİRMEZ — aynı süzgeç
- * (`visibleCompanyCategorySelection`: yalnız gizli bir seçimin atası olarak
- * saklanmış sektör de düşer, "sektörün tamamı" diye okunmaz).
- */
-export function categoryDeclarationGroups(
-  mainIds: readonly string[],
-  subIds: readonly string[],
-): { sector: string; picks: string[] }[] {
-  const groups = new Map<string, string[]>();
-  const visible = visibleCompanyCategorySelection(mainIds, subIds);
-  for (const id of visible.mainIds) groups.set(id, []);
-  for (const id of deepestCategoryPicks(visible.subIds)) {
-    const sector = categorySegment(id);
-    if (!sector) continue;
-    if (!groups.has(sector)) groups.set(sector, []);
-    groups.get(sector)!.push(id);
-  }
-  return [...groups].map(([sector, picks]) => ({ sector, picks }));
-}
-
-/**
  * ÜLKE DEĞİŞİMİ: ülkeye bağlı alanlar sıfırlanır, gerisi kalır.
  *  · Sıfırlananlar: hukuki yapı (yeni ülkenin başlangıcına döner — başka
  *    ülkenin yapısı seçili kalamaz), vergi no ve vergi dairesi (biçimi ülkeye
@@ -556,9 +527,6 @@ export function OnboardingClient() {
   // Sektör listesi yüklenemeyince seçicinin yerine çizilen satır, seçicinin
   // kendi "Yeniden dene" etiketini kullanır (her dilde aynı sözcük).
   const tPicker = useTranslations("web.shared.companyCategoryPicker");
-  // Özet, tamamı beyan edilen sektörü kategori penceresinin çipiyle AYNI sözle
-  // yazar ("<sektör> · sektörün tamamı").
-  const tCategoryDialog = useTranslations("web.shared.categorySelectorModal");
   const locale = useLocale();
   const activityLabel = useActivityLabel();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
@@ -633,7 +601,6 @@ export function OnboardingClient() {
     if (draft) setStep(Math.min(Math.max(Math.trunc(draft.step), 0), LAST_STEP));
     setF((prev) => {
       const s = draft ? mergeDraft(prev, draft.f) : prev;
-      const restoredDeclaration = visibleCompanyCategorySelection(s.mainCategoryIds, s.subCategoryIds);
       const country = s.country || inviteCountry || initial;
       // TR'de şehir il listesinden seçilir: ön doldurulan ad listeye eşlenir,
       // eşleşmezse boş kalır (D-344).
@@ -643,13 +610,14 @@ export function OnboardingClient() {
       return sanitizeLegalForm({
         ...s,
         country,
-        // Taslak, kategori gizlenmeden ÖNCE saklanmış olabilir (2026-10-09):
-        // gizli kod forma geri gelmez — seçici onu çizmez, kayıt da kabul
-        // etmez; görünür seçim kalmadıysa "kategori zorunlu" kuralı sorar.
-        // İki dizi birlikte süzülür: gizli seçimin görünür atası (sektör) da
-        // gelmez, yoksa form "sektörün tamamı" beyanıyla açılırdı.
-        mainCategoryIds: restoredDeclaration.mainIds,
-        subCategoryIds: restoredDeclaration.subIds,
+        // BEYAN YALNIZ SEKTÖR (2026-10-29): eski taslak ürün / hizmet seçimi
+        // (alt kategori) taşıyabilir — forma GERİ GELMEZ; seçimin sektörü
+        // sektör olarak kalır (`declaredSectors`). Taslak, kategori
+        // gizlenmeden ÖNCE de saklanmış olabilir (2026-10-09): gizli kod ve
+        // yalnız gizli bir seçimin atası olarak saklanmış sektör de gelmez;
+        // görünür sektör kalmadıysa "kategori zorunlu" kuralı sorar.
+        mainCategoryIds: declaredSectors(s.mainCategoryIds, s.subCategoryIds),
+        subCategoryIds: [],
         legalName: s.legalName || invite?.companyName || "",
         website: s.website || invite?.website || "",
         city: s.city || prefillCity,
@@ -685,12 +653,12 @@ export function OnboardingClient() {
   }, [countryReady, userId, step, f]);
 
   /**
-   * Ana ve alt kategori TEK yazmada güncellenir: seçici ikisini birlikte
-   * üretiyor (segment, seçilen yapraklardan türetiliyor) ve iki ayrı `set`
-   * çağrısı ara bir turda tutarsız çift bırakırdı.
+   * Beyan yalnız sektördür (2026-10-29): seçicinin döndürdüğü sektörler ana
+   * eksene yazılır, alt eksen HER ZAMAN boş kalır (seçici de boş döner; API
+   * yeni alt seçim saklamaz). İki alan TEK yazmada güncellenir.
    */
   const setKategoriler = (v: { mainIds: string[]; subIds: string[] }) =>
-    setF((s) => ({ ...s, mainCategoryIds: v.mainIds, subCategoryIds: v.subIds }));
+    setF((s) => ({ ...s, mainCategoryIds: v.mainIds, subCategoryIds: [] }));
 
   /**
    * "DİĞER"E YAZILAN AD — YAZARKEN HİÇBİR ŞEY DEĞİŞMEZ (kayıt arayüz testi
@@ -788,29 +756,18 @@ export function OnboardingClient() {
     () => TURKEY_LOCATIONS.find((l) => l.il === f.deliveryCity)?.ilceler ?? [],
     [f.deliveryCity],
   );
-  // Kullanıcının seçtiği ürün/hizmetler (ata zinciri değil) — ad isteğinin
-  // anahtarı; özetteki sıra için bkz. `categoryGroups`.
-  const visibleDeclaration = useMemo(
-    () => visibleCompanyCategorySelection(f.mainCategoryIds, f.subCategoryIds),
+  // Beyan edilen sektörler — seçicinin çipleriyle AYNI liste ve sıra
+  // (`declaredSectors`; gizli kod ve yalnız gizli seçimin atası olan sektör
+  // düşer). Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI
+  // seçenekle istenir (`inlineError`): yalnız o zaman sorgu anahtarı ortaktır
+  // ve ek istek gitmez (kayıt denetimi 2026-10 webcat-5: eskiden ikinci bir
+  // `by-ids` isteği varsayılan seçeneklerle çıkıyordu — 429'da üç otomatik
+  // tekrar, 5xx'te genel toast).
+  const sectorIds = useMemo(
+    () => declaredSectors(f.mainCategoryIds, f.subCategoryIds),
     [f.mainCategoryIds, f.subCategoryIds],
   );
-  const pickedIds = useMemo(() => deepestCategoryPicks(visibleDeclaration.subIds), [visibleDeclaration]);
-  // Adlar seçiciyle (`CompanyCategoryPicker`) AYNI id listesi ve AYNI seçenekle
-  // istenir: seçimler + sektörler, `inlineError`. Yalnız o zaman sorgu anahtarı
-  // ortaktır ve ek istek gitmez. Eskiden yalnız seçimler soruluyordu — anahtar
-  // hiç tutmuyor, her seçim değişikliğinde ikinci bir `by-ids` isteği
-  // varsayılan seçeneklerle çıkıyordu (429'da üç otomatik tekrar, 5xx'te genel
-  // toast; kayıt denetimi 2026-10 webcat-5).
-  const categoryNameIds = useMemo(
-    () => [...new Set([...pickedIds, ...visibleDeclaration.mainIds])],
-    [pickedIds, visibleDeclaration],
-  );
-  const pickedCats = useCategoriesByIds(categoryNameIds, { inlineError: true });
-  // Özet beyanı 2. adımdaki kartların gruplarıyla ve sırasıyla yazar (CAT-D2).
-  const categoryGroups = useMemo(
-    () => categoryDeclarationGroups(f.mainCategoryIds, f.subCategoryIds),
-    [f.mainCategoryIds, f.subCategoryIds],
-  );
+  const sectorNames = useCategoriesByIds(sectorIds, { inlineError: true });
 
   const taxKey = taxIdLabelKey(f.country);
   // Hukuki yapı seçenekleri: ülkenin yerel yapıları; listesi olmayan ülkede
@@ -880,10 +837,18 @@ export function OnboardingClient() {
           ]),
     ],
     [
-      // Kategori ZORUNLU (DTO `@ArrayMinSize(1)`). Üst sınırı (sektör tavanı)
-      // seçici kendi uyarısıyla uygular; aşan bir değer yine de gelirse
-      // API'nin reddi bu alanın altında gösterilir (`serverErrorField`).
+      // Kategori ZORUNLU (DTO `@ArrayMinSize(1)`). Üst sınır (sektör tavanı):
+      // pencere aşan işareti reddeder; eski bir taslaktan tavanın üstünde bir
+      // küme gelirse "Devam" seçicinin metniyle durur (API reddine kalmaz).
       ...rule(f.mainCategoryIds.length >= 1, "mainCategoryIds", t("categoryRequired")),
+      ...rule(
+        f.mainCategoryIds.length <= MAX_COMPANY_MAIN_CATEGORIES,
+        "mainCategoryIds",
+        tPicker("enFazlaSektorBeyanEdilebilir", {
+          n: f.mainCategoryIds.length,
+          max: MAX_COMPANY_MAIN_CATEGORIES,
+        }),
+      ),
     ],
     [
       ...rule(tcknValid, "authorizedTckn", t("tcknInvalidPerson")),
@@ -1045,7 +1010,8 @@ export function OnboardingClient() {
             }),
         authorizedTckn: f.authorizedTckn.trim() || undefined,
         mainCategoryIds: f.mainCategoryIds,
-        subCategoryIds: f.subCategoryIds,
+        // Beyan yalnız sektördür (2026-10-29): ürün / hizmet seçimi gönderilmez.
+        subCategoryIds: [],
         activities: f.activities,
         declarationAccepted: f.declarationAccepted,
       });
@@ -1151,23 +1117,15 @@ export function OnboardingClient() {
   // Özet: il adı arayüz dilinde (saklanan değer Türkçe ad kalır).
   const shownCity = (city: string) => (isTR ? provinceDisplayName(city, locale) : city);
   /**
-   * ÖZETTE KATEGORİ BEYANI (CAT-D2) — kartlarla aynı gruplar, aynı sıra:
-   *  · "Sektörler": her sektör kendi satırında; tamamı beyan edilen sektör
-   *    pencere ve kartlardaki gibi "<sektör> · sektörün tamamı" diye yazılır;
-   *  · "Ürün ve Hizmetler": yalnız tek tek seçim varsa çizilir (yalnız sektörün
-   *    tamamı beyan edildiğinde boş "—" satırı basılmaz).
-   * Sektör adı seçicideki gibi önce sektör listesinden, yoksa ad isteğinden
-   * (liste gizli sektörleri taşımaz, düşmüş de olabilir).
+   * ÖZETTE KATEGORİ BEYANI — "Sektörler": her sektör kendi satırında, 2.
+   * adımdaki çiplerle AYNI sıra (beyan yalnız sektördür, 2026-10-29; eski
+   * "Ürün ve Hizmetler" satırı ve "· sektörün tamamı" eki kalktı). Sektör adı
+   * seçicideki gibi önce sektör listesinden, yoksa ad isteğinden (liste
+   * yükleniyor ya da düşmüş olabilir).
    */
   const categoryName = (id: string) =>
-    roots.data?.find((c) => c.id === id)?.nameTr ?? pickedCats.data?.find((c) => c.id === id)?.nameTr ?? id;
-  const sectorLines = categoryGroups.map(({ sector, picks }) =>
-    picks.length > 0 ? categoryName(sector) : `${categoryName(sector)} · ${tCategoryDialog("sektorunTamami")}`,
-  );
-  const pickedNames = categoryGroups
-    .flatMap((group) => group.picks)
-    .map((id) => pickedCats.data?.find((c) => c.id === id)?.nameTr ?? id)
-    .join(", ");
+    roots.data?.find((c) => c.id === id)?.nameTr ?? sectorNames.data?.find((c) => c.id === id)?.nameTr ?? id;
+  const sectorLines = sectorIds.map(categoryName);
   // Sektör listesi YOK ve yüklenemedi. `isError` tek başına yetmez (kayıt
   // denetimi 2026-10 webcat-8): TanStack Query onu, eldeki liste dururken arka
   // plan tazelemesi düştüğünde de kurar. O durumda seçici (ve açık kategori
@@ -1613,7 +1571,9 @@ export function OnboardingClient() {
                 >
                   {t("sectorQuestion")} <span className="text-zinc-500">*</span>
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-500">{t("sectorHint")}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {t("sectorHint", { max: MAX_COMPANY_MAIN_CATEGORIES })}
+                </p>
               </div>
               {/* `data-field` İKİ dalı da sarar (kayıt denetimi 2026-10
                   web-auth-6): sektör listesi yüklenemeyince seçici çizilmez;
@@ -1781,7 +1741,6 @@ export function OnboardingClient() {
                     kurucuya yüklüyordu (ilk çalışan davetinde "koltuk dolu"). */}
                 <Summary label={t("sumRole")} value={t("sumRoleValue")} />
                 <Summary label={t("sumSectors")} lines={sectorLines} />
-                {pickedNames ? <Summary label={t("sumProducts")} value={pickedNames} /> : null}
                 <Summary label={t("sumActivities")} value={f.activities.map(activityLabel).join(", ")} />
               </dl>
             </section>

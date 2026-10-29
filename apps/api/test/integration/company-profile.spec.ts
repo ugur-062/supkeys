@@ -536,7 +536,7 @@ describe("company-profile — alt kategoriler", () => {
     );
   }
 
-  it("family (L2) ve class (L3) alt kategori olarak kabul edilir", async () => {
+  it("eski istemcinin family (L2) / class (L3) seçimi kabul edilir ama yalnız SEKTÖRÜ saklanır (2026-10-29)", async () => {
     await seedTree();
     const svc = makeServiceWithCategories();
     const owner = await makeEditableCompany();
@@ -547,9 +547,10 @@ describe("company-profile — alt kategoriler", () => {
 
     const row = await prisma.company.findUnique({
       where: { id: owner.company.id },
-      select: { sellerSubCategoryIds: true },
+      select: { sellerCategoryIds: true, sellerSubCategoryIds: true },
     });
-    expect(row?.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+    expect(row?.sellerCategoryIds).toEqual(["31000000"]);
+    expect(row?.sellerSubCategoryIds).toEqual([]);
   });
 
   it("segment (L1) alt kategori OLAMAZ — ana kategoriyle aynı eksene düşer", async () => {
@@ -620,7 +621,7 @@ describe("company-profile — alt kategoriler", () => {
    * kod yazabiliyordu. Sunucu artık aynı dönüşümü uygular.
    */
   describe("beyan depolama biçimine sunucuda getirilir (code-category-8)", () => {
-    it("yalnız yaprak gönderilirse ata zinciri ve segment de saklanır", async () => {
+    it("yalnız yaprak gönderilirse segmenti ana listeye eklenir, alt liste saklanmaz", async () => {
       await seedTree();
       await seedExtra();
       const svc = makeServiceWithCategories();
@@ -634,11 +635,11 @@ describe("company-profile — alt kategoriler", () => {
         buyerCategoryIds: [],
         buyerSubCategoryIds: [],
         sellerCategoryIds: ["31000000"],
-        sellerSubCategoryIds: ["31171501", "31170000", "31171500"],
+        sellerSubCategoryIds: [],
       });
     });
 
-    it("web'in gönderdiği tam beyan AYNEN saklanır; kısmi PATCH öteki alanı yeniden yazmaz", async () => {
+    it("eski web paketinin tam beyanı: ana liste AYNEN saklanır, alt liste saklanmaz; kısmi PATCH öteki alanı yeniden yazmaz", async () => {
       await seedTree();
       await seedExtra();
       const svc = makeServiceWithCategories();
@@ -652,24 +653,31 @@ describe("company-profile — alt kategoriler", () => {
       } as never);
       const ilk = await beyan(owner.company.id);
       expect(ilk.sellerCategoryIds).toEqual(web.mainIds);
-      expect(ilk.sellerSubCategoryIds).toEqual(web.subIds);
+      expect(ilk.sellerSubCategoryIds).toEqual([]);
 
       // Form yalnız DEĞİŞEN alanı yollar: ana listenin sırası değişti, alt
-      // liste gelmedi → alt liste ve ana listenin gelen sırası korunur.
+      // liste gelmedi → ana listenin gelen sırası yazılır, alt liste (zaten
+      // boş) yazılmaz.
       const audit = jest.spyOn(AuditService.prototype, "log");
       await svc.update(owner.company.id, {
         sellerCategoryIds: ["31000000", "39000000"],
       } as never);
       const sonra = await beyan(owner.company.id);
       expect(sonra.sellerCategoryIds).toEqual(["31000000", "39000000"]);
-      expect(sonra.sellerSubCategoryIds).toEqual(web.subIds);
+      expect(sonra.sellerSubCategoryIds).toEqual([]);
       expect(audit.mock.calls.at(-1)?.[0].metadata).toEqual({
         changedFields: ["sellerCategoryIds"],
       });
       audit.mockRestore();
     });
 
-    it("yalnız ana liste gelir ve kayıtlı alt kodun segmenti çıkarılmışsa segment geri eklenir", async () => {
+    /**
+     * SECTOR-ONLY (2026-10-29): the stored sub list is no longer an input. It
+     * used to fill the missing half of the axis, so a sector removed from the
+     * main list came back from an old sub pick of that sector. Now the removal
+     * holds and the legacy sub list of the saved axis is emptied.
+     */
+    it("yalnız ana liste gelir: kaldırılan sektör kayıtlı eski alt seçimden GERİ GELMEZ; eski alt liste silinir", async () => {
       await seedTree();
       await seedExtra();
       const svc = makeServiceWithCategories();
@@ -682,13 +690,61 @@ describe("company-profile — alt kategoriler", () => {
         },
       });
 
+      const audit = jest.spyOn(AuditService.prototype, "log");
       await svc.update(owner.company.id, {
         sellerCategoryIds: ["39000000"],
       } as never);
 
       const row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(["39000000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
+      const changed = (audit.mock.calls.at(-1)?.[0].metadata as { changedFields: string[] }).changedFields;
+      expect([...changed].sort()).toEqual(["sellerCategoryIds", "sellerSubCategoryIds"]);
+      audit.mockRestore();
+    });
+
+    it("sektör kaldırılırken ayıklanmış alt liste de gelirse sonuç aynı: sektör düşer, alt liste boş", async () => {
+      await seedTree();
+      await seedExtra();
+      const svc = makeServiceWithCategories();
+      const owner = await makeEditableCompany();
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: {
+          sellerCategoryIds: ["31000000", "39000000"],
+          sellerSubCategoryIds: ["31170000", "31171500"],
+        },
+      });
+
+      // Yeni pencere: 31 kaldırıldı, o sektörün eski alt seçimleri ayıklanmış hâlde (boş) gelir.
+      await svc.update(owner.company.id, {
+        sellerCategoryIds: ["39000000"],
+        sellerSubCategoryIds: [],
+      } as never);
+
+      const row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(["39000000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
+    });
+
+    it("eski istemci başka bir sektörden alt seçim yollarsa yalnız o sektör eklenir; kayıtlı eski alt liste silinir", async () => {
+      await seedTree();
+      await seedExtra();
+      const svc = makeServiceWithCategories();
+      const owner = await makeEditableCompany();
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: { sellerCategoryIds: ["39000000"], sellerSubCategoryIds: ["31170000"] },
+      });
+
+      // Eski form ana listeyi değiştirmeden yalnız alt listeyi yollar.
+      await svc.update(owner.company.id, {
+        sellerSubCategoryIds: ["31171501"],
+      } as never);
+
+      const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["39000000", "31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
     });
 
     it("ana kategori tavanı türeyen segmentlerle birlikte sayılır", async () => {
@@ -701,7 +757,7 @@ describe("company-profile — alt kategoriler", () => {
           sellerCategoryIds: ["11000000", "12000000", "13000000", "14000000", "15000000"],
           sellerSubCategoryIds: ["31171500"],
         } as never),
-      ).rejects.toThrow(/1-5/);
+      ).rejects.toThrow(/en fazla 5 sektör/);
       expect((await beyan(owner.company.id)).sellerSubCategoryIds).toEqual([]);
     });
 
@@ -721,7 +777,65 @@ describe("company-profile — alt kategoriler", () => {
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["98000000", "31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
+    });
+
+    it("yalnız alım ekseni kaydedilir: satış eksenindeki eski alt seçim de silinir, sektörü satış ana listesine taşınır (S2)", async () => {
+      await seedTree();
+      await seedExtra();
+      const svc = makeServiceWithCategories();
+      const owner = await makeEditableCompany();
+      // Eski kayıt: alt seçimin sektörü (31) ana listede yok.
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: { sellerCategoryIds: ["39000000"], sellerSubCategoryIds: ["31170000", "31171500"] },
+      });
+
+      await svc.update(owner.company.id, { buyerCategoryIds: ["39000000"] } as never);
+
+      const row = await beyan(owner.company.id);
+      expect(row.buyerCategoryIds).toEqual(["39000000"]);
+      expect(row.buyerSubCategoryIds).toEqual([]);
+      expect(row.sellerCategoryIds).toEqual(["39000000", "31000000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
+    });
+
+    it("dokunulmayan eksende taşıma tavanı aşarsa ya da eklenecek sektör katalogda yoksa alt liste yine silinir, ana liste korunur; kayıt başarısız olmaz", async () => {
+      await seedTree();
+      await seedExtra();
+      const svc = makeServiceWithCategories();
+      const owner = await makeEditableCompany();
+      const bes = ["39000000", "11000000", "12000000", "13000000", "14000000"];
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: {
+          // Satış: 5 sektör + başka sektörden eski alt seçim → 6 olurdu.
+          sellerCategoryIds: bes,
+          sellerSubCategoryIds: ["31170000"],
+          // Alım: eski alt seçimin sektörü katalogda yok.
+          buyerCategoryIds: ["39000000"],
+          buyerSubCategoryIds: ["26170000"],
+        },
+      });
+
+      await svc.update(owner.company.id, { buyerCategoryIds: ["39000000"] } as never);
+      let row = await beyan(owner.company.id);
+      expect(row.sellerCategoryIds).toEqual(bes);
+      expect(row.sellerSubCategoryIds).toEqual([]);
+      // Alım ekseni istekte: gelen liste aynen yazılır, eski alt liste silinir.
+      expect(row.buyerCategoryIds).toEqual(["39000000"]);
+      expect(row.buyerSubCategoryIds).toEqual([]);
+
+      // Alım ekseni dokunulmayan taraf olduğunda da: katalogda olmayan sektör eklenmez.
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: { buyerSubCategoryIds: ["26170000"] },
+      });
+      await svc.update(owner.company.id, { sellerCategoryIds: ["39000000"] } as never);
+      row = await beyan(owner.company.id);
+      expect(row.buyerCategoryIds).toEqual(["39000000"]);
+      expect(row.buyerSubCategoryIds).toEqual([]);
+      expect(row.sellerCategoryIds).toEqual(["39000000"]);
     });
   });
 
@@ -756,7 +870,7 @@ describe("company-profile — alt kategoriler", () => {
       return { svc, owner };
     }
 
-    it("ikisi birden boşaltılırsa 400; ileti 'sektör / ürün-hizmet' der, 'ana kategori' demez; beyan değişmez", async () => {
+    it("ikisi birden boşaltılırsa 400; ileti yalnız 'sektör' der ('ürün/hizmet' ya da 'ana kategori' demez); beyan değişmez", async () => {
       const { svc, owner } = await declared();
       const before = await beyan(owner.company.id);
       expect(before.buyerCategoryIds).toEqual(["39000000"]);
@@ -769,29 +883,39 @@ describe("company-profile — alt kategoriler", () => {
       expect(err).toBeInstanceOf(BadRequestException);
       const message = (err as BadRequestException).message;
       expect(message).toBe(
-        "En az bir sektör ya da ürün/hizmet seçili kalmalı — seçimi olmayan firmaya talep bildirimi gönderilemez.",
+        "En az bir sektör seçili kalmalı — sektörü olmayan firmaya talep bildirimi gönderilemez.",
       );
-      expect(message).not.toMatch(/ana kategori/i);
+      expect(message).not.toMatch(/ana kategori|ürün\/hizmet/i);
       expect((err as BadRequestException).getResponse()).toMatchObject({
         i18nKey: "api.companyProfile.enAzBirAnaKategoriSecili",
       });
       expect(await beyan(owner.company.id)).toEqual(before);
     });
 
-    it("yalnız ana listeler boş gönderilse de (alt listeler gelmeden) kapı çalışır", async () => {
+    it("yalnız ana listeler boş gönderilse de (alt listeler gelmeden) kapı çalışır; kayıtlı eski alt seçim sektörü geri getirmez", async () => {
       const { svc, owner } = await declared();
       const before = await beyan(owner.company.id);
-      // Alış ekseninde alt kod yok → ana liste boşalır; satışta kayıtlı alt
-      // kodun segmenti geri türetilir → firma kategorisiz kalmaz, kayıt geçer.
-      await svc.update(owner.company.id, { buyerCategoryIds: [], sellerCategoryIds: [] } as never);
+      // Yalnız sektör beyanı (2026-10-29): kayıtlı alt liste artık bir girdi
+      // değil → iki ana liste de boşalır, kayıt reddedilir.
+      await expect(
+        svc.update(owner.company.id, { buyerCategoryIds: [], sellerCategoryIds: [] } as never),
+      ).rejects.toThrow(/En az bir sektör seçili kalmalı/);
+      expect(await beyan(owner.company.id)).toEqual(before);
+      // Eski kayıtta saklı alt seçim de sektörü ayakta tutmaz.
+      await prisma.company.update({
+        where: { id: owner.company.id },
+        data: { sellerSubCategoryIds: ["31170000", "31171500"] },
+      });
+      const legacy = await beyan(owner.company.id);
+      await expect(
+        svc.update(owner.company.id, { buyerCategoryIds: [], sellerCategoryIds: [] } as never),
+      ).rejects.toThrow(/En az bir sektör seçili kalmalı/);
+      expect(await beyan(owner.company.id)).toEqual(legacy);
+      // Tek eksen boşaltılabilir.
+      await svc.update(owner.company.id, { buyerCategoryIds: [] } as never);
       const after = await beyan(owner.company.id);
       expect(after.buyerCategoryIds).toEqual([]);
       expect(after.sellerCategoryIds).toEqual(before.sellerCategoryIds);
-      // Şimdi satış ekseni de (alt kodlarıyla) boşaltılırsa reddedilir.
-      await expect(
-        svc.update(owner.company.id, { sellerCategoryIds: [], sellerSubCategoryIds: [] } as never),
-      ).rejects.toThrow(/En az bir sektör ya da ürün\/hizmet seçili kalmalı/);
-      expect(await beyan(owner.company.id)).toEqual(after);
     });
 
     it("tek eksen boşaltılabilir: yalnız satan firma alış beyanı bırakmayabilir", async () => {
@@ -848,9 +972,9 @@ describe("company-profile — alt kategoriler", () => {
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
       expect(res.sellerCategoryIds).toEqual(["31000000"]);
-      expect(res.sellerSubCategoryIds).toEqual(["31170000", "31171500"]);
+      expect(res.sellerSubCategoryIds).toEqual([]);
     });
 
     it("zincirsiz kayıtlı gizli yaprak: koddan türeyen ataları da muaf — hepsi düşer", async () => {
@@ -868,7 +992,7 @@ describe("company-profile — alt kategoriler", () => {
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
     });
 
     it("form gizli kodu GÖRMEDEN kaydeder (yalnız görünür kodlar gelir) → gizli kodlar yine düşer", async () => {
@@ -881,7 +1005,7 @@ describe("company-profile — alt kategoriler", () => {
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
     });
 
     it("isteğin dokunmadığı eksendeki gizli kodlar da düşer; görünür kodları aynen kalır", async () => {
@@ -905,7 +1029,7 @@ describe("company-profile — alt kategoriler", () => {
         buyerCategoryIds: ["39000000"],
         buyerSubCategoryIds: [],
         sellerCategoryIds: ["31000000"],
-        sellerSubCategoryIds: ["31170000"],
+        sellerSubCategoryIds: [],
       });
     });
 
@@ -955,7 +1079,7 @@ describe("company-profile — alt kategoriler", () => {
         svc.update(owner.company.id, {
           sellerSubCategoryIds: ["56100000", "56101500"],
         } as never),
-      ).rejects.toThrow(/En az bir sektör ya da ürün\/hizmet seçili kalmalı/);
+      ).rejects.toThrow(/En az bir sektör seçili kalmalı/);
       // Reddedilen kayıt hiçbir şeyi değiştirmez.
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["56000000"]);
@@ -1035,7 +1159,7 @@ describe("company-profile — alt kategoriler", () => {
       return { owner, svc: makeServiceWithCategories() };
     }
 
-    it("46181500 sıradan kategoridir: seçim zinciri ve segmentiyle kaydedilir; sektörün tamamı da seçilebilir", async () => {
+    it("46181500 sıradan kategoridir: eski istemcinin seçimi segmentini ekler (alt liste saklanmaz); sektörün tamamı da seçilebilir", async () => {
       await seedTree();
       await seedExtra();
       const svc = makeServiceWithCategories();
@@ -1046,10 +1170,10 @@ describe("company-profile — alt kategoriler", () => {
         buyerCategoryIds: [],
         buyerSubCategoryIds: [],
         sellerCategoryIds: ["46000000"],
-        sellerSubCategoryIds: ["46181500", "46180000"],
+        sellerSubCategoryIds: [],
       });
       expect(res.sellerCategoryIds).toEqual(["46000000"]);
-      expect(res.sellerSubCategoryIds).toEqual(["46181500", "46180000"]);
+      expect(res.sellerSubCategoryIds).toEqual([]);
 
       await svc.update(owner.company.id, { buyerCategoryIds: ["46000000"] } as never);
       expect((await beyan(owner.company.id)).buyerCategoryIds).toEqual(["46000000"]);
@@ -1123,14 +1247,14 @@ describe("company-profile — alt kategoriler", () => {
       });
     });
 
-    it("kategori kaydı: dokunulmayan eksende görünür seçimin zinciri aynen kalır, yalnız gizli seçim ve onun aileleri düşer", async () => {
+    it("kategori kaydı: dokunulmayan eksende görünür seçimin SEKTÖRÜ kalır; alt liste (görünür zincir, gizli seçim ve onun aileleri) silinir (S2, 2026-10-29)", async () => {
       const { owner, svc } = await stored(MIXED);
 
       await svc.update(owner.company.id, { buyerCategoryIds: ["39000000"] } as never);
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["46000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["46180000", "46181500"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
     });
 
     it("kategori kaydı: form (gösterilen beyandan) yalnız alt listeyi yollar → kayıtlı ana listedeki öksüz 46000000 düşer", async () => {
@@ -1140,11 +1264,11 @@ describe("company-profile — alt kategoriler", () => {
 
       const row = await beyan(owner.company.id);
       expect(row.sellerCategoryIds).toEqual(["31000000"]);
-      expect(row.sellerSubCategoryIds).toEqual(["31171500", "31170000"]);
+      expect(row.sellerSubCategoryIds).toEqual([]);
       expect(res.sellerCategoryIds).toEqual(["31000000"]);
     });
 
-    it("kategori kaydı: yalnız ana liste gelirse kayıtlı alt listeden gizli seçim ve yalnız onun atası olan aile düşer", async () => {
+    it("kategori kaydı: yalnız ana liste gelirse kayıtlı alt liste (gizli seçim ve yalnız onun atası olan aile dahil) silinir", async () => {
       const { owner, svc } = await stored(SPRAY_ONLY);
 
       await svc.update(owner.company.id, { sellerCategoryIds: ["31000000"] } as never);
@@ -1161,7 +1285,7 @@ describe("company-profile — alt kategoriler", () => {
       // Form gösterilen (boş) beyanı geri yollar, görünür bir şey eklemez.
       await expect(
         svc.update(owner.company.id, { sellerCategoryIds: [], sellerSubCategoryIds: [] } as never),
-      ).rejects.toThrow(/En az bir sektör ya da ürün\/hizmet seçili kalmalı/);
+      ).rejects.toThrow(/En az bir sektör seçili kalmalı/);
       expect(await beyan(owner.company.id)).toMatchObject(WEAPON_ONLY);
     });
 
@@ -1183,7 +1307,8 @@ describe("company-profile — alt kategoriler", () => {
       } as never);
 
       const row = await beyan(owner.company.id);
-      expect(row.sellerSubCategoryIds).toEqual(["46180000", "46181500", "31171500", "31170000"]);
+      // Görünür seçimlerin sektörleri ana listede kalır; alt liste saklanmaz.
+      expect(row.sellerSubCategoryIds).toEqual([]);
       expect(row.sellerCategoryIds).toEqual(["46000000", "31000000"]);
     });
   });

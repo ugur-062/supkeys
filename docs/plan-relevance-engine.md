@@ -73,6 +73,20 @@ gelir — çok seçmek avantaj değil dezavantaj olur.
 yayılır. Böylece "M12 civata" tedarikçisi "bağlantı elemanları" talebinde de
 görünür; her emtiayı tek tek işaretlemek zorunda kalmaz.
 
+> **Not (2026-10-29, sahip kararı):** firma beyanı artık yalnız sektördür
+> (L1, en fazla 5; alt seçim saklanmaz). Beyan skoru (1.0) bu yüzden yalnız
+> sektör satırına düşer; sızma yukarı doğru olduğu için sınıf / emtia
+> satırına inmez. Talep ise sınıf / emtia kodu taşır, kesin kod okuması
+> yalnız sektör beyan eden firmaya 0 veriyordu. Okumaya **sektör yedeği**
+> eklendi (`CompanyAffinityService.scoresForCompanies`): firmanın talep
+> sektöründeki payı × `SECTOR_FALLBACK_WEIGHT` (0,25) kesin kod skoruyla
+> karşılaştırılır, büyüğü alınır. Yalnız sektör beyan eden firma kendi
+> sektöründe en az 100 / 5 × 0,25 = 5 alır (bildirim eşiği
+> `NOTIFY_MIN_AFFINITY`); davranış ve katalog sinyali talebin kendi kodunda
+> tam okunduğu için üstte kalır. Beyan hâlâ en zayıf sinyaldir; ürün düzeyi
+> hassasiyet katalog kalemlerinden (vitrin ürününün kategorisi, ağırlık 2.0)
+> gelir.
+
 ---
 
 ## 4. Sıralama = ilgi × uygunluk × çeşitlilik
@@ -172,7 +186,7 @@ DEĞİL).
 
 | Faz | Durum |
 |-----|-------|
-| Faz 1 — beyanı derinleştir | ✅ alt kategori (onboarding+profil, tavan 50) + faaliyet tipi ekseni |
+| Faz 1 — beyanı derinleştir | ✅ alt kategori (onboarding+profil, tavan 50) + faaliyet tipi ekseni · 2026-10-29 geri alındı: firma beyanı yalnız sektör, alt seçimler silinir (faaliyet tipi ekseni kalır) |
 | Faz 2 — CompanyAffinity | ✅ tablo + gece cron (03:20) + boot yakalaması (yalnız boşsa) |
 | Faz 3 — sıralama + yüzeyler | ✅ bildirim eşiği · açık talepler sıralaması · "neden gösterildi" · önerilen firmalar · %20 keşif kotası |
 | Faz 4 — görüntüleme izleri | ⏳ yapılmadı (KVKK ayrı düşünülmeli; mevcut sinyaller yeterli görüldü) |
@@ -180,7 +194,8 @@ DEĞİL).
 ### Açık soruların cevapları
 1. **Alt kategori tavanı 50** — kaldı. Asıl fren tavan değil GENİŞLİK CEZASI:
    skor sabit bütçeye normalize, yayıldıkça zayıflıyor. Tavan yalnız payload
-   koruması.
+   koruması. (2026-10-29: firma beyanında alt seçim yok; tavan yalnız eski
+   istemci girdisinin doğrulamasında kalır. Beyan freni artık 5 sektör tavanı.)
 2. **Keşif kotası %20** — planın önerisi uygulandı. Genç pazarda daha agresif
    olabilir; kota tek sabitte (`QUOTA`) durduğu için değiştirmek tek satır.
 3. **Görüntüleme takibi** — yapılmadı. Mevcut beş sinyal (sipariş/teklif/davet/

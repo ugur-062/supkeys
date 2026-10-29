@@ -142,16 +142,23 @@ export type CandidateInviteState = "INVITED" | "QUEUED" | "ALREADY_INVITED" | "N
  * (live re-check 2026-10-09, AUTO-MEMBER-1).
  *
  * The run invites in the buyer's name without asking. The member matcher also
- * returns companies it marks as not strong (`strongMatch` false: only the
- * top-level segment fits, or a relaxed item hit no category corroborates) -
- * right for the manual window, where the buyer picks, but the run invited them
- * all: an electrical firm, a hardware shop and two machine builders to a
- * hydraulic cylinder request. Now only a STRONG match is invited; the others
- * are written with this status ("not sent", reason `WEAK_MATCH` on the status
- * list) and nothing else happens to them: the anonymous category announcement
- * still reaches a company that declares the segment (it excludes INVITEES
- * only), and the buyer can still invite it from the "find suppliers" window -
- * the status list then shows it as invited.
+ * returns companies it marks as not strong (`strongMatch` false: a relaxed
+ * item hit no category corroborates) - right for the manual window, where the
+ * buyer picks, but the run invited them all. Now only a STRONG match is
+ * invited; the others are written with this status ("not sent", reason
+ * `WEAK_MATCH` on the status list) and nothing else happens to them: the
+ * anonymous category announcement still reaches a company that declares the
+ * segment (it excludes INVITEES only), and the buyer can still invite it from
+ * the "find suppliers" window - the status list then shows it as invited.
+ *
+ * SECTOR MATCH IS STRONG (owner decision 2026-10-29, S3). Company declarations
+ * are sector-only now, so a member that declares the request's sector counts
+ * as strong (`SupplierDiscoveryService.discoverRegisteredFor`) and IS
+ * auto-invited. Until then a "segment only" member was weak here. The caps did
+ * not change: at most `MAX_CANDIDATES` (12) members per matcher call, at most
+ * `MAX_AUTO_RUNS` (2) automatic runs per request, and the buyer company's
+ * `COMPANY_DAILY_INVITE_CAP` (60 per day, shared with e-mail invitations) in
+ * `inviteDiscoveredMembers` (the rest is written `DAILY_LIMIT`).
  *
  * Written when the candidates are saved (`mergeCandidates`), not at invitation
  * time: `strongMatch` is not stored, and a resumed run reads only the rows.
@@ -226,9 +233,11 @@ const NOT_SENT_STATUSES = new Set([
  *    adayı (`status = MEMBER`, `memberCompanyId`) e-posta davetine değil
  *    DOĞRUDAN TALEBE davet edilir (`inviteDiscoveredMembers`, bağlantı şartı yok).
  *  - YALNIZ GÜÇLÜ EŞLEŞEN ÜYE (2026-10-09, AUTO-MEMBER-1): platform dizininin
- *    güçlü saymadığı üye (yalnız segment) otomatik davet EDİLMEZ; aday satırı
- *    `WEAK_MATCH` yazılır (`MEMBER_WEAK_MATCH`). Web aramasının da bulduğu üye
- *    davet edilir.
+ *    güçlü saymadığı üye (kategorinin doğrulamadığı gevşek kalem eşleşmesi)
+ *    otomatik davet EDİLMEZ; aday satırı `WEAK_MATCH` yazılır
+ *    (`MEMBER_WEAK_MATCH`). Web aramasının da bulduğu üye davet edilir. Talebin
+ *    SEKTÖRÜNÜ beyan eden üye güçlüdür ve davet edilir (owner decision
+ *    2026-10-29, S3 — beyan artık yalnız sektör).
  */
 @Injectable()
 export class DiscoveryRunsService {
@@ -711,8 +720,9 @@ export class DiscoveryRunsService {
    *     doğrulama çağrısı (2026-09-28) — duyurudan SONRA ve duyurunun ulaştığı
    *     firmalar hariç: bir talep aynı firmaya iki e-posta üretmesin. Yalnız
    *     herkese açık talep (doğrulanan firma talebi görebilsin) ve güçlü
-   *     eşleşme (alt kategori ya da vitrinde kalem) — segment düzeyi zaten
-   *     kategori duyurusunun işi. Model çağrısı yok; sürdürülen turda da çalışır.
+   *     eşleşme (talebin sektörü — owner decision 2026-10-29, S3 —, eski
+   *     kayıtta alt kategori ya da vitrinde kalem). Kategori duyurusunun
+   *     ulaştığı firma zaten hariç. Model çağrısı yok; sürdürülen turda da çalışır.
    */
   private async closingNotices(runId: string, opts: { hidden: boolean }): Promise<void> {
     const listings = this.listings;

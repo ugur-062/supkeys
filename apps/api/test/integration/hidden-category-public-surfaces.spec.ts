@@ -505,6 +505,32 @@ describe("firma dizini — kart ana kategorisi ve kategori süzgeci", () => {
     expect(hidden.categories.map((c) => c.id)).toEqual([SEG]);
     expectNoHiddenCategory(hidden);
   });
+
+  /**
+   * YALNIZ SEKTÖR BEYANI (sahip kararı 2026-10-29). Panel kategori sayfasının
+   * "Tedarikçiler" sekmesi derin kodla (`/satinalma/kategori/<L2-L4>`) süzer;
+   * süzgeç yalnız TAM koda bakarken sektörünü beyan eden firma orada hiç
+   * görünmüyordu. Derin kod ana listelerde kendi SEKTÖRÜYLE de eşleşir; liste
+   * ile sayaç aynı kuralı okur.
+   */
+  it("?category=<derin kod>: kodun SEKTÖRÜNÜ beyan eden firma da listelenir ve sayılır; başka sektör listelenmez", async () => {
+    await seedCatalog();
+    await seedProduct(CLS, "Pano A", { name: "Sektor Beyani AS", sellerCategoryIds: [SEG] });
+    await seedProduct(CLS, "Pano B", { name: "Alim Sektoru AS", buyerCategoryIds: [SEG] });
+    await seedProduct(CLS, "Pano C", { name: "Eski Alt Secim AS", sellerCategoryIds: [SEG], sellerSubCategoryIds: [FAM, CLS] });
+    await seedProduct(CLS, "Pano D", { name: "Baska Sektor AS", sellerCategoryIds: [SAFETY_SEG] });
+
+    const names = async (category: string) =>
+      (await buildDirectory(prisma, { category })).items.map((i) => i.name).sort();
+    const inSector = ["Alim Sektoru AS", "Eski Alt Secim AS", "Sektor Beyani AS"];
+    expect(await names(SEG)).toEqual(inSector);
+    expect(await names(FAM)).toEqual(inSector);
+    expect(await names(CLS)).toEqual(inSector);
+    expect(await names(SAFETY_SEG)).toEqual(["Baska Sektor AS"]);
+    // Sayaç listeyle aynı küme.
+    expect((await directoryFacets(prisma, {}, { category: CLS })).total).toBe(3);
+    expect((await directoryFacets(prisma, {}, { category: PPE_CLS })).total).toBe(1);
+  });
 });
 
 /* ====================================================================== */
@@ -863,8 +889,11 @@ describe("46 altındaki FİRMA BEYANI — yalnız gizli seçimi olan firma 46'n�
     await seedDeclarations();
     expect(await listed()).toHaveLength(4); // firmalar dizinde durur
     expect(await listed(SAFETY_SEG)).toEqual(["Koruyucu Beyan AS", "Sektor Geneli AS"]);
-    expect(await listed(PPE_FAM)).toEqual(["Koruyucu Beyan AS"]);
-    expect(await listed(PPE_CLS)).toEqual(["Koruyucu Beyan AS"]);
+    // Derin kod sektörüyle de eşleşir (yalnız sektör beyanı, 2026-10-29): sektörün
+    // tamamını beyan eden firma 46'nın aile / sınıf süzgecinde de listelenir;
+    // 46'yı yalnız gizli bir seçimin atası olarak saklayanlar yine listelenmez.
+    expect(await listed(PPE_FAM)).toEqual(["Koruyucu Beyan AS", "Sektor Geneli AS"]);
+    expect(await listed(PPE_CLS)).toEqual(["Koruyucu Beyan AS", "Sektor Geneli AS"]);
     // Gizli kod süzgeç değildir.
     expect(await listed(WEAPON_FAM)).toHaveLength(4);
     expect(await listed(SPRAY_LEAF)).toHaveLength(4);
@@ -888,7 +917,7 @@ describe("46 altındaki FİRMA BEYANI — yalnız gizli seçimi olan firma 46'n�
     expect(none.total).toBe(4);
     expect(none.categories).toEqual([{ id: SAFETY_SEG, name: SAFETY_SEG_NAME, count: 2 }]);
     expect((await directoryFacets(prisma, {}, { category: SAFETY_SEG })).total).toBe(2);
-    expect((await directoryFacets(prisma, {}, { category: PPE_FAM })).total).toBe(1);
+    expect((await directoryFacets(prisma, {}, { category: PPE_FAM })).total).toBe(2);
     expect(await directoryFacets(prisma, {}, { category: WEAPON_CLS })).toEqual(none);
     expectNoHiddenCategory(none);
   });

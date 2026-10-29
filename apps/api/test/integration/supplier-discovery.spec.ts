@@ -43,7 +43,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       where: { id: strong.company.id },
       data: { sellerCategoryIds: ["30000000"], sellerSubCategoryIds: ["30991500"], city: "İstanbul" },
     });
-    // Segment eşleşmesi → normal
+    // Segment (sektör) eşleşmesi → güçlü de (sahip kararı 2026-10-29: beyan
+    // yalnız sektör), ama alt kategori eşleşmesinin ARKASINDA.
     const seg = await makeCompanyWithUser(prisma, { name: "Segment AŞ", tier: "SILVER" });
     await prisma.company.update({
       where: { id: seg.company.id },
@@ -90,8 +91,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       categoryIds: ["30991500"],
     });
     const names = res.candidates.map((c) => c.name);
-    expect(names).toEqual(["Güçlü AŞ", "Segment AŞ"]); // güçlü önce
-    expect(res.candidates[0]!.strongMatch).toBe(true);
+    expect(names).toEqual(["Güçlü AŞ", "Segment AŞ"]); // alt kategori önce
+    expect(res.candidates.map((c) => c.strongMatch)).toEqual([true, true]);
     expect(res.candidates[0]!.matchedCategories).toContain("İskele sistemleri");
     expect(res.candidates[0]!.city).toBe("İstanbul");
   });
@@ -277,7 +278,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
         // Eskiden üç alakasız satıcı strongMatch + [1] / [2] / [3] ile bu firmanın ÜSTÜNDEYDİ.
         ["Sınıf AŞ", true, []],
         ["Segment Silindir AŞ", true, [1]],
-        ["Yalnız Segment AŞ", false, []],
+        // Talebin sektörünü beyan eden üye güçlüdür (2026-10-29, S3).
+        ["Yalnız Segment AŞ", true, []],
       ]);
 
       // Otomatik turun gösterilmeyen havuzu: "sattığınız ürünü arıyorlar" e-postası yalnız güçlü eşleşmeye gider.
@@ -329,7 +331,7 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       const byName = (res: { candidates: Array<{ name: string; strongMatch: boolean; matchedItems: number[] }> }) =>
         Object.fromEntries(res.candidates.map((c) => [c.name, [c.strongMatch, c.matchedItems]]));
 
-      it("ürünü talebin sınıfında olan satıcı firma beyanı olmadan da bulunur, güçlü eşleşmedir ve yalnız segmenti uyan üyelerin üstünde gelir", async () => {
+      it("ürünü talebin sınıfında olan satıcı firma beyanı olmadan da bulunur, güçlü eşleşmedir ve yalnız sektörü uyan (o da güçlü) üyelerin üstünde gelir", async () => {
         const buyer = await makeCompanyWithUser(prisma);
         const fin = await seller("FIN PA1 Smoke Makina", ["FIN PA1 Smoke Hidrolik Silindir 80 mm"]);
         await fileUnder(fin, REQUEST);
@@ -345,9 +347,9 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
         ]);
         expect(byName(res)).toEqual({
           "FIN PA1 Smoke Makina": [true, [1]],
-          "RV FX00 Alpha Maschinenbau": [false, []],
-          "RV FX00 Beta Maschinenbau": [false, []],
-          "Demir Hırdavat Ltd.": [false, []],
+          "RV FX00 Alpha Maschinenbau": [true, []],
+          "RV FX00 Beta Maschinenbau": [true, []],
+          "Demir Hırdavat Ltd.": [true, []],
         });
         // Kategorisiz aramada doğrulayacak kategori yok: zayıf eşleşme yine sayılmaz (R5-01 korunur).
         const noCategory = await svc().discoverRegistered(buyer.auth, { type: "ALIM", itemNames: [ITEM] });
@@ -412,7 +414,7 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       });
     });
 
-    it("sıra: kalemin tam adı > talebin alt kategorisi > gevşek kalem eşleşmesi > yalnız segment (gevşek eşleşen kalem sayısı fazla olsa da)", async () => {
+    it("sıra: kalemin tam adı > talebin alt kategorisi > gevşek kalem eşleşmesi > yalnız segment (gevşek eşleşen kalem sayısı fazla olsa da); sektör eşleşmesi de güçlü", async () => {
       const buyer = await makeCompanyWithUser(prisma);
       await seller("Tam Ad AŞ", ["M6 Cıvata DIN 933"]);
       await seller("Sınıf AŞ", [], {}, IN_CLASS);
@@ -428,7 +430,37 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
         ["Tam Ad AŞ", true, [1]],
         ["Sınıf AŞ", true, []],
         ["Gevşek AŞ", true, [2, 3]],
-        ["Segment AŞ", false, []],
+        ["Segment AŞ", true, []],
+      ]);
+    });
+
+    it("S3: güçlü önce, sonra puan — kalabalık sektörde doğrulanmamış gevşek ad eşleşmeleri (zayıf) on iki yuvayı sektörü beyan eden üyeden (güçlü) kapmaz", async () => {
+      const buyer = await makeCompanyWithUser(prisma);
+      // 12 zayıf aday: kalemin üç anlamlı sözcüğünü taşıyan ürün (kesin düzey), beyanı başka sektörde → puan 10, güçlü değil.
+      for (let i = 0; i < 12; i++) {
+        await seller(`Boru ${i} AŞ`, [`Paslanmaz çelik boru DN${50 + i}`], {}, { sellerCategoryIds: ["31000000"] });
+      }
+      // Talebin sektörünü beyan eden üye (ürünü yok) → puan 1, güçlü.
+      await seller("Sektör AŞ", [], {}, IN_SEGMENT);
+      const res = await svc().discoverRegistered(buyer.auth, {
+        type: "ALIM",
+        categoryIds: [CATEGORY],
+        itemNames: ["Paslanmaz çelik boru 2 inç dikişsiz"],
+      });
+      expect(res.candidates).toHaveLength(12);
+      expect(res.candidates[0]).toMatchObject({ name: "Sektör AŞ", strongMatch: true, matchedItems: [] });
+      expect(res.candidates.slice(1).every((c) => !c.strongMatch && c.matchedItems.length === 1)).toBe(true);
+    });
+
+    it("S3: sektör yalnız gizli bir seçimin atası olarak saklıysa (gösterilen beyan değil) güçlü eşleşme sayılmaz; görünür sektör beyanı güçlüdür", async () => {
+      const buyer = await makeCompanyWithUser(prisma);
+      // 46000000 yalnız 46101500'ün (gizli aile altında) atası olarak saklı.
+      await seller("Ata AŞ", [], {}, { sellerCategoryIds: ["46000000"], sellerSubCategoryIds: ["46100000", "46101500"] });
+      await seller("Sektör 46 AŞ", [], {}, { sellerCategoryIds: ["46000000"] });
+      const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["46181700"] });
+      expect(res.candidates.map((c) => [c.name, c.strongMatch])).toEqual([
+        ["Sektör 46 AŞ", true],
+        ["Ata AŞ", false],
       ]);
     });
 
@@ -450,7 +482,7 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       });
       expect(one.candidates.map((c) => [c.name, c.strongMatch, c.matchedItems])).toEqual([
         ["Rulman AŞ", true, [1]],
-        ["Hortum AŞ", false, []],
+        ["Hortum AŞ", true, []],
       ]);
     });
 

@@ -745,7 +745,7 @@ describe("completeOnboarding", () => {
     ).rejects.toThrow();
   });
 
-  it("zincirsiz yaprak + yanlış segment: ata zinciri ve segment sunucuda eklenir (code-category-8)", async () => {
+  it("eski istemcinin alt seçimi yalnız SEKTÖRÜNÜ ekler; alt liste saklanmaz (yalnız sektör beyanı, 2026-10-29)", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
@@ -773,11 +773,70 @@ describe("completeOnboarding", () => {
     );
 
     const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
-    // Alt kodun segmenti ana eksende, ata zinciri alt eksende — dört alana da.
+    // Alt kodun segmenti iki ana eksende de; ürün / hizmet seçimi SAKLANMAZ.
     expect(c.sellerCategoryIds).toEqual(["11000000", "39000000"]);
     expect(c.buyerCategoryIds).toEqual(["11000000", "39000000"]);
-    expect(c.sellerSubCategoryIds).toEqual(["39121614", "39120000", "39121600"]);
-    expect(c.buyerSubCategoryIds).toEqual(["39121614", "39120000", "39121600"]);
+    expect(c.sellerSubCategoryIds).toEqual([]);
+    expect(c.buyerSubCategoryIds).toEqual([]);
+  });
+
+  it("yalnız sektör beyanı: alt liste gönderilmezse dört alan da sektör listesi + boş alt liste", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDART",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    for (const code of ["11000000", "39000000"]) {
+      await prisma.category.create({
+        data: { id: code, code, nameTr: `Kategori ${code}`, level: 1, isActive: true },
+      });
+    }
+
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto("11000000", { mainCategoryIds: ["11000000", "39000000"] }) as never,
+    );
+
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect([c.sellerCategoryIds, c.buyerCategoryIds]).toEqual([
+      ["11000000", "39000000"],
+      ["11000000", "39000000"],
+    ]);
+    expect([c.sellerSubCategoryIds, c.buyerSubCategoryIds]).toEqual([[], []]);
+  });
+
+  it("eski istemcinin alt seçimi sektör tavanını aşarsa reddedilir (en fazla 5 sektör, türeyenler dahil)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const rows: Array<[string, number, string | null]> = [
+      ["11000000", 1, null],
+      ["12000000", 1, null],
+      ["13000000", 1, null],
+      ["14000000", 1, null],
+      ["15000000", 1, null],
+      ["39000000", 1, null],
+      ["39120000", 2, "39000000"],
+    ];
+    for (const [code, level, parentId] of rows) {
+      await prisma.category.create({
+        data: { id: code, code, nameTr: `Kategori ${code}`, level, parentId, isActive: true },
+      });
+    }
+
+    await expect(
+      service.completeOnboarding(
+        owner.user.id,
+        owner.company.id,
+        dto("11000000", {
+          mainCategoryIds: ["11000000", "12000000", "13000000", "14000000", "15000000"],
+          subCategoryIds: ["39120000"],
+        }) as never,
+      ),
+    ).rejects.toThrow(/en fazla 5 sektör/);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.onboardingCompletedAt).toBeNull();
   });
 
   it("GÜVENLİK: sahip olmayan kullanıcı onboarding yapamaz (rol yükseltme engeli)", async () => {

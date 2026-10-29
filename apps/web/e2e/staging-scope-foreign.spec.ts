@@ -56,8 +56,8 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
   await page.getByRole("button", { name: "Devam" }).click();
   // Adımlar (2026-10-08): Şirket bilgileri → Faaliyet alanı → Yetkili ve onay.
   await expect(aktifAdim(page)).toContainText("Faaliyet alanı", { timeout: 30_000 });
-  // Kategori penceresi adımları ortak yardımcıda: arar, SONUÇTAN bir sınıf
-  // satırı işaretler (penceredeki ilk kutu ağacın ilk sektörüdür = sektörün tamamı).
+  // Kategori penceresi adımları ortak yardımcıda: arar, SONUCUN sektörünü
+  // işaretler (beyan yalnız sektördür; kapalı ağacın ilk sektörü değil).
   await kategoriAraVeSec(page, "Vida");
   await page.getByRole("button", { name: "Devam" }).click();
   await expect(aktifAdim(page)).toContainText("Yetkili ve onay", { timeout: 30_000 });

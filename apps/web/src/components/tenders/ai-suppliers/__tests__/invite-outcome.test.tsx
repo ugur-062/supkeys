@@ -39,15 +39,25 @@ describe("InviteOutcome", () => {
   });
 
   // Otomatik tur yalnız güçlü eşleşmeyi davet eder (canlı doğrulama AUTO-MEMBER-1).
-  // Yalnız genel sektörü tutan üye "bulundu ama davet edilmedi"dir: hata tonu ve
+  // Zayıf eşleşen üye "bulundu ama davet edilmedi"dir: hata tonu ve
   // "Gönderilmedi" etiketi yanlış izlenim verirdi.
+  //
+  // METİN İKİ DÖNEMİ DE DOĞRU SÖYLER (sahip kararı S3, 2026-10-29): bugün
+  // talebin SEKTÖRÜNÜ beyan eden üye güçlüdür ve otomatik davet edilir;
+  // WEAK_MATCH yalnız sektörü beyan etmeyen, kategorinin doğrulamadığı gevşek
+  // kalem eşleşmesine yazılır. 2026-10-09 ile dağıtım arasında yazılmış
+  // satırlar ise TAM OLARAK "yalnız sektörü beyan etti" anlamını taşır →
+  // metin ne nedeni ne de kuralı söyler (2. tur: "otomatik davet sektörü
+  // beyan edenlere gider" cümlesi, davet edilmemiş bir sektör beyancısının
+  // yanında yalan oluyordu); "sektör", "alt kategori" sözü yok.
   it("zayıf eşleşme: 'Davet edilmedi' der, nedenini yazar ve hata (amber) tonu taşımaz", () => {
     render(<InviteOutcome invite="NOT_SENT" reason={WEAK_MATCH_REASON} />);
     const chip = screen.getByText("Davet edilmedi");
     expect(screen.queryByText("Gönderilmedi")).toBeNull();
     expect(chip.className).not.toContain("amber");
     expect(chip.className).toContain("zinc");
-    expect(screen.getByText(/Yalnız genel sektör eşleşti/)).toBeInTheDocument();
+    const neden = screen.getByText(/otomatik davet için yeterince güçlü bulunmadı/);
+    expect(neden.textContent).not.toMatch(/sektör|alt kategori|vitrin/i);
     expect(screen.getByText(/AI ile tedarikçi bul/)).toBeInTheDocument();
   });
 });

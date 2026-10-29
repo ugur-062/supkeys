@@ -238,10 +238,13 @@ export class UpdateCompanyProfileDto {
    * kolonları şemada duruyordu) — eksik olan yalnız bu alanları KABUL eden bir
    * uçtu; profil DTO'su hiç taşımıyordu.
    *
-   * Tavan ana kategoriden YÜKSEK ve bu doğru: alt kategori daraltır,
-   * genişletmez — 50 yaprak seçen firma 5 segment seçenden daha dar bir
-   * havuza girer. Sınırsız seçim ise segment seçmekle aynı kapıya çıkar ve
-   * eşleştirmenin anlamını yok eder.
+   * LEGACY INPUT (owner decision 2026-10-29): the declaration is sector-only
+   * now. Both sub lists are still accepted from old clients (cached web
+   * bundle, mobile shell) and validated as before, but they only add their
+   * SECTORS to the main list; the stored sub list is written empty
+   * (`CompanyProfileService.update`). (The old "a sub pick narrows" wording
+   * never held: every matcher is "segment OR sub", and a pick also stored its
+   * segment.)
    */
   @IsOptional()
   @IsArray()
