@@ -9,7 +9,7 @@ import FirebaseCore
 import FirebaseMessaging
 #endif
 
-@UIApplicationMain
+@main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?

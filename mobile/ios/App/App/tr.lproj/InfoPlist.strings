@@ -1,0 +1,4 @@
+/* Kamera: yalnız dosya seçicide Fotoğraf Çek seçildiğinde (ürün görseli, belge). */
+"NSCameraUsageDescription" = "Rothern, kamerayı yalnızca ürün görseli ya da belge eklemek için Fotoğraf Çek'i seçtiğinizde kullanır.";
+/* Fotoğraf arşivi (yalnız ekleme): yalnız kullanıcı görseli kaydetmeyi seçtiğinde. */
+"NSPhotoLibraryAddUsageDescription" = "Rothern, fotoğraf arşivinize yalnızca kaydetmeyi seçtiğiniz görseli ekler.";

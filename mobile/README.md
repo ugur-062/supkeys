@@ -120,8 +120,12 @@ Hypervisor Platform (WHPX) ile çalışır; güvenlik ayarı kapatılmaz:
 - **Android:** Android Studio → Build → Generate Signed App Bundle (`.aab`). İlk seferde yükleme anahtarı
   (keystore) oluşturulur; dosya ve şifresi depoya KONMAZ, güvenli yerde saklanır (kaybolursa güncelleme
   gönderilemez). Her gönderimde `android/app/build.gradle` `versionCode` bir artar.
-- **iOS:** Xcode → Product → Archive → Distribute App → App Store Connect. Her gönderimde build numarası
-  (`CURRENT_PROJECT_VERSION`) bir artar.
+- **iOS:** önce `npm ci && npx cap sync ios` ve `test -f ios/App/App/public/company/index.html` (yer tutucu
+  pakette değilse uygulama açılışta kapanır; `sync:staging`ten hemen sonra arşivlenmez). Hedef "Any iOS Device
+  (arm64)" → Xcode → Product → Archive → Distribute App → App Store Connect. Her gönderimde build numarası
+  (`CURRENT_PROJECT_VERSION`) bir artar. Arşivden sonra Organizer → arşiv → Generate Privacy Report: uygulamanın
+  `App/PrivacyInfo.xcprivacy`ı dosya zaman damgası API'sini (`@capacitor/filesystem`, gerekçe C617.1) bildirir;
+  Apple yükleme sonrası ITMS-91053 e-postasıyla başka bir API isterse oraya eklenir.
 
 ## Bildirimler (Firebase)
 
@@ -144,9 +148,11 @@ Uygulama öndeyken gelen bildirim sistem bandı / ses olarak GÖSTERİLMEZ (`cap
 `presentationOptions: ["badge"]`): web aynı bildirimi uygulama içi kartla gösterir. Arka planda ve kapalıyken
 bildirimi işletim sistemi gösterir.
 
-**Mac'te (Xcode, `npx cap open ios`) — 2026-10-29'dan beri projede hazır:** FirebaseMessaging paketi (SPM,
-sürümler `project.xcworkspace/xcshareddata/swiftpm/Package.resolved`) App hedefine ve
-`App/App/GoogleService-Info.plist` App kaynaklarına bağlı (`project.pbxproj`). Yeni bir Mac'te yalnız:
+**Mac'te (Xcode, `npx cap open ios`) — 2026-10-29'dan beri projede hazır:** firebase-ios-sdk paketi (SPM,
+sürümler `project.xcworkspace/xcshareddata/swiftpm/Package.resolved`) ve onun YALNIZ `FirebaseMessaging` ürünü App
+hedefine bağlı (Frameworks; `FirebaseAnalytics` bağlanmaz — reklam kimliği / izleme beyanı getirir), ayrıca
+`App/App/GoogleService-Info.plist` App kaynaklarında (`project.pbxproj`). Ürün bağlı değilken
+`#if canImport(FirebaseMessaging)` derlemeden düşer ve iOS cihaz bildirime hiç kaydolmaz (`npm test` yakalar). Yeni bir Mac'te yalnız:
 
 1. `GoogleService-Info.plist`'i Firebase konsolundan indirip **tam bu adla** `ios/App/App/` altına koy
    (Xcode'a sürükleme; ad "GoogleService-Info 2" gibi değişirse Firebase başlamaz). Dosya yokken iOS paketi
@@ -202,6 +208,9 @@ Uygulamada tarayıcının indirme ve `window.print()` yolu çalışmaz; web bunu
   işaretinden üretilir.
 - Uygulama yalnız iPhone hedefler (iPad desteği sonradan eklenebilir, eklendikten sonra kaldırılamaz).
 - `npm test` (bu klasörde; Gradle / Xcode gerekmez) bildirim değişmezlerini sınar: öndeki bildirimde sistem
-  bandı / ses yok, `google-services.json`'suz Android sürüm derlemesi durur, iOS ham APNs belirtecini kaydetmez.
+  bandı / ses yok, `google-services.json`'suz Android sürüm derlemesi durur, iOS ham APNs belirtecini kaydetmez,
+  `FirebaseMessaging` App hedefine bağlı. App Store için de: kamera ve fotoğrafa kaydetme izin metinleri (en / tr /
+  ru — web'in dosya seçicileri görsel kabul eder, iOS "Fotoğraf Çek" sunar; metin yoksa uygulama o anda kapanır),
+  gizlilik bildirimi (`PrivacyInfo.xcprivacy`, izleme yok, dosya zaman damgası C617.1) pakette, açık görünüm.
   Dosya paylaşma / yazdırma için de: iki eklenti tam sürümle bağımlı ve eşitlenmiş, `RothernPrint` iki
   platformda bu adla kayıtlı, iOS kök denetleyicisi (storyboard + `SceneDelegate`) `MainViewController`.

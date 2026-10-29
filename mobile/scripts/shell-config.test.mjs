@@ -127,3 +127,69 @@ test("iOS registers the print bridge as RothernPrint on the view controller the 
   assert.match(scene, /rootViewController = MainViewController\(\)/);
   assert.doesNotMatch(scene, /CAPBridgeViewController\(\)/);
 });
+
+// App Store: hedef dosyaları Xcode olmadan sınanır. Proje dosyasındaki bağlar (build file → faz, ürün bağımlılığı
+// → hedef) kopukken Xcode yine derler ama özellik sessizce yok olur; bu yüzden bağın kendisi sınanır.
+const pbxproj = () => read("ios/App/App.xcodeproj/project.pbxproj");
+const phaseFiles = (pbx, phase) => {
+  const start = pbx.indexOf(`/* ${phase} */ = {\n\t\t\tisa = PBX${phase}BuildPhase;`);
+  assert.ok(start > 0, `${phase} build phase exists`);
+  return pbx.slice(start, pbx.indexOf(");", start));
+};
+
+test("the iOS app target links FirebaseMessaging (without it the device never registers for push)", () => {
+  const pbx = pbxproj();
+  const dep = pbx.match(/(\w{24}) \/\* FirebaseMessaging \*\/ = \{\n\t+isa = XCSwiftPackageProductDependency;\n\t+package = (\w{24}) \/\* XCRemoteSwiftPackageReference "firebase-ios-sdk" \*\/;\n\t+productName = FirebaseMessaging;/);
+  assert.ok(dep, "FirebaseMessaging product dependency on the firebase-ios-sdk package");
+  const target = pbx.slice(pbx.indexOf("isa = PBXNativeTarget;"), pbx.indexOf("/* End PBXNativeTarget section */"));
+  assert.match(target, new RegExp(`packageProductDependencies = \\([^)]*${dep[1]} /\\* FirebaseMessaging \\*/`));
+  const buildFile = pbx.match(new RegExp(`(\\w{24}) /\\* FirebaseMessaging in Frameworks \\*/ = \\{isa = PBXBuildFile; productRef = ${dep[1]} `));
+  assert.ok(buildFile, "FirebaseMessaging build file");
+  assert.match(phaseFiles(pbx, "Frameworks"), new RegExp(`${buildFile[1]} /\\* FirebaseMessaging in Frameworks \\*/`));
+  // Analytics brings the advertising identifier and tracking disclosures; only Messaging is linked.
+  assert.doesNotMatch(pbx, /productName = FirebaseAnalytics/);
+});
+
+test("iOS declares camera and photo-save purpose strings in every app language (a missing one crashes the picker)", () => {
+  const plist = read("ios/App/App/Info.plist");
+  for (const key of ["NSCameraUsageDescription", "NSPhotoLibraryAddUsageDescription"]) {
+    assert.match(plist, new RegExp(`<key>${key}</key>\\s*<string>Rothern [^<]{20,}</string>`), key);
+  }
+  assert.match(plist, /<key>CFBundleLocalizations<\/key>\s*<array>\s*<string>en<\/string>\s*<string>tr<\/string>\s*<string>ru<\/string>\s*<\/array>/);
+  const pbx = pbxproj();
+  assert.match(pbx, /knownRegions = \(\s*en,\s*Base,\s*tr,\s*ru,\s*\);/);
+  for (const lang of ["en", "tr", "ru"]) {
+    const strings = read(`ios/App/App/${lang}.lproj/InfoPlist.strings`);
+    for (const key of ["NSCameraUsageDescription", "NSPhotoLibraryAddUsageDescription"]) {
+      assert.match(strings, new RegExp(`^"${key}" = "Rothern[^"]{20,}";$`, "m"), `${lang} ${key}`);
+    }
+    assert.match(pbx, new RegExp(`\\w{24} /\\* ${lang} \\*/ = \\{isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ${lang}; path = ${lang}.lproj/InfoPlist.strings;`));
+  }
+  const variant = pbx.match(/(\w{24}) \/\* InfoPlist.strings \*\/ = \{\n\t+isa = PBXVariantGroup;/);
+  assert.ok(variant, "InfoPlist.strings variant group");
+  const buildFile = pbx.match(new RegExp(`(\\w{24}) /\\* InfoPlist.strings in Resources \\*/ = \\{isa = PBXBuildFile; fileRef = ${variant[1]} `));
+  assert.ok(buildFile, "InfoPlist.strings build file");
+  assert.match(phaseFiles(pbx, "Resources"), new RegExp(`${buildFile[1]} /\\* InfoPlist.strings in Resources \\*/`));
+});
+
+test("the app privacy manifest ships in the bundle: no tracking, file timestamp API with reason C617.1", () => {
+  const manifest = read("ios/App/App/PrivacyInfo.xcprivacy");
+  assert.match(manifest, /<key>NSPrivacyTracking<\/key>\s*<false\/>/);
+  assert.match(manifest, /<key>NSPrivacyTrackingDomains<\/key>\s*<array\/>/);
+  assert.match(
+    manifest,
+    /<string>NSPrivacyAccessedAPICategoryFileTimestamp<\/string>\s*<key>NSPrivacyAccessedAPITypeReasons<\/key>\s*<array>\s*<string>C617\.1<\/string>/,
+  );
+  const pbx = pbxproj();
+  const ref = pbx.match(/(\w{24}) \/\* PrivacyInfo.xcprivacy \*\/ = \{isa = PBXFileReference;[^}]*path = PrivacyInfo.xcprivacy;/);
+  assert.ok(ref, "PrivacyInfo.xcprivacy file reference");
+  const buildFile = pbx.match(new RegExp(`(\\w{24}) /\\* PrivacyInfo.xcprivacy in Resources \\*/ = \\{isa = PBXBuildFile; fileRef = ${ref[1]} `));
+  assert.ok(buildFile, "PrivacyInfo.xcprivacy build file");
+  assert.match(phaseFiles(pbx, "Resources"), new RegExp(`${buildFile[1]} /\\* PrivacyInfo.xcprivacy in Resources \\*/`));
+});
+
+test("iOS stays in light appearance like the site (dark mode would put light status-bar icons on white)", () => {
+  const plist = read("ios/App/App/Info.plist");
+  assert.match(plist, /<key>UIUserInterfaceStyle<\/key>\s*<string>Light<\/string>/);
+  assert.doesNotMatch(plist, /<string>armv7<\/string>/);
+});

@@ -1,0 +1,4 @@
+/* Camera: only when the user picks Take Photo in a file picker (product image, document). */
+"NSCameraUsageDescription" = "Rothern uses the camera only when you choose Take Photo to attach a product image or a document.";
+/* Photo library (add only): only when the user chooses to save an image. */
+"NSPhotoLibraryAddUsageDescription" = "Rothern saves an image to your photo library only when you choose to save it.";

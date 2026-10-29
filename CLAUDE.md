@@ -5198,7 +5198,14 @@ Kullanıcı kararı: Rothern Play Store ve App Store'a çıkacak; yol = canlı s
   (`npm test`).
 - **Staging deneme paketi** `ROTHERN_APP_URL` + `ROTHERN_VERCEL_BYPASS` ile (anahtar pakete gömülür; canlı
   adresle birlikte verilirse eşitleme durur). Android deneme paketi bu makinede derlenir (`~/android-sdk`).
-- **Sırada:** mağaza ekran görüntüleri; iOS derlemesi ve APNs (Mac + Apple hesabı).
+- **iOS App Store şartları depoda (2026-10-29):** `Info.plist` kamera (`NSCameraUsageDescription`) ve fotoğrafa
+  kaydetme (`NSPhotoLibraryAddUsageDescription`) metinleri en/tr/ru (`*.lproj/InfoPlist.strings`, `CFBundleLocalizations`) —
+  web'in görsel kabul eden her dosya seçicisinde iOS "Fotoğraf Çek" sunar, metin yoksa uygulama o anda kapanır; web'e
+  video kabul eden (`accept` boş ya da video türü) dosya alanı eklenirse `NSMicrophoneUsageDescription` da gerekir.
+  Uygulamanın `PrivacyInfo.xcprivacy`ı izleme yok + dosya zaman damgası C617.1 (`@capacitor/filesystem`); yeni yerel
+  eklenti eklenince onun gerekçeli API'leri buraya. firebase-ios-sdk'den App hedefine YALNIZ `FirebaseMessaging` bağlı
+  (Analytics bağlanmaz). Açık görünüm (`UIUserInterfaceStyle` Light). Sözleşme `mobile/scripts/shell-config.test.mjs`.
+- **Sırada:** iOS ilk gönderimi (App Store Connect metinleri ve ekran görüntüleri depo dışında, operatör klasöründe).
 - Mağaza hesapları ŞİRKET adına (D-U-N-S gerekir); iOS / Android paketleri kullanıcının Mac'inde derlenir.
 
 ## KVKK SAKLAMA VE İMHA 2026-10-16 — kalıcı kurallar
