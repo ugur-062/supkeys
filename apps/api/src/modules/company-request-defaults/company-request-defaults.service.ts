@@ -35,6 +35,9 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
  * zorunda (yurtiçi/uluslararası kuralları `payment-plan.ts` ile aynı) —
  * profilde tutarsız şart saklanırsa her talep yayında patlardı.
  */
+/** Şemadaki dizilerin en büyük tavanı (`targetCountries` 200); `save` bunu zod'dan önce uygular. */
+const REQUEST_DEFAULTS_MAX_ARRAY = 200;
+
 export const requestDefaultsSchema = z
   .object({
     // Görünürlük ülkeleri (2026-09-21): boş = tüm ülkeler. Eski kayıtlardaki
@@ -183,6 +186,20 @@ export class CompanyRequestDefaultsService {
   }
 
   async save(user: AuthenticatedCompanyUser, input: unknown): Promise<RequestDefaultsResponse> {
+    // GHSA-mrhx-c7xc-m3w5 (2026-10): zod dizinin `.max()` tavanını aşan girdide de HER
+    // öğeyi doğrulayıp her hatayı biriktirir; 5 MB gövdeyle yüz binlerce öğe belleği
+    // tüketebilir. Tavan zod'dan ÖNCE uygulanır (şemanın en uzun dizisi 200).
+    if (
+      input &&
+      typeof input === "object" &&
+      Object.values(input as Record<string, unknown>).some(
+        (v) => Array.isArray(v) && v.length > REQUEST_DEFAULTS_MAX_ARRAY,
+      )
+    ) {
+      throw new BadRequestException(
+        i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", { issues: "array" }),
+      );
+    }
     const parsed = requestDefaultsSchema.safeParse(input);
     if (!parsed.success) {
       // Her ihlal istek dilinde, alana özgü katalog metniyle (arayüz testi
