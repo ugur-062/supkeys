@@ -22,9 +22,14 @@
     "pnpm": ">=10"
   },
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-mrhx-c7xc-m3w5"
+      ]
+    },
     "overrides": {
       "axios": ">=1.20.0",
-      "body-parser@>=1.0.0 <1.20.6": ">=1.20.6",
+      "body-parser": ">=2.4.0",
       "brace-expansion": ">=5.0.12",
       "browserslist": ">=4.28.7",
       "deepmerge-ts": ">=8.0.0",
@@ -35,7 +40,7 @@
       "form-data": ">=4.0.6",
       "glob": ">=10.5.0",
       "lodash": ">=4.18.0",
-      "multer": ">=2.3.0",
+      "multer": ">=2.5.0",
       "nanoid@>=3.0.0 <3.3.16": ">=3.3.16",
       "picomatch": ">=4.0.4",
       "postcss": ">=8.5.23",

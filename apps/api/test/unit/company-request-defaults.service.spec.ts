@@ -110,6 +110,25 @@ describe("CompanyRequestDefaultsService", () => {
     expect(prisma.company.update.mock.calls[0][0].data.requestDefaults.targetCountries).toEqual(["IT"]);
   });
 
+  it("save: tavanı aşan dizi zod'a girmeden reddedilir (GHSA-mrhx-c7xc-m3w5 bellek tüketimi)", async () => {
+    const { svc, prisma } = rig();
+    const parse = jest.spyOn(requestDefaultsSchema, "safeParse");
+    try {
+      const huge = Array.from({ length: 200_001 }, () => "XYZ");
+      await expect(svc.save(user, { ...VALID, targetCountries: huge })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(svc.save(user, { ...VALID, allowedCurrencies: huge })).rejects.toBeInstanceOf(BadRequestException);
+      expect(parse).not.toHaveBeenCalled();
+      expect(prisma.company.update).not.toHaveBeenCalled();
+      // Tavan içindeki dizi eskisi gibi zod'a gider (alan bazlı hata metni korunur).
+      await expect(svc.save(user, { ...VALID, targetCountries: Array.from({ length: 200 }, () => "XYZ") })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
   it("save: şema doğrular (kapsam-ödeme tutarlılığı), audit yazar", async () => {
     const { svc, prisma, audit } = rig();
     const r = await svc.save(user, VALID);
